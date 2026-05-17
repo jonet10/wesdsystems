@@ -7,6 +7,7 @@ import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -20,10 +21,14 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - will be replaced with actual auth
-    setTimeout(() => {
-      setIsLoading(false);
-      
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
       // Demo navigation based on email patterns
       if (email.includes("admin@wesdsystems") || email.includes("admin@glowup")) {
         navigate("/admin");
@@ -37,7 +42,15 @@ export default function Login() {
         title: "Connexion réussie",
         description: "Bienvenue sur Wesd Systems !",
       });
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Erreur de connexion",
+        description: error.message || "Identifiants incorrects.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

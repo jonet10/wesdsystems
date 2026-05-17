@@ -8,6 +8,7 @@ import { FadeUp } from "@/components/animations/AnimatedContainers";
 import { Eye, EyeOff, Mail, Lock, User, Building2, ArrowRight, Check, Store } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { glowupStore } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 
 const planFeatures = {
   basic: ["1 business actif", "Jusqu'à 3 employés", "Caisse POS standard", "Support client standard"],
@@ -44,9 +45,22 @@ export default function Register() {
 
     setIsLoading(true);
 
-    // Simulate registration
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            business_name: formData.businessName,
+            business_type: formData.businessType,
+            plan: formData.plan
+          }
+        }
+      });
+
+      if (error) throw error;
+
       // Save their chosen business type in the global store!
       glowupStore.setActiveBusiness(formData.businessType as any);
       navigate("/salon");
@@ -54,7 +68,15 @@ export default function Register() {
         title: "Compte créé avec succès !",
         description: "Bienvenue sur Wesd Systems. Votre essai de 14 jours commence maintenant.",
       });
-    }, 1500);
+    } catch (error: any) {
+      toast({
+        title: "Erreur lors de l'inscription",
+        description: error.message || "Une erreur est survenue.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
