@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "solutions": "Solutions",
+    "features": "Features",
+    "pricing": "Pricing",
+    "signIn": "Sign in",
+    "startTrial": "Start free trial"
+  },
+  "hero": {
+    "badge": "Used by businesses in 40+ countries",
+    "title1": "The modern business",
+    "title2": "management platform",
+    "subtitle": "One platform to run your salon, pharmacy, restaurant, grocery store, or boutique — with real-time POS, analytics, and team management built in.",
+    "cta": "Start 14-day free trial",
+    "demo": "View demo dashboard",
+    "noCreditCard": "No credit card required · Cancel anytime"
+  },
+  "businesses": {
+    "salon": {
+      "name": "Beauty & Barber",
+      "desc": "Appointments, staff commissions, client history, smart scheduling."
+    },
+    "pharmacy": {
+      "name": "Pharmacy",
+      "desc": "Prescription tracking, expiry alerts, patient files, fast POS."
+    },
+    "restaurant": {
+      "name": "Restaurant & Bar",
+      "desc": "Table management, kitchen display, order tracking, split billing."
+    },
+    "market": {
+      "name": "Grocery & Market",
+      "desc": "High-volume POS, barcode scanning, supplier orders, inventory."
+    },
+    "boutique": {
+      "name": "Boutique & Retail",
+      "desc": "Product variants, loyalty CRM, promotions, custom receipts."
+    }
+  },
+  "pricing": {
+    "title": "Simple, transparent pricing",
+    "subtitle": "Adapted to your local market economics.",
+    "starter": "Starter",
+    "pro": "Professional",
+    "enterprise": "Enterprise",
+    "monthly": "/mo",
+    "getStarted": "Get started",
+    "mostPopular": "Most Popular"
+  }
+}

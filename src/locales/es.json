@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "solutions": "Soluciones",
+    "features": "Características",
+    "pricing": "Precios",
+    "signIn": "Iniciar sesión",
+    "startTrial": "Prueba gratuita"
+  },
+  "hero": {
+    "badge": "Usado en más de 40 países",
+    "title1": "La plataforma moderna de",
+    "title2": "gestión empresarial",
+    "subtitle": "Una sola plataforma para administrar su salón, farmacia, restaurante, supermercado o boutique. POS en tiempo real, análisis y gestión de personal.",
+    "cta": "Comenzar prueba de 14 días",
+    "demo": "Ver demo del dashboard",
+    "noCreditCard": "Sin tarjeta de crédito · Cancele en cualquier momento"
+  },
+  "businesses": {
+    "salon": {
+      "name": "Belleza y Barbería",
+      "desc": "Citas, comisiones, historial de clientes y horarios inteligentes."
+    },
+    "pharmacy": {
+      "name": "Farmacia",
+      "desc": "Seguimiento de recetas, alertas de caducidad, POS rápido."
+    },
+    "restaurant": {
+      "name": "Restaurante y Bar",
+      "desc": "Gestión de mesas, pantalla de cocina, pedidos, dividir cuentas."
+    },
+    "market": {
+      "name": "Supermercado",
+      "desc": "POS de alto volumen, código de barras, proveedores, inventario."
+    },
+    "boutique": {
+      "name": "Boutique y Retail",
+      "desc": "Variantes de productos, CRM de fidelización, promociones."
+    }
+  },
+  "pricing": {
+    "title": "Precios simples y transparentes",
+    "subtitle": "Adaptado a la economía de su país.",
+    "starter": "Starter",
+    "pro": "Profesional",
+    "enterprise": "Empresarial",
+    "monthly": "/mes",
+    "getStarted": "Comenzar",
+    "mostPopular": "Más Popular"
+  }
+}

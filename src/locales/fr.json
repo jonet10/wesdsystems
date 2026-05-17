@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "solutions": "Solutions",
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "signIn": "Connexion",
+    "startTrial": "Essai gratuit"
+  },
+  "hero": {
+    "badge": "Utilisé dans plus de 40 pays",
+    "title1": "La plateforme SaaS de",
+    "title2": "gestion d'entreprise",
+    "subtitle": "Un seul système pour gérer votre salon, pharmacie, restaurant, supermarché ou boutique. Caisse POS en temps réel, statistiques et gestion d'équipe incluses.",
+    "cta": "Démarrer l'essai de 14 jours",
+    "demo": "Voir le dashboard démo",
+    "noCreditCard": "Sans carte bancaire · Annulation à tout moment"
+  },
+  "businesses": {
+    "salon": {
+      "name": "Beauté & Barber",
+      "desc": "Rendez-vous, commissions du personnel, historique client, et planning intelligent."
+    },
+    "pharmacy": {
+      "name": "Pharmacie",
+      "desc": "Suivi des ordonnances, alertes d'expiration, dossiers patients, POS rapide."
+    },
+    "restaurant": {
+      "name": "Restaurant & Bar",
+      "desc": "Gestion des tables, affichage cuisine, suivi des commandes, partage de l'addition."
+    },
+    "market": {
+      "name": "Supermarché & Market",
+      "desc": "POS haut volume, scan code-barres, commandes fournisseurs, inventaire."
+    },
+    "boutique": {
+      "name": "Boutique & Retail",
+      "desc": "Variantes de produits, CRM fidélité, promotions, reçus personnalisés."
+    }
+  },
+  "pricing": {
+    "title": "Tarification simple et transparente",
+    "subtitle": "Adaptée à la réalité économique de votre pays.",
+    "starter": "Starter",
+    "pro": "Professionnel",
+    "enterprise": "Entreprise",
+    "monthly": "/mois",
+    "getStarted": "Commencer",
+    "mostPopular": "Le plus populaire"
+  }
+}

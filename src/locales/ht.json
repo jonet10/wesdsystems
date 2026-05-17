@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "solutions": "Solisyon yo",
+    "features": "Fonksyonalite",
+    "pricing": "Pri",
+    "signIn": "Konekte",
+    "startTrial": "Kòmanse gratis"
+  },
+  "hero": {
+    "badge": "Itilize nan plis pase 40 peyi",
+    "title1": "Platfòm modèn pou",
+    "title2": "jere biznis ou",
+    "subtitle": "Yon sèl sistèm pou jere salon w, famasi, restoran, makèt oswa boutik. Kès POS rapid, estatistik, ak jesyon anplwaye yo enkli.",
+    "cta": "Kòmanse esè 14 jou a",
+    "demo": "Gade dashboard la",
+    "noCreditCard": "Ou pa bezwen kat kredi · Anile nenpòt kilè"
+  },
+  "businesses": {
+    "salon": {
+      "name": "Bote & Kwafè",
+      "desc": "Randevou, komisyon anplwaye, istwa kliyan, ak orè entèlijan."
+    },
+    "pharmacy": {
+      "name": "Famasi",
+      "desc": "Swiv preskripsyon, alèt ekspirasyon, dosye pasyan, kès rapid."
+    },
+    "restaurant": {
+      "name": "Restoran & Ba",
+      "desc": "Jesyon tab, afichaj pou kwizin, swiv kòmand, pataje bòdwo."
+    },
+    "market": {
+      "name": "Makèt & Pwovizyon",
+      "desc": "Kès pou anpil kliyan, eskane kòd bar, kòmand founisè, envantè."
+    },
+    "boutique": {
+      "name": "Boutik & Vann an detay",
+      "desc": "Varyant pwodwi, CRM pou fidelize kliyan, pwomosyon, resi pèsonalize."
+    }
+  },
+  "pricing": {
+    "title": "Pri ki klè epi senp",
+    "subtitle": "Adapte ak reyalite ekonomik peyi w.",
+    "starter": "Kòmansman",
+    "pro": "Pwofesyonèl",
+    "enterprise": "Antrepriz",
+    "monthly": "/mwa",
+    "getStarted": "Kòmanse",
+    "mostPopular": "Pi Popilè"
+  }
+}
