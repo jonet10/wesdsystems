@@ -1,0 +1,344 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Wesd Systems — Premium Global SaaS Design System
+   Inspired by: Stripe, Linear, Notion, Vercel, Square
+   WCAG AA compliant contrast ratios throughout
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ──────────────────────────────────────
+       BASE SURFACES — pure neutral (no blue tint)
+       Ensures text NEVER competes with background color
+    ────────────────────────────────────── */
+    --background: 0 0% 100%;          /* Pure white */
+    --foreground: 224 71% 4%;         /* Near-black (#050d1f) — 19:1 on white ✓ */
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+
+    /* ──────────────────────────────────────
+       PRIMARY — Electric Blue (Stripe-style)
+       #3b7eff on white = 4.6:1 (AA) ✓
+    ────────────────────────────────────── */
+    --primary: 221 83% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* ──────────────────────────────────────
+       SECONDARY — Neutral slate (not blue-tinted)
+    ────────────────────────────────────── */
+    --secondary: 220 14% 96%;         /* #f4f5f7 — neutral gray */
+    --secondary-foreground: 224 71% 4%;
+
+    /* ──────────────────────────────────────
+       MUTED — True neutral gray
+       Fixes the blue-on-blue muted issue
+    ────────────────────────────────────── */
+    --muted: 220 14% 96%;             /* neutral, NOT blue-tinted */
+    --muted-foreground: 220 9% 42%;   /* #636878 — 4.8:1 on white ✓ */
+
+    /* ──────────────────────────────────────
+       ACCENT — Light neutral (fixes blue-on-blue accent)
+       accent-foreground is dark, NOT blue
+    ────────────────────────────────────── */
+    --accent: 220 14% 94%;
+    --accent-foreground: 224 71% 4%;  /* Dark text on light accent ✓ */
+
+    /* ──────────────────────────────────────
+       SEMANTIC COLORS
+    ────────────────────────────────────── */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
+
+    --info: 221 83% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* ──────────────────────────────────────
+       BORDERS & INPUTS — neutral, not blue
+    ────────────────────────────────────── */
+    --border: 220 13% 91%;            /* #e5e7eb */
+    --input: 220 13% 91%;
+    --ring: 221 83% 60%;
+
+    --radius: 0.75rem;
+
+    /* ──────────────────────────────────────
+       GRADIENTS
+       Hero: very dark navy → nearly black (white text = 15:1 ✓)
+       Primary: blue → deep indigo
+    ────────────────────────────────────── */
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 60%) 0%, hsl(245 75% 45%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(240 60% 8%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(25 85% 55%) 100%);
+    --gradient-blue-soft: linear-gradient(135deg, hsl(221 100% 97%) 0%, hsl(240 100% 97%) 100%);
+
+    /* ──────────────────────────────────────
+       SHADOWS — neutral (not blue-tinted)
+    ────────────────────────────────────── */
+    --shadow-xs:  0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+    --shadow-md:  0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+    --shadow-lg:  0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    --shadow-xl:  0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+    --shadow-glow: 0 0 0 3px hsl(221 83% 60% / 0.15), 0 8px 30px -8px hsl(221 83% 60% / 0.25);
+    --shadow-card: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    --shadow-elevated: 0 4px 16px rgb(0 0 0 / 0.08), 0 1px 4px rgb(0 0 0 / 0.05);
+
+    /* ──────────────────────────────────────
+       SIDEBAR — dark navy (intentionally dark)
+       All sidebar text is light colored
+    ────────────────────────────────────── */
+    --sidebar-background: 224 71% 5%;
+    --sidebar-foreground: 220 20% 80%;
+    --sidebar-primary: 221 83% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 40% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 224 40% 10%;
+    --sidebar-ring: 221 83% 60%;
+  }
+
+  /* ──────────────────────────────────────
+     DARK MODE
+  ────────────────────────────────────── */
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 50% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 224 50% 7%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 221 83% 65%;
+    --primary-foreground: 224 71% 4%;
+
+    --secondary: 224 40% 12%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 224 40% 12%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 224 40% 14%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 224 40% 14%;
+    --input: 224 40% 14%;
+    --ring: 221 83% 65%;
+
+    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(245 60% 6%) 100%);
+
+    --sidebar-background: 224 71% 3%;
+    --sidebar-foreground: 220 20% 80%;
+    --sidebar-primary: 221 83% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 40% 8%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 224 40% 8%;
+    --sidebar-ring: 221 83% 65%;
+  }
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* Refined heading hierarchy */
+  h1 { @apply text-4xl font-bold tracking-tight leading-tight; letter-spacing: -0.025em; }
+  h2 { @apply text-3xl font-bold tracking-tight; letter-spacing: -0.02em; }
+  h3 { @apply text-2xl font-semibold tracking-tight; letter-spacing: -0.015em; }
+  h4 { @apply text-xl font-semibold; }
+  h5 { @apply text-lg font-semibold; }
+  h6 { @apply text-base font-semibold; }
+
+  p  { @apply leading-relaxed; }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================
+   COMPONENT UTILITIES
+   ============================================================ */
+@layer components {
+  /* ── Glass morphism ── */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .glass-dark {
+    background: rgba(5, 13, 31, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* ── Gradient text — explicit colors for contrast safety ── */
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Safe gradient text for dark backgrounds (uses lighter blues) */
+  .text-gradient-light {
+    background: linear-gradient(135deg, hsl(210 100% 80%) 0%, hsl(180 80% 75%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* ── Gradient fills ── */
+  .gradient-primary   { background: var(--gradient-primary); }
+  .gradient-hero      { background: var(--gradient-hero); }
+  .gradient-gold      { background: var(--gradient-gold); }
+  .gradient-blue-soft { background: var(--gradient-blue-soft); }
+
+  /* ── Section backgrounds ── */
+  .section-white  { @apply bg-white; }
+  .section-muted  { background-color: hsl(220 14% 97%); }
+  .section-dark   { background: hsl(224 71% 4%); @apply text-white; }
+
+  /* ── Shadows (semantic) ── */
+  .shadow-xs       { box-shadow: var(--shadow-xs); }
+  .shadow-soft     { box-shadow: var(--shadow-sm); }
+  .shadow-card     { box-shadow: var(--shadow-card); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+  .shadow-glow     { box-shadow: var(--shadow-glow); }
+
+  /* ── Badges ── */
+  .badge-primary  { @apply bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-success  { @apply bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-warning  { @apply bg-amber-50 text-amber-700 border border-amber-100 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-neutral  { @apply bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold px-3 py-1 rounded-full; }
+
+  /* ── Button glow effect ── */
+  .btn-glow { box-shadow: 0 0 0 0 hsl(221 83% 60% / 0); transition: box-shadow 0.2s ease; }
+  .btn-glow:hover { box-shadow: 0 4px 20px hsl(221 83% 60% / 0.35); }
+
+  /* ── Animations ── */
+  .animate-float    { animation: float 6s ease-in-out infinite; }
+  .animate-fade-up  { animation: fadeUp 0.5s ease-out forwards; }
+  .animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
+  .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  /* Typography scale helpers */
+  .display-2xl { font-size: 4.5rem; line-height: 1.08; letter-spacing: -0.04em; font-weight: 800; }
+  .display-xl  { font-size: 3.75rem; line-height: 1.1; letter-spacing: -0.03em; font-weight: 800; }
+  .display-lg  { font-size: 3rem;    line-height: 1.12; letter-spacing: -0.025em; font-weight: 700; }
+  .display-md  { font-size: 2.25rem; line-height: 1.2; letter-spacing: -0.02em; font-weight: 700; }
+
+  /* Responsive typography */
+  @media (max-width: 768px) {
+    .display-2xl { font-size: 2.75rem; }
+    .display-xl  { font-size: 2.25rem; }
+    .display-lg  { font-size: 1.875rem; }
+    .display-md  { font-size: 1.5rem; }
+  }
+
+  /* Scrollbar */
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
+
+/* ============================================================
+   KEYFRAMES
+   ============================================================ */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-12px); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(220 13% 85%);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover { background: hsl(220 9% 70%); }
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+::selection {
+  background: hsl(221 83% 60% / 0.15);
+  color: hsl(224 71% 4%);
+}

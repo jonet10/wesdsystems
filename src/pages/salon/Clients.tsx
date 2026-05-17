@@ -1,0 +1,286 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, Plus, Phone, Mail, Calendar, MoreHorizontal, User, Trash2, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { glowupStore, Client } from "@/lib/store";
+import { toast } from "sonner";
+
+export default function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+
+  // Modals state
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+
+  // Form states
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const loadClients = () => {
+    setClients(glowupStore.getClients());
+  };
+
+  useEffect(() => {
+    loadClients();
+    const handleUpdate = () => {
+      loadClients();
+    };
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, []);
+
+  const handleAddClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !phone) {
+      toast.error("Veuillez renseigner le nom et le téléphone.");
+      return;
+    }
+    glowupStore.addClient({ name, email, phone });
+    toast.success(`Le client "${name}" a été ajouté.`);
+    setIsAddOpen(false);
+    resetForm();
+  };
+
+  const handleEditClient = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient || !name || !phone) return;
+    glowupStore.updateClient({
+      ...selectedClient,
+      name,
+      email,
+      phone
+    });
+    toast.success(`Le profil de "${name}" a été mis à jour.`);
+    setIsEditOpen(false);
+    resetForm();
+  };
+
+  const handleDeleteClient = () => {
+    if (!selectedClient) return;
+    glowupStore.deleteClient(selectedClient.id);
+    toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
+    setIsDeleteOpen(false);
+    setSelectedClient(null);
+  };
+
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setSelectedClient(null);
+  };
+
+  const openEditModal = (client: Client) => {
+    setSelectedClient(client);
+    setName(client.name);
+    setEmail(client.email);
+    setPhone(client.phone);
+    setIsEditOpen(true);
+  };
+
+  const openDeleteModal = (client: Client) => {
+    setSelectedClient(client);
+    setIsDeleteOpen(true);
+  };
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    client.phone.includes(searchQuery)
+  );
+
+  return (
+    <DashboardLayout
+      role="salon_admin"
+      title="Clients"
+      subtitle="Gérez votre base clients"
+      userName="Marie Laurent"
+    >
+      <StaggerContainer className="space-y-6">
+        {/* Header Actions */}
+        <StaggerItem>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="relative flex-1 max-w-md w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un client par nom, email, téléphone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-full"
+              />
+            </div>
+            <Button variant="hero" onClick={() => { resetForm(); setIsAddOpen(true); }} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau client
+            </Button>
+          </div>
+        </StaggerItem>
+
+        {/* Clients Grid */}
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredClients.map((client) => (
+              <div key={client.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-soft transition-all flex flex-col justify-between h-[260px]">
+                <div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
+                        {client.name.split(" ").map(n => n[0]).join("")}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-base line-clamp-1">{client.name}</h3>
+                        <p className="text-sm text-muted-foreground">{client.visits} {client.visits > 1 ? "visites" : "visite"}</p>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="rounded-lg border border-border">
+                        <DropdownMenuItem onClick={() => openEditModal(client)} className="flex items-center gap-2 cursor-pointer">
+                          <Pencil className="h-3.5 w-3.5" />
+                          <span>Modifier</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/salon/appointments")} className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>Prendre RDV</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openDeleteModal(client)} className="flex items-center gap-2 text-destructive hover:text-destructive cursor-pointer">
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Supprimer</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{client.email || "Non renseigné"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-4 w-4 flex-shrink-0" />
+                      <span>{client.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
+                      <span>Dernière visite: {client.lastVisit}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
+                  <span className="text-sm text-muted-foreground">Total dépensé</span>
+                  <span className="font-semibold text-primary">{client.totalSpent}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </StaggerItem>
+
+        {filteredClients.length === 0 && (
+          <StaggerItem>
+            <div className="bg-card rounded-xl border border-dashed border-border p-12 text-center">
+              <User className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground font-medium">Aucun client trouvé.</p>
+            </div>
+          </StaggerItem>
+        )}
+
+        {/* ADD CLIENT DIALOG */}
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Nouveau client</DialogTitle>
+              <DialogDescription>
+                Créez une fiche client pour pouvoir lui attribuer des rendez-vous et suivre ses statistiques.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddClient} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="add-cli-name">Nom complet *</Label>
+                <Input id="add-cli-name" placeholder="Ex: Jean Martin" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-cli-email">Adresse Email</Label>
+                <Input id="add-cli-email" type="email" placeholder="Ex: jean.martin@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="add-cli-phone">Numéro de Téléphone *</Label>
+                <Input id="add-cli-phone" placeholder="Ex: 06 12 34 56 78" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              </div>
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
+                <Button type="submit" variant="hero">Créer la fiche</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* EDIT CLIENT DIALOG */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Modifier le client</DialogTitle>
+              <DialogDescription>
+                Mettez à jour les coordonnées de ce client.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditClient} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-cli-name">Nom complet *</Label>
+                <Input id="edit-cli-name" value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cli-email">Adresse Email</Label>
+                <Input id="edit-cli-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cli-phone">Numéro de Téléphone *</Label>
+                <Input id="edit-cli-phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              </div>
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+                <Button type="submit" variant="hero">Mettre à jour</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DELETE CONFIRM DIALOG */}
+        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Supprimer la fiche client</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer la fiche de <strong>{selectedClient?.name}</strong> ? Cette action supprimera également son historique d'achats du fichier clients.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+              <Button type="button" variant="destructive" onClick={handleDeleteClient}>Supprimer définitivement</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </StaggerContainer>
+    </DashboardLayout>
+  );
+}

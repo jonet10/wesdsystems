@@ -1,0 +1,408 @@
+import { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, ChevronRight, Plus, Clock, Scissors, Calendar as CalendarIcon, User } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { glowupStore, Appointment, Employee, Client, Service } from "@/lib/store";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
+
+export default function AppointmentsPage() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+
+  // Modal State
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Form Fields
+  const [selectedClientName, setSelectedClientName] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedEmpId, setSelectedEmpId] = useState("");
+  const [startTime, setStartTime] = useState("9"); // decimal hour as string
+  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0]);
+
+  const loadData = () => {
+    setEmployees(glowupStore.getEmployees().filter(e => e.status === "active"));
+    setClients(glowupStore.getClients());
+    setServices(glowupStore.getServices());
+
+    const formattedDateStr = currentDate.toISOString().split("T")[0];
+    const allApts = glowupStore.getAppointments();
+    // Filter appointments for the visible day
+    setAppointments(allApts.filter(apt => apt.date === formattedDateStr));
+  };
+
+  useEffect(() => {
+    loadData();
+
+    // Register store update listener
+    const handleUpdate = () => {
+      loadData();
+    };
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, [currentDate]);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const goToPreviousDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToNextDay = () => {
+    const newDate = new Date(currentDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  const handleBooking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClientName || !selectedServiceId || !selectedEmpId || !startTime) {
+      toast.error("Veuillez remplir tous les champs requis.");
+      return;
+    }
+
+    const service = services.find(s => s.id === selectedServiceId);
+    if (!service) return;
+
+    const startHourNum = parseFloat(startTime);
+    const durationHours = service.duration / 60;
+
+    // Check for double-bookings
+    const isConflict = appointments.some(apt => {
+      if (apt.employeeId !== selectedEmpId) return false;
+      const aptEnd = apt.startHour + apt.duration;
+      const bookingEnd = startHourNum + durationHours;
+      return (
+        (startHourNum >= apt.startHour && startHourNum < aptEnd) ||
+        (bookingEnd > apt.startHour && bookingEnd <= aptEnd) ||
+        (startHourNum <= apt.startHour && bookingEnd >= aptEnd)
+      );
+    });
+
+    if (isConflict) {
+      toast.error("Cet employé a déjà une prestation planifiée sur ce créneau horaire.");
+      return;
+    }
+
+    glowupStore.addAppointment({
+      clientName: selectedClientName,
+      serviceName: service.name,
+      employeeId: selectedEmpId,
+      date: bookingDate,
+      startHour: startHourNum,
+      duration: durationHours
+    });
+
+    toast.success(`Rendez-vous enregistré pour ${selectedClientName} !`);
+    setIsOpen(false);
+    
+    // Refresh date view contextually to the booked date!
+    setCurrentDate(new Date(bookingDate));
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setSelectedClientName("");
+    setSelectedServiceId("");
+    setSelectedEmpId("");
+    setStartTime("9");
+    setBookingDate(new Date().toISOString().split("T")[0]);
+  };
+
+  const formatHourString = (decHour: number) => {
+    const hoursPart = Math.floor(decHour);
+    const minutesPart = Math.round((decHour - hoursPart) * 60);
+    return `${hoursPart.toString().padStart(2, "0")}:${minutesPart.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <DashboardLayout
+      role="salon_admin"
+      title="Agenda"
+      subtitle="Gérez vos rendez-vous"
+      userName="Marie Laurent"
+    >
+      <StaggerContainer className="space-y-6">
+        {/* Header */}
+        <StaggerItem>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={goToPreviousDay}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={goToNextDay}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <h2 className="text-lg font-semibold capitalize font-display">{formatDate(currentDate)}</h2>
+              <Button variant="ghost" size="sm" onClick={goToToday} className="hover:bg-muted/80">
+                Aujourd'hui
+              </Button>
+            </div>
+            <Button variant="hero" onClick={() => { resetForm(); setIsOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau RDV
+            </Button>
+          </div>
+        </StaggerItem>
+
+        {/* Legend */}
+        <StaggerItem>
+          <div className="flex flex-wrap items-center gap-4">
+            {employees.map((emp) => (
+              <div key={emp.id} className="flex items-center gap-2">
+                <div className={cn("w-3 h-3 rounded-full", emp.color)} />
+                <span className="text-sm text-muted-foreground">{emp.name}</span>
+              </div>
+            ))}
+          </div>
+        </StaggerItem>
+
+        {/* Calendar Grid */}
+        <StaggerItem>
+          <div className="bg-card rounded-xl border border-border shadow-card overflow-x-auto">
+            <div className="min-w-[800px]">
+              {/* Employee Headers */}
+              <div
+                className="grid border-b border-border"
+                style={{ gridTemplateColumns: `80px repeat(${employees.length || 1}, 1fr)` }}
+              >
+                <div className="p-4 bg-muted/30 border-r border-border flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                </div>
+                {employees.map((emp) => (
+                  <div key={emp.id} className="p-4 text-center border-r border-border last:border-r-0 bg-muted/30">
+                    <div className={cn("w-10 h-10 rounded-full mx-auto mb-2 flex items-center justify-center text-primary-foreground font-bold", emp.color)}>
+                      {emp.name.charAt(0)}
+                    </div>
+                    <span className="font-medium text-sm">{emp.name}</span>
+                  </div>
+                ))}
+                {employees.length === 0 && (
+                  <div className="p-4 text-center text-muted-foreground text-sm">Veuillez créer des employés actifs.</div>
+                )}
+              </div>
+
+              {/* Time Slots grid overlay */}
+              <div className="relative">
+                {hours.map((hour) => (
+                  <div
+                    key={hour}
+                    className="grid border-b border-border last:border-b-0"
+                    style={{ gridTemplateColumns: `80px repeat(${employees.length || 1}, 1fr)`, height: "80px" }}
+                  >
+                    <div className="p-2 border-r border-border flex items-start justify-center text-xs text-muted-foreground font-semibold">
+                      {hour}:00
+                    </div>
+                    {employees.map((emp) => (
+                      <div key={emp.id} className="border-r border-border last:border-r-0 relative" />
+                    ))}
+                  </div>
+                ))}
+
+                {/* Appointments Overlay */}
+                {employees.length > 0 && appointments.map((apt) => {
+                  const empIndex = employees.findIndex(e => e.id === apt.employeeId);
+                  const employee = employees[empIndex];
+                  if (!employee) return null;
+
+                  const top = (apt.startHour - 8) * 80;
+                  const height = apt.duration * 80;
+                  
+                  // Compute dynamic widths and offsets depending on current active employees
+                  const colPercentage = 100 / employees.length;
+                  const left = `calc(80px + ${empIndex * colPercentage}% + 4px)`;
+                  const width = `calc(${colPercentage}% - 8px)`;
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className={cn(
+                        "absolute rounded-lg p-2.5 text-primary-foreground cursor-pointer hover:opacity-90 transition-opacity overflow-hidden flex flex-col justify-between shadow-sm",
+                        employee.color
+                      )}
+                      style={{ top: `${top}px`, height: `${height}px`, left, width }}
+                      onClick={() => {
+                        if (confirm(`Voulez-vous supprimer ce rendez-vous pour ${apt.clientName} ?`)) {
+                          glowupStore.deleteAppointment(apt.id);
+                          toast.success("Rendez-vous annulé.");
+                        }
+                      }}
+                      title="Cliquez pour supprimer le rendez-vous"
+                    >
+                      <div>
+                        <p className="font-semibold text-xs sm:text-sm truncate leading-tight">{apt.clientName}</p>
+                        <p className="text-[10px] sm:text-xs opacity-90 truncate mt-0.5 leading-tight">{apt.serviceName}</p>
+                      </div>
+                      <span className="text-[9px] opacity-75 font-medium flex items-center gap-0.5 mt-1 self-start bg-black/15 px-1.5 py-0.5 rounded">
+                        <Clock className="h-2.5 w-2.5" />
+                        {formatHourString(apt.startHour)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </StaggerItem>
+      </StaggerContainer>
+
+      {/* BOOK APPOINTMENT MODAL DIALOG */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="font-display">Planifier un Rendez-vous</DialogTitle>
+            <DialogDescription>
+              Créez un rendez-vous dans le calendrier en renseignant les détails ci-dessous.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleBooking} className="space-y-4 py-2">
+            
+            {/* Client input */}
+            <div className="space-y-2">
+              <Label htmlFor="booking-client">Client *</Label>
+              <Select value={selectedClientName} onValueChange={setSelectedClientName}>
+                <SelectTrigger id="booking-client">
+                  <SelectValue placeholder="Sélectionner un client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => (
+                    <SelectItem key={c.id} value={c.name}>
+                      <div className="flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{c.name} ({c.phone})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {clients.length === 0 && (
+                    <SelectItem value="client_none" disabled>Aucun client trouvé</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Service Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="booking-service">Service *</Label>
+              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                <SelectTrigger id="booking-service">
+                  <SelectValue placeholder="Sélectionner la prestation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <div className="flex items-center justify-between gap-4 w-full">
+                        <span className="flex items-center gap-2">
+                          <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                          {s.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-semibold">({s.duration} min • {s.price}€)</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Employee Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="booking-employee">Employé *</Label>
+              <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
+                <SelectTrigger id="booking-employee">
+                  <SelectValue placeholder="Attribuer à un praticien" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(e => (
+                    <SelectItem key={e.id} value={e.id}>
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-3 h-3 rounded-full", e.color)} />
+                        <span>{e.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="booking-date">Date du rendez-vous *</Label>
+              <div className="relative">
+                <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="booking-date"
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                  className="pl-9"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Time Slot Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="booking-time">Heure de début *</Label>
+              <Select value={startTime} onValueChange={setStartTime}>
+                <SelectTrigger id="booking-time">
+                  <SelectValue placeholder="Choisir une heure" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="8">08:00</SelectItem>
+                  <SelectItem value="8.5">08:30</SelectItem>
+                  <SelectItem value="9">09:00</SelectItem>
+                  <SelectItem value="9.5">09:30</SelectItem>
+                  <SelectItem value="10">10:00</SelectItem>
+                  <SelectItem value="10.5">10:30</SelectItem>
+                  <SelectItem value="11">11:00</SelectItem>
+                  <SelectItem value="11.5">11:30</SelectItem>
+                  <SelectItem value="12">12:00</SelectItem>
+                  <SelectItem value="12.5">12:30</SelectItem>
+                  <SelectItem value="13">13:00</SelectItem>
+                  <SelectItem value="13.5">13:30</SelectItem>
+                  <SelectItem value="14">14:00</SelectItem>
+                  <SelectItem value="14.5">14:30</SelectItem>
+                  <SelectItem value="15">15:00</SelectItem>
+                  <SelectItem value="15.5">15:30</SelectItem>
+                  <SelectItem value="16">16:00</SelectItem>
+                  <SelectItem value="16.5">16:30</SelectItem>
+                  <SelectItem value="17">17:00</SelectItem>
+                  <SelectItem value="17.5">17:30</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Annuler</Button>
+              <Button type="submit" variant="hero">Valider le RDV</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}
