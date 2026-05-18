@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense } from "react";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -43,22 +44,106 @@ const App = () => (
                 <Route path="/auth/register" element={<Register />} />
 
                 {/* Super Admin Routes */}
-                <Route path="/admin" element={<SuperAdminDashboard />} />
-                <Route path="/admin/salons" element={<SuperAdminSalons />} />
-                <Route path="/admin/subscriptions" element={<SuperAdminSubscriptions />} />
-                <Route path="/admin/settings" element={<SuperAdminSettings />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/salons"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminSalons />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/subscriptions"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminSubscriptions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/settings"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminSettings />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Salon Admin Routes */}
-                <Route path="/salon" element={<SalonDashboard />} />
-                <Route path="/salon/clients" element={<ClientsPage />} />
-                <Route path="/salon/services" element={<ServicesPage />} />
-                <Route path="/salon/appointments" element={<AppointmentsPage />} />
-                <Route path="/salon/employees" element={<SalonEmployees />} />
-                <Route path="/salon/settings" element={<SalonSettings />} />
+                <Route
+                  path="/salon"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <SalonDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/clients"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ClientsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/services"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ServicesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/appointments"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AppointmentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/employees"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <SalonEmployees />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/settings"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <SalonSettings />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Employee Routes */}
-                <Route path="/employee" element={<EmployeeDashboard />} />
-                <Route path="/employee/schedule" element={<EmployeeSchedule />} />
+                <Route
+                  path="/employee"
+                  element={
+                    <ProtectedRoute allowedRoles={["employee"]}>
+                      <EmployeeDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/employee/schedule"
+                  element={
+                    <ProtectedRoute allowedRoles={["employee"]}>
+                      <EmployeeSchedule />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
@@ -72,4 +157,3 @@ const App = () => (
 );
 
 export default App;
-
