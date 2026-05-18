@@ -29,14 +29,26 @@ export default function Login() {
 
       if (error) throw error;
 
-      // Demo navigation based on email patterns
-      if (email.includes("admin@wesdsystems") || email.includes("admin@glowup")) {
-        navigate("/admin");
-      } else if (email.includes("salon") || email.includes("pharmacie") || email.includes("resto") || email.includes("market") || email.includes("boutique")) {
-        navigate("/salon");
-      } else {
-        navigate("/employee");
+      // Fetch user role from DB for secure routing
+      let targetRoute = "/salon"; // Default fallback
+      
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile?.role === 'super_admin') {
+          targetRoute = "/admin";
+        } else if (profile?.role === 'employee') {
+          targetRoute = "/employee";
+        } else {
+          targetRoute = "/salon";
+        }
       }
+
+      navigate(targetRoute);
       
       toast({
         title: "Connexion réussie",
