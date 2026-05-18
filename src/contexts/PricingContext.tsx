@@ -11,6 +11,39 @@ import {
 } from "@/lib/pricing";
 
 const STORAGE_REGION_KEY = "wesd_region_preference";
+const PLAN_ALIASES: Record<string, string[]> = {
+  starter: ["starter", "basic", "démarreur", "demarreur", "start-up"],
+  pro: ["pro", "professionnel"],
+  enterprise: ["enterprise", "premium", "entreprise"],
+};
+
+const FALLBACK_PRICING: Record<string, Record<string, { monthly: number; yearly: number; currency: string }>> = {
+  HT: {
+    starter: { monthly: 1500, yearly: 15000, currency: "HTG" },
+    pro: { monthly: 3000, yearly: 30000, currency: "HTG" },
+    enterprise: { monthly: 5000, yearly: 50000, currency: "HTG" },
+  },
+  DO: {
+    starter: { monthly: 900, yearly: 9000, currency: "DOP" },
+    pro: { monthly: 2500, yearly: 25000, currency: "DOP" },
+    enterprise: { monthly: 4500, yearly: 45000, currency: "DOP" },
+  },
+  FR: {
+    starter: { monthly: 9, yearly: 90, currency: "EUR" },
+    pro: { monthly: 29, yearly: 290, currency: "EUR" },
+    enterprise: { monthly: 49, yearly: 490, currency: "EUR" },
+  },
+  US: {
+    starter: { monthly: 12, yearly: 120, currency: "USD" },
+    pro: { monthly: 39, yearly: 390, currency: "USD" },
+    enterprise: { monthly: 69, yearly: 690, currency: "USD" },
+  },
+  CA: {
+    starter: { monthly: 16, yearly: 160, currency: "CAD" },
+    pro: { monthly: 49, yearly: 490, currency: "CAD" },
+    enterprise: { monthly: 79, yearly: 790, currency: "CAD" },
+  },
+};
 
 interface PricingContextValue {
   detectedCountry: string;
@@ -85,11 +118,35 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
   };
 
   const priceForPlan = (planName: string): PlanPrice | null => {
+    const normalizedPlan = planName.toLowerCase();
+    const aliases = Object.entries(PLAN_ALIASES).find(([, names]) => names.includes(normalizedPlan))?.[1] || [normalizedPlan];
+
     const plan = prices.find(
-      (p) => p.enabled !== false && p.plan_name.toLowerCase() === planName.toLowerCase() && p.country_code === detectedCountry
+      (p) =>
+        p.enabled !== false &&
+        aliases.includes((p.plan_name || "").toLowerCase()) &&
+        p.country_code === detectedCountry
     );
     if (plan) return plan;
-    return prices.find((p) => p.enabled !== false && p.plan_name.toLowerCase() === planName.toLowerCase()) || null;
+
+    const crossCountry = prices.find(
+      (p) => p.enabled !== false && aliases.includes((p.plan_name || "").toLowerCase())
+    );
+    if (crossCountry) return crossCountry;
+
+    const fallbackCountry = FALLBACK_PRICING[detectedCountry] || FALLBACK_PRICING.US;
+    const fallbackKey = Object.keys(PLAN_ALIASES).find((k) => PLAN_ALIASES[k].includes(normalizedPlan)) || "starter";
+    const fallbackValue = fallbackCountry[fallbackKey];
+    if (!fallbackValue) return null;
+
+    return {
+      plan_name: planName,
+      monthly_price: fallbackValue.monthly,
+      yearly_price: fallbackValue.yearly,
+      currency_code: fallbackValue.currency,
+      country_code: detectedCountry,
+      enabled: true,
+    };
   };
 
   const formatPrice = (amount: number, currencyCode: string): string => {
