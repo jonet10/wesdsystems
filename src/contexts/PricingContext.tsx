@@ -48,6 +48,7 @@ const FALLBACK_PRICING: Record<string, Record<string, { monthly: number; yearly:
 interface PricingContextValue {
   detectedCountry: string;
   detectedRegionName: string;
+  availableCountries: CountryRegion[];
   prices: PlanPrice[];
   isLoading: boolean;
   setCountryPreference: (countryCode: string) => void;
@@ -159,6 +160,7 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
       value={{
         detectedCountry,
         detectedRegionName,
+        availableCountries: countries.filter((c) => c.enabled !== false),
         prices,
         isLoading,
         setCountryPreference,

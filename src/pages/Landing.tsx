@@ -29,7 +29,7 @@ const images = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images/4.jp
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
-  const { detectedRegionName, detectedCountry, setCountryPreference, priceForPlan, formatPrice } = usePricing();
+  const { detectedRegionName, detectedCountry, availableCountries, setCountryPreference, priceForPlan, formatPrice } = usePricing();
   const [activeTab, setActiveTab] = useState("salon");
   const [currentImage, setCurrentImage] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -289,11 +289,23 @@ export default function Landing() {
                 onChange={(e) => setCountryPreference(e.target.value)}
                 className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
               >
-                <option value="HT">Haïti</option>
-                <option value="DO">République Dominicaine</option>
-                <option value="FR">France</option>
-                <option value="US">États-Unis</option>
-                <option value="CA">Canada</option>
+                {availableCountries.length > 0 ? (
+                  availableCountries
+                    .sort((a, b) => a.country_name.localeCompare(b.country_name))
+                    .map((country) => (
+                      <option key={country.country_code} value={country.country_code}>
+                        {country.country_name}
+                      </option>
+                    ))
+                ) : (
+                  <>
+                    <option value="HT">Haïti</option>
+                    <option value="DO">République Dominicaine</option>
+                    <option value="FR">France</option>
+                    <option value="US">États-Unis</option>
+                    <option value="CA">Canada</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
