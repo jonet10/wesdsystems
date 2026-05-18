@@ -1,6 +1,34 @@
 // GlowUp Client-Side Storage Engine
 // Features LocalStorage persistence and dynamic custom events for cross-page reactive synchronization
 
+const memoryStore = new Map<string, string>();
+
+const canUseLocalStorage = (): boolean => {
+  try {
+    const testKey = "__wesd_storage_test__";
+    localStorage.setItem(testKey, "1");
+    localStorage.removeItem(testKey);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const getItemSafe = (key: string): string | null => {
+  if (canUseLocalStorage()) {
+    return localStorage.getItem(key);
+  }
+  return memoryStore.get(key) ?? null;
+};
+
+const setItemSafe = (key: string, value: string) => {
+  if (canUseLocalStorage()) {
+    localStorage.setItem(key, value);
+    return;
+  }
+  memoryStore.set(key, value);
+};
+
 export interface Salon {
   id: string;
   name: string;
@@ -98,20 +126,20 @@ const notifyStoreUpdated = () => {
 
 // Initialize Store
 const initializeStore = () => {
-  if (!localStorage.getItem("glowup_salons")) {
-    localStorage.setItem("glowup_salons", JSON.stringify(defaultSalons));
+  if (!getItemSafe("glowup_salons")) {
+    setItemSafe("glowup_salons", JSON.stringify(defaultSalons));
   }
-  if (!localStorage.getItem("glowup_employees")) {
-    localStorage.setItem("glowup_employees", JSON.stringify(defaultEmployees));
+  if (!getItemSafe("glowup_employees")) {
+    setItemSafe("glowup_employees", JSON.stringify(defaultEmployees));
   }
-  if (!localStorage.getItem("glowup_services")) {
-    localStorage.setItem("glowup_services", JSON.stringify(defaultServices));
+  if (!getItemSafe("glowup_services")) {
+    setItemSafe("glowup_services", JSON.stringify(defaultServices));
   }
-  if (!localStorage.getItem("glowup_clients")) {
-    localStorage.setItem("glowup_clients", JSON.stringify(defaultClients));
+  if (!getItemSafe("glowup_clients")) {
+    setItemSafe("glowup_clients", JSON.stringify(defaultClients));
   }
-  if (!localStorage.getItem("glowup_appointments")) {
-    localStorage.setItem("glowup_appointments", JSON.stringify(defaultAppointments));
+  if (!getItemSafe("glowup_appointments")) {
+    setItemSafe("glowup_appointments", JSON.stringify(defaultAppointments));
   }
 };
 
@@ -122,10 +150,10 @@ export const glowupStore = {
   // --- SALONS ---
   getSalons(): Salon[] {
     initializeStore();
-    return JSON.parse(localStorage.getItem("glowup_salons") || "[]");
+    return JSON.parse(getItemSafe("glowup_salons") || "[]");
   },
   saveSalons(salons: Salon[]) {
-    localStorage.setItem("glowup_salons", JSON.stringify(salons));
+    setItemSafe("glowup_salons", JSON.stringify(salons));
     notifyStoreUpdated();
   },
   addSalon(salon: Omit<Salon, "id">) {
@@ -152,10 +180,10 @@ export const glowupStore = {
   // --- EMPLOYEES ---
   getEmployees(): Employee[] {
     initializeStore();
-    return JSON.parse(localStorage.getItem("glowup_employees") || "[]");
+    return JSON.parse(getItemSafe("glowup_employees") || "[]");
   },
   saveEmployees(employees: Employee[]) {
-    localStorage.setItem("glowup_employees", JSON.stringify(employees));
+    setItemSafe("glowup_employees", JSON.stringify(employees));
     notifyStoreUpdated();
   },
   addEmployee(employee: Omit<Employee, "id">) {
@@ -182,10 +210,10 @@ export const glowupStore = {
   // --- SERVICES ---
   getServices(): Service[] {
     initializeStore();
-    return JSON.parse(localStorage.getItem("glowup_services") || "[]");
+    return JSON.parse(getItemSafe("glowup_services") || "[]");
   },
   saveServices(services: Service[]) {
-    localStorage.setItem("glowup_services", JSON.stringify(services));
+    setItemSafe("glowup_services", JSON.stringify(services));
     notifyStoreUpdated();
   },
   addService(service: Omit<Service, "id">) {
@@ -212,10 +240,10 @@ export const glowupStore = {
   // --- CLIENTS ---
   getClients(): Client[] {
     initializeStore();
-    return JSON.parse(localStorage.getItem("glowup_clients") || "[]");
+    return JSON.parse(getItemSafe("glowup_clients") || "[]");
   },
   saveClients(clients: Client[]) {
-    localStorage.setItem("glowup_clients", JSON.stringify(clients));
+    setItemSafe("glowup_clients", JSON.stringify(clients));
     notifyStoreUpdated();
   },
   addClient(client: Omit<Client, "id" | "lastVisit" | "visits" | "totalSpent">) {
@@ -248,10 +276,10 @@ export const glowupStore = {
   // --- APPOINTMENTS ---
   getAppointments(): Appointment[] {
     initializeStore();
-    return JSON.parse(localStorage.getItem("glowup_appointments") || "[]");
+    return JSON.parse(getItemSafe("glowup_appointments") || "[]");
   },
   saveAppointments(appointments: Appointment[]) {
-    localStorage.setItem("glowup_appointments", JSON.stringify(appointments));
+    setItemSafe("glowup_appointments", JSON.stringify(appointments));
     notifyStoreUpdated();
   },
   addAppointment(appointment: Omit<Appointment, "id">) {
@@ -296,10 +324,10 @@ export const glowupStore = {
 
   // --- MULTI-BUSINESS CONFIG ---
   getActiveBusiness(): "salon" | "pharmacie" | "restaurant" | "market" | "boutique" {
-    return (localStorage.getItem("glowup_active_business") as any) || "salon";
+    return (getItemSafe("glowup_active_business") as any) || "salon";
   },
   setActiveBusiness(type: "salon" | "pharmacie" | "restaurant" | "market" | "boutique") {
-    localStorage.setItem("glowup_active_business", type);
+    setItemSafe("glowup_active_business", type);
     notifyStoreUpdated();
   }
 };
