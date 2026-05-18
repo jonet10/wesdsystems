@@ -136,12 +136,12 @@ export default function Landing() {
       <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden min-h-screen flex items-center">
         {/* Animated Background GIF */}
         <div className="absolute inset-0 -z-20">
-          <img src="/images/Background.gif" alt="Background Animation" className="w-full h-full object-cover opacity-80" />
+          <img src="/images/Background.gif" alt="Background Animation" className="w-full h-full object-cover" />
         </div>
-        {/* Overlay to ensure text remains readable */}
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] -z-10" />
+        {/* Light Overlay to ensure text remains readable without hiding the GIF */}
+        <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] -z-10" />
         
-        <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[800px] h-[800px] bg-blue-50/30 rounded-full blur-3xl -z-10" />
+        <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[800px] h-[800px] bg-blue-50/20 rounded-full blur-3xl -z-10" />
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
