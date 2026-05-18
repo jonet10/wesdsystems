@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Building2, Save, Sparkles, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { ImageUploader } from "@/components/shared/ImageUploader";
 
 interface BusinessDay {
   day: string;
@@ -23,6 +24,7 @@ export default function SalonSettingsPage() {
   const [email, setEmail] = useState("contact@salonelegance.com");
   const [phone, setPhone] = useState("06 12 34 56 78");
   const [address, setAddress] = useState("15 Rue de la Paix, 75002 Paris");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [businessDays, setBusinessDays] = useState<BusinessDay[]>([
     { day: "Lundi", isOpen: false, openTime: "09:00", closeTime: "18:00" },
@@ -70,6 +72,16 @@ export default function SalonSettingsPage() {
                 <h3 className="text-lg font-semibold font-display">Fiche de l'établissement</h3>
                 <p className="text-sm text-muted-foreground">Ces informations seront visibles par vos clients</p>
               </div>
+            </div>
+
+            <div className="border-b border-border pb-6">
+              <Label className="mb-4 block">Logo de l'entreprise</Label>
+              <ImageUploader 
+                currentImageUrl={logoUrl} 
+                onImageUploaded={(url) => setLogoUrl(url)} 
+                onImageDeleted={() => setLogoUrl(null)} 
+                bucketName="logos"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

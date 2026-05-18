@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 
+import { supabase } from "@/lib/supabase";
+
 const COLORS = [
   { value: "bg-primary", label: "Pêche / Champagne (Primaire)" },
   { value: "bg-info", label: "Bleu Moderne" },
@@ -22,7 +24,7 @@ const COLORS = [
 ];
 
 export default function EmployeesPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user: profile } = useAuth();
 
   // --- DUAL MODE DATA ---
   const { data: employeesDb } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
@@ -177,6 +179,42 @@ export default function EmployeesPage() {
     );
   };
 
+  const [maxEmployees, setMaxEmployees] = useState(10);
+  const [planName, setPlanName] = useState("STARTER");
+
+  useEffect(() => {
+    if (isAuthenticated && profile?.business_id) {
+      const fetchPlan = async () => {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('plan_id')
+          .eq('id', profile.business_id)
+          .single();
+        if (biz?.plan_id) {
+          const { data: plan } = await supabase
+            .from('subscription_plans')
+            .select('max_employees, name')
+            .eq('id', biz.plan_id)
+            .single();
+          if (plan) {
+            setMaxEmployees(plan.max_employees);
+            setPlanName(plan.name);
+          }
+        }
+      };
+      fetchPlan();
+    }
+  }, [isAuthenticated, profile]);
+
+  const handleOpenAdd = () => {
+    if (employees.length >= maxEmployees) {
+      toast.error(`Vous avez atteint la limite maximale de ${maxEmployees} employés pour votre abonnement actuel (Plan ${planName}).`);
+      return;
+    }
+    resetForm();
+    setIsAddOpen(true);
+  };
+
   return (
     <DashboardLayout
       role="salon_admin"
@@ -188,8 +226,8 @@ export default function EmployeesPage() {
         {/* Actions Bar */}
         <StaggerItem>
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold font-display">Liste de l'équipe</h2>
-            <Button variant="hero" onClick={() => { resetForm(); setIsAddOpen(true); }}>
+            <h2 className="text-xl font-semibold font-display">Liste de l'équipe ({employees.length}/{maxEmployees})</h2>
+            <Button variant="hero" onClick={handleOpenAdd}>
               <Plus className="h-4 w-4 mr-2" />
               Nouvel employé
             </Button>

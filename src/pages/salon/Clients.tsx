@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { PrintHeader } from "@/components/shared/PrintHeader";
+import { Printer } from "lucide-react";
 
 export default function ClientsPage() {
   const { isAuthenticated, profile } = useAuth();
@@ -169,23 +171,32 @@ export default function ClientsPage() {
       subtitle="Gérez votre base clients"
       userName="Marie Laurent"
     >
+      <div className="print-header-container">
+        <PrintHeader />
+      </div>
       <StaggerContainer className="space-y-6">
-        {/* Header Actions */}
+        {/* Actions Bar */}
         <StaggerItem>
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 max-w-md w-full">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between no-print">
+            <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Rechercher un client par nom, email, téléphone..."
+                placeholder="Rechercher un client (nom, tel, email)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-full"
+                className="pl-9"
               />
             </div>
-            <Button variant="hero" onClick={() => { resetForm(); setIsAddOpen(true); }} className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau client
-            </Button>
+            <div className="flex gap-3 w-full md:w-auto">
+              <Button variant="outline" onClick={() => window.print()} className="w-full md:w-auto">
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimer
+              </Button>
+              <Button variant="hero" onClick={() => { resetForm(); setIsAddOpen(true); }} className="w-full md:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau client
+              </Button>
+            </div>
           </div>
         </StaggerItem>
 

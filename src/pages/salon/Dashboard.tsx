@@ -11,9 +11,11 @@ import { Link } from "react-router-dom";
 import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function SalonDashboard() {
   const { isAuthenticated } = useAuth();
+  const { formatCompact, format } = useCurrency();
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
 
   // --- DUAL MODE DATA FETCHING ---

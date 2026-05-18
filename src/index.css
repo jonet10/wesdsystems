@@ -342,3 +342,51 @@
   background: hsl(221 83% 60% / 0.15);
   color: hsl(224 71% 4%);
 }
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+@media print {
+  /* Hide all interactive and navigation elements */
+  nav, header, aside, footer, button, .no-print, [role="navigation"] {
+    display: none !important;
+  }
+  
+  /* Reset background and colors for printing */
+  body {
+    background-color: white !important;
+    color: black !important;
+    margin: 0;
+    padding: 0;
+  }
+  
+  /* Ensure main content takes full width */
+  main, .dashboard-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Optimize cards and tables for A4 format */
+  .bg-card, .border, table {
+    border: 1px solid #e5e7eb !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  
+  /* Modern tables for printing */
+  th, td {
+    border-bottom: 1px solid #e5e7eb !important;
+    padding: 12px !important;
+    color: black !important;
+  }
+  
+  /* Ensure PrintHeader is displayed */
+  .print\:flex {
+    display: flex !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+}
