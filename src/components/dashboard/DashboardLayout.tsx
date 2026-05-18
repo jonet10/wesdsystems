@@ -14,11 +14,11 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
   return (
     <div className="flex h-screen relative overflow-hidden bg-background">
       {/* GLOBAL BACKGROUND GIF */}
-      <div className="absolute inset-0 z-0 opacity-15 pointer-events-none">
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
         <img src="/images/Background.gif" alt="Platform Background" className="w-full h-full object-cover" />
       </div>
-      {/* OVERLAY TO ENSURE READABILITY */}
-      <div className="absolute inset-0 z-0 bg-background/90 backdrop-blur-[2px] pointer-events-none" />
+      {/* LIGHT OVERLAY TO ENSURE TEXT REMAINS READABLE, BUT NO BLUR */}
+      <div className="absolute inset-0 z-0 bg-background/60 pointer-events-none" />
 
       {/* FOREGROUND CONTENT */}
       <div className="relative z-10 flex w-full h-full">
