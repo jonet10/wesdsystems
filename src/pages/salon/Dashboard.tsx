@@ -1,51 +1,73 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { 
-  Calendar, 
-  Users, 
-  Euro, 
-  Clock, 
-  Plus, 
-  Pill, 
-  Utensils, 
-  ShoppingBag, 
-  Building,
-  TrendingUp,
-  Activity,
-  DollarSign
+  Calendar, Users, Euro, Clock, Plus, Pill, Utensils, 
+  ShoppingBag, Building, TrendingUp, Activity, DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { glowupStore } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 
 export default function SalonDashboard() {
+  const { isAuthenticated } = useAuth();
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
+
+  // --- DUAL MODE DATA FETCHING ---
+  const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
+  const { data: employeesDb, isLoading: empLoading } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
+  const { data: appointmentsDb, isLoading: aptLoading } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
+  const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+
+  // Resolve active dataset (Supabase or LocalStorage Fallback)
+  const clients = useMemo(() => {
+    if (clientsDb && clientsDb.length > 0) {
+      return clientsDb.map((c: any) => ({ ...c, totalSpent: c.total_spent ? `${c.total_spent}€` : "0€" }));
+    }
+    return glowupStore.getClients();
+  }, [clientsDb]);
+
+  const employees = useMemo(() => (employeesDb && employeesDb.length > 0) ? employeesDb : glowupStore.getEmployees(), [employeesDb]);
+  
+  const appointments = useMemo(() => {
+    if (appointmentsDb && appointmentsDb.length > 0) {
+      return appointmentsDb.map((a: any) => ({
+        ...a,
+        date: a.scheduled_at ? a.scheduled_at.split("T")[0] : new Date().toISOString().split("T")[0],
+        duration: a.amount ? 1 : 0.5 // Simplified mapping for MVP
+      }));
+    }
+    return glowupStore.getAppointments();
+  }, [appointmentsDb]);
+
+  const services = useMemo(() => (servicesDb && servicesDb.length > 0) ? servicesDb : glowupStore.getServices(), [servicesDb]);
+
+  const isDataLoading = isAuthenticated && (clientsLoading || empLoading || aptLoading || servLoading);
+
   const [stats, setStats] = useState<any[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
 
-  const loadDashboardData = () => {
-    const clients = glowupStore.getClients();
-    const employees = glowupStore.getEmployees();
-    const appointments = glowupStore.getAppointments();
-    const services = glowupStore.getServices();
+  useEffect(() => {
+    if (isDataLoading) return;
 
     const todayStr = new Date().toISOString().split("T")[0];
-    const todayApts = appointments.filter(a => a.date === todayStr);
+    const todayApts = appointments.filter((a: any) => a.date === todayStr);
     const business = glowupStore.getActiveBusiness();
     setActiveBiz(business);
 
-    // Calculate MRR / Earnings from clients in USD for Haiti SaaS
-    const totalSpentSum = clients.reduce((sum, c) => {
-      const amt = parseInt(c.totalSpent.replace("€", "").replace("$", "")) || 0;
-      return sum + amt;
+    // Calculate MRR / Earnings
+    const totalSpentSum = clients.reduce((sum: number, c: any) => {
+      const amt = typeof c.totalSpent === 'string' ? parseInt(c.totalSpent.replace("€", "").replace("$", "")) : (c.total_spent || 0);
+      return sum + (amt || 0);
     }, 0);
 
     // Calculate Average Duration
     let avgDurationStr = "45min";
     if (appointments.length > 0) {
-      const avgHrs = appointments.reduce((sum, a) => sum + a.duration, 0) / appointments.length;
+      const avgHrs = appointments.reduce((sum: number, a: any) => sum + (a.duration || 1), 0) / appointments.length;
       avgDurationStr = `${Math.round(avgHrs * 60)}min`;
     }
 
@@ -79,7 +101,6 @@ export default function SalonDashboard() {
         { title: "Catalogue Articles", value: services.length.toString(), icon: <Building className="h-6 w-6" /> },
       ]);
     } else {
-      // Default: Salon
       setStats([
         { title: "Rendez-vous aujourd'hui", value: todayApts.length.toString(), icon: <Calendar className="h-6 w-6" /> },
         { title: "Clients au fichier", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
@@ -88,20 +109,20 @@ export default function SalonDashboard() {
       ]);
     }
 
-    // Format today's items
-    const formatted = todayApts.map(apt => {
-      const emp = employees.find(e => e.id === apt.employeeId);
+    const formatted = todayApts.map((apt: any) => {
+      const emp = employees.find((e: any) => e.id === (apt.employeeId || apt.employee_id));
       const currentHour = new Date().getHours() + new Date().getMinutes() / 60;
-      const endHour = apt.startHour + apt.duration;
+      const startH = apt.startHour || 9; 
+      const endHour = startH + (apt.duration || 1);
       
       let status = "upcoming";
       if (currentHour >= endHour) {
         status = "done";
-      } else if (currentHour >= apt.startHour && currentHour < endHour) {
+      } else if (currentHour >= startH && currentHour < endHour) {
         status = "in_progress";
       }
 
-      const durationMins = Math.round(apt.duration * 60);
+      const durationMins = Math.round((apt.duration || 1) * 60);
       let durationStr = `${durationMins}min`;
       if (durationMins >= 60) {
         const hrs = Math.floor(durationMins / 60);
@@ -109,33 +130,30 @@ export default function SalonDashboard() {
         durationStr = mins > 0 ? `${hrs}h${mins}` : `${hrs}h`;
       }
 
-      const hoursPart = Math.floor(apt.startHour);
-      const minutesPart = Math.round((apt.startHour - hoursPart) * 60);
+      const hoursPart = Math.floor(startH);
+      const minutesPart = Math.round((startH - hoursPart) * 60);
       const timeStr = `${hoursPart.toString().padStart(2, "0")}:${minutesPart.toString().padStart(2, "0")}`;
 
       return {
-        client: apt.clientName,
-        service: apt.serviceName,
+        client: apt.clientName || apt.client_id || "Client inconnu",
+        service: apt.serviceName || apt.service_id || "Service par défaut",
         time: timeStr,
         duration: durationStr,
         employee: emp ? emp.name : "Non assigné",
         status,
-        startHour: apt.startHour
+        startHour: startH
       };
     });
 
-    formatted.sort((a, b) => a.startHour - b.startHour);
+    formatted.sort((a: any, b: any) => a.startHour - b.startHour);
     setTodayAppointments(formatted);
-  };
 
-  useEffect(() => {
-    loadDashboardData();
     const handleUpdate = () => {
-      loadDashboardData();
+      if (!isAuthenticated) setActiveBiz(glowupStore.getActiveBusiness());
     };
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, []);
+  }, [clients, employees, appointments, services, isDataLoading, isAuthenticated]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -157,60 +175,49 @@ export default function SalonDashboard() {
     });
   };
 
-  // Get dynamic titles/labels per active vertical
   const getVerticalTexts = () => {
     switch (activeBiz) {
       case "pharmacie":
         return {
-          title: "Ordonnances du jour",
-          actionBtn: "Nouvelle Ordonnance",
-          cardTitle: "Rapport Patients & Molécules",
-          actionLabel1: "Gérer Ordonnances",
-          actionLabel2: "Base Patients",
-          actionLabel3: "Stock Médicaments"
+          title: "Ordonnances du jour", actionBtn: "Nouvelle Ordonnance", cardTitle: "Rapport Patients & Molécules",
+          actionLabel1: "Gérer Ordonnances", actionLabel2: "Base Patients", actionLabel3: "Stock Médicaments"
         };
       case "restaurant":
         return {
-          title: "Commandes de service",
-          actionBtn: "Nouvelle Commande",
-          cardTitle: "Dashboard Caisse & Tables",
-          actionLabel1: "Caisse & Tables",
-          actionLabel2: "Répertoire Clients",
-          actionLabel3: "Gérer le Menu"
+          title: "Commandes de service", actionBtn: "Nouvelle Commande", cardTitle: "Dashboard Caisse & Tables",
+          actionLabel1: "Caisse & Tables", actionLabel2: "Répertoire Clients", actionLabel3: "Gérer le Menu"
         };
       case "market":
         return {
-          title: "Session POS en direct",
-          actionBtn: "Enregistrer Vente",
-          cardTitle: "Transactions de Caisse",
-          actionLabel1: "Caisse POS",
-          actionLabel2: "Membres Club",
-          actionLabel3: "Inventaire Produits"
+          title: "Session POS en direct", actionBtn: "Enregistrer Vente", cardTitle: "Transactions de Caisse",
+          actionLabel1: "Caisse POS", actionLabel2: "Membres Club", actionLabel3: "Inventaire Produits"
         };
       case "boutique":
         return {
-          title: "Ventes Boutique",
-          actionBtn: "Nouvelle Vente",
-          cardTitle: "Dashboard CRM & POS",
-          actionLabel1: "Ventes POS",
-          actionLabel2: "Base Clients / CRM",
-          actionLabel3: "Catalogue Articles"
+          title: "Ventes Boutique", actionBtn: "Nouvelle Vente", cardTitle: "Dashboard CRM & POS",
+          actionLabel1: "Ventes POS", actionLabel2: "Base Clients / CRM", actionLabel3: "Catalogue Articles"
         };
       case "salon":
       default:
         return {
-          title: "Rendez-vous du jour",
-          actionBtn: "Nouveau RDV",
-          cardTitle: "Agenda du salon",
-          actionLabel1: "Gérer l'agenda",
-          actionLabel2: "Fichier clients",
-          actionLabel3: "Services & tarifs"
+          title: "Rendez-vous du jour", actionBtn: "Nouveau RDV", cardTitle: "Agenda du salon",
+          actionLabel1: "Gérer l'agenda", actionLabel2: "Fichier clients", actionLabel3: "Services & tarifs"
         };
     }
   };
 
   const texts = getFormattedTodayDate();
   const vt = getVerticalTexts();
+
+  if (isDataLoading) {
+    return (
+      <DashboardLayout role="salon_admin" title="Tableau de bord ERP" subtitle="Synchronisation de vos données...">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -220,7 +227,6 @@ export default function SalonDashboard() {
       userName="Équipe Wesd"
     >
       <StaggerContainer className="space-y-8">
-        {/* Stats Grid */}
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
@@ -229,7 +235,6 @@ export default function SalonDashboard() {
           </div>
         </StaggerItem>
 
-        {/* Today's Transactions/Appointments */}
         <StaggerItem>
           <div className="bg-card rounded-xl border border-border shadow-card text-left">
             <div className="p-6 border-b border-border flex items-center justify-between flex-wrap gap-4">
@@ -288,7 +293,6 @@ export default function SalonDashboard() {
           </div>
         </StaggerItem>
 
-        {/* Quick Actions Grid */}
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
             <Link to="/salon/appointments" className="group">

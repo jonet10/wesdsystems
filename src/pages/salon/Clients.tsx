@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -15,9 +15,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { glowupStore, Client } from "@/lib/store";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const { isAuthenticated, profile } = useAuth();
+
+  // --- DUAL MODE DATA ---
+  const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
+  const insertClient = useSupabaseInsert<any>('clients', ['clients']);
+  const updateClientDb = useSupabaseUpdate<any>('clients', ['clients']);
+  const deleteClientDb = useSupabaseDelete('clients', ['clients']);
+
+  const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
+
+  useEffect(() => {
+    const handleUpdate = () => setLocalClients(glowupStore.getClients());
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, []);
+
+  const clients = useMemo(() => {
+    if (clientsDb && clientsDb.length > 0) {
+      return clientsDb.map((c: any) => ({
+        id: c.id,
+        name: c.full_name,
+        email: c.email || "",
+        phone: c.phone_number || "",
+        lastVisit: "Jamais",
+        visits: 0,
+        totalSpent: c.total_spent ? `${c.total_spent}€` : "0€"
+      }));
+    }
+    return localClients;
+  }, [clientsDb, localClients]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
@@ -32,51 +64,69 @@ export default function ClientsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const loadClients = () => {
-    setClients(glowupStore.getClients());
-  };
-
-  useEffect(() => {
-    loadClients();
-    const handleUpdate = () => {
-      loadClients();
-    };
-    window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, []);
-
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) {
       toast.error("Veuillez renseigner le nom et le téléphone.");
       return;
     }
-    glowupStore.addClient({ name, email, phone });
-    toast.success(`Le client "${name}" a été ajouté.`);
-    setIsAddOpen(false);
-    resetForm();
+    
+    if (isAuthenticated) {
+      insertClient.mutate({ full_name: name, email, phone_number: phone, total_spent: 0 }, {
+        onSuccess: () => {
+          toast.success(`Le client "${name}" a été ajouté.`);
+          setIsAddOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.addClient({ name, email, phone });
+      toast.success(`Le client "${name}" a été ajouté (Local).`);
+      setIsAddOpen(false);
+      resetForm();
+    }
   };
 
   const handleEditClient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient || !name || !phone) return;
-    glowupStore.updateClient({
-      ...selectedClient,
-      name,
-      email,
-      phone
-    });
-    toast.success(`Le profil de "${name}" a été mis à jour.`);
-    setIsEditOpen(false);
-    resetForm();
+
+    if (isAuthenticated && selectedClient.id.includes('-')) { // Supabase UUID
+      updateClientDb.mutate({ id: selectedClient.id, full_name: name, email, phone_number: phone }, {
+        onSuccess: () => {
+          toast.success(`Le profil de "${name}" a été mis à jour.`);
+          setIsEditOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.updateClient({ ...selectedClient, name, email, phone });
+      toast.success(`Le profil de "${name}" a été mis à jour (Local).`);
+      setIsEditOpen(false);
+      resetForm();
+    }
   };
 
   const handleDeleteClient = () => {
     if (!selectedClient) return;
-    glowupStore.deleteClient(selectedClient.id);
-    toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
-    setIsDeleteOpen(false);
-    setSelectedClient(null);
+
+    if (isAuthenticated && selectedClient.id.includes('-')) {
+      deleteClientDb.mutate(selectedClient.id, {
+        onSuccess: () => {
+          toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
+          setIsDeleteOpen(false);
+          setSelectedClient(null);
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.deleteClient(selectedClient.id);
+      toast.success(`Le client "${selectedClient.name}" a été supprimé (Local).`);
+      setIsDeleteOpen(false);
+      setSelectedClient(null);
+    }
   };
 
   const resetForm = () => {
@@ -99,7 +149,7 @@ export default function ClientsPage() {
     setIsDeleteOpen(true);
   };
 
-  const filteredClients = clients.filter(client =>
+  const filteredClients = clients.filter((client: Client) =>
     client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.phone.includes(searchQuery)

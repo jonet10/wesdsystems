@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,81 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { glowupStore, Appointment, Employee, Client, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery, useSupabaseInsert } from "@/hooks/useSupabaseQuery";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
 export default function AppointmentsPage() {
+  const { isAuthenticated } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+
+  // --- DUAL MODE DATA ---
+  const { data: employeesDb } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
+  const { data: clientsDb } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
+  const { data: servicesDb } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const { data: appointmentsDb } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
+  const insertAppointment = useSupabaseInsert<any>('transactions', ['transactions']);
+
+  const [localEmployees, setLocalEmployees] = useState<Employee[]>(glowupStore.getEmployees().filter(e => e.status === "active"));
+  const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
+  const [localServices, setLocalServices] = useState<Service[]>(glowupStore.getServices());
+  const [localAppointments, setLocalAppointments] = useState<Appointment[]>(glowupStore.getAppointments());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLocalEmployees(glowupStore.getEmployees().filter(e => e.status === "active"));
+      setLocalClients(glowupStore.getClients());
+      setLocalServices(glowupStore.getServices());
+      setLocalAppointments(glowupStore.getAppointments());
+    };
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, []);
+
+  const employees = useMemo(() => {
+    if (employeesDb && employeesDb.length > 0) {
+      return employeesDb.map((e: any) => ({
+        id: e.id, name: e.name, color: e.color || "bg-primary", services: e.services || [], status: e.status || "active"
+      })).filter((e: any) => e.status === "active");
+    }
+    return localEmployees;
+  }, [employeesDb, localEmployees]);
+
+  const clients = useMemo(() => {
+    if (clientsDb && clientsDb.length > 0) {
+      return clientsDb.map((c: any) => ({
+        id: c.id, name: c.full_name, email: c.email || "", phone: c.phone_number || "", lastVisit: "Jamais", visits: 0, totalSpent: c.total_spent ? `${c.total_spent}€` : "0€"
+      }));
+    }
+    return localClients;
+  }, [clientsDb, localClients]);
+
+  const services = useMemo(() => {
+    if (servicesDb && servicesDb.length > 0) {
+      return servicesDb.map((s: any) => ({
+        id: s.id, name: s.name, duration: s.duration || 60, price: s.price || 0, category: s.category || "Standard", popular: s.popular || false
+      }));
+    }
+    return localServices;
+  }, [servicesDb, localServices]);
+
+  const appointments = useMemo(() => {
+    const formattedDateStr = currentDate.toISOString().split("T")[0];
+    
+    if (appointmentsDb && appointmentsDb.length > 0) {
+      return appointmentsDb.map((a: any) => ({
+        id: a.id,
+        clientName: a.client_id || a.clientName || "Client inconnu",
+        serviceName: a.service_id || a.serviceName || "Service",
+        employeeId: a.employee_id || a.employeeId,
+        date: a.scheduled_at ? a.scheduled_at.split("T")[0] : formattedDateStr,
+        startHour: a.startHour || 9,
+        duration: a.amount ? 1 : 0.5
+      })).filter((apt: any) => apt.date === formattedDateStr);
+    }
+    return localAppointments.filter(apt => apt.date === formattedDateStr);
+  }, [appointmentsDb, localAppointments, currentDate]);
 
   // Modal State
   const [isOpen, setIsOpen] = useState(false);
@@ -29,28 +95,6 @@ export default function AppointmentsPage() {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startTime, setStartTime] = useState("9"); // decimal hour as string
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0]);
-
-  const loadData = () => {
-    setEmployees(glowupStore.getEmployees().filter(e => e.status === "active"));
-    setClients(glowupStore.getClients());
-    setServices(glowupStore.getServices());
-
-    const formattedDateStr = currentDate.toISOString().split("T")[0];
-    const allApts = glowupStore.getAppointments();
-    // Filter appointments for the visible day
-    setAppointments(allApts.filter(apt => apt.date === formattedDateStr));
-  };
-
-  useEffect(() => {
-    loadData();
-
-    // Register store update listener
-    const handleUpdate = () => {
-      loadData();
-    };
-    window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, [currentDate]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("fr-FR", {
@@ -84,14 +128,14 @@ export default function AppointmentsPage() {
       return;
     }
 
-    const service = services.find(s => s.id === selectedServiceId);
+    const service = services.find((s: any) => s.id === selectedServiceId);
     if (!service) return;
 
     const startHourNum = parseFloat(startTime);
     const durationHours = service.duration / 60;
 
     // Check for double-bookings
-    const isConflict = appointments.some(apt => {
+    const isConflict = appointments.some((apt: any) => {
       if (apt.employeeId !== selectedEmpId) return false;
       const aptEnd = apt.startHour + apt.duration;
       const bookingEnd = startHourNum + durationHours;
@@ -107,21 +151,37 @@ export default function AppointmentsPage() {
       return;
     }
 
-    glowupStore.addAppointment({
-      clientName: selectedClientName,
-      serviceName: service.name,
-      employeeId: selectedEmpId,
-      date: bookingDate,
-      startHour: startHourNum,
-      duration: durationHours
-    });
-
-    toast.success(`Rendez-vous enregistré pour ${selectedClientName} !`);
-    setIsOpen(false);
-    
-    // Refresh date view contextually to the booked date!
-    setCurrentDate(new Date(bookingDate));
-    resetForm();
+    if (isAuthenticated) {
+      insertAppointment.mutate({
+        client_id: selectedClientName, // Using name as ID for demo mapping
+        service_id: service.name,
+        employee_id: selectedEmpId,
+        scheduled_at: new Date(bookingDate).toISOString(),
+        status: "pending",
+        amount: service.price
+      }, {
+        onSuccess: () => {
+          toast.success(`Le rendez-vous pour ${selectedClientName} a été réservé !`);
+          setIsOpen(false);
+          setCurrentDate(new Date(bookingDate));
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.addAppointment({
+        clientName: selectedClientName,
+        serviceName: service.name,
+        employeeId: selectedEmpId,
+        date: bookingDate,
+        startHour: startHourNum,
+        duration: durationHours,
+      });
+      toast.success(`Le rendez-vous pour ${selectedClientName} a été réservé (Local) !`);
+      setIsOpen(false);
+      setCurrentDate(new Date(bookingDate));
+      resetForm();
+    }
   };
 
   const resetForm = () => {

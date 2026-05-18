@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { glowupStore, Service } from "@/lib/store";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 
 const categories = ["Tous", "Coupe", "Coloration", "Coiffage", "Forfait", "Soins"];
 
 export default function ServicesPage() {
-  const [services, setServices] = useState<Service[]>([]);
+  const { isAuthenticated } = useAuth();
+
+  // --- DUAL MODE DATA ---
+  const { data: servicesDb } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const insertService = useSupabaseInsert<any>('services', ['services']);
+  const updateServiceDb = useSupabaseUpdate<any>('services', ['services']);
+  const deleteServiceDb = useSupabaseDelete('services', ['services']);
+
+  const [localServices, setLocalServices] = useState<Service[]>(glowupStore.getServices());
+
+  useEffect(() => {
+    const handleUpdate = () => setLocalServices(glowupStore.getServices());
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, []);
+
+  const services = useMemo(() => {
+    if (servicesDb && servicesDb.length > 0) {
+      return servicesDb.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        duration: s.duration || 60,
+        price: s.price || 0,
+        category: s.category || "Standard",
+        popular: s.popular || false
+      }));
+    }
+    return localServices;
+  }, [servicesDb, localServices]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tous");
 
@@ -31,59 +62,71 @@ export default function ServicesPage() {
   const [category, setCategory] = useState("Coupe");
   const [popular, setPopular] = useState(false);
 
-  const loadServices = () => {
-    setServices(glowupStore.getServices());
-  };
-
-  useEffect(() => {
-    loadServices();
-    const handleUpdate = () => {
-      loadServices();
-    };
-    window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, []);
-
   const handleAddService = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !duration || !price) {
       toast.error("Veuillez renseigner les champs obligatoires.");
       return;
     }
-    glowupStore.addService({
-      name,
-      duration: Number(duration),
-      price: Number(price),
-      category,
-      popular
-    });
-    toast.success(`La prestation "${name}" a été ajoutée.`);
-    setIsAddOpen(false);
-    resetForm();
+    
+    if (isAuthenticated) {
+      insertService.mutate({ name, duration: Number(duration), price: Number(price), category }, {
+        onSuccess: () => {
+          toast.success(`La prestation "${name}" a été ajoutée.`);
+          setIsAddOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.addService({
+        name, duration: Number(duration), price: Number(price), category, popular
+      });
+      toast.success(`La prestation "${name}" a été ajoutée (Local).`);
+      setIsAddOpen(false);
+      resetForm();
+    }
   };
 
   const handleEditService = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService || !name || !duration || !price) return;
-    glowupStore.updateService({
-      ...selectedService,
-      name,
-      duration: Number(duration),
-      price: Number(price),
-      category,
-      popular
-    });
-    toast.success(`La prestation "${name}" a été mise à jour.`);
-    setIsEditOpen(false);
-    resetForm();
+
+    if (isAuthenticated && selectedService.id.includes('-')) {
+      updateServiceDb.mutate({ id: selectedService.id, name, duration: Number(duration), price: Number(price), category }, {
+        onSuccess: () => {
+          toast.success(`La prestation "${name}" a été mise à jour.`);
+          setIsEditOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.updateService({ ...selectedService, name, duration: Number(duration), price: Number(price), category, popular });
+      toast.success(`La prestation "${name}" a été mise à jour (Local).`);
+      setIsEditOpen(false);
+      resetForm();
+    }
   };
 
   const handleDeleteService = () => {
     if (!selectedService) return;
-    glowupStore.deleteService(selectedService.id);
-    toast.success(`La prestation "${selectedService.name}" a été supprimée.`);
-    setIsDeleteOpen(false);
-    setSelectedService(null);
+
+    if (isAuthenticated && selectedService.id.includes('-')) {
+      deleteServiceDb.mutate(selectedService.id, {
+        onSuccess: () => {
+          toast.success(`La prestation "${selectedService.name}" a été supprimée.`);
+          setIsDeleteOpen(false);
+          setSelectedService(null);
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.deleteService(selectedService.id);
+      toast.success(`La prestation "${selectedService.name}" a été supprimée (Local).`);
+      setIsDeleteOpen(false);
+      setSelectedService(null);
+    }
   };
 
   const resetForm = () => {

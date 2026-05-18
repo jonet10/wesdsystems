@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { glowupStore, Employee, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 
 const COLORS = [
   { value: "bg-primary", label: "Pêche / Champagne (Primaire)" },
@@ -20,9 +22,54 @@ const COLORS = [
 ];
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  
+  const { isAuthenticated } = useAuth();
+
+  // --- DUAL MODE DATA ---
+  const { data: employeesDb } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
+  const { data: servicesDb } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const insertEmployee = useSupabaseInsert<any>('employees', ['employees']);
+  const updateEmployeeDb = useSupabaseUpdate<any>('employees', ['employees']);
+  const deleteEmployeeDb = useSupabaseDelete('employees', ['employees']);
+
+  const [localEmployees, setLocalEmployees] = useState<Employee[]>(glowupStore.getEmployees());
+  const [localServices, setLocalServices] = useState<Service[]>(glowupStore.getServices());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setLocalEmployees(glowupStore.getEmployees());
+      setLocalServices(glowupStore.getServices());
+    };
+    window.addEventListener("glowup-store-update", handleUpdate);
+    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+  }, []);
+
+  const employees = useMemo(() => {
+    if (employeesDb && employeesDb.length > 0) {
+      return employeesDb.map((e: any) => ({
+        id: e.id,
+        name: e.name,
+        color: e.color || "bg-primary",
+        services: e.services || [],
+        status: e.status || "active"
+      }));
+    }
+    return localEmployees;
+  }, [employeesDb, localEmployees]);
+
+  const services = useMemo(() => {
+    if (servicesDb && servicesDb.length > 0) {
+      return servicesDb.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        duration: s.duration || 60,
+        price: s.price || 0,
+        category: s.category || "Standard",
+        popular: s.popular || false
+      }));
+    }
+    return localServices;
+  }, [servicesDb, localServices]);
+
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -35,59 +82,69 @@ export default function EmployeesPage() {
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
-  const loadData = () => {
-    setEmployees(glowupStore.getEmployees());
-    setServices(glowupStore.getServices());
-  };
-
-  useEffect(() => {
-    loadData();
-    const handleUpdate = () => {
-      loadData();
-    };
-    window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, []);
-
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
       toast.error("Veuillez renseigner le nom de l'employé.");
       return;
     }
-    glowupStore.addEmployee({
-      name,
-      color,
-      status,
-      services: selectedServices
-    });
-    toast.success(`L'employé "${name}" a été ajouté avec succès !`);
-    setIsAddOpen(false);
-    resetForm();
+    
+    if (isAuthenticated) {
+      insertEmployee.mutate({ name, color, status, services: selectedServices }, {
+        onSuccess: () => {
+          toast.success(`L'employé "${name}" a été ajouté avec succès !`);
+          setIsAddOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.addEmployee({ name, color, status, services: selectedServices });
+      toast.success(`L'employé "${name}" a été ajouté (Local) !`);
+      setIsAddOpen(false);
+      resetForm();
+    }
   };
 
   const handleEditEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEmployee || !name) return;
 
-    glowupStore.updateEmployee({
-      ...selectedEmployee,
-      name,
-      color,
-      status,
-      services: selectedServices
-    });
-    toast.success(`Les détails de "${name}" ont été mis à jour.`);
-    setIsEditOpen(false);
-    resetForm();
+    if (isAuthenticated && selectedEmployee.id.includes('-')) {
+      updateEmployeeDb.mutate({ id: selectedEmployee.id, name, color, status, services: selectedServices }, {
+        onSuccess: () => {
+          toast.success(`Les détails de "${name}" ont été mis à jour.`);
+          setIsEditOpen(false);
+          resetForm();
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.updateEmployee({ ...selectedEmployee, name, color, status, services: selectedServices });
+      toast.success(`Les détails de "${name}" ont été mis à jour (Local).`);
+      setIsEditOpen(false);
+      resetForm();
+    }
   };
 
   const handleDeleteEmployee = () => {
     if (!selectedEmployee) return;
-    glowupStore.deleteEmployee(selectedEmployee.id);
-    toast.success(`L'employé "${selectedEmployee.name}" a été retiré.`);
-    setIsDeleteOpen(false);
-    setSelectedEmployee(null);
+
+    if (isAuthenticated && selectedEmployee.id.includes('-')) {
+      deleteEmployeeDb.mutate(selectedEmployee.id, {
+        onSuccess: () => {
+          toast.success(`L'employé "${selectedEmployee.name}" a été retiré.`);
+          setIsDeleteOpen(false);
+          setSelectedEmployee(null);
+        },
+        onError: (err) => toast.error(err.message)
+      });
+    } else {
+      glowupStore.deleteEmployee(selectedEmployee.id);
+      toast.success(`L'employé "${selectedEmployee.name}" a été retiré (Local).`);
+      setIsDeleteOpen(false);
+      setSelectedEmployee(null);
+    }
   };
 
   const resetForm = () => {

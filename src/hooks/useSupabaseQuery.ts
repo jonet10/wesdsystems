@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 
 /**
@@ -6,8 +6,14 @@ import { supabase } from '../lib/supabase';
  * @param queryKey Clé unique pour le cache (ex: ['clients'])
  * @param tableName Nom de la table Supabase
  * @param select Colonnes à sélectionner (défaut: '*')
+ * @param options Options supplémentaires React Query (ex: { enabled: boolean })
  */
-export function useSupabaseQuery<T>(queryKey: string[], tableName: string, select = '*') {
+export function useSupabaseQuery<T>(
+  queryKey: string[], 
+  tableName: string, 
+  select = '*', 
+  options?: Omit<UseQueryOptions<T[], Error>, 'queryKey' | 'queryFn'>
+) {
   return useQuery({
     queryKey,
     queryFn: async (): Promise<T[]> => {
@@ -22,6 +28,7 @@ export function useSupabaseQuery<T>(queryKey: string[], tableName: string, selec
 
       return data as T[];
     },
+    ...options
   });
 }
 
@@ -57,6 +64,51 @@ export function useSupabaseInsert<T>(tableName: string, queryKeyToInvalidate: st
 
       if (error) throw new Error(error.message);
       return data as T;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeyToInvalidate });
+    },
+  });
+}
+
+/**
+ * Hook générique pour mettre à jour des données dans Supabase
+ */
+export function useSupabaseUpdate<T>(tableName: string, queryKeyToInvalidate: string[]) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updateData }: Partial<T> & { id: string }): Promise<T> => {
+      const { data, error } = await supabase
+        .from(tableName)
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data as T;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeyToInvalidate });
+    },
+  });
+}
+
+/**
+ * Hook générique pour supprimer des données dans Supabase
+ */
+export function useSupabaseDelete(tableName: string, queryKeyToInvalidate: string[]) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', id);
+
+      if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeyToInvalidate });
