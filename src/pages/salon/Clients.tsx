@@ -17,6 +17,7 @@ import { glowupStore, Client } from "@/lib/store";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function ClientsPage() {
   const { isAuthenticated, profile } = useAuth();
@@ -27,6 +28,7 @@ export default function ClientsPage() {
   const updateClientDb = useSupabaseUpdate<any>('clients', ['clients']);
   const deleteClientDb = useSupabaseDelete('clients', ['clients']);
 
+  const { currency, format } = useCurrency();
   const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
 
   useEffect(() => {
@@ -44,11 +46,16 @@ export default function ClientsPage() {
         phone: c.phone_number || "",
         lastVisit: "Jamais",
         visits: 0,
-        totalSpent: c.total_spent ? `${c.total_spent}€` : "0€"
+        totalSpent: c.total_spent ? format(c.total_spent) : format(0)
       }));
     }
-    return localClients;
-  }, [clientsDb, localClients]);
+    return localClients.map(c => {
+      // Local client 'totalSpent' might be stored as "540€" string. Let's parse it and format it dynamically.
+      const rawString = String(c.totalSpent).replace(/[^\d.-]/g, '');
+      const amt = parseFloat(rawString);
+      return { ...c, totalSpent: format(isNaN(amt) ? 0 : amt) };
+    });
+  }, [clientsDb, localClients, format]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();

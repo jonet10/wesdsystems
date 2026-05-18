@@ -25,10 +25,10 @@ export default function SalonDashboard() {
   // Resolve active dataset (Supabase or LocalStorage Fallback)
   const clients = useMemo(() => {
     if (clientsDb && clientsDb.length > 0) {
-      return clientsDb.map((c: any) => ({ ...c, totalSpent: c.total_spent ? `${c.total_spent}€` : "0€" }));
+      return clientsDb.map((c: any) => ({ ...c, totalSpent: c.total_spent ? format(c.total_spent) : format(0) }));
     }
     return glowupStore.getClients();
-  }, [clientsDb]);
+  }, [clientsDb, format]);
 
   const employees = useMemo(() => (employeesDb && employeesDb.length > 0) ? employeesDb : glowupStore.getEmployees(), [employeesDb]);
   
@@ -60,8 +60,9 @@ export default function SalonDashboard() {
 
     // Calculate MRR / Earnings
     const totalSpentSum = clients.reduce((sum: number, c: any) => {
-      const amt = typeof c.totalSpent === 'string' ? parseInt(c.totalSpent.replace("€", "").replace("$", "")) : (c.total_spent || 0);
-      return sum + (amt || 0);
+      const rawString = String(c.totalSpent || c.total_spent || '0').replace(/[^\d.-]/g, '');
+      const amt = parseFloat(rawString);
+      return sum + (isNaN(amt) ? 0 : amt);
     }, 0);
 
     // Calculate Average Duration
@@ -76,35 +77,35 @@ export default function SalonDashboard() {
       setStats([
         { title: "Ordonnances aujourd'hui", value: todayApts.length.toString(), icon: <Calendar className="h-6 w-6" /> },
         { title: "Patients au fichier", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 9, isPositive: true } },
-        { title: "Recettes Pharmacie", value: `${totalSpentSum.toLocaleString()}$`, icon: <DollarSign className="h-6 w-6" />, trend: { value: 18, isPositive: true } },
+        { title: "Recettes Pharmacie", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 18, isPositive: true } },
         { title: "Médicaments Référencés", value: services.length.toString(), icon: <Pill className="h-6 w-6" /> },
       ]);
     } else if (business === "restaurant") {
       setStats([
         { title: "Commandes aujourd'hui", value: todayApts.length.toString(), icon: <Utensils className="h-6 w-6" /> },
         { title: "Clients Table Map", value: (clients.length * 2).toString(), icon: <Users className="h-6 w-6" />, trend: { value: 14, isPositive: true } },
-        { title: "Recettes Resto & Bar", value: `${(totalSpentSum * 1.2).toFixed(0)}$`, icon: <DollarSign className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
+        { title: "Recettes Resto & Bar", value: formatCompact(totalSpentSum * 1.2), icon: <DollarSign className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
         { title: "Plats / Boissons au Menu", value: services.length.toString(), icon: <ShoppingBag className="h-6 w-6" /> },
       ]);
     } else if (business === "market") {
       setStats([
         { title: "Ventes POS Caisse", value: (todayApts.length * 3).toString(), icon: <ShoppingBag className="h-6 w-6" /> },
         { title: "Membres Fidélité Club", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
-        { title: "Recettes Provision", value: `${(totalSpentSum * 2.1).toFixed(0)}$`, icon: <DollarSign className="h-6 w-6" />, trend: { value: 16, isPositive: true } },
+        { title: "Recettes Provision", value: formatCompact(totalSpentSum * 2.1), icon: <DollarSign className="h-6 w-6" />, trend: { value: 16, isPositive: true } },
         { title: "Articles Inventoriés", value: (services.length * 15).toString(), icon: <Activity className="h-6 w-6" /> },
       ]);
     } else if (business === "boutique") {
       setStats([
         { title: "Ventes Boutique", value: todayApts.length.toString(), icon: <ShoppingBag className="h-6 w-6" /> },
         { title: "Clients CRM", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 7, isPositive: true } },
-        { title: "Revenus Cumulés", value: `${totalSpentSum.toLocaleString()}$`, icon: <DollarSign className="h-6 w-6" />, trend: { value: 11, isPositive: true } },
+        { title: "Revenus Cumulés", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 11, isPositive: true } },
         { title: "Catalogue Articles", value: services.length.toString(), icon: <Building className="h-6 w-6" /> },
       ]);
     } else {
       setStats([
         { title: "Rendez-vous aujourd'hui", value: todayApts.length.toString(), icon: <Calendar className="h-6 w-6" /> },
         { title: "Clients au fichier", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-        { title: "Revenus cumulés", value: `${totalSpentSum.toLocaleString()}$`, icon: <DollarSign className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
+        { title: "Revenus cumulés", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
         { title: "Durée moy. RDV", value: avgDurationStr, icon: <Clock className="h-6 w-6" /> },
       ]);
     }

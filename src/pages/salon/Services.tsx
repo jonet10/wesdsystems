@@ -12,11 +12,13 @@ import { glowupStore, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 const categories = ["Tous", "Coupe", "Coloration", "Coiffage", "Forfait", "Soins"];
 
 export default function ServicesPage() {
   const { isAuthenticated } = useAuth();
+  const { currency, format } = useCurrency();
 
   // --- DUAL MODE DATA ---
   const { data: servicesDb } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
@@ -248,8 +250,7 @@ export default function ServicesPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1 font-semibold text-primary text-sm">
-                          <Euro className="h-4 w-4" />
-                          <span>{service.price}</span>
+                          <span>{format(service.price)}</span>
                         </div>
                       </td>
                       <td className="p-4">
@@ -299,7 +300,7 @@ export default function ServicesPage() {
                   <Input id="add-svc-duration" type="number" min="5" step="5" value={duration} onChange={(e) => setDuration(Number(e.target.value))} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="add-svc-price">Prix (€) *</Label>
+                  <Label htmlFor="add-svc-price">Prix ({currency.symbol}) *</Label>
                   <Input id="add-svc-price" type="number" min="1" value={price} onChange={(e) => setPrice(Number(e.target.value))} required />
                 </div>
               </div>
@@ -351,7 +352,7 @@ export default function ServicesPage() {
                   <Input id="edit-svc-duration" type="number" min="5" step="5" value={duration} onChange={(e) => setDuration(Number(e.target.value))} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-svc-price">Prix (€) *</Label>
+                  <Label htmlFor="edit-svc-price">Prix ({currency?.symbol || "€"}) *</Label>
                   <Input id="edit-svc-price" type="number" min="1" value={price} onChange={(e) => setPrice(Number(e.target.value))} required />
                 </div>
               </div>

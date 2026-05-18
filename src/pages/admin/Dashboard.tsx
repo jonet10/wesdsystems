@@ -6,11 +6,13 @@ import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle } 
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { glowupStore, Salon } from "@/lib/store";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function SuperAdminDashboard() {
+  const { formatCompact } = useCurrency();
   const [stats, setStats] = useState([
     { title: "Salons actifs", value: "0", icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-    { title: "Revenus mensuels", value: "0€", icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
+    { title: "Revenus mensuels", value: "0", icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
     { title: "Utilisateurs totaux", value: "0", icon: <Users className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
     { title: "Croissance", value: "+23%", icon: <TrendingUp className="h-6 w-6" /> },
   ]);
@@ -48,7 +50,7 @@ export default function SuperAdminDashboard() {
 
     setStats([
       { title: "Salons actifs", value: displaySalonsActifs.toLocaleString(), icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-      { title: "Revenus mensuels", value: `${displayMRR.toLocaleString()}€`, icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
+      { title: "Revenus mensuels", value: formatCompact(displayMRR), icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
       { title: "Utilisateurs totaux", value: displayUsers.toLocaleString(), icon: <Users className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
       { title: "Croissance", value: "+23%", icon: <TrendingUp className="h-6 w-6" /> },
     ]);
@@ -61,7 +63,7 @@ export default function SuperAdminDashboard() {
     };
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, []);
+  }, [formatCompact]);
 
   return (
     <DashboardLayout

@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { glowupStore, Salon } from "@/lib/store";
 import { toast } from "sonner";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function SalonsPage() {
+  const { format } = useCurrency();
   const [salons, setSalons] = useState<Salon[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -263,9 +265,9 @@ export default function SalonsPage() {
                       <SelectValue placeholder="Choisir un plan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Basic">Basic (29€/m)</SelectItem>
-                      <SelectItem value="Pro">Pro (59€/m)</SelectItem>
-                      <SelectItem value="Premium">Premium (99€/m)</SelectItem>
+                      <SelectItem value="Basic">Basic ({format(29)}/m)</SelectItem>
+                      <SelectItem value="Pro">Pro ({format(59)}/m)</SelectItem>
+                      <SelectItem value="Premium">Premium ({format(99)}/m)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -317,9 +319,9 @@ export default function SalonsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Basic">Basic (29€/m)</SelectItem>
-                      <SelectItem value="Pro">Pro (59€/m)</SelectItem>
-                      <SelectItem value="Premium">Premium (99€/m)</SelectItem>
+                      <SelectItem value="Basic">Basic ({format(29)}/m)</SelectItem>
+                      <SelectItem value="Pro">Pro ({format(59)}/m)</SelectItem>
+                      <SelectItem value="Premium">Premium ({format(99)}/m)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

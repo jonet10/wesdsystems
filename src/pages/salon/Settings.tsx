@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Building2, Save, Sparkles, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface BusinessDay {
   day: string;
@@ -16,6 +17,7 @@ interface BusinessDay {
 }
 
 export default function SalonSettingsPage() {
+  const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
   const [salonName, setSalonName] = useState("Salon Élégance");
   const [owner, setOwner] = useState("Marie Laurent");
   const [email, setEmail] = useState("contact@salonelegance.com");
@@ -92,6 +94,23 @@ export default function SalonSettingsPage() {
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="salon-address" value={address} onChange={(e) => setAddress(e.target.value)} className="pl-9" required />
+                </div>
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="salon-currency">Devise du salon</Label>
+                <div className="relative">
+                  <select 
+                    id="salon-currency"
+                    value={activeCurrencyCode}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {availableCurrencies.map(c => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.symbol}) - {c.code}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

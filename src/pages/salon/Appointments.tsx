@@ -12,11 +12,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert } from "@/hooks/useSupabaseQuery";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
 export default function AppointmentsPage() {
   const { isAuthenticated } = useAuth();
+  const { format, currency } = useCurrency();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // --- DUAL MODE DATA ---
@@ -54,11 +56,15 @@ export default function AppointmentsPage() {
   const clients = useMemo(() => {
     if (clientsDb && clientsDb.length > 0) {
       return clientsDb.map((c: any) => ({
-        id: c.id, name: c.full_name, email: c.email || "", phone: c.phone_number || "", lastVisit: "Jamais", visits: 0, totalSpent: c.total_spent ? `${c.total_spent}€` : "0€"
+        id: c.id, name: c.full_name, email: c.email || "", phone: c.phone_number || "", lastVisit: "Jamais", visits: 0, totalSpent: c.total_spent ? format(c.total_spent) : format(0)
       }));
     }
-    return localClients;
-  }, [clientsDb, localClients]);
+    return localClients.map(c => {
+      const rawString = String(c.totalSpent).replace(/[^\d.-]/g, '');
+      const amt = parseFloat(rawString);
+      return { ...c, totalSpent: format(isNaN(amt) ? 0 : amt) };
+    });
+  }, [clientsDb, localClients, format]);
 
   const services = useMemo(() => {
     if (servicesDb && servicesDb.length > 0) {
@@ -380,7 +386,7 @@ export default function AppointmentsPage() {
                           <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
                           {s.name}
                         </span>
-                        <span className="text-xs text-muted-foreground font-semibold">({s.duration} min • {s.price}€)</span>
+                        <span className="text-xs text-muted-foreground font-semibold">({s.duration} min • {format(s.price)})</span>
                       </div>
                     </SelectItem>
                   ))}
