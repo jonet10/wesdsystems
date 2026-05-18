@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
+import { PricingProvider } from "@/contexts/PricingContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -22,6 +23,9 @@ import ServicesPage from "./pages/salon/Services";
 import AppointmentsPage from "./pages/salon/Appointments";
 import SalonEmployees from "./pages/salon/Employees";
 import SalonSettings from "./pages/salon/Settings";
+import InventoryPage from "./pages/salon/Inventory";
+import POSPage from "./pages/salon/POS";
+import SalesAnalyticsPage from "./pages/salon/SalesAnalytics";
 import EmployeeDashboard from "./pages/employee/Dashboard";
 import EmployeeSchedule from "./pages/employee/Schedule";
 import NotFound from "./pages/NotFound";
@@ -32,12 +36,13 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
-              <Routes>
+        <PricingProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
+                <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth/login" element={<Login />} />
@@ -126,6 +131,30 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/salon/inventory"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <InventoryPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <POSPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/sales-analytics"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <SalesAnalyticsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Employee Routes */}
                 <Route
@@ -147,10 +176,11 @@ const App = () => (
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </PricingProvider>
       </CurrencyProvider>
     </QueryClientProvider>
   </ErrorBoundary>

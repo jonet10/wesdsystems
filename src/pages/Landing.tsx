@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/Logo";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ArrowRight, Star, Scissors, Pill, Utensils, ShoppingBag, Building, ChevronRight, Globe, Zap, Shield, BarChart3, Users, Layers, Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { usePricing } from "@/contexts/PricingContext";
 
 // Define the businesses for the solutions section
 const businessKeys = [
@@ -28,29 +29,10 @@ const images = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images/4.jp
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
+  const { detectedRegionName, detectedCountry, setCountryPreference, priceForPlan, formatPrice } = usePricing();
   const [activeTab, setActiveTab] = useState("salon");
   const [currentImage, setCurrentImage] = useState(0);
-  const [localCurrency, setLocalCurrency] = useState("USD");
-  const [localPrice, setLocalPrice] = useState({ starter: 39, pro: 79, enterprise: 139 });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Auto-detect pricing based on timezone
-  useEffect(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz.includes("Port-au-Prince") || tz.includes("Haiti")) {
-      setLocalCurrency("HTG");
-      setLocalPrice({ starter: 1000, pro: 2500, enterprise: 5000 });
-    } else if (tz.includes("Toronto") || tz.includes("Vancouver") || tz.includes("Montreal")) {
-      setLocalCurrency("CAD");
-      setLocalPrice({ starter: 49, pro: 99, enterprise: 179 });
-    } else if (tz.includes("Europe") || tz.includes("Paris") || tz.includes("Madrid")) {
-      setLocalCurrency("EUR");
-      setLocalPrice({ starter: 35, pro: 75, enterprise: 129 });
-    } else {
-      setLocalCurrency("USD");
-      setLocalPrice({ starter: 39, pro: 79, enterprise: 139 });
-    }
-  }, []);
 
   // Image Carousel Auto-play
   useEffect(() => {
@@ -62,6 +44,9 @@ export default function Landing() {
 
   const activeBiz = businessKeys.find(b => b.id === activeTab) || businessKeys[0];
   const ActiveIcon = activeBiz.icon;
+  const starterPrice = priceForPlan("Starter") || priceForPlan("Basic");
+  const proPrice = priceForPlan("Pro");
+  const enterprisePrice = priceForPlan("Enterprise") || priceForPlan("Premium");
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -296,7 +281,20 @@ export default function Landing() {
             <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-gray-900 mb-4">{t('pricing.title')}</h2>
             <p className="text-lg text-gray-500 mb-6">{t('pricing.subtitle')}</p>
             <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold">
-              <Globe className="w-4 h-4" /> Detected Region: {localCurrency}
+              <Globe className="w-4 h-4" /> Région détectée : {detectedRegionName}
+            </div>
+            <div className="mt-3 flex justify-center">
+              <select
+                value={detectedCountry}
+                onChange={(e) => setCountryPreference(e.target.value)}
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+              >
+                <option value="HT">Haïti</option>
+                <option value="DO">République Dominicaine</option>
+                <option value="FR">France</option>
+                <option value="US">États-Unis</option>
+                <option value="CA">Canada</option>
+              </select>
             </div>
           </div>
           
@@ -305,7 +303,9 @@ export default function Landing() {
             <div className="p-8 rounded-3xl bg-white border border-gray-200 hover:shadow-xl transition-shadow flex flex-col">
               <h3 className="text-xl font-bold text-gray-900 mb-2">{t('pricing.starter')}</h3>
               <div className="flex items-baseline gap-1 mb-8">
-                <span className="text-4xl font-extrabold text-gray-900">{localPrice.starter} {localCurrency}</span>
+                <span className="text-4xl font-extrabold text-gray-900">
+                  {starterPrice ? formatPrice(starterPrice.monthly_price, starterPrice.currency_code) : "—"}
+                </span>
                 <span className="text-gray-500 font-medium">{t('pricing.monthly')}</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
@@ -325,7 +325,9 @@ export default function Landing() {
               </div>
               <h3 className="text-xl font-bold mb-2">{t('pricing.pro')}</h3>
               <div className="flex items-baseline gap-1 mb-8">
-                <span className="text-4xl font-extrabold">{localPrice.pro} {localCurrency}</span>
+                <span className="text-4xl font-extrabold">
+                  {proPrice ? formatPrice(proPrice.monthly_price, proPrice.currency_code) : "—"}
+                </span>
                 <span className="text-gray-400 font-medium">{t('pricing.monthly')}</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
@@ -342,7 +344,9 @@ export default function Landing() {
             <div className="p-8 rounded-3xl bg-white border border-gray-200 hover:shadow-xl transition-shadow flex flex-col">
               <h3 className="text-xl font-bold text-gray-900 mb-2">{t('pricing.enterprise')}</h3>
               <div className="flex items-baseline gap-1 mb-8">
-                <span className="text-4xl font-extrabold text-gray-900">{localPrice.enterprise} {localCurrency}</span>
+                <span className="text-4xl font-extrabold text-gray-900">
+                  {enterprisePrice ? formatPrice(enterprisePrice.monthly_price, enterprisePrice.currency_code) : "—"}
+                </span>
                 <span className="text-gray-500 font-medium">{t('pricing.monthly')}</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">

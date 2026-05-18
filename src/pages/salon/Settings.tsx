@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Building2, Save, Sparkles, MapPin, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ImageUploader } from "@/components/shared/ImageUploader";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 
 interface BusinessDay {
   day: string;
@@ -18,13 +20,16 @@ interface BusinessDay {
 }
 
 export default function SalonSettingsPage() {
+  const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
-  const [salonName, setSalonName] = useState("Salon Élégance");
-  const [owner, setOwner] = useState("Marie Laurent");
-  const [email, setEmail] = useState("contact@salonelegance.com");
-  const [phone, setPhone] = useState("06 12 34 56 78");
-  const [address, setAddress] = useState("15 Rue de la Paix, 75002 Paris");
+  const [salonName, setSalonName] = useState("");
+  const [owner, setOwner] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [businessSnapshot, setBusinessSnapshot] = useState<Record<string, unknown> | null>(null);
 
   const [businessDays, setBusinessDays] = useState<BusinessDay[]>([
     { day: "Lundi", isOpen: false, openTime: "09:00", closeTime: "18:00" },
@@ -48,9 +53,88 @@ export default function SalonSettingsPage() {
     );
   };
 
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (!isAuthenticated || !user?.id) return;
+
+      try {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("full_name, business_id")
+          .eq("id", user.id)
+          .single();
+
+        if (profileData?.full_name) {
+          setOwner(profileData.full_name);
+        }
+
+        if (!profileData?.business_id) return;
+
+        const { data: businessData } = await supabase
+          .from("businesses")
+          .select("*")
+          .eq("id", profileData.business_id)
+          .single();
+
+        if (!businessData) return;
+
+        setBusinessSnapshot(businessData as Record<string, unknown>);
+        setSalonName((businessData.name as string) || "");
+        setLogoUrl((businessData.logo_url as string) || null);
+        setEmail((businessData.email as string) || "");
+        setPhone((businessData.phone as string) || "");
+        setAddress((businessData.address as string) || "");
+      } catch (error) {
+        console.error("Erreur chargement paramètres salon:", error);
+      }
+    };
+
+    loadSettings();
+  }, [isAuthenticated, user?.id]);
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Les informations de votre salon ont été enregistrées avec succès !");
+
+    const saveSettings = async () => {
+      if (!isAuthenticated || !user?.id) {
+        toast.error("Vous devez être connecté pour enregistrer.");
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        await supabase
+          .from("profiles")
+          .update({ full_name: owner.trim() })
+          .eq("id", user.id);
+
+        if (profile?.business_id) {
+          const businessUpdate: Record<string, unknown> = {
+            name: salonName.trim(),
+            logo_url: logoUrl,
+          };
+
+          if (businessSnapshot && "email" in businessSnapshot) businessUpdate.email = email.trim();
+          if (businessSnapshot && "phone" in businessSnapshot) businessUpdate.phone = phone.trim();
+          if (businessSnapshot && "address" in businessSnapshot) businessUpdate.address = address.trim();
+          if (businessSnapshot && "currency_code" in businessSnapshot) businessUpdate.currency_code = activeCurrencyCode;
+
+          await supabase
+            .from("businesses")
+            .update(businessUpdate)
+            .eq("id", profile.business_id);
+        }
+
+        toast.success("Les informations de votre salon ont été enregistrées avec succès.");
+      } catch (error) {
+        console.error("Erreur sauvegarde paramètres salon:", error);
+        toast.error("Impossible d'enregistrer pour le moment.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    void saveSettings();
   };
 
   return (
@@ -58,7 +142,7 @@ export default function SalonSettingsPage() {
       role="salon_admin"
       title="Paramètres Salon"
       subtitle="Configurez l'identité et les horaires de votre établissement"
-      userName="Marie Laurent"
+      userName={owner || "Administrateur"}
     >
       <StaggerContainer className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Salon Profile Settings */}
@@ -87,25 +171,25 @@ export default function SalonSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="salon-name">Nom du salon *</Label>
-                <Input id="salon-name" value={salonName} onChange={(e) => setSalonName(e.target.value)} required />
+                <Input id="salon-name" placeholder="Ex: Barber Studio Delmas" value={salonName} onChange={(e) => setSalonName(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="owner-name">Propriétaire / Gérant *</Label>
-                <Input id="owner-name" value={owner} onChange={(e) => setOwner(e.target.value)} required />
+                <Input id="owner-name" placeholder="Ex: Jean Dupont" value={owner} onChange={(e) => setOwner(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="salon-email">Email de contact *</Label>
-                <Input id="salon-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input id="salon-email" type="email" placeholder="Ex: contact@monstudio.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="salon-phone">Téléphone *</Label>
-                <Input id="salon-phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                <Input id="salon-phone" placeholder="Ex: +509 37 00 00 00" value={phone} onChange={(e) => setPhone(e.target.value)} required />
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="salon-address">Adresse physique *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input id="salon-address" value={address} onChange={(e) => setAddress(e.target.value)} className="pl-9" required />
+                  <Input id="salon-address" placeholder="Ex: Delmas 75, Port-au-Prince" value={address} onChange={(e) => setAddress(e.target.value)} className="pl-9" required />
                 </div>
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -128,9 +212,9 @@ export default function SalonSettingsPage() {
             </div>
 
             <div className="flex justify-end pt-4 border-t border-border">
-              <Button type="submit" variant="hero">
+              <Button type="submit" variant="hero" disabled={isSaving}>
                 <Save className="h-4 w-4 mr-2" />
-                Enregistrer
+                {isSaving ? "Enregistrement..." : "Enregistrer"}
               </Button>
             </div>
           </form>

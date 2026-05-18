@@ -80,26 +80,73 @@ export default function EmployeesPage() {
 
   // Form states
   const [name, setName] = useState("");
+  const [employeeEmail, setEmployeeEmail] = useState("");
+  const [temporaryPassword, setTemporaryPassword] = useState("");
+  const [globalCommission, setGlobalCommission] = useState("40");
   const [color, setColor] = useState("bg-primary");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
       toast.error("Veuillez renseigner le nom de l'employé.");
       return;
     }
+    if (isAuthenticated && (!employeeEmail || !temporaryPassword)) {
+      toast.error("Email et mot de passe temporaire sont requis.");
+      return;
+    }
     
     if (isAuthenticated) {
-      insertEmployee.mutate({ name, color, status, services: selectedServices }, {
-        onSuccess: () => {
-          toast.success(`L'employé "${name}" a été ajouté avec succès !`);
-          setIsAddOpen(false);
-          resetForm();
-        },
-        onError: (err) => toast.error(err.message)
-      });
+      try {
+        setIsCreatingAccount(true);
+        const { data: employeeRow, error: employeeError } = await supabase
+          .from("employees")
+          .insert([{ name, color, status, services: selectedServices }])
+          .select("id, business_id")
+          .single();
+
+        if (employeeError || !employeeRow?.id) {
+          throw new Error(employeeError?.message || "Création employé impossible");
+        }
+
+        const { error: accountError } = await supabase.functions.invoke("create-employee-account", {
+          body: {
+            employee_id: employeeRow.id,
+            business_id: employeeRow.business_id,
+            email: employeeEmail.trim().toLowerCase(),
+            temporary_password: temporaryPassword,
+            role: "employee",
+            is_active: status === "active",
+          },
+        });
+
+        if (accountError) throw new Error(accountError.message);
+
+        const rate = Number(globalCommission);
+        if (!Number.isNaN(rate)) {
+          await supabase.from("employee_commissions").insert([
+            {
+              employee_id: employeeRow.id,
+              business_id: employeeRow.business_id,
+              global_rate: Math.max(0, Math.min(100, rate)),
+              period_start: new Date().toISOString().split("T")[0],
+              period_end: new Date().toISOString().split("T")[0],
+            },
+          ]);
+        }
+
+        toast.success(`L'employé "${name}" et son compte ont été créés.`);
+        setIsAddOpen(false);
+        resetForm();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Erreur de création employé";
+        toast.error(message);
+      } finally {
+        setIsCreatingAccount(false);
+      }
     } else {
       glowupStore.addEmployee({ name, color, status, services: selectedServices });
       toast.success(`L'employé "${name}" a été ajouté (Local) !`);
@@ -151,6 +198,9 @@ export default function EmployeesPage() {
 
   const resetForm = () => {
     setName("");
+    setEmployeeEmail("");
+    setTemporaryPassword("");
+    setGlobalCommission("40");
     setColor("bg-primary");
     setStatus("active");
     setSelectedServices([]);
@@ -306,6 +356,30 @@ export default function EmployeesPage() {
                 <Label htmlFor="add-name">Nom complet *</Label>
                 <Input id="add-name" placeholder="Ex: Julie Dubois" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
+              {isAuthenticated && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-email">Email employé *</Label>
+                    <Input id="add-email" type="email" placeholder="employe@studio.com" value={employeeEmail} onChange={(e) => setEmployeeEmail(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-temp-password">Mot de passe temporaire *</Label>
+                    <Input id="add-temp-password" type="text" placeholder="Temp#2026!" value={temporaryPassword} onChange={(e) => setTemporaryPassword(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-global-commission">Commission globale (%)</Label>
+                    <Input
+                      id="add-global-commission"
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={globalCommission}
+                      onChange={(e) => setGlobalCommission(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="add-color">Couleur Agenda</Label>
@@ -359,7 +433,9 @@ export default function EmployeesPage() {
 
               <DialogFooter className="pt-4">
                 <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
-                <Button type="submit" variant="hero">Ajouter l'employé</Button>
+                <Button type="submit" variant="hero" disabled={isCreatingAccount}>
+                  {isCreatingAccount ? "Création..." : "Ajouter l'employé"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

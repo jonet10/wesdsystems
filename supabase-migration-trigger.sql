@@ -25,7 +25,7 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', 'Utilisateur'),
-    'owner',
+    'studio_admin',
     new_biz_id
   );
 

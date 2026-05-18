@@ -17,7 +17,9 @@ import {
   ShoppingBag,
   FileText,
   Layers,
-  ShoppingBag as POSIcon
+  ShoppingBag as POSIcon,
+  Package,
+  BarChart3
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -105,6 +107,9 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: Users, label: "Clients", path: "/salon/clients" },
           { icon: Users, label: "Employés", path: "/salon/employees" },
           { icon: Scissors, label: "Prestations", path: "/salon/services" },
+          { icon: Package, label: "Inventaire", path: "/salon/inventory" },
+          { icon: POSIcon, label: "POS / Caisse", path: "/salon/pos" },
+          { icon: BarChart3, label: "Analytics Ventes", path: "/salon/sales-analytics" },
           { icon: Settings, label: "Paramètres", path: "/salon/settings" },
         ];
     }
