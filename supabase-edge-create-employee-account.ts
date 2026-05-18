@@ -90,6 +90,33 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: linkError.message }), { status: 400, headers: corsHeaders });
     }
 
+    // Optional: send employee account email via Resend if secrets exist
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL");
+    if (resendApiKey && fromEmail) {
+      await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject: "Votre compte employé Wesd Systems",
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
+              <h2>Votre accès est prêt</h2>
+              <p>Votre compte employé a été créé.</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Mot de passe temporaire:</strong> ${temporary_password}</p>
+              <p>Merci de changer le mot de passe après la première connexion.</p>
+            </div>
+          `,
+        }),
+      });
+    }
+
     return new Response(JSON.stringify({ success: true, auth_user_id: authUserId }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

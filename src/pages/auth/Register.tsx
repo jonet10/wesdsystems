@@ -61,6 +61,16 @@ export default function Register() {
 
       if (error) throw error;
 
+      // Send confirmation/welcome email asynchronously via Edge Function
+      await supabase.functions.invoke("send-confirmation-email", {
+        body: {
+          to: formData.email,
+          full_name: formData.name,
+          business_name: formData.businessName,
+          email_type: "welcome",
+        },
+      });
+
       // Save their chosen business type in the global store!
       glowupStore.setActiveBusiness(formData.businessType as any);
       navigate("/salon");
