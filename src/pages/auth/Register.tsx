@@ -64,15 +64,26 @@ export default function Register() {
 
       if (error) throw error;
 
-      // Send confirmation/welcome email asynchronously via Edge Function
-      await supabase.functions.invoke("send-confirmation-email", {
-        body: {
-          to: formData.email,
-          full_name: formData.name,
-          business_name: formData.businessName,
-          email_type: "welcome",
-        },
-      });
+      // Send welcome email via Edge Function (non-blocking for signup flow)
+      try {
+        const { error: mailError } = await supabase.functions.invoke("send-confirmation-email", {
+          body: {
+            to: formData.email,
+            full_name: formData.name,
+            business_name: formData.businessName,
+            email_type: "welcome",
+          },
+        });
+        if (mailError) {
+          console.warn("Email welcome non envoyé:", mailError.message);
+          toast({
+            title: "Compte créé, email secondaire non envoyé",
+            description: "Votre compte est bien créé. Vérifiez tout de même l'email de confirmation Supabase.",
+          });
+        }
+      } catch (mailInvokeError) {
+        console.warn("Erreur invoke send-confirmation-email:", mailInvokeError);
+      }
 
       // If email confirmation is enabled, Supabase returns no session immediately.
       if (!data.session) {
