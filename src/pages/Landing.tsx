@@ -138,8 +138,8 @@ export default function Landing() {
         <div className="absolute inset-0 -z-20">
           <img src="/images/Background.gif" alt="Background Animation" className="w-full h-full object-cover" />
         </div>
-        {/* Light Overlay to ensure text remains readable without hiding the GIF */}
-        <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] -z-10" />
+        {/* Lighter overlay so the animated background remains clearly visible */}
+        <div className="absolute inset-0 bg-white/20 backdrop-blur-[0.5px] -z-10" />
         
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 w-[800px] h-[800px] bg-blue-50/20 rounded-full blur-3xl -z-10" />
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
