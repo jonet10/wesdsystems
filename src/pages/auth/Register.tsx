@@ -28,6 +28,8 @@ export default function Register() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,6 +52,7 @@ export default function Register() {
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/login`,
           data: {
             full_name: formData.name,
             business_name: formData.businessName,
@@ -71,13 +74,23 @@ export default function Register() {
         },
       });
 
-      // Save their chosen business type in the global store!
-      glowupStore.setActiveBusiness(formData.businessType as any);
-      navigate("/salon");
-      toast({
-        title: "Compte créé avec succès !",
-        description: "Bienvenue sur Wesd Systems. Votre essai de 14 jours commence maintenant.",
-      });
+      // If email confirmation is enabled, Supabase returns no session immediately.
+      if (!data.session) {
+        setNeedsEmailConfirmation(true);
+        setRegisteredEmail(formData.email);
+        toast({
+          title: "Confirmez votre email",
+          description: "Nous avons envoyé un lien de confirmation. Vérifiez votre boîte mail pour activer votre compte.",
+        });
+      } else {
+        // Save their chosen business type in the global store!
+        glowupStore.setActiveBusiness(formData.businessType as any);
+        navigate("/salon");
+        toast({
+          title: "Compte créé avec succès !",
+          description: "Bienvenue sur Wesd Systems. Votre essai de 14 jours commence maintenant.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Erreur lors de l'inscription",
@@ -114,6 +127,16 @@ export default function Register() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {needsEmailConfirmation && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold text-foreground">Vérifiez votre adresse email</p>
+                  <p className="text-muted-foreground mt-1">
+                    Un lien de confirmation a été envoyé à <strong>{registeredEmail}</strong>.
+                    Ouvrez votre boîte mail puis cliquez sur le lien pour activer votre compte.
+                  </p>
+                </div>
+              )}
+
               {step === 1 && (
                 <>
                   <div className="space-y-2">
