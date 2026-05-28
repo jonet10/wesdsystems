@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Mail, UserCog, Shield, Scissors, Cashier, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, UserCog, Shield, Scissors, Coins, Star } from "lucide-react";
 import { glowupStore, Employee, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ interface EmployeeForm {
 }
 
 const ROLE_OPTIONS: { value: EmployeeRole; label: string; icon: React.ComponentType<{className?: string}>; desc: string }[] = [
-  { value: "cashier", label: "Caissier(ère)", icon: Cashier, desc: "Accès caisse POS et ventes uniquement" },
+ { value: "cashier", label: "Caissier(ère)", icon: Coins, desc: "Accès caisse POS et ventes uniquement" },
   { value: "barber", label: "Barbier / Coiffeur", icon: Scissors, desc: "Gestion des rendez-vous et prestations" },
   { value: "manager", label: "Responsable", icon: Star, desc: "Accès complet sauf facturation" },
 ];
