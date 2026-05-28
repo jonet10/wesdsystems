@@ -35,13 +35,15 @@ export default function Login() {
       if (data.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, role_normalized')
           .eq('id', data.user.id)
           .single();
 
-        if (profile?.role === 'super_admin') {
+        const normalizedRole = profile?.role_normalized || profile?.role;
+
+        if (normalizedRole === 'super_admin') {
           targetRoute = "/admin";
-        } else if (profile?.role === 'employee') {
+        } else if (normalizedRole === 'employee') {
           targetRoute = "/employee";
         } else {
           targetRoute = "/salon";

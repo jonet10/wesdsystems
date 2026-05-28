@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-type AppRole = "super_admin" | "salon_admin" | "employee";
+type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -14,6 +14,13 @@ const getDefaultRouteForRole = (role?: string | null): string => {
   if (role === "super_admin") return "/admin";
   if (role === "employee") return "/employee";
   return "/salon";
+};
+
+const normalizeRole = (role?: string | null): AppRole | null => {
+  if (!role) return null;
+  if (role === "owner" || role === "salon_admin" || role === "studio_admin") return "studio_admin";
+  if (role === "super_admin" || role === "employee") return role;
+  return null;
 };
 
 export function ProtectedRoute({
@@ -36,7 +43,8 @@ export function ProtectedRoute({
     return <Navigate to="/auth/login" state={{ from: location.pathname }} replace />;
   }
 
-  const role = profile?.role ?? null;
+  const role = normalizeRole(profile?.role_normalized ?? profile?.role ?? null);
+  const normalizedAllowedRoles = allowedRoles.map((r) => normalizeRole(r)).filter(Boolean) as AppRole[];
 
   if (!role) {
     if (allowAuthenticatedWithoutRole) {
@@ -45,7 +53,7 @@ export function ProtectedRoute({
     return <Navigate to="/salon" replace />;
   }
 
-  if (!allowedRoles.includes(role as AppRole)) {
+  if (!normalizedAllowedRoles.includes(role as AppRole)) {
     return <Navigate to={getDefaultRouteForRole(role)} replace />;
   }
 

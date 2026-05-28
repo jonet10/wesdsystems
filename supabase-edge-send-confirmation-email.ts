@@ -8,9 +8,18 @@
  * - RESEND_FROM_EMAIL (e.g. no-reply@yourdomain.com)
  */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const getCorsHeaders = (origin: string | null) => {
+  const configured = (Deno.env.get("ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const allowOrigin = origin && configured.includes(origin) ? origin : configured[0] || "null";
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    Vary: "Origin",
+  };
 };
 
 interface Payload {
@@ -22,6 +31,7 @@ interface Payload {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("Origin"));
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

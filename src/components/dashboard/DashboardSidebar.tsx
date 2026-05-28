@@ -17,18 +17,25 @@ import {
   ShoppingBag,
   FileText,
   Layers,
-  ShoppingBag as POSIcon,
   Package,
-  BarChart3
+  BarChart3,
+  Bell,
+  User as UserIcon,
+  Menu,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { glowupStore } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   path: string;
+  badge?: number;
+  role?: "all" | "salon_admin" | "employee";
 }
 
 interface DashboardSidebarProps {
@@ -36,144 +43,187 @@ interface DashboardSidebarProps {
 }
 
 const superAdminItems: SidebarItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-  { icon: Building2, label: "Établissements", path: "/admin/salons" },
-  { icon: CreditCard, label: "Abonnements", path: "/admin/subscriptions" },
-  { icon: Settings, label: "Paramètres", path: "/admin/settings" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/admin", role: "all" },
+  { icon: Building2, label: "Établissements", path: "/admin/salons", role: "all" },
+  { icon: CreditCard, label: "Abonnements", path: "/admin/subscriptions", role: "all" },
+  { icon: Settings, label: "Paramètres", path: "/admin/settings", role: "all" },
 ];
 
 const employeeItems: SidebarItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/employee" },
-  { icon: Calendar, label: "Mon Agenda", path: "/employee/schedule" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/employee", role: "all" },
+  { icon: Calendar, label: "Mon Agenda", path: "/employee/schedule", role: "all" },
 ];
 
 export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
+  const { user } = useAuth();
 
   useEffect(() => {
-    const handleUpdate = () => {
-      setActiveBiz(glowupStore.getActiveBusiness());
-    };
+    const handleUpdate = () => setActiveBiz(glowupStore.getActiveBusiness());
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, []);
 
-  // Compute dynamic items for business admin based on selected business vertical!
   const getBusinessAdminItems = (): SidebarItem[] => {
     switch (activeBiz) {
       case "pharmacie":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon" },
-          { icon: FileText, label: "Ordonnances", path: "/salon/appointments" },
-          { icon: Users, label: "Patients", path: "/salon/clients" },
-          { icon: Users, label: "Pharmaciens", path: "/salon/employees" },
-          { icon: Pill, label: "Stock Médicaments", path: "/salon/services" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
+          { icon: FileText, label: "Ordonnances", path: "/salon/appointments", role: "all" },
+          { icon: Users, label: "Patients", path: "/salon/clients", role: "all" },
+          { icon: Users, label: "Pharmaciens", path: "/salon/employees", role: "salon_admin" },
+          { icon: Pill, label: "Stock Médicaments", path: "/salon/services", role: "all" },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
         ];
       case "restaurant":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon" },
-          { icon: Utensils, label: "POS Commandes", path: "/salon/appointments" },
-          { icon: Users, label: "Clients Directory", path: "/salon/clients" },
-          { icon: Users, label: "Personnel / Staff", path: "/salon/employees" },
-          { icon: Layers, label: "Carte & Cuisine", path: "/salon/services" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
+          { icon: Utensils, label: "POS Commandes", path: "/salon/pos", role: "all" },
+          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
+          { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
+          { icon: Layers, label: "Carte & Cuisine", path: "/salon/services", role: "all" },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
         ];
       case "market":
-        return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon" },
-          { icon: POSIcon, label: "Caisse POS", path: "/salon/appointments" },
-          { icon: Users, label: "Membres Club", path: "/salon/clients" },
-          { icon: Users, label: "Caissiers", path: "/salon/employees" },
-          { icon: Layers, label: "Inventaire Stock", path: "/salon/services" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings" },
-        ];
       case "boutique":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon" },
-          { icon: POSIcon, label: "Ventes POS", path: "/salon/appointments" },
-          { icon: Users, label: "Clients / CRM", path: "/salon/clients" },
-          { icon: Users, label: "Vendeurs", path: "/salon/employees" },
-          { icon: Layers, label: "Catalogue Articles", path: "/salon/services" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/salon/pos", role: "all" },
+          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
+          { icon: Users, label: "Équipe", path: "/salon/employees", role: "salon_admin" },
+          { icon: Layers, label: "Inventaire", path: "/salon/inventory", role: "all" },
+          { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
         ];
       case "salon":
       default:
         return [
-          { icon: LayoutDashboard, label: "Dashboard Salon", path: "/salon" },
-          { icon: Calendar, label: "Rendez-vous", path: "/salon/appointments" },
-          { icon: Users, label: "Clients", path: "/salon/clients" },
-          { icon: Users, label: "Employés", path: "/salon/employees" },
-          { icon: Scissors, label: "Prestations", path: "/salon/services" },
-          { icon: Package, label: "Inventaire", path: "/salon/inventory" },
-          { icon: POSIcon, label: "POS / Caisse", path: "/salon/pos" },
-          { icon: BarChart3, label: "Analytics Ventes", path: "/salon/sales-analytics" },
-          { icon: Settings, label: "Paramètres", path: "/salon/settings" },
+          { icon: LayoutDashboard, label: "Dashboard", path: "/salon", role: "all" },
+          { icon: Calendar, label: "Rendez-vous", path: "/salon/appointments", role: "all" },
+          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
+          { icon: Users, label: "Employés", path: "/salon/employees", role: "salon_admin" },
+          { icon: Scissors, label: "Prestations", path: "/salon/services", role: "all" },
+          { icon: Package, label: "Inventaire", path: "/salon/inventory", role: "all" },
+          { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/pos", role: "all" },
+          { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
+          { icon: Settings, label: "Paramètres", path: "/salon/settings", role: "salon_admin" },
         ];
     }
   };
 
-  const items = role === "super_admin" 
-    ? superAdminItems 
-    : role === "salon_admin" 
-    ? getBusinessAdminItems() 
-    : employeeItems;
+  const items = role === "super_admin"
+    ? superAdminItems
+    : role === "salon_admin"
+    ? getBusinessAdminItems()
+    : employeeItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
+
+  const NavItem = ({ item }: { item: SidebarItem }) => {
+    const Icon = item.icon;
+    const isActive = location.pathname === item.path;
+    
+    const content = (
+      <Link
+        to={item.path}
+        className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+          isActive 
+            ? "bg-primary/10 text-primary font-medium" 
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+      >
+        <Icon className={cn("h-4 w-4 flex-shrink-0", isActive && "text-primary")} />
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.span
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="text-sm truncate"
+            >
+              {item.label}
+            </motion.span>
+          )}
+        </AnimatePresence>
+        {!collapsed && item.badge !== undefined && item.badge > 0 && (
+          <span className="ml-auto h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center">
+            {item.badge > 9 ? "9+" : item.badge}
+          </span>
+        )}
+      </Link>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip delayDuration={0}>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent side="right">{item.label}</TooltipContent>
+        </Tooltip>
+      );
+    }
+    return content;
+  };
 
   return (
-    <aside className={cn(
-      "h-screen bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300",
-      collapsed ? "w-20" : "w-64"
-    )}>
-      <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
-        <Logo size="sm" showText={!collapsed} />
+    <motion.aside
+      initial={false}
+      animate={{ width: collapsed ? 72 : 256 }}
+      className="fixed left-0 top-0 h-screen bg-background border-r border-border/50 
+                 flex flex-col z-40 transition-all duration-300 ease-in-out"
+    >
+      {/* Logo Header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-border/50">
+        <motion.div 
+          animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+          className="overflow-hidden whitespace-nowrap"
+        >
+          <Logo className="h-7" />
+        </motion.div>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent"
+          className="h-8 w-8 ml-auto"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {items.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          
-          return (
-            <Link
-              key={item.label + item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                collapsed && "justify-center"
-              )}
-            >
-              <Icon className="h-5 w-5 flex-shrink-0" />
-              {!collapsed && <span className="font-semibold text-sm">{item.label}</span>}
-            </Link>
-          );
-        })}
+      {/* Navigation */}
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        {items.map((item) => (
+          <NavItem key={item.path} item={item} />
+        ))}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
-        <Link
-          to="/auth/login"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200",
-            collapsed && "justify-center"
-          )}
-        >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
-          {!collapsed && <span className="font-semibold text-sm">Déconnexion</span>}
-        </Link>
-      </div>
-    </aside>
+      {/* User Mini Profile (collapsed mode) */}
+      {collapsed && (
+        <div className="p-3 border-t border-border/50">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="w-full">
+                <UserIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Profil</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
+      {/* Footer Toggle */}
+      {!collapsed && (
+        <div className="p-3 border-t border-border/50">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2 text-muted-foreground"
+            onClick={() => setCollapsed(true)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="text-sm">Réduire le menu</span>
+          </Button>
+        </div>
+      )}
+    </motion.aside>
   );
 };

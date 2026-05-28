@@ -106,6 +106,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_business_id uuid;
@@ -154,6 +155,10 @@ BEGIN
   FROM rates;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.calculate_employee_commission(uuid, date, date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.calculate_employee_commission(uuid, date, date) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.calculate_employee_commission(uuid, date, date) TO service_role;
 
 -- 5) RLS multi-tenant stricte
 ALTER TABLE public.employee_accounts ENABLE ROW LEVEL SECURITY;

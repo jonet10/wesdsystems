@@ -6,6 +6,7 @@ interface UserProfile {
   id: string;
   full_name: string | null;
   role: string;
+  role_normalized: string | null;
   business_id: string | null;
 }
 
@@ -69,7 +70,7 @@ export function useAuth(): AuthState {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role, business_id')
+        .select('id, full_name, role, role_normalized, business_id')
         .eq('id', userId)
         .single();
 
