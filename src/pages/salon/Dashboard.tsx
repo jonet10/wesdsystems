@@ -1,155 +1,83 @@
 import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { 
-  Calendar, Users, Euro, Clock, Plus, Pill, Utensils, 
-  ShoppingBag, Building, TrendingUp, Activity, DollarSign
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Calendar, Users, Clock, Plus, TrendingUp, DollarSign,
+  Scissors, Beer, Package, ShoppingBag, ArrowRight,
+  CheckCircle2, XCircle, AlertCircle
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line,
+} from "recharts";
+
+interface DashboardStat {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  trend?: { value: number; isPositive: boolean };
+  color?: string;
+}
 
 export default function SalonDashboard() {
   const { isAuthenticated } = useAuth();
   const { formatCompact, format } = useCurrency();
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
+  const [todaySales, setTodaySales] = useState<any[]>([]);
+  const [todayRevenue, setTodayRevenue] = useState(0);
+  const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [weeklyData, setWeeklyData] = useState<{ day: string; revenue: number; appointments: number }[]>([]);
 
-  // --- DUAL MODE DATA FETCHING ---
   const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
   const { data: employeesDb, isLoading: empLoading } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
   const { data: appointmentsDb, isLoading: aptLoading } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
   const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
 
-  // Resolve active dataset (Supabase or LocalStorage Fallback)
   const clients = useMemo(() => {
-    if (clientsDb && clientsDb.length > 0) {
-      return clientsDb.map((c: any) => ({ ...c, totalSpent: c.total_spent ? format(c.total_spent) : format(0) }));
-    }
+    if (clientsDb && clientsDb.length > 0) return clientsDb;
     return glowupStore.getClients();
-  }, [clientsDb, format]);
+  }, [clientsDb]);
 
-  const employees = useMemo(() => (employeesDb && employeesDb.length > 0) ? employeesDb : glowupStore.getEmployees(), [employeesDb]);
-  
+  const employees = useMemo(() => {
+    return (employeesDb && employeesDb.length > 0) ? employeesDb : glowupStore.getEmployees();
+  }, [employeesDb]);
+
   const appointments = useMemo(() => {
     if (appointmentsDb && appointmentsDb.length > 0) {
       return appointmentsDb.map((a: any) => ({
         ...a,
         date: a.scheduled_at ? a.scheduled_at.split("T")[0] : new Date().toISOString().split("T")[0],
-        duration: a.amount ? 1 : 0.5 // Simplified mapping for MVP
+        duration: a.amount ? 1 : 0.5,
       }));
     }
     return glowupStore.getAppointments();
   }, [appointmentsDb]);
 
-  const services = useMemo(() => (servicesDb && servicesDb.length > 0) ? servicesDb : glowupStore.getServices(), [servicesDb]);
+  const services = useMemo(() => {
+    return (servicesDb && servicesDb.length > 0) ? servicesDb : glowupStore.getServices();
+  }, [servicesDb]);
 
   const isDataLoading = isAuthenticated && (clientsLoading || empLoading || aptLoading || servLoading);
-
-  const [stats, setStats] = useState<any[]>([]);
-  const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
 
   useEffect(() => {
     if (isDataLoading) return;
 
     const todayStr = new Date().toISOString().split("T")[0];
     const todayApts = appointments.filter((a: any) => a.date === todayStr);
-    const business = glowupStore.getActiveBusiness();
-    setActiveBiz(business);
 
-    // Calculate MRR / Earnings
-    const totalSpentSum = clients.reduce((sum: number, c: any) => {
-      const rawString = String(c.totalSpent || c.total_spent || '0').replace(/[^\d.-]/g, '');
-      const amt = parseFloat(rawString);
-      return sum + (isNaN(amt) ? 0 : amt);
-    }, 0);
-
-    // Calculate Average Duration
-    let avgDurationStr = "45min";
-    if (appointments.length > 0) {
-      const avgHrs = appointments.reduce((sum: number, a: any) => sum + (a.duration || 1), 0) / appointments.length;
-      avgDurationStr = `${Math.round(avgHrs * 60)}min`;
-    }
-
-    // Dynamic stats and labels per business vertical!
-    if (business === "pharmacie") {
-      setStats([
-        { title: "Ordonnances aujourd'hui", value: todayApts.length.toString(), icon: <Calendar className="h-6 w-6" /> },
-        { title: "Patients au fichier", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 9, isPositive: true } },
-        { title: "Recettes Pharmacie", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 18, isPositive: true } },
-        { title: "Médicaments Référencés", value: services.length.toString(), icon: <Pill className="h-6 w-6" /> },
-      ]);
-    } else if (business === "restaurant") {
-      setStats([
-        { title: "Commandes aujourd'hui", value: todayApts.length.toString(), icon: <Utensils className="h-6 w-6" /> },
-        { title: "Clients Table Map", value: (clients.length * 2).toString(), icon: <Users className="h-6 w-6" />, trend: { value: 14, isPositive: true } },
-        { title: "Recettes Resto & Bar", value: formatCompact(totalSpentSum * 1.2), icon: <DollarSign className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-        { title: "Plats / Boissons au Menu", value: services.length.toString(), icon: <ShoppingBag className="h-6 w-6" /> },
-      ]);
-    } else if (business === "market") {
-      setStats([
-        { title: "Ventes POS Caisse", value: (todayApts.length * 3).toString(), icon: <ShoppingBag className="h-6 w-6" /> },
-        { title: "Membres Fidélité Club", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
-        { title: "Recettes Provision", value: formatCompact(totalSpentSum * 2.1), icon: <DollarSign className="h-6 w-6" />, trend: { value: 16, isPositive: true } },
-        { title: "Articles Inventoriés", value: (services.length * 15).toString(), icon: <Activity className="h-6 w-6" /> },
-      ]);
-    } else if (business === "boutique") {
-      setStats([
-        { title: "Ventes Boutique", value: todayApts.length.toString(), icon: <ShoppingBag className="h-6 w-6" /> },
-        { title: "Clients CRM", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 7, isPositive: true } },
-        { title: "Revenus Cumulés", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 11, isPositive: true } },
-        { title: "Catalogue Articles", value: services.length.toString(), icon: <Building className="h-6 w-6" /> },
-      ]);
-    } else {
-      setStats([
-        { title: "Rendez-vous aujourd'hui", value: todayApts.length.toString(), icon: <Calendar className="h-6 w-6" /> },
-        { title: "Clients au fichier", value: clients.length.toString(), icon: <Users className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-        { title: "Revenus cumulés", value: formatCompact(totalSpentSum), icon: <DollarSign className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
-        { title: "Durée moy. RDV", value: avgDurationStr, icon: <Clock className="h-6 w-6" /> },
-      ]);
-    }
-
-    const formatted = todayApts.map((apt: any) => {
-      const emp = employees.find((e: any) => e.id === (apt.employeeId || apt.employee_id));
-      const currentHour = new Date().getHours() + new Date().getMinutes() / 60;
-      const startH = apt.startHour || 9; 
-      const endHour = startH + (apt.duration || 1);
-      
-      let status = "upcoming";
-      if (currentHour >= endHour) {
-        status = "done";
-      } else if (currentHour >= startH && currentHour < endHour) {
-        status = "in_progress";
-      }
-
-      const durationMins = Math.round((apt.duration || 1) * 60);
-      let durationStr = `${durationMins}min`;
-      if (durationMins >= 60) {
-        const hrs = Math.floor(durationMins / 60);
-        const mins = durationMins % 60;
-        durationStr = mins > 0 ? `${hrs}h${mins}` : `${hrs}h`;
-      }
-
-      const hoursPart = Math.floor(startH);
-      const minutesPart = Math.round((startH - hoursPart) * 60);
-      const timeStr = `${hoursPart.toString().padStart(2, "0")}:${minutesPart.toString().padStart(2, "0")}`;
-
-      return {
-        client: apt.clientName || apt.client_id || "Client inconnu",
-        service: apt.serviceName || apt.service_id || "Service par défaut",
-        time: timeStr,
-        duration: durationStr,
-        employee: emp ? emp.name : "Non assigné",
-        status,
-        startHour: startH
-      };
-    });
-
-    formatted.sort((a: any, b: any) => a.startHour - b.startHour);
-    setTodayAppointments(formatted);
+    loadDashboardData();
 
     const handleUpdate = () => {
       if (!isAuthenticated) setActiveBiz(glowupStore.getActiveBusiness());
@@ -158,65 +86,133 @@ export default function SalonDashboard() {
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, [clients, employees, appointments, services, isDataLoading, isAuthenticated]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "done":
-        return <span className="px-2.5 py-0.5 rounded-full bg-success/15 text-success text-xs font-bold">Terminé</span>;
-      case "in_progress":
-        return <span className="px-2.5 py-0.5 rounded-full bg-info/15 text-info text-xs font-bold">En cours</span>;
-      default:
-        return <span className="px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-bold">Planifié</span>;
+  const loadDashboardData = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+
+      const [{ data: salesToday }, { data: recent }, { data: products }, { data: weekSales }] = await Promise.all([
+        supabase.from("salon_sales")
+          .select("total_amount")
+          .gte("created_at", `${today}T00:00:00`)
+          .lte("created_at", `${today}T23:59:59`),
+        supabase.from("salon_sales")
+          .select("id, total_amount, payment_method, created_at")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase.from("salon_products")
+          .select("id, quantity_in_stock, reorder_level")
+          .eq("is_active", true),
+        supabase.from("salon_sales")
+          .select("total_amount, created_at")
+          .gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00`)
+          .lte("created_at", `${today}T23:59:59`),
+      ]);
+
+      if (salesToday) {
+        setTodayRevenue(salesToday.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0));
+      }
+      if (recent) setRecentSales(recent);
+      if (products) setLowStockCount(products.filter((p: any) => p.quantity_in_stock <= p.reorder_level).length);
+
+      if (weekSales) {
+        const dayMap = new Map<string, { revenue: number; appointments: number }>();
+        const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          dayMap.set(d.toISOString().split("T")[0], { revenue: 0, appointments: 0 });
+        }
+        weekSales.forEach((s: any) => {
+          const day = s.created_at.split("T")[0];
+          if (dayMap.has(day)) {
+            const entry = dayMap.get(day)!;
+            entry.revenue += Number(s.total_amount || 0);
+          }
+        });
+        const todayApts = appointments.filter((a: any) => {
+          const aptDate = a.date;
+          return dayMap.has(aptDate);
+        });
+        todayApts.forEach((a: any) => {
+          if (dayMap.has(a.date)) {
+            dayMap.get(a.date)!.appointments += 1;
+          }
+        });
+        const chartData = Array.from(dayMap.entries()).map(([date, data], i) => ({
+          day: days[i] || date.slice(5),
+          ...data,
+        }));
+        setWeeklyData(chartData);
+      }
+    } catch (err) {
+      console.error("Dashboard data error:", err);
     }
   };
 
-  const getFormattedTodayDate = () => {
-    return new Date().toLocaleDateString("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric"
-    });
-  };
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayApts = appointments.filter((a: any) => a.date === todayStr);
+  const totalSpent = clients.reduce((sum: number, c: any) => {
+    const rawString = String(c.totalSpent || c.total_spent || '0').replace(/[^\d.-]/g, '');
+    return sum + (isNaN(parseFloat(rawString)) ? 0 : parseFloat(rawString));
+  }, 0);
 
-  const getVerticalTexts = () => {
-    switch (activeBiz) {
-      case "pharmacie":
-        return {
-          title: "Ordonnances du jour", actionBtn: "Nouvelle Ordonnance", cardTitle: "Rapport Patients & Molécules",
-          actionLabel1: "Gérer Ordonnances", actionLabel2: "Base Patients", actionLabel3: "Stock Médicaments"
-        };
-      case "restaurant":
-        return {
-          title: "Commandes de service", actionBtn: "Nouvelle Commande", cardTitle: "Dashboard Caisse & Tables",
-          actionLabel1: "Caisse & Tables", actionLabel2: "Répertoire Clients", actionLabel3: "Gérer le Menu"
-        };
-      case "market":
-        return {
-          title: "Session POS en direct", actionBtn: "Enregistrer Vente", cardTitle: "Transactions de Caisse",
-          actionLabel1: "Caisse POS", actionLabel2: "Membres Club", actionLabel3: "Inventaire Produits"
-        };
-      case "boutique":
-        return {
-          title: "Ventes Boutique", actionBtn: "Nouvelle Vente", cardTitle: "Dashboard CRM & POS",
-          actionLabel1: "Ventes POS", actionLabel2: "Base Clients / CRM", actionLabel3: "Catalogue Articles"
-        };
-      case "salon":
-      default:
-        return {
-          title: "Rendez-vous du jour", actionBtn: "Nouveau RDV", cardTitle: "Agenda du salon",
-          actionLabel1: "Gérer l'agenda", actionLabel2: "Fichier clients", actionLabel3: "Services & tarifs"
-        };
-    }
-  };
+  let avgDuration = "45min";
+  if (appointments.length > 0) {
+    const avgHrs = appointments.reduce((sum: number, a: any) => sum + (a.duration || 1), 0) / appointments.length;
+    avgDuration = `${Math.round(avgHrs * 60)}min`;
+  }
 
-  const texts = getFormattedTodayDate();
-  const vt = getVerticalTexts();
+  const stats: DashboardStat[] = [
+    {
+      title: "Ventes du jour", value: format(todayRevenue),
+      icon: <DollarSign className="h-5 w-5" />, color: "success",
+      trend: { value: 12, isPositive: true },
+    },
+    {
+      title: "RDV aujourd'hui", value: todayApts.length.toString(),
+      icon: <Calendar className="h-5 w-5" />, color: "info",
+    },
+    {
+      title: "Clients", value: clients.length.toString(),
+      icon: <Users className="h-5 w-5" />, color: "primary",
+      trend: { value: 8, isPositive: true },
+    },
+    {
+      title: "Stock faible", value: lowStockCount.toString(),
+      icon: <Package className="h-5 w-5" />, color: lowStockCount > 0 ? "warning" : "success",
+    },
+  ];
+
+  const formattedAppointments = todayApts
+    .map((apt: any) => {
+      const emp = employees.find((e: any) => e.id === (apt.employeeId || apt.employee_id));
+      const startH = apt.startHour || 9;
+      const currentHour = new Date().getHours() + new Date().getMinutes() / 60;
+      let status = "upcoming";
+      if (currentHour >= startH + (apt.duration || 1)) status = "done";
+      else if (currentHour >= startH) status = "in_progress";
+      const minutes = Math.round((apt.duration || 1) * 60);
+      const durStr = minutes >= 60 ? `${Math.floor(minutes / 60)}h${minutes % 60 > 0 ? minutes % 60 : ""}` : `${minutes}min`;
+      const hrs = Math.floor(startH);
+      const mins = Math.round((startH - hrs) * 60);
+      return {
+        client: apt.clientName || apt.client_id || "Client",
+        service: apt.serviceName || apt.service_id || "Service",
+        time: `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`,
+        duration: durStr,
+        employee: emp ? (emp.name || `${emp.first_name || ""} ${emp.last_name || ""}`) : "—",
+        status,
+      };
+    })
+    .sort((a: any, b: any) => a.time.localeCompare(b.time));
 
   if (isDataLoading) {
     return (
-      <DashboardLayout role="salon_admin" title="Tableau de bord ERP" subtitle="Synchronisation de vos données...">
+      <DashboardLayout role="salon_admin" title="Dashboard" subtitle="Chargement...">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
       </DashboardLayout>
     );
@@ -225,108 +221,204 @@ export default function SalonDashboard() {
   return (
     <DashboardLayout
       role="salon_admin"
-      title="Tableau de bord ERP"
-      subtitle={`Espace de gestion multi-business • Propulsé par Wesd Systems`}
-      userName="Équipe Wesd"
+      title="Dashboard Salon"
+      subtitle="Vue d'ensemble de votre activité"
     >
-      <StaggerContainer className="space-y-8">
+      <StaggerContainer className="space-y-6">
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {stats.map((stat, index) => (
-              <StatCard key={index} {...stat} />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stats.map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="bg-card rounded-xl border border-border/50 p-5 hover:shadow-soft transition-all"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
+                    <p className="text-2xl font-bold font-display">{stat.value}</p>
+                    {stat.trend && (
+                      <p className={cn("text-xs font-medium flex items-center gap-1", stat.trend.isPositive ? "text-success" : "text-destructive")}>
+                        <span>{stat.trend.isPositive ? "↑" : "↓"}</span>
+                        <span>{Math.abs(stat.trend.value)}% vs mois dernier</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className={cn(
+                    "p-3 rounded-lg",
+                    stat.color === "success" ? "bg-success/10 text-success" :
+                    stat.color === "info" ? "bg-info/10 text-info" :
+                    stat.color === "warning" ? "bg-warning/10 text-warning" :
+                    "bg-primary/10 text-primary"
+                  )}>
+                    {stat.icon}
+                  </div>
+                </div>
+              </motion.div>
             ))}
           </div>
         </StaggerItem>
 
         <StaggerItem>
-          <div className="bg-card rounded-xl border border-border shadow-card text-left">
-            <div className="p-6 border-b border-border flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <h2 className="text-lg font-bold font-sans tracking-tight">{vt.title}</h2>
-                <p className="text-xs text-muted-foreground capitalize mt-0.5">{texts}</p>
-              </div>
-              <div className="flex gap-3">
-                <Link to="/salon/appointments">
-                  <Button variant="outline" size="sm" className="font-semibold text-xs">Vue interactive</Button>
-                </Link>
-                <Link to="/salon/appointments">
-                  <Button size="sm" variant="hero" className="font-semibold text-xs shadow-sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {vt.actionBtn}
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            
-            <div className="divide-y divide-border">
-              {todayAppointments.map((appointment, index) => (
-                <div key={index} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors flex-wrap gap-3">
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <p className="font-bold text-sm">{appointment.time}</p>
-                      <p className="text-[10px] text-muted-foreground font-semibold">{appointment.duration}</p>
-                    </div>
-                    <div className="w-px h-10 bg-border" />
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                        {appointment.client.split(" ").map((n: string) => n[0]).join("")}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm leading-tight text-foreground">{appointment.client}</p>
-                        <p className="text-xs text-muted-foreground leading-tight mt-0.5">{appointment.service}</p>
-                      </div>
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" /> Revenus des 7 derniers jours
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {weeklyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Revenus" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    Aucune donnée cette semaine
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-[10px] text-muted-foreground font-semibold leading-none">Collaborateur</p>
-                      <p className="font-bold text-xs text-foreground mt-0.5">{appointment.employee}</p>
-                    </div>
-                    {getStatusBadge(appointment.status)}
-                  </div>
-                </div>
-              ))}
+                )}
+              </CardContent>
+            </Card>
 
-              {todayAppointments.length === 0 && (
-                <div className="p-8 text-center text-muted-foreground text-sm font-medium">
-                  Aucune activité enregistrée pour aujourd'hui !
-                </div>
-              )}
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Calendar className="h-4 w-4" /> RDV par jour
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-64">
+                {weeklyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={weeklyData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="appointments" stroke="#f59e0b" strokeWidth={2} dot={{ r: 4 }} name="RDV" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                    Aucune donnée cette semaine
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </StaggerItem>
 
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <Link to="/salon/appointments" className="group">
-              <div className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 hover:shadow-soft transition-all">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Calendar className="h-6 w-6" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-card rounded-xl border border-border">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div>
+                  <h3 className="font-semibold text-sm">Rendez-vous du jour</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </p>
                 </div>
-                <h3 className="font-bold text-sm tracking-tight text-foreground">{vt.actionLabel1}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Accéder au terminal de vente et réservations</p>
+                <Link to="/salon/appointments">
+                  <Button size="sm" variant="outline" className="gap-1">
+                    Voir tout <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </Link>
               </div>
-            </Link>
+              <div className="divide-y divide-border">
+                {formattedAppointments.map((apt: any, i: number) => (
+                  <div key={i} className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors">
+                    <div className="text-center min-w-[55px]">
+                      <p className="font-bold text-sm">{apt.time}</p>
+                      <p className="text-[10px] text-muted-foreground">{apt.duration}</p>
+                    </div>
+                    <div className="w-px h-10 bg-border" />
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs flex-shrink-0">
+                        {apt.client.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{apt.client}</p>
+                        <p className="text-xs text-muted-foreground truncate">{apt.service}</p>
+                      </div>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <p className="text-xs text-muted-foreground">{apt.employee}</p>
+                    </div>
+                    <Badge variant={
+                      apt.status === "done" ? "secondary" :
+                      apt.status === "in_progress" ? "default" : "outline"
+                    } className="text-xs">
+                      {apt.status === "done" ? "Terminé" :
+                       apt.status === "in_progress" ? "En cours" : "Planifié"}
+                    </Badge>
+                  </div>
+                ))}
+                {formattedAppointments.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground text-sm">
+                    Aucun rendez-vous aujourd'hui
+                  </div>
+                )}
+              </div>
+            </div>
 
-            <Link to="/salon/clients" className="group">
-              <div className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 hover:shadow-soft transition-all">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Users className="h-6 w-6" />
+            <div className="space-y-4">
+              <div className="bg-card rounded-xl border border-border p-4">
+                <h3 className="font-semibold text-sm mb-3">Actions rapides</h3>
+                <div className="space-y-2">
+                  <Link to="/salon/appointments">
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
+                      <Calendar className="h-4 w-4" /> Nouveau rendez-vous
+                    </Button>
+                  </Link>
+                  <Link to="/salon/pos">
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
+                      <ShoppingBag className="h-4 w-4" /> Nouvelle vente POS
+                    </Button>
+                  </Link>
+                  <Link to="/salon/clients">
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
+                      <Users className="h-4 w-4" /> Nouveau client
+                    </Button>
+                  </Link>
+                  <Link to="/salon/products">
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
+                      <Package className="h-4 w-4" /> Ajouter produit
+                    </Button>
+                  </Link>
                 </div>
-                <h3 className="font-bold text-sm tracking-tight text-foreground">{vt.actionLabel2}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Gérer les fiches de comptes et coordonnées clients</p>
               </div>
-            </Link>
 
-            <Link to="/salon/services" className="group">
-              <div className="bg-card rounded-xl border border-border p-6 hover:border-primary/50 hover:shadow-soft transition-all">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  {activeBiz === "pharmacie" ? <Pill className="h-6 w-6" /> : activeBiz === "restaurant" ? <Utensils className="h-6 w-6" /> : <Euro className="h-6 w-6" />}
+              <div className="bg-card rounded-xl border border-border p-4">
+                <h3 className="font-semibold text-sm mb-3">Dernières ventes</h3>
+                <div className="space-y-2">
+                  {recentSales.slice(0, 5).map((sale: any, i: number) => (
+                    <div key={sale.id || i} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2">
+                        {sale.payment_method === "cash" ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 text-info" />
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <span className="font-medium text-sm">{format(sale.total_amount)}</span>
+                    </div>
+                  ))}
+                  {recentSales.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">Aucune vente aujourd'hui</p>
+                  )}
                 </div>
-                <h3 className="font-bold text-sm tracking-tight text-foreground">{vt.actionLabel3}</h3>
-                <p className="text-xs text-muted-foreground mt-1">Éditer le catalogue de produits, prix et inventaires</p>
               </div>
-            </Link>
+            </div>
           </div>
         </StaggerItem>
       </StaggerContainer>

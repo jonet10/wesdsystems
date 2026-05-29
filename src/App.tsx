@@ -26,6 +26,11 @@ import SalonSettings from "./pages/salon/Settings";
 import InventoryPage from "./pages/salon/Inventory";
 import POSPage from "./pages/salon/POS";
 import SalesAnalyticsPage from "./pages/salon/SalesAnalytics";
+import ProductsPage from "./pages/salon/Products";
+import BeveragesPage from "./pages/salon/Beverages";
+import ExpensesPage from "./pages/salon/Expenses";
+import ReportsPage from "./pages/salon/Reports";
+import PromotionsPage from "./pages/salon/Promotions";
 import EmployeeDashboard from "./pages/employee/Dashboard";
 import EmployeeSchedule from "./pages/employee/Schedule";
 import NotFound from "./pages/NotFound";
@@ -152,6 +157,46 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <SalesAnalyticsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/products"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ProductsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/beverages"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <BeveragesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/expenses"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ExpensesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ReportsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/promotions"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <PromotionsPage />
                     </ProtectedRoute>
                   }
                 />

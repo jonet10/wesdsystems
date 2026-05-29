@@ -22,6 +22,11 @@ import {
   Bell,
   User as UserIcon,
   Menu,
+  Beer,
+  Receipt,
+  Gift,
+  TrendingUp,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -102,11 +107,16 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
         return [
           { icon: LayoutDashboard, label: "Dashboard", path: "/salon", role: "all" },
           { icon: Calendar, label: "Rendez-vous", path: "/salon/appointments", role: "all" },
+          { icon: Scissors, label: "Services", path: "/salon/services", role: "all" },
           { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
           { icon: Users, label: "Employés", path: "/salon/employees", role: "salon_admin" },
-          { icon: Scissors, label: "Prestations", path: "/salon/services", role: "all" },
           { icon: Package, label: "Inventaire", path: "/salon/inventory", role: "all" },
+          { icon: ShoppingBag, label: "Produits", path: "/salon/products", role: "all" },
+          { icon: Beer, label: "Boissons", path: "/salon/beverages", role: "all" },
           { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/pos", role: "all" },
+          { icon: Gift, label: "Promotions", path: "/salon/promotions", role: "salon_admin" },
+          { icon: Receipt, label: "Dépenses", path: "/salon/expenses", role: "all" },
+          { icon: TrendingUp, label: "Rapports", path: "/salon/reports", role: "salon_admin" },
           { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
           { icon: Settings, label: "Paramètres", path: "/salon/settings", role: "salon_admin" },
         ];
