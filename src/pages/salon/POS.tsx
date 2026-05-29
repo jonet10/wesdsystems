@@ -11,15 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { printReceipt as printReceiptPdf } from "@/lib/print-utils";
 import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
-  Beer, Gift, Percent, Tag, Barcode
+  Beer, Gift, Percent, Tag, Barcode, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
 
@@ -30,7 +30,6 @@ interface CatalogItem {
   category?: string;
   type: "product" | "service" | "beverage";
   stock?: number;
-  image_url?: string;
   barcode?: string;
 }
 
@@ -58,7 +57,24 @@ interface Promotion {
   minimum_quantity?: number;
 }
 
+interface BusinessInfo {
+  name: string;
+  address: string;
+  phone: string;
+  whatsapp?: string;
+  email?: string;
+  slogan?: string;
+  logo_url?: string;
+  tax_number?: string;
+}
+
+interface EmployeeInfo {
+  id: string;
+  name: string;
+}
+
 export default function POSPage() {
+  const { user } = useAuth();
   const { currencyCode, format } = useCurrency();
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
@@ -75,6 +91,13 @@ export default function POSPage() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [showDiscount, setShowDiscount] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+
+  // Employee & Business
+  const [employees, setEmployees] = useState<EmployeeInfo[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("");
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
+    name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678",
+  });
 
   const loadData = async () => {
     try {
@@ -94,7 +117,44 @@ export default function POSPage() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  const loadEmployees = async () => {
+    try {
+      const { data: emp } = await supabase.from("employees").select("id, name").eq("is_active", true).order("name");
+      if (emp) setEmployees(emp as EmployeeInfo[]);
+    } catch {}
+  };
+
+  const loadBusinessInfo = async () => {
+    if (!user) return;
+    try {
+      const { data: prof } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
+      if (prof?.business_id) {
+        const { data: biz } = await supabase.from("businesses").select("*").eq("id", prof.business_id).single();
+        if (biz) {
+          const info: BusinessInfo = {
+            name: biz.name || "Mon Salon",
+            address: biz.address || "",
+            phone: biz.phone || "",
+            logo_url: biz.logo_url,
+          };
+          const { data: ext } = await supabase.from("salon_business_profiles").select("*").eq("business_id", prof.business_id).single();
+          if (ext) {
+            info.whatsapp = ext.whatsapp || "";
+            info.email = biz.email || "";
+            info.slogan = ext.slogan || "";
+            info.tax_number = ext.tax_number || "";
+          }
+          setBusinessInfo(info);
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadData();
+    loadEmployees();
+    loadBusinessInfo();
+  }, [user]);
 
   const detectPromotions = (cartItems: CartItem[]): CartItem[] => {
     return cartItems.map(item => {
@@ -104,9 +164,7 @@ export default function POSPage() {
           if (item.type === "service" && p.items_config?.services?.includes(item.item_id)) return true;
           if (item.type === "beverage" && p.items_config?.beverages?.includes(item.item_id)) return true;
         }
-        if (p.promotion_type === "bundle" && p.minimum_quantity && item.quantity >= p.minimum_quantity) {
-          return true;
-        }
+        if (p.promotion_type === "bundle" && p.minimum_quantity && item.quantity >= p.minimum_quantity) return true;
         if (p.promotion_type === "combo") {
           const sameTypeItems = cartItems.filter(ci => ci.type === item.type);
           if (p.minimum_quantity && sameTypeItems.length >= p.minimum_quantity) return true;
@@ -162,6 +220,8 @@ export default function POSPage() {
     setCart(prev => detectPromotions(prev.filter(i => i.key !== key)));
   };
 
+  const hasServices = useMemo(() => cart.some(i => i.type === "service"), [cart]);
+
   const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unit_price * i.quantity, 0), [cart]);
   const totalDiscount = useMemo(() => {
     const promoDiscount = cart.reduce((sum, i) => sum + (i.discount || 0), 0);
@@ -170,10 +230,46 @@ export default function POSPage() {
   }, [cart, subtotal, discountPercent]);
   const total = Math.max(0, subtotal - totalDiscount);
 
+  const getCommissionRate = async (employeeId: string, serviceId: string): Promise<{ type: string; value: number } | null> => {
+    const { data: rules } = await supabase
+      .from("commission_rules")
+      .select("rate_type, rate_value")
+      .eq("employee_id", employeeId)
+      .eq("service_id", serviceId)
+      .eq("is_active", true)
+      .single();
+
+    if (rules) return { type: rules.rate_type, value: Number(rules.rate_value) };
+
+    const { data: global } = await supabase
+      .from("commission_rules")
+      .select("rate_type, rate_value")
+      .eq("employee_id", employeeId)
+      .is("service_id", null)
+      .eq("is_active", true)
+      .single();
+
+    if (global) return { type: global.rate_type, value: Number(global.rate_value) };
+
+    const { data: emp } = await supabase
+      .from("employees")
+      .select("commission_rate")
+      .eq("id", employeeId)
+      .single();
+
+    if (emp?.commission_rate) {
+      return { type: "percentage", value: Number(emp.commission_rate) };
+    }
+
+    return null;
+  };
+
   const checkout = async () => {
     if (cart.length === 0) return toast.error("Panier vide");
 
     try {
+      const cashierName = employees.find(e => e.id === selectedEmployee)?.name || user?.email || "Caissier";
+
       const { data: sale, error: saleError } = await supabase
         .from("salon_sales")
         .insert([{
@@ -183,6 +279,8 @@ export default function POSPage() {
           discount_amount: totalDiscount,
           discount_percentage: discountPercent,
           tax_amount: 0,
+          employee_id: selectedEmployee || null,
+          cashier_name: cashierName,
         }])
         .select("id, sale_number, created_at")
         .single();
@@ -202,9 +300,6 @@ export default function POSPage() {
       const { error: itemErr } = await supabase.from("salon_sale_items").insert(items);
       if (itemErr) throw new Error(itemErr.message);
 
-      toast.success("Vente enregistrée avec succès !");
-
-      // Update beverage stock
       for (const item of cart) {
         if (item.type === "beverage") {
           await supabase.rpc("sell_beverage_units", {
@@ -214,7 +309,40 @@ export default function POSPage() {
         }
       }
 
-      setLastSale({ ...sale, items: cart, customer: customerName, payment: paymentMethod });
+      // Calculate commissions
+      if (selectedEmployee && hasServices) {
+        const { data: profile } = await supabase.from("profiles").select("business_id").eq("id", user?.id).single();
+        const businessId = profile?.business_id;
+
+        for (const item of cart) {
+          if (item.type === "service" && businessId) {
+            const rate = await getCommissionRate(selectedEmployee, item.item_id);
+            if (rate) {
+              const saleAmount = item.quantity * item.unit_price;
+              const commissionAmount = rate.type === "percentage"
+                ? saleAmount * (rate.value / 100)
+                : rate.value;
+
+              await supabase.from("commission_transactions").insert({
+                business_id: businessId,
+                employee_id: selectedEmployee,
+                sale_id: sale.id,
+                service_id: item.item_id,
+                rate_type: rate.type,
+                rate_value: rate.value,
+                sale_amount: saleAmount,
+                commission_amount: commissionAmount,
+                currency_code: currencyCode,
+                status: "pending",
+              });
+            }
+          }
+        }
+      }
+
+      toast.success("Vente enregistrée avec succès !");
+
+      setLastSale({ ...sale, items: cart, customer: customerName, payment: paymentMethod, cashier_name: cashierName });
       setShowReceipt(true);
       setCart([]);
       setCustomerName("");
@@ -226,33 +354,10 @@ export default function POSPage() {
     }
   };
 
-  const printReceipt = async () => {
+  const handlePrintReceipt = async () => {
     if (!receiptRef.current) return;
-    try {
-      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: "#ffffff", width: 300, useCORS: true });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [80, 297] });
-      const imgWidth = 76;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 10;
-      pdf.addImage(imgData, "PNG", 2, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - 20;
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 2, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - 20;
-      }
-      const fileName = `recu-${lastSale?.sale_number || Date.now()}.pdf`;
-      pdf.save(fileName);
-      toast.success("Reçu PDF téléchargé !");
-    } catch (err) {
-      console.error("PDF generation error:", err);
-      toast.error("Erreur PDF, utilisation impression navigateur...");
-      window.print();
-    }
+    await printReceiptPdf(receiptRef.current, `recu-${lastSale?.sale_number || Date.now()}`);
+    toast.success("Reçu PDF téléchargé !");
   };
 
   const currentItems = activeTab === "products" ? products : activeTab === "services" ? services : beverages;
@@ -264,7 +369,7 @@ export default function POSPage() {
   const hasActivePromotions = promotions.length > 0;
 
   return (
-    <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Encaissement rapide avec promotions automatiques">
+    <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Encaissement rapide avec promotions et commissions">
       <StaggerContainer className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
         <StaggerItem className="flex-1 flex flex-col min-w-0">
           <Card className="h-full flex flex-col">
@@ -324,9 +429,7 @@ export default function POSPage() {
                     </Card>
                   ))}
                   {filteredItems.length === 0 && (
-                    <p className="col-span-full text-center text-muted-foreground py-8 text-sm">
-                      Aucun élément trouvé
-                    </p>
+                    <p className="col-span-full text-center text-muted-foreground py-8 text-sm">Aucun élément trouvé</p>
                   )}
                 </div>
               </ScrollArea>
@@ -361,8 +464,7 @@ export default function POSPage() {
                             <p className="text-xs text-muted-foreground">{format(item.unit_price)} × {item.quantity}</p>
                             {item.promotion_applied && (
                               <Badge variant="secondary" className="text-[10px] px-1 h-4">
-                                <Tag className="h-2.5 w-2.5 mr-0.5" />
-                                Promo
+                                <Tag className="h-2.5 w-2.5 mr-0.5" /> Promo
                               </Badge>
                             )}
                           </div>
@@ -384,6 +486,25 @@ export default function POSPage() {
                   </div>
                 )}
               </ScrollArea>
+
+              {/* Employee Selector */}
+              {employees.length > 0 && (
+                <div className="mt-2">
+                  <Label className="text-xs flex items-center gap-1 mb-1">
+                    <UserCog className="h-3 w-3" /> Employé
+                  </Label>
+                  <select
+                    value={selectedEmployee}
+                    onChange={(e) => setSelectedEmployee(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Sélectionner...</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <Separator className="my-3" />
               <div className="space-y-1.5 text-sm">
@@ -464,33 +585,42 @@ export default function POSPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>Reçu de vente #{lastSale?.sale_number || ""}</span>
+              <span>Reçu #{lastSale?.sale_number || ""}</span>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={printReceipt} className="gap-1">
+                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1">
                   <Printer className="h-4 w-4" /> Imprimer
                 </Button>
-                <Button variant="outline" size="sm" onClick={printReceipt} className="gap-1">
+                <Button variant="outline" size="sm" onClick={handlePrintReceipt} className="gap-1">
                   <Download className="h-4 w-4" /> PDF
                 </Button>
               </div>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="hidden print:block">
-            <ReceiptTemplate sale={lastSale} items={lastSale?.items || []}
-              salon={{ name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678" }}
-              currencyCode={currencyCode} format={format} />
-          </div>
-
-          <div ref={receiptRef} className="bg-white p-4 rounded-lg font-mono text-xs max-h-96 overflow-y-auto border">
-            <ReceiptTemplate sale={lastSale} items={lastSale?.items || []}
-              salon={{ name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678" }}
-              currencyCode={currencyCode} format={format} />
+          <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden border">
+            <ReceiptTemplate
+              sale={{
+                ...lastSale,
+                cashier_name: lastSale?.cashier_name,
+                customer_name: lastSale?.customer,
+                payment_method: lastSale?.payment,
+              }}
+              items={lastSale?.items?.map((i: any) => ({
+                item_name: i.name,
+                quantity: i.quantity,
+                unit_price: i.unit_price,
+                total_price: i.quantity * i.unit_price - (i.discount || 0),
+              })) || []}
+              salon={businessInfo}
+              currencyCode={currencyCode}
+              format={format}
+              detailed
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
-            <Button onClick={() => { printReceipt(); setShowReceipt(false); }}>Télécharger le PDF</Button>
+            <Button onClick={handlePrintReceipt}>Télécharger le PDF</Button>
           </div>
         </DialogContent>
       </Dialog>

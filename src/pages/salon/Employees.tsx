@@ -4,12 +4,13 @@ import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedC
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Mail, UserCog, Shield, Scissors, Coins, Star } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, UserCog, Shield, Scissors, Coins, Star, DollarSign } from "lucide-react";
 import { glowupStore, Employee, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 import { supabase } from "@/lib/supabase";
 import { usePermissions, hasPermission, EmployeeRole } from "@/lib/permissions";
+import { CommissionRules } from "@/components/modules/salon/commissions/CommissionRules";
+import { CommissionHistory } from "@/components/modules/salon/commissions/CommissionHistory";
 
 // Types
 interface EmployeeForm {
@@ -109,6 +112,8 @@ export default function EmployeesPage() {
   const [color, setColor] = useState("bg-primary");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [commissionsEmp, setCommissionsEmp] = useState<{ id: string; name: string } | null>(null);
+  const [showCommissions, setShowCommissions] = useState(false);
 
   const handleInputChange = (field: keyof EmployeeForm, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -446,10 +451,12 @@ export default function EmployeesPage() {
                   )}
                   
                   {/* Commission */}
-                  {emp.commission_rate && (
+                  {emp.commission_rate ? (
                     <p className="text-xs text-muted-foreground">
                       Commission: <span className="font-medium">{emp.commission_rate}%</span>
                     </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Aucune commission définie</p>
                   )}
                   
                   {/* Actions */}
@@ -463,6 +470,16 @@ export default function EmployeesPage() {
                     >
                       <Pencil className="h-3 w-3 mr-1" /> Modifier
                     </Button>
+                    {isAuthenticated && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 text-xs"
+                        onClick={() => { setCommissionsEmp({ id: emp.id, name: emp.name }); setShowCommissions(true); }}
+                      >
+                        <DollarSign className="h-3 w-3 mr-1" /> Comm.
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -660,6 +677,18 @@ export default function EmployeesPage() {
 
         {/* EDIT & DELETE dialogs would follow similar pattern... */}
         {/* (Omitted for brevity - same structure as ADD with pre-filled values) */}
+
+        {/* Commission History Dialog */}
+        <Dialog open={showCommissions} onOpenChange={setShowCommissions}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Commissions — {commissionsEmp?.name}</DialogTitle>
+            </DialogHeader>
+            {commissionsEmp && (
+              <CommissionHistory employeeId={commissionsEmp.id} employeeName={commissionsEmp.name} />
+            )}
+          </DialogContent>
+        </Dialog>
         
       </StaggerContainer>
     </DashboardLayout>
