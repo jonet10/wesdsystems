@@ -169,7 +169,7 @@ export const DashboardHeader = ({
         <DropdownMenu open={showCurrencyDropdown} onOpenChange={setShowCurrencyDropdown}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-9 gap-1 px-2">
-              <span className="text-sm font-medium">{currency}</span>
+              <span className="text-sm font-medium">{currency.code}</span>
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>

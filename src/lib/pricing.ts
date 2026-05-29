@@ -46,14 +46,8 @@ export function detectCountryFromTimezone(): string | null {
 }
 
 export async function detectCountryFromIP(): Promise<string | null> {
-  try {
-    const resp = await fetch("https://ipapi.co/country/", { method: "GET" });
-    if (!resp.ok) return null;
-    const text = (await resp.text()).trim().toUpperCase();
-    return text.length === 2 ? text : null;
-  } catch {
-    return null;
-  }
+  // Suppressed: ipapi.co blocks CORS from browser; fallback to locale/timezone detection
+  return null;
 }
 
 export function formatCurrency(amount: number, currencyCode: string, locale = "en-US"): string {
