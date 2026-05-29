@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
+const AUTH_TIMEOUT = 8000; // 8s max avant de débloquer l'écran de chargement
+
 interface UserProfile {
   id: string;
   full_name: string | null;
@@ -30,7 +32,8 @@ export function useAuth(): AuthState {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Récupérer la session active
+    const timeoutId = setTimeout(() => setIsLoading(false), AUTH_TIMEOUT);
+
     const getSession = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -43,13 +46,13 @@ export function useAuth(): AuthState {
       } catch (err) {
         console.error('useAuth: erreur session', err);
       } finally {
+        clearTimeout(timeoutId);
         setIsLoading(false);
       }
     };
 
     getSession();
 
-    // 2. Écouter les changements d'auth (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
         setSession(newSession);
@@ -60,10 +63,16 @@ export function useAuth(): AuthState {
         } else {
           setProfile(null);
         }
+
+        clearTimeout(timeoutId);
+        setIsLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {
@@ -76,9 +85,37 @@ export function useAuth(): AuthState {
 
       if (!error && data) {
         setProfile(data as UserProfile);
+        return;
+      }
+
+      // Profil inexistant → créer l'entreprise et le profil automatiquement
+      const meta = user?.user_metadata ?? {};
+      const bizName = (meta.business_name as string) || 'Mon Entreprise';
+      const bizType = (meta.business_type as string) || 'salon';
+      const plan = (meta.plan as string) || 'starter';
+      const fullName = (meta.full_name as string) || 'Utilisateur';
+
+      const { data: biz, error: bizErr } = await supabase
+        .from('businesses')
+        .insert({ name: bizName, type: bizType, plan, owner_id: userId })
+        .select('id')
+        .single();
+
+      if (bizErr) {
+        console.warn('useAuth: impossible de créer l\'entreprise', bizErr);
+        return;
+      }
+
+      const { data: prof, error: profErr } = await supabase
+        .from('profiles')
+        .insert({ id: userId, full_name: fullName, role: 'studio_admin', business_id: biz.id })
+        .select('id, full_name, role, role_normalized, business_id')
+        .single();
+
+      if (!profErr && prof) {
+        setProfile(prof as UserProfile);
       }
     } catch (err) {
-      // Fallback silencieux — le profil n'existe peut-être pas encore
       console.warn('useAuth: profil non trouvé', err);
     }
   };
