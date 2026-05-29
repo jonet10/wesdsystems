@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -42,6 +43,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <CurrencyProvider>
         <PricingProvider>
+          <AuthProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -225,6 +227,7 @@ const App = () => (
               </Suspense>
             </BrowserRouter>
           </TooltipProvider>
+        </AuthProvider>
         </PricingProvider>
       </CurrencyProvider>
     </QueryClientProvider>

@@ -69,14 +69,8 @@ export default function SalonDashboard() {
     return (servicesDb && servicesDb.length > 0) ? servicesDb : glowupStore.getServices();
   }, [servicesDb]);
 
-  const isDataLoading = isAuthenticated && (clientsLoading || empLoading || aptLoading || servLoading);
-
   useEffect(() => {
-    if (isDataLoading) return;
-
-    const todayStr = new Date().toISOString().split("T")[0];
-    const todayApts = appointments.filter((a: any) => a.date === todayStr);
-
+    if (!isAuthenticated) return;
     loadDashboardData();
 
     const handleUpdate = () => {
@@ -84,7 +78,7 @@ export default function SalonDashboard() {
     };
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, [clients, employees, appointments, services, isDataLoading, isAuthenticated]);
+  }, [isAuthenticated]);
 
   const loadDashboardData = async () => {
     try {

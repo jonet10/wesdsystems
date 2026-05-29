@@ -1,0 +1,142 @@
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import type { User, Session } from '@supabase/supabase-js';
+
+const AUTH_TIMEOUT = 8000;
+
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  role: string;
+  role_normalized: string | null;
+  business_id: string | null;
+}
+
+interface AuthState {
+  user: User | null;
+  session: Session | null;
+  profile: UserProfile | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+}
+
+const AuthContext = createContext<AuthState>({
+  user: null,
+  session: null,
+  profile: null,
+  isLoading: true,
+  isAuthenticated: false,
+});
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setIsLoading(false), AUTH_TIMEOUT);
+
+    const getSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+
+        if (currentSession?.user) {
+          await fetchProfile(currentSession.user.id, currentSession.user.user_metadata);
+        }
+      } catch (err) {
+        console.error('AuthProvider: erreur session', err);
+      } finally {
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      }
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          await fetchProfile(newSession.user.id, newSession.user.user_metadata);
+        } else {
+          setProfile(null);
+        }
+
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      }
+    );
+
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchProfile = async (userId: string, userMeta?: { [key: string]: any }) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role, role_normalized, business_id')
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setProfile(data as UserProfile);
+        return;
+      }
+
+      const meta = userMeta ?? {};
+      const bizName = (meta.business_name as string) || 'Mon Entreprise';
+      const bizType = (meta.business_type as string) || 'salon';
+      const plan = (meta.plan as string) || 'starter';
+      const fullName = (meta.full_name as string) || 'Utilisateur';
+
+      const { data: biz, error: bizErr } = await supabase
+        .from('businesses')
+        .insert({ name: bizName, type: bizType, plan, owner_id: userId })
+        .select('id')
+        .single();
+
+      if (bizErr) {
+        console.warn('AuthProvider: impossible de créer l\'entreprise', bizErr);
+        return;
+      }
+
+      const { data: prof, error: profErr } = await supabase
+        .from('profiles')
+        .insert({ id: userId, full_name: fullName, role: 'studio_admin', business_id: biz.id })
+        .select('id, full_name, role, role_normalized, business_id')
+        .single();
+
+      if (!profErr && prof) {
+        setProfile(prof as UserProfile);
+      }
+    } catch (err) {
+      console.warn('AuthProvider: profil non trouvé', err);
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        isLoading,
+        isAuthenticated: !!session,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuthContext(): AuthState {
+  return useContext(AuthContext);
+}
