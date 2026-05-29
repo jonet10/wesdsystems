@@ -41,7 +41,7 @@ export function useAuth(): AuthState {
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
+          await fetchProfile(currentSession.user.id, currentSession.user.user_metadata);
         }
       } catch (err) {
         console.error('useAuth: erreur session', err);
@@ -59,7 +59,7 @@ export function useAuth(): AuthState {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          await fetchProfile(newSession.user.id);
+          await fetchProfile(newSession.user.id, newSession.user.user_metadata);
         } else {
           setProfile(null);
         }
@@ -75,7 +75,7 @@ export function useAuth(): AuthState {
     };
   }, []);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userMeta?: { [key: string]: any }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -88,8 +88,7 @@ export function useAuth(): AuthState {
         return;
       }
 
-      // Profil inexistant → créer l'entreprise et le profil automatiquement
-      const meta = user?.user_metadata ?? {};
+      const meta = userMeta ?? {};
       const bizName = (meta.business_name as string) || 'Mon Entreprise';
       const bizType = (meta.business_type as string) || 'salon';
       const plan = (meta.plan as string) || 'starter';
