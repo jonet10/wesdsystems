@@ -1,0 +1,320 @@
+RESUME DU MODULE SALON - WESD SYSTEMS
+Date: 2026-05-30
+
+OBJECTIF GENERAL
+Le module salon est en cours de transformation en vertical SaaS autonome dans la plateforme.
+Il couvre la gestion salon, barber shop, nail studio, boissons, POS, rendez-vous,
+inventaire, employes, commissions, impressions et analytics.
+
+
+1. ARCHITECTURE MODULE
+
+Le module est maintenant structure sous:
+
+src/modules/salon/
+
+Domaines et dossiers disponibles:
+
+- actions
+- analytics
+- appointments
+- beverages
+- commissions
+- components
+- constants
+- customers
+- employees
+- hooks
+- inventory
+- lib
+- pages
+- pos
+- printing
+- services
+- settings
+- store
+- types
+- utils
+- validations
+
+Cette structure permet de separer progressivement la logique salon des anciennes pages
+dans src/pages/salon, sans casser les routes existantes.
+
+
+2. POS / CAISSE
+
+Fonctionnalites actives:
+
+- Ajout de produits au panier
+- Ajout de services/prestations au panier
+- Ajout de boissons au panier
+- Calcul sous-total
+- Calcul reductions et promotions
+- Calcul total
+- Encaissement
+- Generation de recu
+- Telechargement PDF du recu
+- Selection employe pour prestations
+- Creation de commissions apres vente de service
+- Deduction du stock produit apres vente
+- Deduction du stock boisson via fonction Supabase sell_beverage_units
+- Enregistrement des mouvements de stock dans salon_stock_movements si migration appliquee
+- Paiement simple: cash, MonCash, NatCash, carte
+- Paiement mixte: cash + MonCash + NatCash + carte
+- Validation du montant total paye en paiement mixte
+- Enregistrement des paiements detailles dans salon_sale_payments si migration appliquee
+
+Moteurs POS ajoutes:
+
+- src/modules/salon/pos/cart-engine.ts
+- src/modules/salon/pos/pricing-engine.ts
+- src/modules/salon/pos/promotion-engine.ts
+- src/modules/salon/pos/payment-engine.ts
+
+
+3. BOISSONS
+
+Fonctionnalites actives:
+
+- Gestion des boissons
+- Stock en caisses
+- Stock en unites libres
+- Conversion automatique caisses/unites
+- Exemple: 10 caisses x 24 unites = 240 unites
+- Vente par unite
+- Alerte stock faible
+- Ajout de stock par caisse ou unite
+
+Logique module:
+
+- src/modules/salon/beverages/lib/stock-conversion.ts
+
+Fonctions principales:
+
+- calculateTotalUnits()
+- addBeverageStock()
+- deductBeverageUnits()
+
+
+4. INVENTAIRE
+
+Fonctionnalites en place:
+
+- Produits
+- Quantite stock
+- Stock minimum
+- Alertes stock
+- Mouvements de stock POS
+- Base pour achats fournisseurs
+- Base pour audits inventaire
+- Base pour pertes et ajustements
+
+Tables ajoutees par migration:
+
+- salon_stock_movements
+- salon_purchase_entries
+- salon_inventory_audits
+
+Service module:
+
+- src/modules/salon/inventory/services/inventoryService.ts
+
+
+5. COMMISSIONS EMPLOYES
+
+Fonctionnalites actives:
+
+- Configuration commission globale
+- Configuration commission par service
+- Commission en pourcentage
+- Commission fixe
+- Historique des commissions
+- Calcul automatique apres vente de prestation
+- Enregistrement dans commission_transactions
+
+Tables:
+
+- employee_commissions
+- commission_rules
+- commission_transactions
+- commission_reports
+
+Composants:
+
+- CommissionRules
+- CommissionHistory
+- CommissionReport
+
+Emplacement:
+
+- src/components/modules/salon/commissions/
+- src/modules/salon/commissions/
+
+
+6. PARAMETRES BUSINESS / PROFIL SALON
+
+Fonctionnalites actives:
+
+- Nom du salon
+- Proprietaire / gerant
+- Logo
+- Slogan
+- Email
+- Telephone
+- WhatsApp
+- Adresse
+- NIF / numero fiscal
+- Site web
+- Devise
+- Horaires d'ouverture
+- Upload et preview logo
+
+Tables:
+
+- salon_business_profiles
+- salon_business_hours
+
+
+7. IMPRESSION / RECUS
+
+Fonctionnalites actives:
+
+- Recu thermique
+- PDF recu
+- Entete business automatique
+- Logo
+- Nom business
+- Adresse
+- Telephone
+- WhatsApp
+- NIF
+- Date
+- Nom du caissier
+- Methode de paiement
+
+Utilitaires:
+
+- printReceipt()
+- printInvoice()
+- printReport()
+- printA4()
+
+Fichiers:
+
+- src/lib/print-utils.ts
+- src/components/ui/ReceiptTemplate.tsx
+- src/modules/salon/printing/index.ts
+
+
+8. ANALYTICS
+
+Base technique ajoutee:
+
+- Revenus par periode
+- Performance employes via commissions
+- Structure pour daily revenue, monthly revenue, profitabilite services,
+  profitabilite boissons, pertes inventaire et meilleurs produits.
+
+Fichiers:
+
+- src/modules/salon/analytics/services/analyticsService.ts
+- src/modules/salon/analytics/types.ts
+
+
+9. VALIDATIONS
+
+Schemas Zod ajoutes:
+
+- salonBusinessProfileSchema
+- commissionRuleSchema
+- beverageStockSchema
+- stockMovementSchema
+
+Fichier:
+
+- src/modules/salon/validations/index.ts
+
+
+10. MIGRATIONS IMPORTANTES
+
+Migration business, commissions et impressions:
+
+- supabase/migrations/20260531_salon_business_commissions.sql
+
+Ajoute:
+
+- salon_business_profiles
+- salon_business_hours
+- employee_commissions
+- commission_rules
+- commission_transactions
+- commission_reports
+- print_templates
+- colonnes employee_id et cashier_name sur salon_sales
+- RLS policies
+- fonction calculate_employee_commission_v2
+
+Migration vertical refactor:
+
+- supabase/migrations/20260601_salon_vertical_refactor.sql
+
+Ajoute:
+
+- salon_stock_movements
+- salon_purchase_entries
+- salon_inventory_audits
+- salon_sale_payments
+- payment_status sur salon_sales
+- support payment method mixed
+- indexes
+- RLS policies
+
+
+11. VERIFICATION LOCALE AVANT PUSH
+
+Commandes recommandees:
+
+npm run build
+npm run dev
+
+URL locale:
+
+http://localhost:8080/
+
+Checklist manuelle:
+
+1. Se connecter.
+2. Aller sur /salon/pos.
+3. Ajouter un produit, une prestation et une boisson.
+4. Tester paiement cash.
+5. Tester paiement MonCash.
+6. Tester paiement NatCash.
+7. Tester paiement carte.
+8. Tester paiement mixte et verifier que le reste a payer arrive a 0.
+9. Encaisser.
+10. Verifier que le recu s'affiche.
+11. Verifier que le stock produit baisse.
+12. Verifier que le stock boisson baisse.
+13. Aller dans Boissons et verifier les caisses/unites.
+14. Aller dans Employes > Comm. et verifier regles + historique.
+15. Aller dans Parametres salon et verifier profil business/logo/horaires.
+
+
+12. POINTS RESTANTS / PROCHAINES ETAPES
+
+- Appliquer les migrations dans Supabase reel.
+- Brancher toute l'interface inventaire sur salon_stock_movements.
+- Ajouter UI complete pour achats fournisseurs.
+- Ajouter UI complete pour audits inventaire.
+- Persister automatiquement les commission_reports.
+- Afficher le detail du paiement mixte sur le recu.
+- Ajouter pagination/cache/realtime page par page.
+- Migrer progressivement toutes les pages salon vers src/modules/salon.
+- Ajouter tests unitaires pour cart-engine, pricing-engine, promotion-engine et stock-conversion.
+
+
+STATUT ACTUEL
+
+Le module salon est fonctionnel et la build passe.
+Il est maintenant mieux structure, plus scalable, et pret pour une deuxieme passe
+d'integration profonde autour de l'inventaire, analytics et rapports.
