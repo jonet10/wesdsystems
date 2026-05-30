@@ -41,7 +41,7 @@ interface PartnerRow {
   id: string;
   user_id: string | null;
   partner_level: "affiliate" | "reseller" | "agency";
-  status: "pending" | "active" | "suspended" | "rejected";
+  status: "pending" | "approved" | "suspended" | "rejected" | "active";
   display_name: string;
   email: string | null;
   phone: string | null;
@@ -180,6 +180,7 @@ export default function PartnerDashboard() {
 
   const activeTab = tabFromPath(location.pathname);
   const referralUrl = partner?.referral_url || (partner?.referral_code ? `https://wesdsystems.store/register?ref=${partner.referral_code}` : "");
+  const isApprovedPartner = partner?.status === "approved" || partner?.status === "active";
 
   const loadData = async () => {
     if (!profile?.id) return;
@@ -287,14 +288,14 @@ export default function PartnerDashboard() {
 
   if (profile && !partner) {
     return (
-      <DashboardLayout role="partner" title="Partner Dashboard" subtitle="Votre compte partenaire n'est pas encore activé" userName={profile.full_name || "Partner"}>
+      <DashboardLayout role="partner" title="Tableau de bord partenaire" subtitle="Votre compte partenaire n'est pas encore validé" userName={profile.full_name || "Partenaire"}>
         <div className="max-w-3xl">
           <Card>
             <CardContent className="p-6 space-y-3">
               <h2 className="text-lg font-semibold">Compte partenaire en attente</h2>
               <p className="text-sm text-muted-foreground">
-                Votre profil est connecté, mais aucun enregistrement partenaire n'a encore été relié à ce compte.
-                Un administrateur doit vous associer à un partenaire pour activer le tableau de bord.
+                Votre profil est connecté, mais aucune demande approuvée n'est encore liée à ce compte.
+                Un administrateur doit valider votre dossier pour activer le tableau de bord.
               </p>
             </CardContent>
           </Card>
@@ -306,9 +307,9 @@ export default function PartnerDashboard() {
   return (
     <DashboardLayout
       role="partner"
-      title="Partner Dashboard"
-      subtitle="Affiliates, resellers and agency partners"
-      userName={partner?.display_name || profile?.full_name || "Partner"}
+      title="Tableau de bord partenaire"
+      subtitle="Ambassadeurs, revendeurs et agences partenaires"
+      userName={partner?.display_name || profile?.full_name || "Partenaire"}
     >
       <StaggerContainer className="space-y-6">
         <StaggerItem>
@@ -329,7 +330,7 @@ export default function PartnerDashboard() {
           </div>
         </StaggerItem>
 
-        {partner?.status !== "active" && (
+        {!isApprovedPartner && (
           <StaggerItem>
             <Card className="border-primary/20 bg-primary/5">
               <CardHeader>
@@ -350,14 +351,14 @@ export default function PartnerDashboard() {
         <StaggerItem>
           <Tabs value={activeTab} onValueChange={(value) => navigate(tabPaths[value as TabKey])} className="w-full">
             <TabsList className="grid w-full grid-cols-4 xl:grid-cols-8">
-              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="clients">Clients</TabsTrigger>
-              <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
-              <TabsTrigger value="commissions">Commissions</TabsTrigger>
-              <TabsTrigger value="payouts">Payouts</TabsTrigger>
-              <TabsTrigger value="referrals">Links</TabsTrigger>
+              <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+              <TabsTrigger value="clients">Mes clients</TabsTrigger>
+              <TabsTrigger value="subscriptions">Mes abonnements</TabsTrigger>
+              <TabsTrigger value="commissions">Mes commissions</TabsTrigger>
+              <TabsTrigger value="payouts">Mon portefeuille</TabsTrigger>
+              <TabsTrigger value="referrals">Mes filleuls</TabsTrigger>
               <TabsTrigger value="marketing">Marketing</TabsTrigger>
-              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="reports">Rapports</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard" className="mt-6 space-y-6">
@@ -393,7 +394,15 @@ export default function PartnerDashboard() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Status</span>
-                      <Badge variant={partner?.status === "active" ? "default" : "secondary"}>{partner?.status}</Badge>
+                      <Badge variant={isApprovedPartner ? "default" : "secondary"}>
+                        {partner?.status === "approved" || partner?.status === "active"
+                          ? "Approuvé"
+                          : partner?.status === "pending"
+                            ? "En attente"
+                            : partner?.status === "suspended"
+                              ? "Suspendu"
+                              : "Refusé"}
+                      </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Tier</span>

@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 
 type PartnerLevel = "affiliate" | "reseller" | "agency";
-type PartnerStatus = "pending" | "active" | "suspended" | "rejected";
+type PartnerStatus = "pending" | "approved" | "suspended" | "rejected" | "active";
 type PayoutStatus = "pending" | "approved" | "paid" | "rejected" | "cancelled";
 
 interface PartnerRow {
@@ -130,7 +130,7 @@ const partnerSchema = z.object({
   company_name: z.string().optional().nullable(),
   partner_level: z.enum(["affiliate", "reseller", "agency"]),
   partner_tier_id: z.string().optional().nullable(),
-  status: z.enum(["pending", "active", "suspended", "rejected"]),
+  status: z.enum(["pending", "approved", "suspended", "rejected", "active"]),
   payout_method: z.enum(["moncash", "natcash", "bank_transfer", "cash"]).nullable(),
   white_label_enabled: z.boolean().default(false),
   notes: z.string().optional().nullable(),
@@ -331,7 +331,7 @@ export default function SuperAdminPartnersPage() {
     return map;
   }, [commissions]);
 
-  const activePartners = partners.filter((partner) => partner.status === "active");
+  const activePartners = partners.filter((partner) => partner.status === "approved" || partner.status === "active");
   const pendingPayoutTotal = payouts
     .filter((payout) => payout.status === "pending")
     .reduce((sum, payout) => sum + payout.requested_amount, 0);
@@ -424,7 +424,7 @@ export default function SuperAdminPartnersPage() {
         company_name: partner.company_name || "",
         partner_level: partner.partner_level,
         partner_tier_id: partner.partner_tier_id || "",
-      status: partner.status,
+      status: partner.status === "active" ? "approved" : partner.status,
       payout_method: partner.payout_method,
       white_label_enabled: partner.white_label_enabled,
       notes: partner.notes || "",
@@ -446,8 +446,8 @@ export default function SuperAdminPartnersPage() {
         payout_method: values.payout_method,
         white_label_enabled: values.white_label_enabled,
         notes: values.notes?.trim() || null,
-        approved_at: values.status === "active" ? new Date().toISOString() : null,
-        approved_by: values.status === "active" ? profile?.id || null : null,
+        approved_at: values.status === "approved" || values.status === "active" ? new Date().toISOString() : null,
+        approved_by: values.status === "approved" || values.status === "active" ? profile?.id || null : null,
       };
 
       const { error } = await supabase.from("partners").update(payload).eq("id", editingPartner.id);
@@ -463,7 +463,7 @@ export default function SuperAdminPartnersPage() {
 
   const setPartnerStatus = async (partner: PartnerRow, status: PartnerStatus) => {
     try {
-      if (status === "active") {
+      if (status === "approved" || status === "active") {
         const { error } = await supabase.rpc("approve_partner_application", {
           p_partner_id: partner.id,
           p_partner_tier_id: partner.partner_tier_id || null,
@@ -519,8 +519,14 @@ export default function SuperAdminPartnersPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="font-medium">{row.original.display_name}</span>
-            <Badge variant={row.original.status === "active" ? "default" : row.original.status === "pending" ? "secondary" : "destructive"}>
-              {row.original.status}
+            <Badge variant={row.original.status === "approved" || row.original.status === "active" ? "default" : row.original.status === "pending" ? "secondary" : "destructive"}>
+              {row.original.status === "approved" || row.original.status === "active"
+                ? "Approuvé"
+                : row.original.status === "pending"
+                  ? "En attente"
+                  : row.original.status === "suspended"
+                    ? "Suspendu"
+                    : "Refusé"}
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground">{row.original.company_name || row.original.email || row.original.referral_code}</div>
@@ -558,8 +564,8 @@ export default function SuperAdminPartnersPage() {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditPartner(row.original)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          {row.original.status !== "active" ? (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPartnerStatus(row.original, "active")}>
+          {row.original.status !== "approved" && row.original.status !== "active" ? (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPartnerStatus(row.original, "approved")}>
               <CheckCircle2 className="h-4 w-4" />
             </Button>
           ) : (
@@ -885,10 +891,10 @@ export default function SuperAdminPartnersPage() {
                 <Select value={partnerForm.watch("status")} onValueChange={(value) => partnerForm.setValue("status", value as PartnerStatus)}>
                   <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="approved">Approuvé</SelectItem>
+                    <SelectItem value="suspended">Suspendu</SelectItem>
+                    <SelectItem value="rejected">Refusé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

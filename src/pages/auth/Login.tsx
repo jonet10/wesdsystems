@@ -183,7 +183,7 @@ export default function Login() {
               </p>
               <p className="mt-2 text-muted-foreground">
                 {t("auth.login.partnerHint")}{" "}
-                <Link to="/become-partner" className="text-primary font-bold hover:underline">
+                <Link to="/devenir-partenaire" className="text-primary font-bold hover:underline">
                   {t("auth.login.becomePartner")}
                 </Link>
               </p>

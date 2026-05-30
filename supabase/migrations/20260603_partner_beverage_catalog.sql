@@ -91,7 +91,7 @@ BEGIN
 
   UPDATE public.partners
   SET
-    status = 'active',
+    status = 'approved',
     referral_code = v_code,
     referral_url = 'https://wesdsystems.store/register?ref=' || v_code,
     partner_tier_id = COALESCE(p_partner_tier_id, partner_tier_id),
@@ -401,4 +401,3 @@ CREATE POLICY "partner application manage" ON public.partners
     EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'super_admin')
     OR user_id = auth.uid()
   );
-

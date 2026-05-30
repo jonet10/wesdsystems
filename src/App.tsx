@@ -60,6 +60,8 @@ const App = () => (
                 <Route path="/auth/register" element={<Register />} />
                 <Route path="/register/partner" element={<PartnerRegister />} />
                 <Route path="/become-partner" element={<PartnerRegister />} />
+                <Route path="/inscription-partenaire" element={<PartnerRegister />} />
+                <Route path="/devenir-partenaire" element={<PartnerRegister />} />
 
                 {/* Super Admin Routes */}
                 <Route

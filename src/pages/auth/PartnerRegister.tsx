@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, Building2, CheckCircle2, Lock, Mail, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,45 +12,84 @@ import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Building2, CheckCircle2, Lock, Mail, Phone, User } from "lucide-react";
+
+const departments = [
+  "Artibonite",
+  "Centre",
+  "Grand'Anse",
+  "Nippes",
+  "Nord",
+  "Nord-Est",
+  "Nord-Ouest",
+  "Ouest",
+  "Sud",
+  "Sud-Est",
+] as const;
+
+const partnerTypes = [
+  "Influenceur",
+  "Technicien informatique",
+  "Agence marketing",
+  "Agence digitale",
+  "Développeur web",
+  "Formateur",
+  "Consultant",
+  "Comptable",
+  "Conseiller en entreprise",
+  "Autre",
+] as const;
 
 const partnerSchema = z.object({
-  full_name: z.string().min(2, "Le nom complet est requis"),
+  nom_complet: z.string().min(2, "Le nom complet est requis"),
   email: z.string().email("Email invalide"),
-  password: z.string().min(8, "Minimum 8 caractères"),
-  phone: z.string().min(6, "Numéro requis"),
-  whatsapp_number: z.string().min(6, "Numéro WhatsApp requis"),
-  city: z.string().min(2, "Ville requise"),
-  department: z.string().min(2, "Département requis"),
-  partner_type: z.string().min(2, "Type de partenaire requis"),
-  facebook_url: z.string().optional().nullable(),
-  instagram_url: z.string().optional().nullable(),
-  tiktok_url: z.string().optional().nullable(),
-  youtube_url: z.string().optional().nullable(),
-  website_url: z.string().optional().nullable(),
-  moncash_number: z.string().optional().nullable(),
-  natcash_number: z.string().optional().nullable(),
-  bank_account_number: z.string().optional().nullable(),
+  telephone: z.string().min(6, "Le téléphone est requis"),
+  whatsapp: z.string().optional().nullable(),
+  ville: z.string().min(2, "La ville est requise"),
+  departement: z.enum(departments),
+  type_partenaire: z.enum(partnerTypes),
+  facebook: z.string().optional().nullable(),
+  instagram: z.string().optional().nullable(),
+  tiktok: z.string().optional().nullable(),
+  youtube: z.string().optional().nullable(),
+  site_web: z.string().optional().nullable(),
+  moncash: z.string().optional().nullable(),
+  natcash: z.string().optional().nullable(),
+  compte_bancaire: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  mot_de_passe: z.string().min(8, "Minimum 8 caractères"),
 });
 
 type PartnerFormValues = z.infer<typeof partnerSchema>;
 
-const partnerTypes = [
-  "Influencer",
-  "IT Technician",
-  "Marketing Agency",
-  "Digital Agency",
-  "Web Developer",
-  "Trainer",
-  "Consultant",
-  "Business Advisor",
-  "Other",
-];
+const emptyDefaults: PartnerFormValues = {
+  nom_complet: "",
+  email: "",
+  telephone: "",
+  whatsapp: "",
+  ville: "",
+  departement: "Ouest",
+  type_partenaire: "Influenceur",
+  facebook: "",
+  instagram: "",
+  tiktok: "",
+  youtube: "",
+  site_web: "",
+  moncash: "",
+  natcash: "",
+  compte_bancaire: "",
+  notes: "",
+  mot_de_passe: "",
+};
 
-const makePendingCode = (fullName: string) => {
-  const base = fullName.replace(/[^a-zA-Z0-9]+/g, "").toUpperCase().slice(0, 12) || "PARTNER";
-  return `${base}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+const friendlyError = (error: unknown) => {
+  const message = String((error as { message?: string } | undefined)?.message || "").toLowerCase();
+  if (message.includes("already") || message.includes("déjà") || message.includes("duplicate")) {
+    return "Vous avez déjà une demande de partenariat en cours.";
+  }
+  if (message.includes("auth") || message.includes("uid") || message.includes("connect")) {
+    return "Vous devez être connecté pour soumettre une demande de partenariat.";
+  }
+  return "Impossible de soumettre votre demande. Veuillez réessayer.";
 };
 
 export default function PartnerRegister() {
@@ -60,84 +100,67 @@ export default function PartnerRegister() {
 
   const form = useForm<PartnerFormValues>({
     resolver: zodResolver(partnerSchema),
-    defaultValues: {
-      full_name: "",
-      email: "",
-      password: "",
-      phone: "",
-      whatsapp_number: "",
-      city: "",
-      department: "",
-      partner_type: "Influencer",
-      facebook_url: "",
-      instagram_url: "",
-      tiktok_url: "",
-      youtube_url: "",
-      website_url: "",
-      moncash_number: "",
-      natcash_number: "",
-      bank_account_number: "",
-      notes: "",
-    },
+    defaultValues: emptyDefaults,
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: values.email,
-        password: values.password,
+        password: values.mot_de_passe,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/login`,
           data: {
             role: "partner",
             role_normalized: "partner",
-            full_name: values.full_name,
+            full_name: values.nom_complet,
           },
         },
       });
 
-      if (error) throw error;
-      if (!data.user?.id) throw new Error("Impossible de créer le compte partenaire.");
+      if (signUpError) throw signUpError;
 
-      const referralCode = makePendingCode(values.full_name);
-      const { error: partnerError } = await supabase.from("partners").insert([{
-        user_id: data.user.id,
-        display_name: values.full_name,
-        full_name: values.full_name,
-        email: values.email,
-        phone: values.phone,
-        whatsapp_number: values.whatsapp_number,
-        city: values.city,
-        department: values.department,
-        partner_type: values.partner_type,
-        facebook_url: values.facebook_url || null,
-        instagram_url: values.instagram_url || null,
-        tiktok_url: values.tiktok_url || null,
-        youtube_url: values.youtube_url || null,
-        website_url: values.website_url || null,
-        moncash_number: values.moncash_number || null,
-        natcash_number: values.natcash_number || null,
-        bank_account: values.bank_account_number ? { account_number: values.bank_account_number } : {},
-        notes: values.notes || null,
-        status: "pending",
-        partner_level: "affiliate",
-        referral_code: referralCode,
-        referral_url: null,
-        application_source: "partner_registration",
-      }]);
+      const currentUser = signUpData.user?.id
+        ? signUpData.user
+        : (await supabase.auth.getUser()).data.user;
 
-      if (partnerError) throw partnerError;
+      if (!currentUser?.id) {
+        throw new Error("AUTH_REQUIRED");
+      }
+
+      const { error: insertError } = await supabase.rpc("submit_partner_application", {
+        p_payload: {
+          nom_complet: values.nom_complet,
+          email: values.email,
+          telephone: values.telephone,
+          whatsapp: values.whatsapp || null,
+          ville: values.ville,
+          departement: values.departement,
+          type_partenaire: values.type_partenaire,
+          facebook: values.facebook || null,
+          instagram: values.instagram || null,
+          tiktok: values.tiktok || null,
+          youtube: values.youtube || null,
+          site_web: values.site_web || null,
+          moncash: values.moncash || null,
+          natcash: values.natcash || null,
+          compte_bancaire: values.compte_bancaire || null,
+          notes: values.notes || null,
+        },
+      });
+
+      if (insertError) throw insertError;
 
       setSubmitted(true);
       toast({
         title: "Demande envoyée",
-        description: "Votre dossier partenaire est en attente d'approbation.",
+        description: "Votre demande de partenariat est en attente d'approbation.",
       });
     } catch (error: any) {
       toast({
         title: "Erreur d'inscription partenaire",
-        description: error.message || "Une erreur est survenue.",
+        description: friendlyError(error),
         variant: "destructive",
       });
     } finally {
@@ -161,7 +184,7 @@ export default function PartnerRegister() {
           <p className="text-sm text-muted-foreground mb-6">
             Un administrateur va examiner votre dossier. Une fois approuvé, votre code partenaire et votre lien de parrainage seront générés automatiquement.
           </p>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <Button onClick={() => navigate("/auth/login")} className="gap-2">
               <ArrowRight className="h-4 w-4" />
               Aller au login
@@ -177,71 +200,82 @@ export default function PartnerRegister() {
 
   return (
     <div className="min-h-screen bg-background flex text-foreground">
-      <div className="flex-1 flex items-center justify-center p-8 bg-muted/20">
-        <FadeUp className="w-full max-w-3xl">
-          <div className="bg-card rounded-2xl shadow-elevated border border-border p-8">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8 bg-muted/20">
+        <FadeUp className="w-full max-w-4xl">
+          <div className="bg-card rounded-2xl shadow-elevated border border-border p-5 sm:p-8">
             <div className="text-center mb-8">
               <Link to="/" className="inline-block">
                 <Logo size="lg" />
               </Link>
               <h1 className="text-2xl font-bold font-sans mt-6 mb-2 tracking-tight">
-                Devenir partenaire WESD
+                Inscription partenaire WESD
               </h1>
               <p className="text-muted-foreground text-sm">
-                Rejoignez le programme partenaire, ambassadeur et apportez des clients à la plateforme.
+                Ambassadeur, revendeur, agence ou consultant: rejoignez le réseau WESD en Haïti.
               </p>
             </div>
 
             <form onSubmit={onSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Nom complet</Label>
+                  <Label>Nom complet *</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input {...form.register("full_name")} className="pl-9" />
+                    <Input {...form.register("nom_complet")} className="pl-9" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>Email *</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input type="email" {...form.register("email")} className="pl-9" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Mot de passe</Label>
+                  <Label>Téléphone *</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="password" {...form.register("password")} className="pl-9" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input {...form.register("telephone")} className="pl-9" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Téléphone</Label>
+                  <Label>Mot de passe *</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input {...form.register("phone")} className="pl-9" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type="password" {...form.register("mot_de_passe")} className="pl-9" />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>WhatsApp</Label>
-                  <Input {...form.register("whatsapp_number")} />
+                  <Input {...form.register("whatsapp")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Ville</Label>
-                  <Input {...form.register("city")} />
+                  <Label>Ville *</Label>
+                  <Input {...form.register("ville")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Département</Label>
-                  <Input {...form.register("department")} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Type de partenaire</Label>
+                  <Label>Département *</Label>
                   <select
-                    {...form.register("partner_type")}
+                    {...form.register("departement")}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {departments.map((department) => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Type de partenaire *</Label>
+                  <select
+                    {...form.register("type_partenaire")}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     {partnerTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -250,38 +284,38 @@ export default function PartnerRegister() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Facebook</Label>
-                  <Input {...form.register("facebook_url")} placeholder="https://facebook.com/..." />
+                  <Input {...form.register("facebook")} placeholder="https://facebook.com/..." />
                 </div>
                 <div className="space-y-2">
                   <Label>Instagram</Label>
-                  <Input {...form.register("instagram_url")} placeholder="https://instagram.com/..." />
+                  <Input {...form.register("instagram")} placeholder="https://instagram.com/..." />
                 </div>
                 <div className="space-y-2">
                   <Label>TikTok</Label>
-                  <Input {...form.register("tiktok_url")} placeholder="https://tiktok.com/..." />
+                  <Input {...form.register("tiktok")} placeholder="https://tiktok.com/..." />
                 </div>
                 <div className="space-y-2">
                   <Label>YouTube</Label>
-                  <Input {...form.register("youtube_url")} placeholder="https://youtube.com/..." />
+                  <Input {...form.register("youtube")} placeholder="https://youtube.com/..." />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Site web</Label>
-                  <Input {...form.register("website_url")} placeholder="https://..." />
+                  <Input {...form.register("site_web")} placeholder="https://..." />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Numéro MonCash</Label>
-                  <Input {...form.register("moncash_number")} />
+                  <Input {...form.register("moncash")} />
                 </div>
                 <div className="space-y-2">
                   <Label>Numéro NatCash</Label>
-                  <Input {...form.register("natcash_number")} />
+                  <Input {...form.register("natcash")} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Compte bancaire</Label>
-                  <Input {...form.register("bank_account_number")} />
+                  <Input {...form.register("compte_bancaire")} />
                 </div>
               </div>
 
@@ -296,7 +330,7 @@ export default function PartnerRegister() {
                   <div>
                     <p className="font-semibold">Après validation</p>
                     <p className="text-muted-foreground">
-                      Un code partenaire et un lien de parrainage seront générés automatiquement après approbation par le Super Admin.
+                      Votre code partenaire et votre lien de parrainage seront générés automatiquement par le Super Admin.
                     </p>
                   </div>
                 </div>
