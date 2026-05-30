@@ -82,71 +82,23 @@ const defaultServices: Service[] = [];
 const defaultClients: Client[] = [];
 const defaultAppointments: Appointment[] = [];
 
-const STORE_SCHEMA_VERSION = "2";
-const legacyDemoSalons = [
-  "Salon Élégance",
-  "BarberShop Paris",
-  "Beauty Concept",
-  "Coiff & Style",
-];
-const legacyDemoEmployees = ["Julie", "Marc", "Emma"];
-const legacyDemoClients = [
-  "Marie Laurent",
-  "Sophie Martin",
-  "Emma Wilson",
-  "Lucas Bernard",
-  "Clara Dubois",
-  "Thomas Petit",
+const STORE_SCHEMA_VERSION = "3";
+const STORE_KEYS = [
+  "glowup_salons",
+  "glowup_employees",
+  "glowup_services",
+  "glowup_clients",
+  "glowup_appointments",
 ];
 
-const resetLegacyDemoData = () => {
-  const currentVersion = getItemSafe("glowup_store_schema_version");
-  if (currentVersion === STORE_SCHEMA_VERSION) return;
-
-  const keysToClear = [
-    "glowup_salons",
-    "glowup_employees",
-    "glowup_services",
-    "glowup_clients",
-    "glowup_appointments",
-    "glowup_store_schema_version",
-  ];
-
-  keysToClear.forEach((key) => {
+const clearStore = () => {
+  STORE_KEYS.forEach((key) => {
     if (canUseLocalStorage()) {
       localStorage.removeItem(key);
     } else {
       memoryStore.delete(key);
     }
   });
-
-  setItemSafe("glowup_store_schema_version", STORE_SCHEMA_VERSION);
-};
-
-const shouldReplaceLegacySeed = (key: string, value: string | null): boolean => {
-  if (!value) return true;
-
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed) || parsed.length === 0) return false;
-
-    if (key === "glowup_salons") {
-      return parsed.some((item) => legacyDemoSalons.includes(item?.name));
-    }
-    if (key === "glowup_employees") {
-      return parsed.some((item) => legacyDemoEmployees.includes(item?.name));
-    }
-    if (key === "glowup_clients") {
-      return parsed.some((item) => legacyDemoClients.includes(item?.name));
-    }
-    if (key === "glowup_appointments") {
-      return parsed.some((item) => legacyDemoClients.includes(item?.clientName));
-    }
-  } catch {
-    return true;
-  }
-
-  return false;
 };
 
 // Helper to trigger store-wide reactivity
@@ -156,26 +108,25 @@ const notifyStoreUpdated = () => {
 
 // Initialize Store
 const initializeStore = () => {
-  resetLegacyDemoData();
+  const currentVersion = getItemSafe("glowup_store_schema_version");
+  if (currentVersion !== STORE_SCHEMA_VERSION) {
+    clearStore();
+    setItemSafe("glowup_store_schema_version", STORE_SCHEMA_VERSION);
+  }
 
-  const salonSeed = getItemSafe("glowup_salons");
-  if (shouldReplaceLegacySeed("glowup_salons", salonSeed)) {
+  if (!getItemSafe("glowup_salons")) {
     setItemSafe("glowup_salons", JSON.stringify(defaultSalons));
   }
-  const employeeSeed = getItemSafe("glowup_employees");
-  if (shouldReplaceLegacySeed("glowup_employees", employeeSeed)) {
+  if (!getItemSafe("glowup_employees")) {
     setItemSafe("glowup_employees", JSON.stringify(defaultEmployees));
   }
-  const serviceSeed = getItemSafe("glowup_services");
-  if (!serviceSeed) {
+  if (!getItemSafe("glowup_services")) {
     setItemSafe("glowup_services", JSON.stringify(defaultServices));
   }
-  const clientSeed = getItemSafe("glowup_clients");
-  if (shouldReplaceLegacySeed("glowup_clients", clientSeed)) {
+  if (!getItemSafe("glowup_clients")) {
     setItemSafe("glowup_clients", JSON.stringify(defaultClients));
   }
-  const appointmentSeed = getItemSafe("glowup_appointments");
-  if (shouldReplaceLegacySeed("glowup_appointments", appointmentSeed)) {
+  if (!getItemSafe("glowup_appointments")) {
     setItemSafe("glowup_appointments", JSON.stringify(defaultAppointments));
   }
 };
