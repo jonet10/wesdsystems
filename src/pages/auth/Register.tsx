@@ -113,7 +113,7 @@ export default function Register() {
         navigate("/salon");
         toast({
           title: "Compte créé avec succès !",
-          description: "Bienvenue sur Wesd Systems. Votre essai de 14 jours commence maintenant.",
+          description: "Bienvenue sur Wesd Systems. Votre essai de 7 jours commence maintenant.",
         });
       }
     } catch (error: any) {
@@ -149,7 +149,7 @@ export default function Register() {
                 {step === 1 ? "Créer un compte" : "Votre commerce"}
               </h1>
               <p className="text-muted-foreground text-sm">
-                {step === 1 ? "Essai gratuit pendant 14 jours" : "Dernière étape pour démarrer"}
+                {step === 1 ? "Essai gratuit pendant 7 jours" : "Dernière étape pour démarrer"}
               </p>
             </div>
 
@@ -353,7 +353,7 @@ export default function Register() {
         <div className="absolute inset-0 gradient-primary opacity-90" />
         <div className="relative z-10 text-center text-primary-foreground max-w-lg">
           <h2 className="text-4xl font-bold font-sans tracking-tight mb-6 text-white">
-            14 jours d'essai gratuit
+            7 jours d'essai gratuit
           </h2>
           <p className="text-lg opacity-85 mb-8 text-muted/20">
             Aucune carte bancaire requise. Configurez votre commerce en Gourdes ou Dollars.

@@ -13,79 +13,75 @@
 @layer base {
   :root {
     /* ──────────────────────────────────────
-       BASE SURFACES — pure neutral (no blue tint)
-       Ensures text NEVER competes with background color
+       FUTURISTIC PLATFORM BASE
+       Dark navy shell with violet/cyan accents, aligned with landing page.
     ────────────────────────────────────── */
-    --background: 0 0% 100%;          /* Pure white */
-    --foreground: 224 71% 4%;         /* Near-black (#050d1f) — 19:1 on white ✓ */
+    --background: 224 71% 5%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
+    --card: 224 50% 8%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 224 71% 4%;
+    --popover: 224 50% 8%;
+    --popover-foreground: 210 40% 98%;
 
     /* ──────────────────────────────────────
-       PRIMARY — Electric Blue (Stripe-style)
-       #3b7eff on white = 4.6:1 (AA) ✓
+       PRIMARY — Violet to blue accent
     ────────────────────────────────────── */
-    --primary: 221 83% 60%;
+    --primary: 262 83% 65%;
     --primary-foreground: 0 0% 100%;
 
     /* ──────────────────────────────────────
-       SECONDARY — Neutral slate (not blue-tinted)
+       SECONDARY — Deep slate
     ────────────────────────────────────── */
-    --secondary: 220 14% 96%;         /* #f4f5f7 — neutral gray */
-    --secondary-foreground: 224 71% 4%;
+    --secondary: 224 40% 12%;
+    --secondary-foreground: 210 40% 98%;
 
     /* ──────────────────────────────────────
-       MUTED — True neutral gray
-       Fixes the blue-on-blue muted issue
+       MUTED — Deep neutral surface
     ────────────────────────────────────── */
-    --muted: 220 14% 96%;             /* neutral, NOT blue-tinted */
-    --muted-foreground: 220 9% 42%;   /* #636878 — 4.8:1 on white ✓ */
+    --muted: 224 40% 10%;
+    --muted-foreground: 215 20% 72%;
 
     /* ──────────────────────────────────────
-       ACCENT — Light neutral (fixes blue-on-blue accent)
-       accent-foreground is dark, NOT blue
+       ACCENT — Violet glass
     ────────────────────────────────────── */
-    --accent: 220 14% 94%;
-    --accent-foreground: 224 71% 4%;  /* Dark text on light accent ✓ */
+    --accent: 262 70% 18%;
+    --accent-foreground: 210 40% 98%;
 
     /* ──────────────────────────────────────
        SEMANTIC COLORS
-    ────────────────────────────────────── */
-    --destructive: 0 72% 51%;
+       ────────────────────────────────────── */
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 35%;
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 58%;
     --warning-foreground: 38 92% 10%;
 
-    --info: 221 83% 60%;
+    --info: 189 84% 62%;
     --info-foreground: 0 0% 100%;
 
     /* ──────────────────────────────────────
-       BORDERS & INPUTS — neutral, not blue
+       BORDERS & INPUTS — glassy slate
     ────────────────────────────────────── */
-    --border: 220 13% 91%;            /* #e5e7eb */
-    --input: 220 13% 91%;
-    --ring: 221 83% 60%;
+    --border: 224 40% 14%;
+    --input: 224 40% 14%;
+    --ring: 262 83% 65%;
 
     --radius: 0.75rem;
 
     /* ──────────────────────────────────────
        GRADIENTS
-       Hero: very dark navy → nearly black (white text = 15:1 ✓)
-       Primary: blue → deep indigo
+       Futuristic purple/cyan system
     ────────────────────────────────────── */
-    --gradient-primary: linear-gradient(135deg, hsl(221 83% 60%) 0%, hsl(245 75% 45%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(240 60% 8%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(262 83% 65%) 0%, hsl(189 84% 62%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 9%) 48%, hsl(224 71% 5%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(224 50% 9%) 0%, hsl(224 40% 8%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(25 85% 55%) 100%);
-    --gradient-blue-soft: linear-gradient(135deg, hsl(221 100% 97%) 0%, hsl(240 100% 97%) 100%);
+    --gradient-blue-soft: linear-gradient(135deg, hsl(262 100% 16%) 0%, hsl(189 100% 16%) 100%);
 
     /* ──────────────────────────────────────
        SHADOWS — neutral (not blue-tinted)
@@ -101,17 +97,16 @@
     --shadow-elevated: 0 4px 16px rgb(0 0 0 / 0.08), 0 1px 4px rgb(0 0 0 / 0.05);
 
     /* ──────────────────────────────────────
-       SIDEBAR — dark navy (intentionally dark)
-       All sidebar text is light colored
+       SIDEBAR — aligned with the futuristic shell
     ────────────────────────────────────── */
-    --sidebar-background: 224 71% 5%;
-    --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 221 83% 65%;
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 220 20% 84%;
+    --sidebar-primary: 262 83% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 40% 10%;
+    --sidebar-accent: 224 40% 11%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 224 40% 10%;
-    --sidebar-ring: 221 83% 60%;
+    --sidebar-border: 224 40% 12%;
+    --sidebar-ring: 262 83% 65%;
   }
 
   /* ──────────────────────────────────────
@@ -127,7 +122,7 @@
     --popover: 224 50% 7%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 221 83% 65%;
+    --primary: 262 83% 65%;
     --primary-foreground: 224 71% 4%;
 
     --secondary: 224 40% 12%;
@@ -144,18 +139,18 @@
 
     --border: 224 40% 14%;
     --input: 224 40% 14%;
-    --ring: 221 83% 65%;
+    --ring: 262 83% 65%;
 
-    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(245 60% 6%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 8%) 52%, hsl(224 71% 4%) 100%);
 
     --sidebar-background: 224 71% 3%;
     --sidebar-foreground: 220 20% 80%;
-    --sidebar-primary: 221 83% 65%;
+    --sidebar-primary: 262 83% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 224 40% 8%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 40% 8%;
-    --sidebar-ring: 221 83% 65%;
+    --sidebar-ring: 262 83% 65%;
   }
 }
 
@@ -180,6 +175,12 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 15px;
     line-height: 1.6;
+    background-image:
+      linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 8%) 48%, hsl(224 71% 5%) 100%),
+      linear-gradient(rgba(168, 85, 247, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+    background-size: auto, 48px 48px, 48px 48px;
+    background-attachment: fixed;
   }
 
   /* Refined heading hierarchy */
@@ -205,17 +206,17 @@
 @layer components {
   /* ── Glass morphism ── */
   .glass {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-  }
-
-  .glass-dark {
-    background: rgba(5, 13, 31, 0.7);
+    background: rgba(15, 23, 42, 0.72);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-dark {
+    background: rgba(5, 10, 28, 0.82);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(168, 85, 247, 0.12);
   }
 
   /* ── Gradient text — explicit colors for contrast safety ── */
@@ -243,8 +244,8 @@
   .gradient-blue-soft { background: var(--gradient-blue-soft); }
 
   /* ── Section backgrounds ── */
-  .section-white  { @apply bg-white; }
-  .section-muted  { background-color: hsl(220 14% 97%); }
+  .section-white  { background: hsl(224 50% 8%); }
+  .section-muted  { background-color: hsl(224 40% 10%); }
   .section-dark   { background: hsl(224 71% 4%); @apply text-white; }
 
   /* ── Shadows (semantic) ── */
@@ -255,9 +256,9 @@
   .shadow-glow     { box-shadow: var(--shadow-glow); }
 
   /* ── Badges ── */
-  .badge-primary  { @apply bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-3 py-1 rounded-full; }
-  .badge-success  { @apply bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold px-3 py-1 rounded-full; }
-  .badge-warning  { @apply bg-amber-50 text-amber-700 border border-amber-100 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-primary  { @apply bg-violet-500/15 text-violet-200 border border-violet-400/25 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-success  { @apply bg-emerald-500/15 text-emerald-200 border border-emerald-400/25 text-xs font-semibold px-3 py-1 rounded-full; }
+  .badge-warning  { @apply bg-amber-500/15 text-amber-200 border border-amber-400/25 text-xs font-semibold px-3 py-1 rounded-full; }
   .badge-neutral  { @apply bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold px-3 py-1 rounded-full; }
 
   /* ── Button glow effect ── */

@@ -13,12 +13,8 @@ interface DashboardLayoutProps {
 export const DashboardLayout = ({ children, role, title, subtitle, userName }: DashboardLayoutProps) => {
   return (
     <div className="flex h-screen relative overflow-hidden bg-background">
-      {/* GLOBAL BACKGROUND GIF */}
-      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
-        <img src="/images/Background.gif" alt="Platform Background" className="w-full h-full object-cover" />
-      </div>
-      {/* LIGHT OVERLAY TO ENSURE TEXT REMAINS READABLE, BUT NO BLUR */}
-      <div className="absolute inset-0 z-0 bg-background/60 pointer-events-none" />
+      <div className="absolute inset-0 z-0 pointer-events-none bg-[linear-gradient(135deg,hsl(224,71%,4%)_0%,hsl(258,63%,8%)_48%,hsl(224,71%,5%)_100%)]" />
+      <div className="absolute inset-0 z-0 pointer-events-none bg-[linear-gradient(rgba(168,85,247,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.06)_1px,transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
       {/* FOREGROUND CONTENT */}
       <div className="relative z-10 flex w-full h-full">

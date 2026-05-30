@@ -153,13 +153,13 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     const isActive = location.pathname === item.path;
     
     const content = (
-      <Link
-        to={item.path}
-        className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+        <Link
+          to={item.path}
+          className={cn(
+          "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group border",
           isActive 
-            ? "bg-primary/10 text-primary font-medium" 
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            ? "bg-gradient-to-r from-primary/15 to-info/10 text-primary font-medium border-primary/20 shadow-glow" 
+            : "text-muted-foreground border-transparent hover:bg-primary/5 hover:text-foreground hover:border-primary/10"
         )}
       >
         <Icon className={cn("h-4 w-4 flex-shrink-0", isActive && "text-primary")} />
@@ -198,11 +198,11 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     <motion.aside
       initial={false}
       animate={{ width: collapsed ? 72 : 256 }}
-      className="h-screen flex-shrink-0 bg-background border-r border-border/50 
-                 flex flex-col z-40 transition-all duration-300 ease-in-out"
+      className="h-screen flex-shrink-0 bg-background/80 backdrop-blur-xl border-r border-purple-500/10 
+                 flex flex-col z-40 transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20"
     >
       {/* Logo Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-border/50">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-purple-500/10">
         <motion.div 
           animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
           className="overflow-hidden whitespace-nowrap"
@@ -228,7 +228,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
 
       {/* User Mini Profile (collapsed mode) */}
       {collapsed && (
-        <div className="p-3 border-t border-border/50">
+        <div className="p-3 border-t border-purple-500/10">
           <Tooltip delayDuration={0}>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="w-full">
@@ -242,10 +242,10 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
 
       {/* Footer Toggle */}
       {!collapsed && (
-        <div className="p-3 border-t border-border/50">
+        <div className="p-3 border-t border-purple-500/10">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-primary/10"
             onClick={() => setCollapsed(true)}
           >
             <ChevronLeft className="h-4 w-4" />

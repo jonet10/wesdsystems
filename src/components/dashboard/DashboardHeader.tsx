@@ -108,8 +108,8 @@ export const DashboardHeader = ({
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 
-                      border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
-                      px-6 shadow-sm">
+                      border-b border-purple-500/10 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60
+                      px-6 shadow-lg shadow-purple-950/10">
       
       {/* Page Title */}
       <div className="flex-1 min-w-0">
@@ -133,7 +133,7 @@ export const DashboardHeader = ({
               }
             }}
           />
-          <kbd className="hidden lg:inline-flex absolute right-2 top-1.5 h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+          <kbd className="hidden lg:inline-flex absolute right-2 top-1.5 h-5 select-none items-center gap-1 rounded border border-purple-500/15 bg-primary/10 px-1.5 font-mono text-[10px] font-medium text-primary/80">
             <span className="text-xs">⌘</span>K
           </kbd>
         </div>
