@@ -335,6 +335,12 @@ export default function Register() {
                   Se connecter
                 </Link>
               </p>
+              <p className="text-muted-foreground mt-2">
+                Vous voulez rejoindre le programme partenaire ?{" "}
+                <Link to="/become-partner" className="text-primary font-bold hover:underline">
+                  Devenir partenaire
+                </Link>
+              </p>
             </div>
 
             <p className="text-[10px] text-muted-foreground text-center mt-6 leading-relaxed">

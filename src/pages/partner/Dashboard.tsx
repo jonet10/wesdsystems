@@ -329,6 +329,24 @@ export default function PartnerDashboard() {
           </div>
         </StaggerItem>
 
+        {partner?.status !== "active" && (
+          <StaggerItem>
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="text-base">Compte en attente</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  Votre inscription partenaire a bien été reçue, mais votre compte doit encore être approuvé par le Super Admin.
+                </p>
+                <p>
+                  Une fois validé, votre code partenaire et votre lien de parrainage seront générés automatiquement.
+                </p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+        )}
+
         <StaggerItem>
           <Tabs value={activeTab} onValueChange={(value) => navigate(tabPaths[value as TabKey])} className="w-full">
             <TabsList className="grid w-full grid-cols-4 xl:grid-cols-8">
@@ -760,4 +778,3 @@ export default function PartnerDashboard() {
     </DashboardLayout>
   );
 }
-

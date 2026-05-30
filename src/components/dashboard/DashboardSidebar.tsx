@@ -32,6 +32,7 @@ import {
   QrCode,
   Megaphone,
   Wallet,
+  LibraryBig,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const superAdminItems: SidebarItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin", role: "all" },
   { icon: Building2, label: "Établissements", path: "/admin/salons", role: "all" },
   { icon: CreditCard, label: "Abonnements", path: "/admin/subscriptions", role: "all" },
+  { icon: LibraryBig, label: "Catalogue", path: "/admin/catalog", role: "all" },
   { icon: Handshake, label: "Partenaires", path: "/admin/partners", role: "all" },
   { icon: Settings, label: "Paramètres", path: "/admin/settings", role: "all" },
 ];

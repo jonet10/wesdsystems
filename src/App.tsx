@@ -14,8 +14,10 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import PartnerRegister from "./pages/auth/PartnerRegister";
 import SuperAdminDashboard from "./pages/admin/Dashboard";
 import SuperAdminSalons from "./pages/admin/Salons";
+import SuperAdminCatalog from "./pages/admin/Catalog";
 import SuperAdminSubscriptions from "./pages/admin/Subscriptions";
 import SuperAdminPartners from "./pages/admin/Partners";
 import SuperAdminSettings from "./pages/admin/Settings";
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/register" element={<Register />} />
+                <Route path="/register/partner" element={<PartnerRegister />} />
+                <Route path="/become-partner" element={<PartnerRegister />} />
 
                 {/* Super Admin Routes */}
                 <Route
@@ -71,6 +75,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
                       <SuperAdminSalons />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/catalog"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminCatalog />
                     </ProtectedRoute>
                   }
                 />

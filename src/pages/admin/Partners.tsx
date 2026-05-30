@@ -49,8 +49,13 @@ interface PartnerRow {
   partner_level: PartnerLevel;
   status: PartnerStatus;
   display_name: string;
+  full_name?: string | null;
   email: string | null;
   phone: string | null;
+  whatsapp_number?: string | null;
+  city?: string | null;
+  department?: string | null;
+  partner_type?: string | null;
   company_name: string | null;
   referral_code: string;
   referral_url: string | null;
@@ -258,7 +263,7 @@ export default function SuperAdminPartnersPage() {
       { data: payoutRows },
       { data: businessRows },
     ] = await Promise.all([
-      supabase.from("partners").select("id, user_id, partner_tier_id, partner_level, status, display_name, email, phone, company_name, referral_code, referral_url, payout_method, white_label_enabled, notes, created_at").order("created_at", { ascending: false }),
+      supabase.from("partners").select("id, user_id, partner_tier_id, partner_level, status, display_name, full_name, email, phone, whatsapp_number, city, department, partner_type, company_name, referral_code, referral_url, payout_method, white_label_enabled, notes, created_at").order("created_at", { ascending: false }),
       supabase.from("partner_tiers").select("id, name, slug, recurring_commission_rate, one_time_commission_rate, fixed_commission_amount, active, description").order("created_at", { ascending: false }),
       supabase.from("partner_wallets").select("id, partner_id, currency_code, available_balance, pending_balance, lifetime_earnings, total_payouts").order("created_at", { ascending: false }),
       supabase.from("partner_commissions").select("id, partner_id, amount, status, created_at").order("created_at", { ascending: false }).limit(200),
@@ -411,13 +416,14 @@ export default function SuperAdminPartnersPage() {
 
   const openEditPartner = (partner: PartnerRow) => {
     setEditingPartner(partner);
-    partnerForm.reset({
-      display_name: partner.display_name,
-      email: partner.email || "",
-      phone: partner.phone || "",
-      company_name: partner.company_name || "",
-      partner_level: partner.partner_level,
-      partner_tier_id: partner.partner_tier_id || "",
+      partnerForm.reset({
+        display_name: partner.display_name,
+        // keep compatibility with legacy rows
+        email: partner.email || "",
+        phone: partner.phone || "",
+        company_name: partner.company_name || "",
+        partner_level: partner.partner_level,
+        partner_tier_id: partner.partner_tier_id || "",
       status: partner.status,
       payout_method: partner.payout_method,
       white_label_enabled: partner.white_label_enabled,
@@ -456,17 +462,30 @@ export default function SuperAdminPartnersPage() {
   });
 
   const setPartnerStatus = async (partner: PartnerRow, status: PartnerStatus) => {
-    const { error } = await supabase
-      .from("partners")
-      .update({
-        status,
-        approved_at: status === "active" ? new Date().toISOString() : null,
-        approved_by: status === "active" ? profile?.id || null : null,
-      })
-      .eq("id", partner.id);
-    if (error) return toast.error(error.message);
-    toast.success(`Statut passe a ${status}.`);
-    await loadData();
+    try {
+      if (status === "active") {
+        const { error } = await supabase.rpc("approve_partner_application", {
+          p_partner_id: partner.id,
+          p_partner_tier_id: partner.partner_tier_id || null,
+        });
+        if (error) throw error;
+        toast.success("Partenaire approuvé et code généré.");
+      } else {
+        const { error } = await supabase
+          .from("partners")
+          .update({
+            status,
+            approved_at: null,
+            approved_by: null,
+          })
+          .eq("id", partner.id);
+        if (error) throw error;
+        toast.success(`Statut passe a ${status}.`);
+      }
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Impossible de mettre à jour le partenaire.");
+    }
   };
 
   const openPayout = (payout: PartnerPayoutRow) => {
