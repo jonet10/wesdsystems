@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import {
   Package, Search, Plus, Pencil, Trash2, AlertTriangle, Tag
 } from "lucide-react";
+import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES } from "@/lib/packaging";
 
 interface Product {
   id: string;
@@ -31,6 +32,12 @@ interface Product {
   barcode?: string;
   unit_price: number;
   cost_price?: number;
+  packaging_type?: PackagingType | null;
+  package_quantity?: number | null;
+  purchase_price_global?: number | null;
+  unit_cost_price?: number | null;
+  unit_profit?: number | null;
+  package_profit?: number | null;
   quantity_in_stock: number;
   reorder_level: number;
   is_active: boolean;
@@ -59,8 +66,10 @@ export default function ProductsPage() {
   const [category, setCategory] = useState("");
   const [sku, setSku] = useState("");
   const [barcode, setBarcode] = useState("");
+  const [packagingType, setPackagingType] = useState<PackagingType>("custom");
+  const [packageQuantity, setPackageQuantity] = useState("1");
+  const [purchasePriceGlobal, setPurchasePriceGlobal] = useState("0");
   const [unitPrice, setUnitPrice] = useState("0");
-  const [costPrice, setCostPrice] = useState("0");
   const [quantity, setQuantity] = useState("0");
   const [reorderLevel, setReorderLevel] = useState("10");
 
@@ -89,7 +98,7 @@ export default function ProductsPage() {
   const resetForm = () => {
     setEditing(null);
     setName(""); setDescription(""); setCategory(""); setSku("");
-    setBarcode(""); setUnitPrice("0"); setCostPrice("0");
+    setBarcode(""); setPackagingType("custom"); setPackageQuantity("1"); setPurchasePriceGlobal("0"); setUnitPrice("0");
     setQuantity("0"); setReorderLevel("10");
   };
 
@@ -98,13 +107,25 @@ export default function ProductsPage() {
     setEditing(p);
     setName(p.name); setDescription(p.description || ""); setCategory(p.category || "");
     setSku(p.sku || ""); setBarcode(p.barcode || "");
-    setUnitPrice(String(p.unit_price)); setCostPrice(String(p.cost_price || 0));
+    setPackagingType(p.packaging_type || "custom");
+    setPackageQuantity(String(p.package_quantity || 1));
+    setPurchasePriceGlobal(String(p.purchase_price_global ?? p.cost_price ?? 0));
+    setUnitPrice(String(p.unit_price));
     setQuantity(String(p.quantity_in_stock)); setReorderLevel(String(p.reorder_level));
     setOpen(true);
   };
 
+  const pricingPreview = useMemo(() => {
+    return calculatePackagingEconomics({
+      packagePurchasePrice: Number(purchasePriceGlobal || 0),
+      packageQuantity: normalizePackagingQuantity(packageQuantity),
+      unitSellingPrice: Number(unitPrice || 0),
+    });
+  }, [packageQuantity, purchasePriceGlobal, unitPrice]);
+
   const saveProduct = async () => {
     if (!name.trim()) return toast.error("Nom du produit requis");
+    const packageQty = normalizePackagingQuantity(packageQuantity);
     const payload = {
       name: name.trim(),
       description: description.trim() || null,
@@ -112,7 +133,13 @@ export default function ProductsPage() {
       sku: sku.trim() || null,
       barcode: barcode.trim() || null,
       unit_price: Number(unitPrice || 0),
-      cost_price: Number(costPrice || 0) || null,
+      cost_price: pricingPreview.unitCost || null,
+      packaging_type: packagingType,
+      package_quantity: packageQty,
+      purchase_price_global: Number(purchasePriceGlobal || 0),
+      unit_cost_price: pricingPreview.unitCost,
+      unit_profit: pricingPreview.unitProfit,
+      package_profit: pricingPreview.packageProfit,
       quantity_in_stock: Number(quantity || 0),
       reorder_level: Number(reorderLevel || 10),
     };
@@ -218,20 +245,22 @@ export default function ProductsPage() {
         </StaggerItem>
 
         <StaggerItem>
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">Produit</th>
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">Catégorie</th>
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">SKU</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Stock</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix vente</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix achat</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Produit</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Catégorie</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Conditionnement</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">SKU</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Stock</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix vente</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix achat</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Profit / unité</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {filtered.map(p => (
                     <tr key={p.id} className="border-b border-border hover:bg-muted/30 transition-colors">
@@ -255,6 +284,10 @@ export default function ProductsPage() {
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
+                      <td className="p-4 text-sm">
+                        <span className="text-muted-foreground">{p.packaging_type || "custom"}</span>
+                        <span className="text-xs text-muted-foreground ml-1">({p.package_quantity || 1})</span>
+                      </td>
                       <td className="p-4 text-sm text-muted-foreground">{p.sku || "—"}</td>
                       <td className="p-4 text-right">
                         <span className={p.quantity_in_stock <= p.reorder_level ? "text-destructive font-semibold" : "font-medium"}>
@@ -264,7 +297,10 @@ export default function ProductsPage() {
                       </td>
                       <td className="p-4 text-right font-medium">{format(p.unit_price)}</td>
                       <td className="p-4 text-right text-muted-foreground">
-                        {p.cost_price ? format(p.cost_price) : "—"}
+                        {p.purchase_price_global ? format(p.purchase_price_global) : p.cost_price ? format(p.cost_price) : "—"}
+                      </td>
+                      <td className="p-4 text-right text-muted-foreground">
+                        {typeof p.unit_profit === "number" ? format(p.unit_profit) : "—"}
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -292,54 +328,85 @@ export default function ProductsPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[540px]">
+        <DialogContent className="sm:max-w-[760px] max-h-[calc(100vh-1rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier le produit" : "Nouveau produit"}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            <div className="md:col-span-2">
-              <Label>Nom du produit *</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Shampoing professionnel" />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Description</Label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
-            </div>
-            <div>
-              <Label>Catégorie</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>SKU</Label>
-              <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="Code produit" />
-            </div>
-            <div>
-              <Label>Code-barres</Label>
-              <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Optionnel" />
-            </div>
-            <div>
-              <Label>Stock initial</Label>
-              <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} />
-            </div>
-            <div>
-              <Label>Seuil d'alerte</Label>
-              <Input type="number" value={reorderLevel} onChange={e => setReorderLevel(e.target.value)} />
-            </div>
-            <div>
-              <Label>Prix de vente *</Label>
-              <Input type="number" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} />
-            </div>
-            <div>
-              <Label>Prix d'achat</Label>
-              <Input type="number" value={costPrice} onChange={e => setCostPrice(e.target.value)} />
+          <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+              <div className="md:col-span-2">
+                <Label>Nom du produit *</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Shampoing professionnel" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Description</Label>
+                <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              </div>
+              <div>
+                <Label>Catégorie</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>SKU</Label>
+                <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="Code produit" />
+              </div>
+              <div>
+                <Label>Type de conditionnement</Label>
+                <Select value={packagingType} onValueChange={(value) => setPackagingType(value as PackagingType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PACKAGING_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Quantité contenue</Label>
+                <Input type="number" min="1" value={packageQuantity} onChange={e => setPackageQuantity(e.target.value)} />
+              </div>
+              <div>
+                <Label>Prix d'achat global</Label>
+                <Input type="number" min="0" value={purchasePriceGlobal} onChange={e => setPurchasePriceGlobal(e.target.value)} />
+              </div>
+              <div>
+                <Label>Coût unitaire calculé</Label>
+                <Input type="number" value={pricingPreview.unitCost.toFixed(2)} readOnly />
+              </div>
+              <div>
+                <Label>Prix de vente unitaire *</Label>
+                <Input type="number" min="0" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} />
+              </div>
+              <div>
+                <Label>Bénéfice unitaire</Label>
+                <Input type="number" value={pricingPreview.unitProfit.toFixed(2)} readOnly />
+              </div>
+              <div>
+                <Label>Bénéfice par {packagingType === "douzaine" ? "douzaine" : "conditionnement"}</Label>
+                <Input type="number" value={pricingPreview.packageProfit.toFixed(2)} readOnly />
+              </div>
+              <div>
+                <Label>Code-barres</Label>
+                <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Optionnel" />
+              </div>
+              <div>
+                <Label>Stock initial</Label>
+                <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} />
+              </div>
+              <div>
+                <Label>Seuil d'alerte</Label>
+                <Input type="number" value={reorderLevel} onChange={e => setReorderLevel(e.target.value)} />
+              </div>
+              <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+                <p className="font-semibold">Aperçu des marges</p>
+                <p className="text-muted-foreground mt-1">Coût unitaire, bénéfice unitaire et bénéfice total par conditionnement sont calculés automatiquement.</p>
+              </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 bg-background pt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button onClick={saveProduct}>
               {editing ? "Modifier" : "Ajouter"}

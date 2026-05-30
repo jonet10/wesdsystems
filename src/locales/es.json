@@ -46,5 +46,53 @@
     "monthly": "/mes",
     "getStarted": "Comenzar",
     "mostPopular": "Más Popular"
+  },
+  "auth": {
+    "login": {
+      "title": "¡Bienvenido de nuevo!",
+      "subtitle": "Inicia sesión en tu portal de negocio",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "signIn": "Iniciar sesión",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "noAccount": "¿Aún no tienes cuenta?",
+      "createAccount": "Crear cuenta",
+      "partnerHint": "¿Quieres unirte al programa de socios?",
+      "becomePartner": "Ser socio"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Idioma de la interfaz",
+      "subtitle": "Elige el idioma que se muestra en toda la plataforma"
+    }
+  },
+  "products": {
+    "title": "Productos",
+    "subtitle": "Administra productos, empaques y márgenes",
+    "add": "Nuevo producto",
+    "edit": "Editar producto",
+    "create": "Crear producto",
+    "packageType": "Tipo de empaque",
+    "packageQuantity": "Cantidad contenida",
+    "purchasePriceGlobal": "Precio de compra global",
+    "unitCost": "Costo unitario calculado",
+    "unitSellingPrice": "Precio unitario de venta",
+    "unitProfit": "Ganancia unitaria",
+    "packageProfit": "Ganancia por empaque",
+    "autoCalcHint": "El costo unitario y la ganancia se calculan automáticamente."
+  },
+  "inventory": {
+    "title": "Inventario y stock",
+    "subtitle": "Productos, niveles de stock y alertas",
+    "addProduct": "Agregar producto",
+    "editProduct": "Editar producto",
+    "createProduct": "Agregar producto",
+    "packageType": "Tipo de empaque",
+    "packageQuantity": "Cantidad contenida",
+    "purchasePriceGlobal": "Precio de compra global",
+    "unitCost": "Costo unitario",
+    "unitSellingPrice": "Precio de venta",
+    "profitPreview": "Vista previa del margen"
   }
 }

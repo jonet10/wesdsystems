@@ -17,7 +17,10 @@ i18n
       es: { translation: es },
       ht: { translation: ht },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'fr',
+    supportedLngs: ['fr', 'ht', 'en', 'es'],
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
     interpolation: {
       escapeValue: false, // React already safeguards from xss
     },

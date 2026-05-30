@@ -33,6 +33,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { calculatePackagingEconomics, normalizePackagingQuantity } from "@/lib/packaging";
 
 interface Beverage {
   id: string;
@@ -47,6 +48,10 @@ interface Beverage {
   barcode?: string;
   unit_price: number;
   cost_price?: number;
+  purchase_price_global?: number | null;
+  unit_cost_price?: number | null;
+  unit_profit?: number | null;
+  package_profit?: number | null;
   units_per_case: number;
   stock_cases: number;
   stock_units: number;
@@ -84,8 +89,8 @@ const emptyForm = {
   description: "",
   sku: "",
   barcode: "",
+  purchasePriceGlobal: "0",
   unitPrice: "0",
-  costPrice: "0",
   unitsPerCase: "24",
   stockCases: "0",
   stockUnits: "0",
@@ -188,8 +193,8 @@ export default function BeveragesPage() {
       description: b.description || master?.description || "",
       sku: b.sku || master?.sku || "",
       barcode: b.barcode || "",
+      purchasePriceGlobal: String(b.purchase_price_global ?? (b.cost_price ? Number(b.cost_price) * Number(b.units_per_case || 24) : 0)),
       unitPrice: String(b.unit_price),
-      costPrice: String(b.cost_price || 0),
       unitsPerCase: String(b.units_per_case),
       stockCases: String(b.stock_cases),
       stockUnits: String(b.stock_units),
@@ -202,6 +207,12 @@ export default function BeveragesPage() {
     if (!form.name.trim()) return toast.error("Nom requis");
     if (!form.customBeverage && !form.beverageId) return toast.error("Sélectionnez une boisson du catalogue");
     if (!form.categoryId) return toast.error("Catégorie requise");
+    const unitsPerCase = normalizePackagingQuantity(form.unitsPerCase);
+    const pricingPreview = calculatePackagingEconomics({
+      packagePurchasePrice: Number(form.purchasePriceGlobal || 0),
+      packageQuantity: unitsPerCase,
+      unitSellingPrice: Number(form.unitPrice || 0),
+    });
 
     const payload = {
       master_beverage_id: form.customBeverage ? null : form.beverageId || null,
@@ -214,8 +225,12 @@ export default function BeveragesPage() {
       catalog_brand: form.brand.trim() || null,
       barcode: form.barcode.trim() || null,
       unit_price: Number(form.unitPrice || 0),
-      cost_price: Number(form.costPrice || 0) || null,
-      units_per_case: Number(form.unitsPerCase || 24),
+      cost_price: pricingPreview.unitCost,
+      purchase_price_global: Number(form.purchasePriceGlobal || 0),
+      unit_cost_price: pricingPreview.unitCost,
+      unit_profit: pricingPreview.unitProfit,
+      package_profit: pricingPreview.packageProfit,
+      units_per_case: unitsPerCase,
       stock_cases: Number(form.stockCases || 0),
       stock_units: Number(form.stockUnits || 0),
       reorder_level_units: Number(form.reorderLevel || 50),
@@ -482,11 +497,11 @@ export default function BeveragesPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[760px]">
+        <DialogContent className="sm:max-w-[760px] max-h-[calc(100vh-1rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier la boisson" : "Nouvelle boisson"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 space-y-4 py-4">
             <div className="flex items-center justify-between rounded-lg border p-3">
               <div>
                 <p className="font-medium text-sm">Créer une boisson custom</p>
@@ -578,12 +593,44 @@ export default function BeveragesPage() {
                 />
               </div>
               <div>
+                <Label>Prix d'achat global</Label>
+                <Input value={form.purchasePriceGlobal} onChange={(e) => setForm((prev) => ({ ...prev, purchasePriceGlobal: e.target.value }))} type="number" />
+              </div>
+              <div>
+                <Label>Coût unitaire calculé</Label>
+                <Input value={calculatePackagingEconomics({
+                  packagePurchasePrice: Number(form.purchasePriceGlobal || 0),
+                  packageQuantity: normalizePackagingQuantity(form.unitsPerCase),
+                  unitSellingPrice: Number(form.unitPrice || 0),
+                }).unitCost.toFixed(2)} readOnly type="number" />
+              </div>
+              <div>
                 <Label>Prix unitaire (vente)</Label>
                 <Input value={form.unitPrice} onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))} type="number" />
               </div>
               <div>
-                <Label>Prix d'achat</Label>
-                <Input value={form.costPrice} onChange={(e) => setForm((prev) => ({ ...prev, costPrice: e.target.value }))} type="number" />
+                <Label>Bénéfice unitaire</Label>
+                <Input
+                  value={calculatePackagingEconomics({
+                    packagePurchasePrice: Number(form.purchasePriceGlobal || 0),
+                    packageQuantity: normalizePackagingQuantity(form.unitsPerCase),
+                    unitSellingPrice: Number(form.unitPrice || 0),
+                  }).unitProfit.toFixed(2)}
+                  readOnly
+                  type="number"
+                />
+              </div>
+              <div>
+                <Label>Bénéfice par caisse</Label>
+                <Input
+                  value={calculatePackagingEconomics({
+                    packagePurchasePrice: Number(form.purchasePriceGlobal || 0),
+                    packageQuantity: normalizePackagingQuantity(form.unitsPerCase),
+                    unitSellingPrice: Number(form.unitPrice || 0),
+                  }).packageProfit.toFixed(2)}
+                  readOnly
+                  type="number"
+                />
               </div>
               <div>
                 <Label>Caisses initiales</Label>
@@ -599,7 +646,7 @@ export default function BeveragesPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 bg-background pt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button onClick={saveBeverage}>{editing ? "Modifier" : "Ajouter"}</Button>
           </DialogFooter>
@@ -607,11 +654,11 @@ export default function BeveragesPage() {
       </Dialog>
 
       <Dialog open={openStock} onOpenChange={setOpenStock}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[420px] max-h-[calc(100vh-1rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Ajouter du stock — {stockAction?.name}</DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4">
+          <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 py-4 space-y-4">
             <div className="bg-muted/40 rounded-lg p-3 text-sm">
               <p>Configuration actuelle :</p>
               <p className="font-semibold">{stockAction?.units_per_case} unités par caisse</p>
@@ -640,7 +687,7 @@ export default function BeveragesPage() {
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 bg-background pt-4">
             <Button variant="outline" onClick={() => setOpenStock(false)}>Annuler</Button>
             <Button onClick={addStock}>
               <Package className="h-4 w-4 mr-2" /> Ajouter au stock

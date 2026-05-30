@@ -8,6 +8,8 @@ import { FadeUp } from "@/components/animations/AnimatedContainers";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/shared/LanguageSelector";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,6 +18,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const localSuperAdminEmails = new Set(['admin@wesdsystems.store']);
 
   const normalizeRole = (role?: string | null): string | null => {
@@ -103,17 +106,20 @@ export default function Login() {
               <Link to="/" className="inline-block">
                 <Logo size="lg" />
               </Link>
-              <h1 className="text-2xl font-bold font-sans mt-6 mb-2 tracking-tight">
-                Bon retour !
+              <div className="mt-6 mb-2 flex items-center justify-center">
+                <LanguageSelector compact />
+              </div>
+              <h1 className="text-2xl font-bold font-sans mt-4 mb-2 tracking-tight">
+                {t("auth.login.title")}
               </h1>
               <p className="text-muted-foreground text-sm">
-                Connectez-vous à votre portail d'entreprise
+                {t("auth.login.subtitle")}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("auth.login.email")}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
@@ -130,9 +136,9 @@ export default function Login() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Mot de passe</Label>
+                  <Label htmlFor="password">{t("auth.login.password")}</Label>
                   <Link to="#" className="text-sm text-primary hover:underline font-semibold">
-                    Mot de passe oublié ?
+                    {t("auth.login.forgotPassword")}
                   </Link>
                 </div>
                 <div className="relative">
@@ -161,7 +167,7 @@ export default function Login() {
                   <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                 ) : (
                   <>
-                    Se connecter
+                    {t("auth.login.signIn")}
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </>
                 )}
@@ -170,9 +176,15 @@ export default function Login() {
 
             <div className="mt-6 text-center text-sm">
               <p className="text-muted-foreground">
-                Pas encore de compte ?{" "}
+                {t("auth.login.noAccount")}{" "}
                 <Link to="/auth/register" className="text-primary font-bold hover:underline">
-                  Créer un compte
+                  {t("auth.login.createAccount")}
+                </Link>
+              </p>
+              <p className="mt-2 text-muted-foreground">
+                {t("auth.login.partnerHint")}{" "}
+                <Link to="/become-partner" className="text-primary font-bold hover:underline">
+                  {t("auth.login.becomePartner")}
                 </Link>
               </p>
             </div>

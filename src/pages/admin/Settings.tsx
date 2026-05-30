@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Globe, Shield, CreditCard, Database, Check } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import { LanguageSelector } from "@/components/shared/LanguageSelector";
 
 export default function SuperAdminSettingsPage() {
   const [siteName, setSiteName] = useState("Wesd Systems");
@@ -16,6 +18,7 @@ export default function SuperAdminSettingsPage() {
   const [requireVerification, setRequireVerification] = useState(false);
   const [stripeLive, setStripeLive] = useState(false);
   const [stripePublicKey, setStripePublicKey] = useState("pk_test_51Nx...");
+  const { t } = useTranslation();
 
   const handleSave = (section: string) => {
     toast.success(`Les paramètres de ${section} ont été sauvegardés avec succès !`);
@@ -56,6 +59,13 @@ export default function SuperAdminSettingsPage() {
                 <div>
                   <h3 className="text-lg font-semibold font-display">Paramètres généraux</h3>
                   <p className="text-sm text-muted-foreground">Identité de marque et comportement de la plateforme</p>
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/20 p-4">
+                  <div>
+                    <p className="font-semibold text-sm">{t("settings.language.title")}</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.language.subtitle")}</p>
+                  </div>
+                  <LanguageSelector compact />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">

@@ -46,5 +46,53 @@
     "monthly": "/mois",
     "getStarted": "Commencer",
     "mostPopular": "Le plus populaire"
+  },
+  "auth": {
+    "login": {
+      "title": "Bon retour !",
+      "subtitle": "Connectez-vous à votre portail d'entreprise",
+      "email": "Email",
+      "password": "Mot de passe",
+      "signIn": "Se connecter",
+      "forgotPassword": "Mot de passe oublié ?",
+      "noAccount": "Pas encore de compte ?",
+      "createAccount": "Créer un compte",
+      "partnerHint": "Vous voulez rejoindre le programme partenaire ?",
+      "becomePartner": "Devenir partenaire"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Langue de l'interface",
+      "subtitle": "Choisissez la langue affichée dans toute la plateforme"
+    }
+  },
+  "products": {
+    "title": "Produits",
+    "subtitle": "Gérez vos produits, vos conditionnements et vos marges",
+    "add": "Nouveau produit",
+    "edit": "Modifier le produit",
+    "create": "Créer un produit",
+    "packageType": "Type de conditionnement",
+    "packageQuantity": "Quantité contenue",
+    "purchasePriceGlobal": "Prix d'achat global",
+    "unitCost": "Coût unitaire calculé",
+    "unitSellingPrice": "Prix de vente unitaire",
+    "unitProfit": "Bénéfice unitaire",
+    "packageProfit": "Bénéfice par conditionnement",
+    "autoCalcHint": "Le coût unitaire et les bénéfices sont calculés automatiquement."
+  },
+  "inventory": {
+    "title": "Inventaire & Stock",
+    "subtitle": "Produits, niveaux de stock et alertes",
+    "addProduct": "Ajouter un produit",
+    "editProduct": "Modifier produit",
+    "createProduct": "Ajouter produit",
+    "packageType": "Type de conditionnement",
+    "packageQuantity": "Quantité contenue",
+    "purchasePriceGlobal": "Prix d'achat global",
+    "unitCost": "Coût unitaire",
+    "unitSellingPrice": "Prix de vente",
+    "profitPreview": "Aperçu des marges"
   }
 }

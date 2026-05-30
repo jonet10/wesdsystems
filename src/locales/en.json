@@ -46,5 +46,53 @@
     "monthly": "/mo",
     "getStarted": "Get started",
     "mostPopular": "Most Popular"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back!",
+      "subtitle": "Sign in to your business portal",
+      "email": "Email",
+      "password": "Password",
+      "signIn": "Sign in",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "Don't have an account yet?",
+      "createAccount": "Create account",
+      "partnerHint": "Want to join the partner program?",
+      "becomePartner": "Become a partner"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Interface language",
+      "subtitle": "Choose the language displayed across the platform"
+    }
+  },
+  "products": {
+    "title": "Products",
+    "subtitle": "Manage products, packaging and margins",
+    "add": "New product",
+    "edit": "Edit product",
+    "create": "Create product",
+    "packageType": "Packaging type",
+    "packageQuantity": "Contained quantity",
+    "purchasePriceGlobal": "Global purchase price",
+    "unitCost": "Calculated unit cost",
+    "unitSellingPrice": "Unit selling price",
+    "unitProfit": "Unit profit",
+    "packageProfit": "Profit per package",
+    "autoCalcHint": "Unit cost and profit are calculated automatically."
+  },
+  "inventory": {
+    "title": "Inventory & Stock",
+    "subtitle": "Products, stock levels and alerts",
+    "addProduct": "Add product",
+    "editProduct": "Edit product",
+    "createProduct": "Add product",
+    "packageType": "Packaging type",
+    "packageQuantity": "Contained quantity",
+    "purchasePriceGlobal": "Global purchase price",
+    "unitCost": "Unit cost",
+    "unitSellingPrice": "Selling price",
+    "profitPreview": "Margin preview"
   }
 }

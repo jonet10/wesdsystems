@@ -46,5 +46,53 @@
     "monthly": "/mwa",
     "getStarted": "Kòmanse",
     "mostPopular": "Pi Popilè"
+  },
+  "auth": {
+    "login": {
+      "title": "Bon retou !",
+      "subtitle": "Konekte nan pòtal biznis ou",
+      "email": "Imèl",
+      "password": "Modpas",
+      "signIn": "Konekte",
+      "forgotPassword": "Ou bliye modpas ou ?",
+      "noAccount": "Ou pa gen kont ankò ?",
+      "createAccount": "Kreye kont",
+      "partnerHint": "Ou vle antre nan pwogram patnè a ?",
+      "becomePartner": "Vin patnè"
+    }
+  },
+  "settings": {
+    "language": {
+      "title": "Lang koòdone a",
+      "subtitle": "Chwazi lang ki parèt sou tout platfòm lan"
+    }
+  },
+  "products": {
+    "title": "Pwodwi yo",
+    "subtitle": "Jere pwodwi ou, anbalaj ou ak maj ou yo",
+    "add": "Nouvo pwodwi",
+    "edit": "Modifye pwodwi a",
+    "create": "Kreye yon pwodwi",
+    "packageType": "Tip anbalaj",
+    "packageQuantity": "Kantite ladan l",
+    "purchasePriceGlobal": "Pri acha global",
+    "unitCost": "Kout inite a",
+    "unitSellingPrice": "Pri vann inite",
+    "unitProfit": "Pwofi inite",
+    "packageProfit": "Pwofi pa anbalaj",
+    "autoCalcHint": "Kout inite ak pwofi yo kalkile otomatikman."
+  },
+  "inventory": {
+    "title": "Envantè & Stock",
+    "subtitle": "Pwodwi, nivo stock ak alèt yo",
+    "addProduct": "Ajoute pwodwi",
+    "editProduct": "Modifye pwodwi",
+    "createProduct": "Ajoute pwodwi",
+    "packageType": "Tip anbalaj",
+    "packageQuantity": "Kantite ladan l",
+    "purchasePriceGlobal": "Pri acha global",
+    "unitCost": "Kout inite",
+    "unitSellingPrice": "Pri vann",
+    "profitPreview": "Aperçu pwofi"
   }
 }
