@@ -69,3 +69,11 @@ export async function printA4(element: HTMLElement, fileName = "document"): Prom
     window.print();
   }
 }
+
+export async function printInvoice(element: HTMLElement, fileName = "facture"): Promise<void> {
+  await printA4(element, fileName);
+}
+
+export async function printReport(element: HTMLElement, fileName = "rapport"): Promise<void> {
+  await printA4(element, fileName);
+}

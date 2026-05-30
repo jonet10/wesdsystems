@@ -21,17 +21,19 @@ interface CommissionTx {
 interface Props {
   employeeId: string;
   employeeName: string;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
 export function CommissionHistory({ employeeId, employeeName, open, onOpenChange }: Props) {
   const { format } = useCurrency();
   const [txs, setTxs] = useState<CommissionTx[]>([]);
   const [loading, setLoading] = useState(true);
+  const isControlledDialog = open !== undefined && !!onOpenChange;
+  const isVisible = open ?? true;
 
   useEffect(() => {
-    if (!open) return;
+    if (!isVisible) return;
     const load = async () => {
       setLoading(true);
       const { data } = await supabase
@@ -44,7 +46,7 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
       setLoading(false);
     };
     load();
-  }, [employeeId, open]);
+  }, [employeeId, isVisible]);
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -66,40 +68,48 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
     );
   };
 
+  const content = (
+    <>
+      {loading ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Chargement...</p>
+      ) : txs.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Aucune commission enregistrée</p>
+      ) : (
+        <ScrollArea className="max-h-[60vh]">
+          <div className="space-y-2">
+            {txs.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(tx.calculated_at).toLocaleDateString("fr-FR")}
+                  </p>
+                  <p className="text-sm font-medium">
+                    {tx.rate_type === "percentage"
+                      ? `${tx.rate_value}% sur ${format(tx.sale_amount)}`
+                      : `${format(tx.rate_value)} fixe`}
+                  </p>
+                  {statusBadge(tx.status)}
+                </div>
+                <span className="text-sm font-semibold text-success">
+                  {format(tx.commission_amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+    </>
+  );
+
+  if (!isControlledDialog) return content;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Commission — {employeeName}</DialogTitle>
         </DialogHeader>
-        {loading ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Chargement...</p>
-        ) : txs.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Aucune commission enregistrée</p>
-        ) : (
-          <ScrollArea className="max-h-[60vh]">
-            <div className="space-y-2">
-              {txs.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(tx.calculated_at).toLocaleDateString("fr-FR")}
-                    </p>
-                    <p className="text-sm font-medium">
-                      {tx.rate_type === "percentage"
-                        ? `${tx.rate_value}% sur ${format(tx.sale_amount)}`
-                        : `${format(tx.rate_value)} fixe`}
-                    </p>
-                    {statusBadge(tx.status)}
-                  </div>
-                  <span className="text-sm font-semibold text-success">
-                    {format(tx.commission_amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
+        {content}
       </DialogContent>
     </Dialog>
   );

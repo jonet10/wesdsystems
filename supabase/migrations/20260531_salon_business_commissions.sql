@@ -34,6 +34,39 @@ CREATE TABLE IF NOT EXISTS public.salon_business_hours (
 
 CREATE INDEX IF NOT EXISTS idx_salon_business_hours_business ON public.salon_business_hours(business_id);
 
+-- ─── EMPLOYEE COMMISSION CONFIG ───
+
+ALTER TABLE IF EXISTS public.employees
+  ADD COLUMN IF NOT EXISTS base_salary NUMERIC(12,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS commission_type TEXT DEFAULT 'percentage',
+  ADD COLUMN IF NOT EXISTS commission_percentage NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS fixed_commission_amount NUMERIC(12,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS commission_rate NUMERIC(5,2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS bonuses JSONB DEFAULT '[]'::jsonb;
+
+CREATE TABLE IF NOT EXISTS public.employee_commissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
+  base_salary NUMERIC(12,2) DEFAULT 0,
+  commission_type TEXT DEFAULT 'percentage' CHECK (commission_type IN ('none', 'percentage', 'fixed_amount', 'hybrid', 'custom')),
+  commission_percentage NUMERIC(5,2) DEFAULT 0 CHECK (commission_percentage >= 0 AND commission_percentage <= 100),
+  fixed_commission_amount NUMERIC(12,2) DEFAULT 0 CHECK (fixed_commission_amount >= 0),
+  global_rate NUMERIC(5,2) DEFAULT 0 CHECK (global_rate >= 0 AND global_rate <= 100),
+  bonuses JSONB DEFAULT '[]'::jsonb,
+  period_start DATE,
+  period_end DATE,
+  gross_revenue NUMERIC(12,2) DEFAULT 0,
+  commission_amount NUMERIC(12,2) DEFAULT 0,
+  currency_code VARCHAR(3) DEFAULT 'HTG',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(business_id, employee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_commissions_business_employee
+  ON public.employee_commissions(business_id, employee_id);
+
 -- ─── COMMISSION RULES ───
 
 CREATE TABLE IF NOT EXISTS public.commission_rules (
@@ -76,6 +109,30 @@ CREATE INDEX IF NOT EXISTS idx_commission_tx_sale ON public.commission_transacti
 CREATE INDEX IF NOT EXISTS idx_commission_tx_status ON public.commission_transactions(status);
 CREATE INDEX IF NOT EXISTS idx_commission_tx_business ON public.commission_transactions(business_id);
 CREATE INDEX IF NOT EXISTS idx_commission_tx_calculated ON public.commission_transactions(calculated_at);
+
+-- ─── COMMISSION REPORT SNAPSHOTS ───
+
+CREATE TABLE IF NOT EXISTS public.commission_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  employee_id UUID REFERENCES public.employees(id) ON DELETE SET NULL,
+  period_type TEXT NOT NULL CHECK (period_type IN ('daily', 'weekly', 'monthly')),
+  period_start DATE NOT NULL,
+  period_end DATE NOT NULL,
+  total_sales NUMERIC(12,2) DEFAULT 0,
+  total_commission NUMERIC(12,2) DEFAULT 0,
+  transaction_count INTEGER DEFAULT 0,
+  currency_code VARCHAR(3) DEFAULT 'HTG',
+  generated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  generated_at TIMESTAMPTZ DEFAULT now(),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  UNIQUE(business_id, employee_id, period_type, period_start, period_end)
+);
+
+CREATE INDEX IF NOT EXISTS idx_commission_reports_business_period
+  ON public.commission_reports(business_id, period_type, period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_commission_reports_employee
+  ON public.commission_reports(employee_id);
 
 -- ─── PRINT TEMPLATES ───
 
@@ -125,8 +182,10 @@ END $$;
 
 ALTER TABLE public.salon_business_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.salon_business_hours ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employee_commissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.commission_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.commission_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.commission_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.print_templates ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
@@ -179,6 +238,21 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
+  CREATE POLICY "Users can read employee commissions"
+    ON public.employee_commissions FOR SELECT
+    USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage employee commissions"
+    ON public.employee_commissions FOR ALL
+    USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()))
+    WITH CHECK (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
   CREATE POLICY "Users can read commission rules"
     ON public.commission_rules FOR SELECT
     USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
@@ -224,6 +298,21 @@ DO $$ BEGIN
   CREATE POLICY "Users can update commission transactions"
     ON public.commission_transactions FOR UPDATE
     USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can read commission reports"
+    ON public.commission_reports FOR SELECT
+    USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE POLICY "Users can manage commission reports"
+    ON public.commission_reports FOR ALL
+    USING (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()))
+    WITH CHECK (business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 

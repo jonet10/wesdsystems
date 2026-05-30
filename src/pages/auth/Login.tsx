@@ -16,10 +16,24 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const localSuperAdminEmails = new Set(['admin@wesdsystems.store']);
+
+  const normalizeRole = (role?: string | null): string | null => {
+    if (!role) return null;
+    if (role === 'super_admin') return 'super_admin';
+    if (role === 'employee') return 'employee';
+    if (role === 'partner' || role?.startsWith('partner')) return 'partner';
+    // studio_admin, salon_admin, owner → all go to /salon
+    if (['studio_admin', 'salon_admin', 'owner'].includes(role)) return 'studio_admin';
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Safety timeout: unblock the button after 12s no matter what
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -31,27 +45,38 @@ export default function Login() {
 
       // Fetch user role from DB for secure routing
       let targetRoute = "/salon"; // Default fallback
-      
+
       if (data.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, role_normalized')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
-        const normalizedRole = profile?.role_normalized || profile?.role;
-
-        if (normalizedRole === 'super_admin') {
-          targetRoute = "/admin";
-        } else if (normalizedRole === 'employee') {
-          targetRoute = "/employee";
+        if (profileError) {
+          console.warn('Login: profil non trouvé, utilisation du fallback de rôle', profileError);
+          if (localSuperAdminEmails.has(data.user.email ?? email)) {
+            targetRoute = "/admin";
+          }
         } else {
-          targetRoute = "/salon";
+          const metadata = data.user.user_metadata ?? {};
+          const rawRole = profile?.role_normalized || profile?.role || metadata.role_normalized || metadata.role;
+          const normalized = normalizeRole(rawRole);
+
+          if (normalized === 'super_admin') {
+            targetRoute = "/admin";
+          } else if (normalized === 'partner') {
+            targetRoute = "/partner";
+          } else if (normalized === 'employee') {
+            targetRoute = "/employee";
+          } else {
+            targetRoute = "/salon";
+          }
         }
       }
 
       navigate(targetRoute);
-      
+
       toast({
         title: "Connexion réussie",
         description: "Bienvenue sur Wesd Systems !",
@@ -63,6 +88,7 @@ export default function Login() {
         variant: "destructive",
       });
     } finally {
+      clearTimeout(safetyTimer);
       setIsLoading(false);
     }
   };
@@ -154,7 +180,7 @@ export default function Login() {
             {/* Demo credentials hint */}
             <div className="mt-8 p-4 bg-muted/60 rounded-xl border border-border/40">
               <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                <strong>Démo :</strong> Utilisez <code className="bg-background px-1.5 py-0.5 rounded font-bold">admin@wesdsystems.com</code> pour l'admin, et n'importe quel email contenant <code className="bg-background px-1.5 py-0.5 rounded font-bold">salon</code> ou <code className="bg-background px-1.5 py-0.5 rounded font-bold">pharmacie</code> pour un dashboard POS.
+                <strong>Admin :</strong> Utilisez le compte créé dans Supabase. Pour l'environnement local, le script <code className="bg-background px-1.5 py-0.5 rounded font-bold">create-admin.js</code> configure <code className="bg-background px-1.5 py-0.5 rounded font-bold">admin@wesdsystems.store</code>.
               </p>
             </div>
           </div>

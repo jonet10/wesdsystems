@@ -34,6 +34,7 @@ export function CommissionRules({ employeeId, businessId, services }: Props) {
       const { data } = await supabase
         .from("commission_rules")
         .select("id, service_id, rate_type, rate_value")
+        .eq("business_id", businessId)
         .eq("employee_id", employeeId)
         .eq("is_active", true);
       if (data) {
@@ -58,7 +59,7 @@ export function CommissionRules({ employeeId, businessId, services }: Props) {
         .insert({
           business_id: businessId,
           employee_id: employeeId,
-          service_id: newServiceId || null,
+          service_id: newServiceId && newServiceId !== "all" ? newServiceId : null,
           rate_type: newRateType,
           rate_value: Number(newRateValue),
         })

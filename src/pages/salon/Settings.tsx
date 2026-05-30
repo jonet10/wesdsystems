@@ -80,7 +80,7 @@ export default function SalonSettingsPage() {
           .from("profiles")
           .select("full_name, business_id")
           .eq("id", user.id)
-          .single();
+          .maybeSingle();
 
         if (profileData?.full_name) setOwner(profileData.full_name);
         if (!profileData?.business_id) return;
@@ -91,7 +91,7 @@ export default function SalonSettingsPage() {
           .from("businesses")
           .select("*")
           .eq("id", bizId)
-          .single();
+          .maybeSingle();
 
         if (businessData) {
           setSalonName(businessData.name || "");
@@ -105,7 +105,7 @@ export default function SalonSettingsPage() {
           .from("salon_business_profiles")
           .select("*")
           .eq("business_id", bizId)
-          .single();
+          .maybeSingle();
 
         if (profileData2) {
           setSlogan(profileData2.slogan || "");
@@ -172,7 +172,7 @@ export default function SalonSettingsPage() {
             .from("salon_business_profiles")
             .select("id")
             .eq("business_id", bizId)
-            .single();
+            .maybeSingle();
 
           if (existingProfile) {
             await supabase.from("salon_business_profiles").update({
@@ -197,7 +197,7 @@ export default function SalonSettingsPage() {
               .select("id")
               .eq("business_id", bizId)
               .eq("day_of_week", day.dayIndex)
-              .single();
+              .maybeSingle();
 
             const payload = {
               business_id: bizId,

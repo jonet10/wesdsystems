@@ -2,8 +2,6 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
-const AUTH_TIMEOUT = 8000;
-
 interface UserProfile {
   id: string;
   full_name: string | null;
@@ -28,6 +26,52 @@ const AuthContext = createContext<AuthState>({
   isAuthenticated: false,
 });
 
+const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
+
+const profileFromUserMetadata = (user: User): UserProfile | null => {
+  const metadata = user.user_metadata ?? {};
+  const metadataRole = metadata.role_normalized ?? metadata.role;
+  const role = LOCAL_SUPER_ADMIN_EMAILS.has(user.email ?? '')
+    ? 'super_admin'
+    : typeof metadataRole === 'string'
+    ? metadataRole
+    : null;
+
+  if (!role) return null;
+
+  return {
+    id: user.id,
+    full_name: typeof metadata.full_name === 'string' ? metadata.full_name : null,
+    role,
+    role_normalized: role,
+    business_id: typeof metadata.business_id === 'string' ? metadata.business_id : null,
+  };
+};
+
+// Fetch profile with a 5-second timeout so a slow DB never hangs the UI
+const fetchProfileWithTimeout = async (
+  user: User
+): Promise<UserProfile | null> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, role_normalized, business_id')
+      .eq('id', user.id)
+      .abortSignal(controller.signal)
+      .maybeSingle();
+
+    if (!error && data) return data as UserProfile;
+    return profileFromUserMetadata(user);
+  } catch {
+    return profileFromUserMetadata(user);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -35,92 +79,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => setIsLoading(false), AUTH_TIMEOUT);
+    let mounted = true;
 
-    const getSession = async () => {
+    // ── Step 1: Resolve session immediately (no profile needed) ──
+    const initSession = async () => {
       try {
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+        if (!mounted) return;
+
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        // Unblock routing as soon as we know auth status
+        setIsLoading(false);
 
+        // ── Step 2: Fetch profile in background (non-blocking) ──
         if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id, currentSession.user.user_metadata);
+          const fallbackProfile = profileFromUserMetadata(currentSession.user);
+          if (fallbackProfile) setProfile(fallbackProfile);
+
+          fetchProfileWithTimeout(currentSession.user).then((prof) => {
+            if (mounted) setProfile(prof);
+          });
         }
       } catch (err) {
-        console.error('AuthProvider: erreur session', err);
-      } finally {
-        clearTimeout(timeoutId);
-        setIsLoading(false);
+        console.error('AuthProvider: erreur session initiale', err);
+        if (mounted) setIsLoading(false);
       }
     };
 
-    getSession();
+    initSession();
 
+    // ── Step 3: Listen to auth state changes (login / logout) ──
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
+        if (!mounted) return;
+
         setSession(newSession);
         setUser(newSession?.user ?? null);
+        // Always unblock routing immediately
+        setIsLoading(false);
 
         if (newSession?.user) {
-          await fetchProfile(newSession.user.id, newSession.user.user_metadata);
+          const fallbackProfile = profileFromUserMetadata(newSession.user);
+          setProfile(fallbackProfile);
+
+          // Fetch profile in background — don't await here
+          fetchProfileWithTimeout(newSession.user).then((prof) => {
+            if (mounted) setProfile(prof ?? null);
+          });
         } else {
           setProfile(null);
         }
-
-        clearTimeout(timeoutId);
-        setIsLoading(false);
       }
     );
 
     return () => {
-      clearTimeout(timeoutId);
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
-
-  const fetchProfile = async (userId: string, userMeta?: { [key: string]: any }) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, role, role_normalized, business_id')
-        .eq('id', userId)
-        .single();
-
-      if (!error && data) {
-        setProfile(data as UserProfile);
-        return;
-      }
-
-      const meta = userMeta ?? {};
-      const bizName = (meta.business_name as string) || 'Mon Entreprise';
-      const bizType = (meta.business_type as string) || 'salon';
-      const plan = (meta.plan as string) || 'starter';
-      const fullName = (meta.full_name as string) || 'Utilisateur';
-
-      const { data: biz, error: bizErr } = await supabase
-        .from('businesses')
-        .insert({ name: bizName, type: bizType, plan, owner_id: userId })
-        .select('id')
-        .single();
-
-      if (bizErr) {
-        console.warn('AuthProvider: impossible de créer l\'entreprise', bizErr);
-        return;
-      }
-
-      const { data: prof, error: profErr } = await supabase
-        .from('profiles')
-        .insert({ id: userId, full_name: fullName, role: 'studio_admin', business_id: biz.id })
-        .select('id, full_name, role, role_normalized, business_id')
-        .single();
-
-      if (!profErr && prof) {
-        setProfile(prof as UserProfile);
-      }
-    } catch (err) {
-      console.warn('AuthProvider: profil non trouvé', err);
-    }
-  };
 
   return (
     <AuthContext.Provider

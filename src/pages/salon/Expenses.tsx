@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   Wallet, Search, Plus, Pencil, Trash2, Receipt,
@@ -49,6 +50,8 @@ const categoryIcons: Record<string, any> = {
 export default function ExpensesPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const branchScope = resolveBranchScope(profile?.business_id, branchId);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Tous");
@@ -76,6 +79,7 @@ export default function ExpensesPage() {
         .from("salon_expenses")
         .select("*")
         .order("created_at", { ascending: false });
+      if (branchScope) query = query.eq("branch_id", branchScope);
 
       if (dateRange.start) query = query.gte("created_at", `${dateRange.start}T00:00:00`);
       if (dateRange.end) query = query.lte("created_at", `${dateRange.end}T23:59:59`);
@@ -90,7 +94,7 @@ export default function ExpensesPage() {
     }
   };
 
-  useEffect(() => { loadExpenses(); }, [dateRange]);
+  useEffect(() => { void loadExpenses(); }, [dateRange, branchScope]);
 
   const resetForm = () => {
     setEditing(null);
@@ -120,7 +124,7 @@ export default function ExpensesPage() {
         toast.success("Dépense modifiée");
       } else {
         const { error } = await supabase.from("salon_expenses").insert([{
-          ...payload, branch_id: profile?.business_id,
+          ...payload, branch_id: branchScope,
         }]);
         if (error) throw error;
         toast.success("Dépense enregistrée");

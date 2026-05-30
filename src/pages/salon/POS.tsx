@@ -20,8 +20,20 @@ import {
   Beer, Gift, Percent, Tag, Barcode, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
 import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
+import {
+  addItemToCart,
+  buildPaymentSplits,
+  calculateCartTotals,
+  removeCartItem,
+  updateCartQuantity,
+  validatePayment,
+} from "@/modules/salon/pos";
+import type { PaymentMethod } from "@/modules/salon/types";
+import type { PaymentSplit } from "@/modules/salon/pos";
+import { recordStockMovement } from "@/modules/salon/inventory";
 
 interface CatalogItem {
   id: string;
@@ -74,14 +86,22 @@ interface EmployeeInfo {
 }
 
 export default function POSPage() {
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const { currencyCode, format } = useCurrency();
+  const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
+  const branchScope = resolveBranchScope(authProfile?.business_id, branchId);
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
   const [beverages, setBeverages] = useState<CatalogItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([
+    { method: "cash", amount: 0 },
+    { method: "moncash", amount: 0 },
+    { method: "natcash", amount: 0 },
+    { method: "card", amount: 0 },
+  ]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -101,11 +121,23 @@ export default function POSPage() {
 
   const loadData = async () => {
     try {
+      let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
+      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, duration_minutes").eq("is_active", true);
+      let beveragesQuery = supabase.from("salon_beverages").select("id, name, unit_price, brand, total_units_available, barcode").eq("is_active", true);
+      let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
+
+      if (branchScope) {
+        productsQuery = productsQuery.eq("branch_id", branchScope);
+        servicesQuery = servicesQuery.eq("branch_id", branchScope);
+        beveragesQuery = beveragesQuery.eq("branch_id", branchScope);
+        promotionsQuery = promotionsQuery.eq("branch_id", branchScope);
+      }
+
       const [{ data: p }, { data: s }, { data: b }, { data: promos }] = await Promise.all([
-        supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true).order("name"),
-        supabase.from("salon_services").select("id, name, price_htg, category_id, duration_minutes").eq("is_active", true).order("name"),
-        supabase.from("salon_beverages").select("id, name, unit_price, brand, total_units_available, barcode").eq("is_active", true).order("name"),
-        supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]),
+        productsQuery.order("name"),
+        servicesQuery.order("name"),
+        beveragesQuery.order("name"),
+        promotionsQuery,
       ]);
       setProducts((p || []).map(x => ({ ...x, unit_price: Number(x.unit_price || 0), stock: x.quantity_in_stock, type: "product" as const })));
       setServices((s || []).map(x => ({ ...x, unit_price: Number(x.price_htg || 0), type: "service" as const })));
@@ -119,7 +151,9 @@ export default function POSPage() {
 
   const loadEmployees = async () => {
     try {
-      const { data: emp } = await supabase.from("employees").select("id, name").eq("is_active", true).order("name");
+      let query = supabase.from("employees").select("id, name").eq("is_active", true);
+      if (branchScope) query = query.eq("branch_id", branchScope);
+      const { data: emp } = await query.order("name");
       if (emp) setEmployees(emp as EmployeeInfo[]);
     } catch {}
   };
@@ -127,9 +161,9 @@ export default function POSPage() {
   const loadBusinessInfo = async () => {
     if (!user) return;
     try {
-      const { data: prof } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
+      const { data: prof } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
       if (prof?.business_id) {
-        const { data: biz } = await supabase.from("businesses").select("*").eq("id", prof.business_id).single();
+        const { data: biz } = await supabase.from("businesses").select("*").eq("id", prof.business_id).maybeSingle();
         if (biz) {
           const info: BusinessInfo = {
             name: biz.name || "Mon Salon",
@@ -137,7 +171,7 @@ export default function POSPage() {
             phone: biz.phone || "",
             logo_url: biz.logo_url,
           };
-          const { data: ext } = await supabase.from("salon_business_profiles").select("*").eq("business_id", prof.business_id).single();
+          const { data: ext } = await supabase.from("salon_business_profiles").select("*").eq("business_id", prof.business_id).maybeSingle();
           if (ext) {
             info.whatsapp = ext.whatsapp || "";
             info.email = biz.email || "";
@@ -151,10 +185,10 @@ export default function POSPage() {
   };
 
   useEffect(() => {
-    loadData();
-    loadEmployees();
-    loadBusinessInfo();
-  }, [user]);
+    void loadData();
+    void loadEmployees();
+    void loadBusinessInfo();
+  }, [user, branchScope]);
 
   const detectPromotions = (cartItems: CartItem[]): CartItem[] => {
     return cartItems.map(item => {
@@ -188,47 +222,35 @@ export default function POSPage() {
   };
 
   const addToCart = (item: CatalogItem, type: "product" | "service" | "beverage") => {
-    setCart(prev => {
-      const key = `${type}-${item.id}`;
-      const idx = prev.findIndex(i => i.key === key);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
-        return detectPromotions(next);
-      }
-      const newCart = [...prev, {
-        key, type, item_id: item.id, name: item.name,
-        quantity: 1, unit_price: item.unit_price, category: item.category,
-        promotion_applied: false, discount: 0,
-      }];
-      return detectPromotions(newCart);
-    });
+    setCart(prev => addItemToCart(prev, item, type, promotions));
   };
 
   const updateQuantity = (key: string, delta: number) => {
-    setCart(prev => {
-      const next = prev.map(item => {
-        if (item.key !== key) return item;
-        const newQty = Math.max(0, item.quantity + delta);
-        return newQty === 0 ? null : { ...item, quantity: newQty };
-      }).filter(Boolean) as CartItem[];
-      return detectPromotions(next);
-    });
+    setCart(prev => updateCartQuantity(prev, key, delta, promotions));
   };
 
   const removeFromCart = (key: string) => {
-    setCart(prev => detectPromotions(prev.filter(i => i.key !== key)));
+    setCart(prev => removeCartItem(prev, key, promotions));
   };
 
   const hasServices = useMemo(() => cart.some(i => i.type === "service"), [cart]);
 
-  const subtotal = useMemo(() => cart.reduce((sum, i) => sum + i.unit_price * i.quantity, 0), [cart]);
-  const totalDiscount = useMemo(() => {
-    const promoDiscount = cart.reduce((sum, i) => sum + (i.discount || 0), 0);
-    const manualDiscount = subtotal * (discountPercent / 100);
-    return promoDiscount + manualDiscount;
-  }, [cart, subtotal, discountPercent]);
-  const total = Math.max(0, subtotal - totalDiscount);
+  const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
+  const { subtotal, totalDiscount, total } = totals;
+  const resolvedPaymentSplits = useMemo(
+    () => buildPaymentSplits(paymentMethod, total, paymentSplits),
+    [paymentMethod, paymentSplits, total]
+  );
+  const paymentValidation = useMemo(
+    () => validatePayment(total, resolvedPaymentSplits),
+    [resolvedPaymentSplits, total]
+  );
+
+  const updatePaymentSplit = (method: PaymentSplit["method"], amount: number) => {
+    setPaymentSplits((prev) =>
+      prev.map((split) => split.method === method ? { ...split, amount: Math.max(0, amount) } : split)
+    );
+  };
 
   const getCommissionRate = async (employeeId: string, serviceId: string): Promise<{ type: string; value: number } | null> => {
     const { data: rules } = await supabase
@@ -237,7 +259,7 @@ export default function POSPage() {
       .eq("employee_id", employeeId)
       .eq("service_id", serviceId)
       .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
     if (rules) return { type: rules.rate_type, value: Number(rules.rate_value) };
 
@@ -247,7 +269,7 @@ export default function POSPage() {
       .eq("employee_id", employeeId)
       .is("service_id", null)
       .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
     if (global) return { type: global.rate_type, value: Number(global.rate_value) };
 
@@ -255,7 +277,7 @@ export default function POSPage() {
       .from("employees")
       .select("commission_rate")
       .eq("id", employeeId)
-      .single();
+      .maybeSingle();
 
     if (emp?.commission_rate) {
       return { type: "percentage", value: Number(emp.commission_rate) };
@@ -266,15 +288,25 @@ export default function POSPage() {
 
   const checkout = async () => {
     if (cart.length === 0) return toast.error("Panier vide");
+    if (paymentMethod === "mixed" && !paymentValidation.isPaid) {
+      return toast.error(`Paiement incomplet. Reste à payer: ${format(paymentValidation.remaining)}`);
+    }
 
     try {
       const cashierName = employees.find(e => e.id === selectedEmployee)?.name || user?.email || "Caissier";
+      let businessId = authProfile?.business_id ?? null;
+      if (!businessId && user?.id) {
+        const { data: profileRow } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
+        businessId = profileRow?.business_id ?? null;
+      }
 
       const { data: sale, error: saleError } = await supabase
         .from("salon_sales")
         .insert([{
+          business_id: businessId,
+          branch_id: branchScope,
           customer_name: customerName || null,
-          payment_method: paymentMethod,
+          payment_method: paymentMethod === "mixed" ? "cash" : paymentMethod,
           total_amount: total,
           discount_amount: totalDiscount,
           discount_percentage: discountPercent,
@@ -289,6 +321,7 @@ export default function POSPage() {
 
       const items = cart.map(i => ({
         sale_id: sale.id,
+        branch_id: branchScope,
         ...(i.type === "product" ? { product_id: i.item_id } : {}),
         ...(i.type === "service" ? { service_id: i.item_id } : {}),
         ...(i.type === "beverage" ? { beverage_id: i.item_id } : {}),
@@ -300,20 +333,68 @@ export default function POSPage() {
       const { error: itemErr } = await supabase.from("salon_sale_items").insert(items);
       if (itemErr) throw new Error(itemErr.message);
 
+      if (businessId) {
+        await supabase.from("salon_sale_payments").insert(
+          resolvedPaymentSplits.map((split) => ({
+              sale_id: sale.id,
+              business_id: businessId,
+              branch_id: branchScope,
+              payment_method: split.method,
+              amount: split.amount,
+              currency_code: currencyCode,
+          }))
+        ).then(({ error }) => {
+          if (error) console.warn("Paiements détaillés non enregistrés:", error.message);
+        });
+      }
+
       for (const item of cart) {
+        if (item.type === "product") {
+          const product = products.find((p) => p.id === item.item_id);
+          const previousStock = Number(product?.stock ?? 0);
+          const nextStock = Math.max(0, previousStock - item.quantity);
+
+          await supabase
+            .from("salon_products")
+            .update({ quantity_in_stock: nextStock })
+            .eq("id", item.item_id)
+            .catch(() => {});
+
+          if (businessId) {
+            await recordStockMovement({
+              business_id: businessId,
+              branch_id: branchScope,
+              product_id: item.item_id,
+              movement_type: "sale",
+              quantity_delta: -item.quantity,
+              reason: `Vente POS #${sale.sale_number || sale.id}`,
+              reference_id: sale.id,
+            }).catch((err) => console.warn("Mouvement stock produit non enregistré:", err.message));
+          }
+        }
+
         if (item.type === "beverage") {
           await supabase.rpc("sell_beverage_units", {
             p_beverage_id: item.item_id,
             p_units_sold: item.quantity,
           }).catch(() => {});
+
+          if (businessId) {
+            await recordStockMovement({
+              business_id: businessId,
+              branch_id: branchScope,
+              beverage_id: item.item_id,
+              movement_type: "sale",
+              quantity_delta: -item.quantity,
+              reason: `Vente POS #${sale.sale_number || sale.id}`,
+              reference_id: sale.id,
+            }).catch((err) => console.warn("Mouvement stock boisson non enregistré:", err.message));
+          }
         }
       }
 
       // Calculate commissions
       if (selectedEmployee && hasServices) {
-        const { data: profile } = await supabase.from("profiles").select("business_id").eq("id", user?.id).single();
-        const businessId = profile?.business_id;
-
         for (const item of cart) {
           if (item.type === "service" && businessId) {
             const rate = await getCommissionRate(selectedEmployee, item.item_id);
@@ -325,6 +406,7 @@ export default function POSPage() {
 
               await supabase.from("commission_transactions").insert({
                 business_id: businessId,
+                branch_id: branchScope,
                 employee_id: selectedEmployee,
                 sale_id: sale.id,
                 service_id: item.item_id,
@@ -347,6 +429,13 @@ export default function POSPage() {
       setCart([]);
       setCustomerName("");
       setDiscountPercent(0);
+      setPaymentMethod("cash");
+      setPaymentSplits([
+        { method: "cash", amount: 0 },
+        { method: "moncash", amount: 0 },
+        { method: "natcash", amount: 0 },
+        { method: "card", amount: 0 },
+      ]);
       await loadData();
     } catch (err: any) {
       console.error("Checkout error:", err);
@@ -553,18 +642,45 @@ export default function POSPage() {
                       { id: "moncash", label: "MonCash", icon: Wallet },
                       { id: "natcash", label: "NatCash", icon: Wallet },
                       { id: "card", label: "Carte", icon: CreditCard },
+                      { id: "mixed", label: "Mixte", icon: CreditCard },
                     ].map(method => {
                       const Icon = method.icon;
                       return (
                         <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"}
                           className={cn("justify-start gap-2 h-10", paymentMethod === method.id && "bg-primary")}
-                          onClick={() => setPaymentMethod(method.id)}>
+                          onClick={() => setPaymentMethod(method.id as PaymentMethod)}>
                           <Icon className="h-4 w-4" />
                           {method.label}
                         </Button>
                       );
                     })}
                   </div>
+                  {paymentMethod === "mixed" && (
+                    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {paymentSplits.map((split) => (
+                          <div key={split.method} className="space-y-1">
+                            <Label className="text-[11px]">
+                              {split.method === "cash" ? "Espèces" : split.method}
+                            </Label>
+                            <Input
+                              type="number"
+                              min={0}
+                              value={split.amount || ""}
+                              onChange={(e) => updatePaymentSplit(split.method, Number(e.target.value || 0))}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Payé: {format(paymentValidation.paid)}</span>
+                        <span className={paymentValidation.isPaid ? "text-success" : "text-destructive"}>
+                          Reste: {format(paymentValidation.remaining)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

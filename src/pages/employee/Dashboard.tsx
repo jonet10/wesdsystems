@@ -40,7 +40,7 @@ export default function EmployeeDashboard() {
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileData?.full_name) {
         setEmployeeName(profileData.full_name);
@@ -50,7 +50,7 @@ export default function EmployeeDashboard() {
         .from("employee_accounts")
         .select("employee_id")
         .eq("auth_user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!linkData?.employee_id) return;
 

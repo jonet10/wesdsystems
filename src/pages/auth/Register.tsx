@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,9 @@ export default function Register() {
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const referralCode = new URLSearchParams(location.search).get("ref")?.trim() || "";
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -57,7 +59,8 @@ export default function Register() {
             full_name: formData.name,
             business_name: formData.businessName,
             business_type: formData.businessType,
-            plan: formData.plan
+            plan: formData.plan,
+            partner_referral_code: referralCode || undefined,
           }
         }
       });
@@ -94,6 +97,17 @@ export default function Register() {
           description: "Nous avons envoyé un lien de confirmation. Vérifiez votre boîte mail pour activer votre compte.",
         });
       } else {
+        if (referralCode && data.user) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({ partner_referral_code: referralCode })
+            .eq("id", data.user.id);
+
+          if (profileError) {
+            console.warn("Impossible de synchroniser le code partenaire:", profileError.message);
+          }
+        }
+
         // Save their chosen business type in the global store!
         glowupStore.setActiveBusiness(formData.businessType as any);
         navigate("/salon");
@@ -103,9 +117,17 @@ export default function Register() {
         });
       }
     } catch (error: any) {
+      const isRateLimited =
+        error?.status === 429 ||
+        error?.code === 429 ||
+        String(error?.message || "").toLowerCase().includes("rate limit") ||
+        String(error?.message || "").toLowerCase().includes("too many");
+
       toast({
         title: "Erreur lors de l'inscription",
-        description: error.message || "Une erreur est survenue.",
+        description: isRateLimited
+          ? "Trop de tentatives d'inscription en peu de temps. Attendez quelques minutes, puis réessayez avec le même email."
+          : error.message || "Une erreur est survenue.",
         variant: "destructive",
       });
     } finally {

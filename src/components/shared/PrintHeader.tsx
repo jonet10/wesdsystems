@@ -23,14 +23,14 @@ export function PrintHeader() {
           .from('profiles')
           .select('business_id')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profile?.business_id) {
           const { data: biz } = await supabase
             .from('businesses')
             .select('*')
             .eq('id', profile.business_id)
-            .single();
+            .maybeSingle();
             
           if (biz) {
             setBusiness({

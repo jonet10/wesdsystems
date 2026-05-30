@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   Beer, Search, Plus, Pencil, Trash2, Package, AlertTriangle,
@@ -41,6 +42,8 @@ interface Beverage {
 export default function BeveragesPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const branchScope = resolveBranchScope(profile?.business_id, branchId);
   const [beverages, setBeverages] = useState<Beverage[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -67,11 +70,12 @@ export default function BeveragesPage() {
   const loadBeverages = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("salon_beverages")
         .select("*")
-        .eq("is_active", true)
-        .order("name");
+        .eq("is_active", true);
+      if (branchScope) query = query.eq("branch_id", branchScope);
+      const { data, error } = await query.order("name");
       if (error) throw error;
       setBeverages((data || []) as Beverage[]);
     } catch (err: any) {
@@ -81,7 +85,7 @@ export default function BeveragesPage() {
     }
   };
 
-  useEffect(() => { loadBeverages(); }, []);
+  useEffect(() => { void loadBeverages(); }, [branchScope]);
 
   const resetForm = () => {
     setEditing(null);
@@ -125,7 +129,7 @@ export default function BeveragesPage() {
         toast.success("Boisson modifiée");
       } else {
         const { error } = await supabase.from("salon_beverages").insert([{
-          ...payload, branch_id: profile?.business_id,
+          ...payload, branch_id: branchScope,
         }]);
         if (error) throw error;
         toast.success("Boisson ajoutée");

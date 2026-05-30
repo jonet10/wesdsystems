@@ -20,6 +20,9 @@ import { supabase } from "@/lib/supabase";
 import { usePermissions, hasPermission, EmployeeRole } from "@/lib/permissions";
 import { CommissionRules } from "@/components/modules/salon/commissions/CommissionRules";
 import { CommissionHistory } from "@/components/modules/salon/commissions/CommissionHistory";
+import { useBusinessSubscription } from "@/hooks/useBusinessSubscription";
+import { UpgradePrompt } from "@/components/shared/UpgradePrompt";
+import { isUnlimited } from "@/lib/saas";
 
 // Types
 interface EmployeeForm {
@@ -52,7 +55,7 @@ const COLORS = [
 ];
 
 export default function EmployeesPage() {
-  const { isAuthenticated, user: profile } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const perms = usePermissions("salon_admin");
   
   // Data fetching
@@ -114,6 +117,8 @@ export default function EmployeesPage() {
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [commissionsEmp, setCommissionsEmp] = useState<{ id: string; name: string } | null>(null);
   const [showCommissions, setShowCommissions] = useState(false);
+  const subscription = useBusinessSubscription();
+  const subscriptionState = subscription.data;
 
   const handleInputChange = (field: keyof EmployeeForm, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -335,35 +340,11 @@ export default function EmployeesPage() {
     setIsDeleteOpen(true);
   };
 
-  const [maxEmployees, setMaxEmployees] = useState(10);
-  const [planName, setPlanName] = useState("STARTER");
-
-  useEffect(() => {
-    if (isAuthenticated && profile?.business_id) {
-      const fetchPlan = async () => {
-        const { data: biz } = await supabase
-          .from('businesses')
-          .select('plan_id')
-          .eq('id', profile.business_id)
-          .single();
-        if (biz?.plan_id) {
-          const { data: plan } = await supabase
-            .from('subscription_plans')
-            .select('max_employees, name')
-            .eq('id', biz.plan_id)
-            .single();
-          if (plan) {
-            setMaxEmployees(plan.max_employees);
-            setPlanName(plan.name);
-          }
-        }
-      };
-      fetchPlan();
-    }
-  }, [isAuthenticated, profile]);
+  const maxEmployees = subscriptionState?.maxStaff ?? null;
+  const planName = subscriptionState?.plan?.name || "Starter";
 
   const handleOpenAdd = () => {
-    if (employees.length >= maxEmployees) {
+    if (!isUnlimited(maxEmployees) && employees.length >= (maxEmployees || 0)) {
       toast.error(`Limite de ${maxEmployees} employés atteinte pour le plan ${planName}.`);
       return;
     }
@@ -376,6 +357,14 @@ export default function EmployeesPage() {
   return (
     <DashboardLayout role="salon_admin" title="Gestion des employés" subtitle="Gérez votre équipe et leurs permissions">
       <StaggerContainer className="space-y-6">
+        {!subscription.hasFeature("advanced_reports") && (
+          <StaggerItem>
+            <UpgradePrompt
+              title="Upgrade conseillé"
+              message="Les plans supérieurs débloquent plus de staff, analytics avancés et les modules financiers."
+            />
+          </StaggerItem>
+        )}
         
         {/* Header Actions */}
         <StaggerItem>
@@ -383,7 +372,7 @@ export default function EmployeesPage() {
             <div>
               <h2 className="text-2xl font-bold">Employés</h2>
               <p className="text-muted-foreground">
-                {employees.length} membre{employees.length > 1 ? 's' : ''} • Limite: {maxEmployees}
+                {employees.length} membre{employees.length > 1 ? 's' : ''} • Limite: {isUnlimited(maxEmployees) ? "Illimitée" : maxEmployees}
               </p>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -684,8 +673,27 @@ export default function EmployeesPage() {
             <DialogHeader>
               <DialogTitle>Commissions — {commissionsEmp?.name}</DialogTitle>
             </DialogHeader>
-            {commissionsEmp && (
-              <CommissionHistory employeeId={commissionsEmp.id} employeeName={commissionsEmp.name} />
+            {commissionsEmp && profile?.business_id && (
+              <Tabs defaultValue="rules" className="w-full">
+                <TabsList>
+                  <TabsTrigger value="rules">Règles</TabsTrigger>
+                  <TabsTrigger value="history">Historique</TabsTrigger>
+                </TabsList>
+                <TabsContent value="rules" className="pt-4">
+                  <CommissionRules
+                    employeeId={commissionsEmp.id}
+                    businessId={profile.business_id}
+                    services={services.map((service: any) => ({
+                      id: service.id,
+                      name: service.name,
+                      commission_percentage: service.commission_percentage,
+                    }))}
+                  />
+                </TabsContent>
+                <TabsContent value="history" className="pt-4">
+                  <CommissionHistory employeeId={commissionsEmp.id} employeeName={commissionsEmp.name} />
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>

@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   Tag, Search, Plus, Pencil, Trash2, Gift,
@@ -46,6 +47,8 @@ interface Promotion {
 export default function PromotionsPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const branchScope = resolveBranchScope(profile?.business_id, branchId);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Tous");
@@ -66,10 +69,11 @@ export default function PromotionsPage() {
   const loadPromotions = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("salon_promotions")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*");
+      if (branchScope) query = query.eq("branch_id", branchScope);
+      const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
       setPromotions((data || []) as Promotion[]);
     } catch (err: any) {
@@ -79,7 +83,7 @@ export default function PromotionsPage() {
     }
   };
 
-  useEffect(() => { loadPromotions(); }, []);
+  useEffect(() => { void loadPromotions(); }, [branchScope]);
 
   const resetForm = () => {
     setEditing(null);
@@ -123,7 +127,7 @@ export default function PromotionsPage() {
         toast.success("Promotion modifiée");
       } else {
         const { error } = await supabase.from("salon_promotions").insert([{
-          ...payload, branch_id: profile?.business_id,
+          ...payload, branch_id: branchScope,
         }]);
         if (error) throw error;
         toast.success("Promotion créée");

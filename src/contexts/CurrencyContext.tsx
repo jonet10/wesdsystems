@@ -69,7 +69,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
           .from('businesses')
           .select('currency_code')
           .eq('id', profile.business_id)
-          .single();
+          .maybeSingle();
         if (data?.currency_code) {
           setBusinessCode(data.currency_code);
         }

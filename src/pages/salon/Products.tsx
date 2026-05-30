@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   Package, Search, Plus, Pencil, Trash2, AlertTriangle, Tag
@@ -44,6 +45,8 @@ const categories = [
 export default function ProductsPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const branchScope = resolveBranchScope(profile?.business_id, branchId);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Tous");
@@ -64,11 +67,14 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from("salon_products")
         .select("*")
-        .eq("is_active", true)
-        .order("name");
+        .eq("is_active", true);
+      if (branchScope) {
+        query = query.eq("branch_id", branchScope);
+      }
+      const { data, error } = await query.order("name");
       if (error) throw error;
       setProducts((data || []) as Product[]);
     } catch (err: any) {
@@ -78,7 +84,7 @@ export default function ProductsPage() {
     }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { void loadProducts(); }, [branchScope]);
 
   const resetForm = () => {
     setEditing(null);
@@ -119,7 +125,7 @@ export default function ProductsPage() {
       } else {
         const { error } = await supabase.from("salon_products").insert([{
           ...payload,
-          branch_id: profile?.business_id,
+          branch_id: branchScope,
         }]);
         if (error) throw error;
         toast.success("Produit ajouté");

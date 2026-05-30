@@ -126,7 +126,9 @@ export function ReceiptTemplate({
           Paiement: {sale?.payment_method === "cash" ? "Espèces" :
                      sale?.payment_method === "moncash" ? "MonCash" :
                      sale?.payment_method === "natcash" ? "NatCash" :
-                     sale?.payment_method === "card" ? "Carte" : sale?.payment_method || "Espèces"}
+                     sale?.payment_method === "card" ? "Carte" :
+                     sale?.payment_method === "mixed" ? "Paiement mixte" :
+                     sale?.payment_method || "Espèces"}
         </p>
       </div>
 

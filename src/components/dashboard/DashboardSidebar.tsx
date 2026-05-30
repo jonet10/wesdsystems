@@ -27,6 +27,11 @@ import {
   Gift,
   TrendingUp,
   ClipboardList,
+  Handshake,
+  BadgeDollarSign,
+  QrCode,
+  Megaphone,
+  Wallet,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,23 +45,35 @@ interface SidebarItem {
   label: string;
   path: string;
   badge?: number;
-  role?: "all" | "salon_admin" | "employee";
+  role?: "all" | "salon_admin" | "employee" | "partner";
 }
 
 interface DashboardSidebarProps {
-  role: "super_admin" | "salon_admin" | "employee";
+  role: "super_admin" | "salon_admin" | "employee" | "partner";
 }
 
 const superAdminItems: SidebarItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin", role: "all" },
   { icon: Building2, label: "Établissements", path: "/admin/salons", role: "all" },
   { icon: CreditCard, label: "Abonnements", path: "/admin/subscriptions", role: "all" },
+  { icon: Handshake, label: "Partenaires", path: "/admin/partners", role: "all" },
   { icon: Settings, label: "Paramètres", path: "/admin/settings", role: "all" },
 ];
 
 const employeeItems: SidebarItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/employee", role: "all" },
   { icon: Calendar, label: "Mon Agenda", path: "/employee/schedule", role: "all" },
+];
+
+const partnerItems: SidebarItem[] = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/partner", role: "all" },
+  { icon: Users, label: "Mes clients", path: "/partner/clients", role: "all" },
+  { icon: CreditCard, label: "Mes abonnements", path: "/partner/subscriptions", role: "all" },
+  { icon: BadgeDollarSign, label: "Commissions", path: "/partner/commissions", role: "all" },
+  { icon: Wallet, label: "Payouts", path: "/partner/payouts", role: "all" },
+  { icon: QrCode, label: "Liens referral", path: "/partner/referrals", role: "all" },
+  { icon: Megaphone, label: "Marketing", path: "/partner/marketing", role: "all" },
+  { icon: TrendingUp, label: "Rapports", path: "/partner/reports", role: "all" },
 ];
 
 export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
@@ -125,6 +142,8 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
 
   const items = role === "super_admin"
     ? superAdminItems
+    : role === "partner"
+    ? partnerItems
     : role === "salon_admin"
     ? getBusinessAdminItems()
     : employeeItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
@@ -179,7 +198,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     <motion.aside
       initial={false}
       animate={{ width: collapsed ? 72 : 256 }}
-      className="fixed left-0 top-0 h-screen bg-background border-r border-border/50 
+      className="h-screen flex-shrink-0 bg-background border-r border-border/50 
                  flex flex-col z-40 transition-all duration-300 ease-in-out"
     >
       {/* Logo Header */}

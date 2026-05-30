@@ -17,6 +17,7 @@ import Register from "./pages/auth/Register";
 import SuperAdminDashboard from "./pages/admin/Dashboard";
 import SuperAdminSalons from "./pages/admin/Salons";
 import SuperAdminSubscriptions from "./pages/admin/Subscriptions";
+import SuperAdminPartners from "./pages/admin/Partners";
 import SuperAdminSettings from "./pages/admin/Settings";
 import SalonDashboard from "./pages/salon/Dashboard";
 import ClientsPage from "./pages/salon/Clients";
@@ -34,6 +35,7 @@ import ReportsPage from "./pages/salon/Reports";
 import PromotionsPage from "./pages/salon/Promotions";
 import EmployeeDashboard from "./pages/employee/Dashboard";
 import EmployeeSchedule from "./pages/employee/Schedule";
+import PartnerDashboard from "./pages/partner/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,7 +49,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
                 <Routes>
                 {/* Public Routes */}
@@ -77,6 +79,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
                       <SuperAdminSubscriptions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/partners"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminPartners />
                     </ProtectedRoute>
                   }
                 />
@@ -217,6 +227,72 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["employee"]}>
                       <EmployeeSchedule />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Partner Routes */}
+                <Route
+                  path="/partner"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/clients"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/subscriptions"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/commissions"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/payouts"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/referrals"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/marketing"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/partner/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={["partner"]}>
+                      <PartnerDashboard />
                     </ProtectedRoute>
                   }
                 />

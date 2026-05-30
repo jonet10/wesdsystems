@@ -39,11 +39,13 @@ export default function SalonDashboard() {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; revenue: number; appointments: number }[]>([]);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
 
   const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
   const { data: employeesDb, isLoading: empLoading } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
   const { data: appointmentsDb, isLoading: aptLoading } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
   const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const isDataLoading = clientsLoading || empLoading || aptLoading || servLoading || dashboardLoading;
 
   const clients = useMemo(() => {
     if (clientsDb && clientsDb.length > 0) return clientsDb;
@@ -81,6 +83,7 @@ export default function SalonDashboard() {
   }, [isAuthenticated]);
 
   const loadDashboardData = async () => {
+    setDashboardLoading(true);
     try {
       const today = new Date().toISOString().split("T")[0];
       const weekAgo = new Date();
@@ -142,6 +145,8 @@ export default function SalonDashboard() {
       }
     } catch (err) {
       console.error("Dashboard data error:", err);
+    } finally {
+      setDashboardLoading(false);
     }
   };
 

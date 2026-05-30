@@ -4,7 +4,7 @@ import { DashboardHeader } from "./DashboardHeader";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  role: "super_admin" | "salon_admin" | "employee";
+  role: "super_admin" | "salon_admin" | "employee" | "partner";
   title: string;
   subtitle?: string;
   userName?: string;
@@ -24,7 +24,7 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
       <div className="relative z-10 flex w-full h-full">
         <DashboardSidebar role={role} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <DashboardHeader title={title} subtitle={subtitle} userName={userName} />
+          <DashboardHeader title={title} subtitle={subtitle} userName={userName} userRole={role} />
           <main className="flex-1 overflow-auto p-6">
             {children}
           </main>

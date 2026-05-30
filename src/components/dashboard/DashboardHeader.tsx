@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,9 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { useActiveBranchId } from "@/lib/branch";
 
 interface DashboardHeaderProps {
   title: string;
@@ -48,6 +51,9 @@ export const DashboardHeader = ({
   const [notifications, setNotifications] = useState<Array<{id: string; title: string; read: boolean}>>([]);
   
   const { currency, setCurrency } = useCurrency();
+  const { profile } = useAuth();
+  const { data: branches = [] } = useBusinessBranches();
+  const { branchId, setActiveBranchId } = useActiveBranchId(profile?.business_id ?? null);
   const { i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -95,6 +101,10 @@ export const DashboardHeader = ({
   };
 
   const currentLang = languages.find(l => i18n.language.startsWith(l.code)) || languages[0];
+  const activeBranch = useMemo(
+    () => branches.find((branch) => branch.id === branchId) ?? branches[0] ?? null,
+    [branches, branchId]
+  );
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 
@@ -189,6 +199,37 @@ export const DashboardHeader = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Branch Selector */}
+        {profile?.business_id && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-9 gap-1 px-2 max-w-44">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline truncate">
+                  {activeBranch?.name || "Branche"}
+                </span>
+                <ChevronDown className="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {branches.length > 0 ? (
+                branches.map((branch) => (
+                  <DropdownMenuItem
+                    key={branch.id}
+                    onClick={() => setActiveBranchId(branch.id)}
+                    className={cn("flex items-center justify-between gap-2", branchId === branch.id && "bg-accent")}
+                  >
+                    <span className="truncate">{branch.name}</span>
+                    {branchId === branch.id && <Check className="h-4 w-4 text-primary" />}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <DropdownMenuItem disabled>Aucune succursale</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -255,11 +296,11 @@ export const DashboardHeader = ({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/salon/settings")}>
+            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : "/salon/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/salon/employees")}>
+            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : "/salon/employees")}>
               <User className="mr-2 h-4 w-4" />
               Mon profil
             </DropdownMenuItem>

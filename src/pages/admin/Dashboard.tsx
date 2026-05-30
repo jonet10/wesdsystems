@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { glowupStore, Salon } from "@/lib/store";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/lib/supabase";
 
 export default function SuperAdminDashboard() {
   const { formatCompact } = useCurrency();
@@ -20,7 +21,7 @@ export default function SuperAdminDashboard() {
   const [recentSalons, setRecentSalons] = useState<Salon[]>([]);
   const [subStats, setSubStats] = useState({ active: 0, expiring: 0, expired: 0 });
 
-  const loadData = () => {
+  const loadData = async () => {
     const salons = glowupStore.getSalons();
 
     // Sort chronologically by date desc (recent first)
@@ -33,33 +34,48 @@ export default function SuperAdminDashboard() {
     const expired = salons.filter(s => s.status === "expired").length;
     setSubStats({ active, expiring, expired });
 
-    // Calculate MRR
-    let mrrTotal = 0;
-    salons.forEach(s => {
-      if (s.status !== "expired") {
-        if (s.plan === "Basic") mrrTotal += 29;
-        else if (s.plan === "Pro") mrrTotal += 59;
-        else if (s.plan === "Premium") mrrTotal += 99;
-      }
-    });
+    const [{ data: businesses }, { data: subscriptions }, { data: branches }, { data: plans }] = await Promise.all([
+      supabase.from("businesses").select("id, name, owner, status, created_at").order("created_at", { ascending: false }).limit(25),
+      supabase.from("business_subscriptions").select("business_id, plan_id, status, price_snapshot, created_at").order("created_at", { ascending: false }),
+      supabase.from("business_branches").select("id, business_id, active").order("created_at", { ascending: false }),
+      supabase.from("subscription_plans").select("id, name, monthly_price, active"),
+    ]);
 
-    // Multiplied by a factor to look like a full production volume!
-    const displayMRR = mrrTotal * 40;
-    const displaySalonsActifs = (active + expiring) * 35;
-    const displayUsers = displaySalonsActifs * 5;
+    if (businesses && businesses.length > 0) {
+      setRecentSalons(
+        businesses.slice(0, 5).map((business: any) => ({
+          id: business.id,
+          name: business.name,
+          owner: business.owner || "—",
+          plan: "Basic",
+          status: business.status === "inactive" ? "expired" : "active",
+          date: business.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+        }))
+      );
+    }
+
+    const planById = new Map((plans || []).map((plan: any) => [plan.id, plan]));
+    const activeSubscriptions = (subscriptions || []).filter((subscription: any) => subscription.status === "active");
+    const mrrTotal = activeSubscriptions.reduce((sum: number, subscription: any) => {
+      const plan = planById.get(subscription.plan_id);
+      const price = subscription.price_snapshot ?? plan?.monthly_price ?? 0;
+      return sum + Number(price || 0);
+    }, 0);
+    const displaySalonsActifs = activeSubscriptions.length;
+    const displayUsers = (branches || []).filter((branch: any) => branch.active !== false).length * 5;
 
     setStats([
       { title: "Salons actifs", value: displaySalonsActifs.toLocaleString(), icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
-      { title: "Revenus mensuels", value: formatCompact(displayMRR), icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
+      { title: "Revenus mensuels", value: formatCompact(mrrTotal), icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
       { title: "Utilisateurs totaux", value: displayUsers.toLocaleString(), icon: <Users className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
       { title: "Croissance", value: "+23%", icon: <TrendingUp className="h-6 w-6" /> },
     ]);
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
     const handleUpdate = () => {
-      loadData();
+      void loadData();
     };
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
