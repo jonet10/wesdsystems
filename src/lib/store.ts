@@ -75,49 +75,79 @@ export interface Appointment {
   duration: number; // Decimal representing duration in hours (e.g., 1.5 for 1h30)
 }
 
-// Initial Mock Datasets
-const defaultSalons: Salon[] = [
-  { id: "1", name: "Salon Élégance", owner: "Marie Laurent", plan: "Pro", status: "active", date: "2024-01-15" },
-  { id: "2", name: "BarberShop Paris", owner: "Thomas Dubois", plan: "Premium", status: "active", date: "2024-01-14" },
-  { id: "3", name: "Beauty Concept", owner: "Sophie Martin", plan: "Basic", status: "expiring", date: "2024-01-12" },
-  { id: "4", name: "Coiff & Style", owner: "Lucas Bernard", plan: "Pro", status: "expired", date: "2024-01-10" },
+// Empty defaults for a clean production workspace.
+const defaultSalons: Salon[] = [];
+const defaultEmployees: Employee[] = [];
+const defaultServices: Service[] = [];
+const defaultClients: Client[] = [];
+const defaultAppointments: Appointment[] = [];
+
+const STORE_SCHEMA_VERSION = "2";
+const legacyDemoSalons = [
+  "Salon Élégance",
+  "BarberShop Paris",
+  "Beauty Concept",
+  "Coiff & Style",
+];
+const legacyDemoEmployees = ["Julie", "Marc", "Emma"];
+const legacyDemoClients = [
+  "Marie Laurent",
+  "Sophie Martin",
+  "Emma Wilson",
+  "Lucas Bernard",
+  "Clara Dubois",
+  "Thomas Petit",
 ];
 
-const defaultEmployees: Employee[] = [
-  { id: "1", name: "Julie", color: "bg-primary", services: ["1", "3", "5", "6", "7"], status: "active" },
-  { id: "2", name: "Marc", color: "bg-info", services: ["1", "2", "5"], status: "active" },
-  { id: "3", name: "Emma", color: "bg-success", services: ["2", "3", "4", "8"], status: "active" },
-];
+const resetLegacyDemoData = () => {
+  const currentVersion = getItemSafe("glowup_store_schema_version");
+  if (currentVersion === STORE_SCHEMA_VERSION) return;
 
-const defaultServices: Service[] = [
-  { id: "1", name: "Coupe femme", duration: 60, price: 45, category: "Coupe", popular: true },
-  { id: "2", name: "Coupe homme", duration: 30, price: 25, category: "Coupe", popular: true },
-  { id: "3", name: "Couleur", duration: 90, price: 65, category: "Coloration", popular: true },
-  { id: "4", name: "Mèches / Balayage", duration: 120, price: 95, category: "Coloration", popular: false },
-  { id: "5", name: "Brushing", duration: 45, price: 30, category: "Coiffage", popular: true },
-  { id: "6", name: "Coupe + Couleur", duration: 150, price: 95, category: "Forfait", popular: true },
-  { id: "7", name: "Soin capillaire", duration: 45, price: 35, category: "Soins", popular: false },
-  { id: "8", name: "Lissage brésilien", duration: 180, price: 180, category: "Soins", popular: false },
-];
+  const keysToClear = [
+    "glowup_salons",
+    "glowup_employees",
+    "glowup_services",
+    "glowup_clients",
+    "glowup_appointments",
+    "glowup_store_schema_version",
+  ];
 
-const defaultClients: Client[] = [
-  { id: "1", name: "Marie Laurent", email: "marie.laurent@email.com", phone: "06 12 34 56 78", lastVisit: "15/01/2024", visits: 12, totalSpent: "540€" },
-  { id: "2", name: "Sophie Martin", email: "sophie.martin@email.com", phone: "06 23 45 67 89", lastVisit: "14/01/2024", visits: 8, totalSpent: "320€" },
-  { id: "3", name: "Emma Wilson", email: "emma.wilson@email.com", phone: "06 34 56 78 90", lastVisit: "12/01/2024", visits: 5, totalSpent: "180€" },
-  { id: "4", name: "Lucas Bernard", email: "lucas.bernard@email.com", phone: "06 45 67 89 01", lastVisit: "10/01/2024", visits: 3, totalSpent: "90€" },
-  { id: "5", name: "Clara Dubois", email: "clara.dubois@email.com", phone: "06 56 78 90 12", lastVisit: "08/01/2024", visits: 15, totalSpent: "780€" },
-  { id: "6", name: "Thomas Petit", email: "thomas.petit@email.com", phone: "06 67 89 01 23", lastVisit: "05/01/2024", visits: 7, totalSpent: "210€" },
-];
+  keysToClear.forEach((key) => {
+    if (canUseLocalStorage()) {
+      localStorage.removeItem(key);
+    } else {
+      memoryStore.delete(key);
+    }
+  });
 
-const defaultAppointments: Appointment[] = [
-  { id: "1", clientName: "Marie Laurent", serviceName: "Coupe + Couleur", employeeId: "1", date: new Date().toISOString().split("T")[0], startHour: 9, duration: 2 },
-  { id: "2", clientName: "Sophie Martin", serviceName: "Brushing", employeeId: "1", date: new Date().toISOString().split("T")[0], startHour: 11.5, duration: 0.75 },
-  { id: "3", clientName: "Emma Wilson", serviceName: "Coupe femme", employeeId: "2", date: new Date().toISOString().split("T")[0], startHour: 10, duration: 1 },
-  { id: "4", clientName: "Lucas Bernard", serviceName: "Coupe homme", employeeId: "2", date: new Date().toISOString().split("T")[0], startHour: 14, duration: 0.5 },
-  { id: "5", clientName: "Clara Dubois", serviceName: "Soin capillaire", employeeId: "1", date: new Date().toISOString().split("T")[0], startHour: 14, duration: 1.5 },
-  { id: "6", clientName: "Thomas Petit", serviceName: "Coupe homme", employeeId: "3", date: new Date().toISOString().split("T")[0], startHour: 9, duration: 0.5 },
-  { id: "7", clientName: "Anna Rose", serviceName: "Couleur", employeeId: "3", date: new Date().toISOString().split("T")[0], startHour: 11, duration: 1.5 },
-];
+  setItemSafe("glowup_store_schema_version", STORE_SCHEMA_VERSION);
+};
+
+const shouldReplaceLegacySeed = (key: string, value: string | null): boolean => {
+  if (!value) return true;
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed) || parsed.length === 0) return false;
+
+    if (key === "glowup_salons") {
+      return parsed.some((item) => legacyDemoSalons.includes(item?.name));
+    }
+    if (key === "glowup_employees") {
+      return parsed.some((item) => legacyDemoEmployees.includes(item?.name));
+    }
+    if (key === "glowup_clients") {
+      return parsed.some((item) => legacyDemoClients.includes(item?.name));
+    }
+    if (key === "glowup_appointments") {
+      return parsed.some((item) => legacyDemoClients.includes(item?.clientName));
+    }
+  } catch {
+    return true;
+  }
+
+  return false;
+};
 
 // Helper to trigger store-wide reactivity
 const notifyStoreUpdated = () => {
@@ -126,19 +156,26 @@ const notifyStoreUpdated = () => {
 
 // Initialize Store
 const initializeStore = () => {
-  if (!getItemSafe("glowup_salons")) {
+  resetLegacyDemoData();
+
+  const salonSeed = getItemSafe("glowup_salons");
+  if (shouldReplaceLegacySeed("glowup_salons", salonSeed)) {
     setItemSafe("glowup_salons", JSON.stringify(defaultSalons));
   }
-  if (!getItemSafe("glowup_employees")) {
+  const employeeSeed = getItemSafe("glowup_employees");
+  if (shouldReplaceLegacySeed("glowup_employees", employeeSeed)) {
     setItemSafe("glowup_employees", JSON.stringify(defaultEmployees));
   }
-  if (!getItemSafe("glowup_services")) {
+  const serviceSeed = getItemSafe("glowup_services");
+  if (!serviceSeed) {
     setItemSafe("glowup_services", JSON.stringify(defaultServices));
   }
-  if (!getItemSafe("glowup_clients")) {
+  const clientSeed = getItemSafe("glowup_clients");
+  if (shouldReplaceLegacySeed("glowup_clients", clientSeed)) {
     setItemSafe("glowup_clients", JSON.stringify(defaultClients));
   }
-  if (!getItemSafe("glowup_appointments")) {
+  const appointmentSeed = getItemSafe("glowup_appointments");
+  if (shouldReplaceLegacySeed("glowup_appointments", appointmentSeed)) {
     setItemSafe("glowup_appointments", JSON.stringify(defaultAppointments));
   }
 };
