@@ -456,6 +456,44 @@ export default function ServicesPage() {
     );
   }
 
+    const handleSeedServices = async () => {
+      if (!confirm("Voulez-vous générer les services par défaut ? Cela ajoutera plusieurs dizaines de services automatiquement.")) return;
+      
+      const defaultAddons = [
+        { name: "Fleur", extra_cost: 150 },
+        { name: "Charme", extra_cost: 200 },
+        { name: "Breloque", extra_cost: 100 }
+      ];
+
+      const seedData = [
+        // Pédicure
+        ...["Simple", "Vernis ordinaire", "Vernis Gel", "Pose pouce (SLM)", "Full pose Vernis Gel", "Acrylique toes"].map(name => ({
+          name, category_id: "Pédicure", price_htg: 500, is_active: true, branch_id: branchIdToUse,
+          metadata: { addon_options: defaultAddons }
+        })),
+        // Manicure
+        ...["Simple", "Vernis Gel", "Baby Boomers", "Pose ongle Almond", "Pose ongle carré", "Acrylique simple", "Avec design", "Pose Vernis Gel", "Pose Vernis Ordinaire", "Deep Powder", "Soak Off A", "Soak Off Pose"].map(name => ({
+          name, category_id: "Manicure", price_htg: 500, is_active: true, branch_id: branchIdToUse,
+          metadata: { addon_options: [] }
+        })),
+        // Coiffure / Beauté
+        ...["Lavage simple", "Mise en rouleau", "Lavage complet (Bain d'huile + Bain de crème)", "Lavage + Blow", "Brûlage", "Bain de crème", "Brushing (Blow)", "Défrisage à chaud cheveux naturels", "Application permanente cheveux naturels", "Application permanente + Blow", "Application permanente", "Application teinture", "Application lace", "Coupe Tara + cheveux", "Lavage perruque", "Coupe de cheveux femme", "Tresse", "Réparation perruque", "Make-up simple", "Tissage", "Mèches", "Chignon"].map(name => ({
+          name, category_id: "Coiffure / Beauté", price_htg: 1000, is_active: true, branch_id: branchIdToUse,
+          metadata: { addon_options: [] }
+        }))
+      ];
+
+      try {
+        const { error } = await supabase.from("salon_services").insert(seedData);
+        if (error) throw error;
+        toast.success("Les services ont été générés avec succès !");
+        // Reload data
+        window.location.reload();
+      } catch (err: any) {
+        toast.error("Erreur: " + err.message);
+      }
+    };
+
   return (
     <DashboardLayout role="salon_admin" title="Services" subtitle="Prestations indépendantes des produits" userName="Admin Studio">
       <StaggerContainer className="space-y-6">
@@ -477,9 +515,14 @@ export default function ServicesPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Rechercher une prestation..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 w-full bg-background" />
             </div>
-            <Button variant="outline" onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2">
-              <Plus className="h-4 w-4" /> Nouveau service
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" onClick={handleSeedServices} className="gap-2" disabled={services.length > 50}>
+                Générer services par défaut
+              </Button>
+              <Button variant="outline" onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2">
+                <Plus className="h-4 w-4" /> Nouveau service
+              </Button>
+            </div>
           </div>
         </StaggerItem>
 
