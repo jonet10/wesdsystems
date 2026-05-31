@@ -51,7 +51,7 @@ export const DashboardHeader = ({
   const [notifications, setNotifications] = useState<Array<{id: string; title: string; message: string; read: boolean; created_at: string}>>([]);
   
   const { currency, setCurrency } = useCurrency();
-  const { profile } = useAuth();
+  const { profile, employeeSession, logoutEmployee } = useAuth();
   const { data: branches = [] } = useBusinessBranches();
   const { branchId, setActiveBranchId } = useActiveBranchId(profile?.business_id ?? null);
   const { i18n } = useTranslation();
@@ -101,6 +101,11 @@ export const DashboardHeader = ({
   }, [profile?.role, userRole]);
 
   const handleLogout = async () => {
+    if (employeeSession && !profile) {
+      logoutEmployee();
+      navigate("/auth/login");
+      return;
+    }
     await supabase.auth.signOut();
     navigate("/");
   };
@@ -323,11 +328,11 @@ export const DashboardHeader = ({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : "/salon/settings")}>
+            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : userRole === "employee" ? "/employee" : "/salon/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : "/salon/employees")}>
+            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : userRole === "employee" ? "/employee" : "/salon/employees")}>
               <User className="mr-2 h-4 w-4" />
               Mon profil
             </DropdownMenuItem>

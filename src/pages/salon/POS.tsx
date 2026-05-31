@@ -24,6 +24,18 @@ import { useActiveBranchId } from "@/lib/branch";
 import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
 import {
+  addPendingTabItem,
+  cancelPendingTab,
+  checkoutPendingTab,
+  createPendingTab,
+  deletePendingTabItem,
+  findClientOptions as findPendingTabClientOptions,
+  getPendingTab,
+  listPendingTabs,
+  updatePendingTabItem,
+} from "@/modules/salon/pending-tabs";
+import type { PendingTabDetail, PendingTabSummary } from "@/modules/salon/pending-tabs";
+import {
   addItemToCart,
   buildPaymentSplits,
   calculateCartTotals,
@@ -57,6 +69,7 @@ interface CartItem {
   promotion_applied?: boolean;
   promotion_name?: string;
   discount?: number;
+  pending_item_id?: string | null;
 }
 
 interface Promotion {
@@ -86,15 +99,51 @@ interface EmployeeInfo {
   name: string;
 }
 
+interface PendingTabClientResult {
+  id: string;
+  name: string;
+  phone: string;
+  visit_count: number;
+}
+
+const EMPTY_PAYMENT_SPLITS: PaymentSplit[] = [
+  { method: "cash", amount: 0 },
+  { method: "moncash", amount: 0 },
+  { method: "natcash", amount: 0 },
+  { method: "card", amount: 0 },
+];
+
+const mapPendingItemToCart = (item: {
+  id: string;
+  item_type: "product" | "service";
+  item_id: string;
+  item_name: string;
+  unit_price: number;
+  quantity: number;
+  subtotal: number;
+}): CartItem => ({
+  key: `pending-${item.id}`,
+  type: item.item_type,
+  item_id: item.item_id,
+  name: item.item_name,
+  quantity: item.quantity,
+  unit_price: Number(item.unit_price || 0),
+  promotion_applied: false,
+  discount: 0,
+  pending_item_id: item.id,
+});
+
 export default function POSPage() {
   const { user, profile: authProfile, employeeSession } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
   const { data: branches = [] } = useBusinessBranches();
+  const employeeBranchId = employeeSession?.branch_id || null;
   const activeBranchId = useMemo(() => {
+    if (employeeBranchId) return employeeBranchId;
     const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
     return validBranchId || branches[0]?.id || null;
-  }, [branchId, branches]);
+  }, [branchId, branches, employeeBranchId]);
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -141,6 +190,17 @@ export default function POSPage() {
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
     name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678",
   });
+  const [pendingTabs, setPendingTabs] = useState<PendingTabSummary[]>([]);
+  const [activePendingTab, setActivePendingTab] = useState<PendingTabDetail | null>(null);
+  const [pendingTabDraftItems, setPendingTabDraftItems] = useState<CartItem[]>([]);
+  const [pendingTabModalOpen, setPendingTabModalOpen] = useState(false);
+  const [pendingTabLabel, setPendingTabLabel] = useState("");
+  const [pendingTabClientQuery, setPendingTabClientQuery] = useState("");
+  const [pendingTabClientResults, setPendingTabClientResults] = useState<PendingTabClientResult[]>([]);
+  const [pendingTabSelectedClient, setPendingTabSelectedClient] = useState<PendingTabClientResult | null>(null);
+  const [pendingTabClientLoading, setPendingTabClientLoading] = useState(false);
+  const [pendingTabSaving, setPendingTabSaving] = useState(false);
+  const [pendingTabLoading, setPendingTabLoading] = useState(false);
 
   const loadData = async (branchIdToUse: string | null = activeBranchId) => {
     try {
@@ -289,26 +349,40 @@ export default function POSPage() {
   };
 
   const loadBusinessInfo = async () => {
-    if (!user) return;
+    if (!user && !employeeBranchId) return;
     try {
-      const { data: prof } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
-      if (prof?.business_id) {
-        const { data: biz } = await supabase.from("businesses").select("id, name, logo_url").eq("id", prof.business_id).maybeSingle();
-        const { data: ext } = await supabase.from("salon_business_profiles").select("email, phone, address, whatsapp, slogan, tax_number").eq("business_id", prof.business_id).maybeSingle();
-        if (biz) {
-          const info: BusinessInfo = {
-            name: biz.name || "Mon Salon",
-            address: ext?.address || "",
-            phone: ext?.phone || "",
-            logo_url: biz.logo_url,
-          };
-          if (ext) {
-            info.whatsapp = ext.whatsapp || "";
-            info.email = ext.email || "";
-            info.slogan = ext.slogan || "";
-            info.tax_number = ext.tax_number || "";
+      const { data: prof } = user
+        ? await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle()
+        : { data: null };
+      const businessId = prof?.business_id || null;
+      const sourceBranchId = businessId || employeeBranchId;
+
+      if (sourceBranchId) {
+        let resolvedBusinessId = businessId;
+
+        if (!resolvedBusinessId && employeeBranchId) {
+          const { data: branchRow } = await supabase.from("salon_branches").select("business_id").eq("id", employeeBranchId).maybeSingle();
+          resolvedBusinessId = branchRow?.business_id || null;
+        }
+
+        if (resolvedBusinessId) {
+          const { data: biz } = await supabase.from("businesses").select("id, name, logo_url").eq("id", resolvedBusinessId).maybeSingle();
+          const { data: ext } = await supabase.from("salon_business_profiles").select("email, phone, address, whatsapp, slogan, tax_number").eq("business_id", resolvedBusinessId).maybeSingle();
+          if (biz) {
+            const info: BusinessInfo = {
+              name: biz.name || "Mon Salon",
+              address: ext?.address || "",
+              phone: ext?.phone || "",
+              logo_url: biz.logo_url,
+            };
+            if (ext) {
+              info.whatsapp = ext.whatsapp || "";
+              info.email = ext.email || "";
+              info.slogan = ext.slogan || "";
+              info.tax_number = ext.tax_number || "";
+            }
+            setBusinessInfo(info);
           }
-          setBusinessInfo(info);
         }
       }
     } catch {}
@@ -318,10 +392,175 @@ export default function POSPage() {
     void loadData(activeBranchId);
     void loadEmployees();
     void loadBusinessInfo();
+    void loadPendingTabs();
     // reset client search if branch changes
-    setSelectedClient(null);
-    setClientQuery("");
+      setSelectedClient(null);
+      setClientQuery("");
+      setActivePendingTab(null);
+      setCart([]);
+      setPendingTabDraftItems([]);
+    setPendingTabs([]);
   }, [user, activeBranchId]);
+
+  const loadPendingTabs = async () => {
+    if (!activeBranchId) {
+      setPendingTabs([]);
+      return;
+    }
+    try {
+      const tabs = await listPendingTabs(activeBranchId, "open");
+      setPendingTabs(tabs as PendingTabSummary[]);
+    } catch (error) {
+      console.warn("Impossible de charger les fiches en attente", error);
+      setPendingTabs([]);
+    }
+  };
+
+  const loadPendingTabDetail = async (tabId: string) => {
+    setPendingTabLoading(true);
+    try {
+      const tab = await getPendingTab(tabId);
+      setActivePendingTab(tab as PendingTabDetail);
+      const mappedItems = (tab?.items || []).map((item: any) => mapPendingItemToCart(item));
+      setCart(mappedItems);
+      setPendingTabDraftItems(mappedItems);
+      setDiscountPercent(0);
+      setPaymentMethod("cash");
+      setPaymentSplits(EMPTY_PAYMENT_SPLITS);
+      setSelectedEmployee("");
+      if (tab?.client_id) {
+        const clientName = tab.label || tab.guest_name || "Client";
+        setPendingTabSelectedClient({
+          id: tab.client_id,
+          name: clientName,
+          phone: "",
+          visit_count: 0,
+        });
+        setSelectedClient({
+          id: tab.client_id,
+          name: clientName,
+          phone: "",
+          visit_count: 0,
+        });
+      } else {
+        setPendingTabSelectedClient(null);
+        setSelectedClient(null);
+      }
+      setPendingTabModalOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible de charger la fiche");
+    } finally {
+      setPendingTabLoading(false);
+    }
+  };
+
+  const leavePendingTabMode = () => {
+    setActivePendingTab(null);
+    setPendingTabDraftItems([]);
+    setCart([]);
+    setPendingTabSelectedClient(null);
+    setPendingTabClientQuery("");
+    setPendingTabClientResults([]);
+    setSelectedClient(null);
+    setDiscountPercent(0);
+    setPaymentMethod("cash");
+    setPaymentSplits(EMPTY_PAYMENT_SPLITS);
+    setSelectedEmployee("");
+  };
+
+  const searchPendingTabClients = async (q: string) => {
+    if (q.length < 2) {
+      setPendingTabClientResults([]);
+      return;
+    }
+    setPendingTabClientLoading(true);
+    try {
+      const results = await findPendingTabClientOptions(q);
+      setPendingTabClientResults(results);
+    } catch {
+      setPendingTabClientResults([]);
+    } finally {
+      setPendingTabClientLoading(false);
+    }
+  };
+
+  const handlePendingTabClientQueryChange = (value: string) => {
+    setPendingTabClientQuery(value);
+    window.clearTimeout((handlePendingTabClientQueryChange as any).timer);
+    (handlePendingTabClientQueryChange as any).timer = window.setTimeout(() => {
+      void searchPendingTabClients(value);
+    }, 250);
+  };
+
+  const savePendingTabDraft = async () => {
+    if (!activePendingTab) return;
+    setPendingTabSaving(true);
+    try {
+      for (const item of pendingTabDraftItems) {
+        if (item.pending_item_id) {
+          await deletePendingTabItem(activePendingTab.id, item.pending_item_id);
+        }
+      }
+
+      for (const item of cart) {
+        await addPendingTabItem(activePendingTab.id, {
+          item_type: item.type,
+          item_id: item.item_id,
+          item_name: item.name,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          added_by: employeeSession?.id || null,
+        });
+      }
+
+      const refreshed = await getPendingTab(activePendingTab.id);
+      setActivePendingTab(refreshed as PendingTabDetail);
+      const mappedItems = (refreshed?.items || []).map((item: any) => mapPendingItemToCart(item));
+      setCart(mappedItems);
+      setPendingTabDraftItems(mappedItems);
+      await loadPendingTabs();
+      toast.success("Fiche mise à jour");
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible de mettre à jour la fiche");
+    } finally {
+      setPendingTabSaving(false);
+    }
+  };
+
+  const createPendingTabHandler = async () => {
+    if (!activeBranchId) {
+      toast.error("Sélectionnez une branche");
+      return;
+    }
+    if (!pendingTabLabel.trim()) {
+      toast.error("Le label de la fiche est requis");
+      return;
+    }
+
+    setPendingTabSaving(true);
+    try {
+      const tab = await createPendingTab({
+        label: pendingTabLabel.trim(),
+        branch_id: activeBranchId,
+        cashier_id: employeeSession?.id || null,
+        client_id: pendingTabSelectedClient?.id || null,
+        guest_name: pendingTabSelectedClient ? pendingTabSelectedClient.name : null,
+      });
+
+      await loadPendingTabs();
+      setPendingTabModalOpen(false);
+      setPendingTabLabel("");
+      setPendingTabClientQuery("");
+      setPendingTabClientResults([]);
+      setPendingTabSelectedClient(null);
+      toast.success(`Fiche ${tab.tab_number} ouverte`);
+      await loadPendingTabDetail(tab.id);
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible d'ouvrir la fiche");
+    } finally {
+      setPendingTabSaving(false);
+    }
+  };
 
   const detectPromotions = (cartItems: CartItem[]): CartItem[] => {
     return cartItems.map(item => {
@@ -375,15 +614,69 @@ export default function POSPage() {
   };
 
   const addToCart = (item: CatalogItem, type: "product" | "service", customOptions?: { optionsText?: string, extraCost?: number }) => {
-    setCart(prev => addItemToCart(prev, item, type, promotions, customOptions));
+    setCart((prev) => {
+      if (activePendingTab) {
+        const optionsSuffix = customOptions?.optionsText ? ` (${customOptions.optionsText})` : "";
+        const itemName = `${item.name}${optionsSuffix}`;
+        const unitPrice = item.unit_price + (customOptions?.extraCost || 0);
+        const existingIndex = prev.findIndex(
+          (cartItem) =>
+            cartItem.type === type &&
+            cartItem.item_id === item.id &&
+            cartItem.name === itemName &&
+            cartItem.unit_price === unitPrice
+        );
+
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = {
+            ...next[existingIndex],
+            quantity: next[existingIndex].quantity + 1,
+          };
+          return next;
+        }
+
+        return [...prev, {
+          key: `${type}-${item.id}-${Date.now()}`,
+          type,
+          item_id: item.id,
+          name: itemName,
+          quantity: 1,
+          unit_price: unitPrice,
+          category: item.category,
+          promotion_applied: false,
+          promotion_name: undefined,
+          discount: 0,
+          pending_item_id: null,
+        }];
+      }
+
+      return addItemToCart(prev, item, type, promotions, customOptions);
+    });
   };
 
   const updateQuantity = (key: string, delta: number) => {
-    setCart(prev => updateCartQuantity(prev, key, delta, promotions));
+    setCart((prev) => {
+      if (activePendingTab) {
+        return prev
+          .map((item) => {
+            if (item.key !== key) return item;
+            const quantity = Math.max(0, item.quantity + delta);
+            return quantity === 0 ? null : { ...item, quantity };
+          })
+          .filter(Boolean) as CartItem[];
+      }
+      return updateCartQuantity(prev, key, delta, promotions);
+    });
   };
 
   const removeFromCart = (key: string) => {
-    setCart(prev => removeCartItem(prev, key, promotions));
+    setCart((prev) => {
+      if (activePendingTab) {
+        return prev.filter((item) => item.key !== key);
+      }
+      return removeCartItem(prev, key, promotions);
+    });
   };
 
   const hasServices = useMemo(() => cart.some(i => i.type === "service"), [cart]);
@@ -448,14 +741,51 @@ export default function POSPage() {
     try {
       const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
       const cashierId = employeeSession?.id || null;
+
+      if (!activeBranchId) {
+        throw new Error("Sélectionnez une branche avant d'encaisser");
+      }
+
+      if (activePendingTab) {
+        await savePendingTabDraft();
+        const checkoutResult = await checkoutPendingTab(activePendingTab.id, {
+          payment_method: paymentMethod,
+          amount_paid: paymentValidation.paid || total,
+          cashier_id: cashierId,
+          cashier_name: cashierName,
+          currency_code: currencyCode,
+          payment_splits: resolvedPaymentSplits.map((split) => ({
+            method: split.method,
+            amount: split.amount,
+          })),
+        });
+
+        toast.success("Fiche encaissée avec succès !");
+        setLastSale({
+          ...checkoutResult.sale,
+          items: checkoutResult.items,
+          customer: activePendingTab.label,
+          payment: paymentMethod,
+          cashier_name: cashierName,
+          tab_number: activePendingTab.tab_number,
+          label: activePendingTab.label,
+          opened_at: activePendingTab.opened_at,
+          closed_at: checkoutResult.sale.closed_at,
+        });
+        setShowReceipt(true);
+        leavePendingTabMode();
+        setDiscountPercent(0);
+        setPaymentMethod("cash");
+        setPaymentSplits(EMPTY_PAYMENT_SPLITS);
+        await loadData(activeBranchId);
+        await loadPendingTabs();
+        return;
+      }
+
       let businessId = authProfile?.business_id ?? null;
       if (!businessId && user?.id) {
         const { data: profileRow } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
         businessId = profileRow?.business_id ?? null;
-      }
-
-      if (!activeBranchId) {
-        throw new Error("Sélectionnez une branche avant d'encaisser");
       }
 
       const { data: sale, error: saleError } = await supabase
@@ -577,12 +907,7 @@ export default function POSPage() {
       setClientQuery("");
       setDiscountPercent(0);
       setPaymentMethod("cash");
-      setPaymentSplits([
-        { method: "cash", amount: 0 },
-        { method: "moncash", amount: 0 },
-        { method: "natcash", amount: 0 },
-        { method: "card", amount: 0 },
-      ]);
+      setPaymentSplits(EMPTY_PAYMENT_SPLITS);
       await loadData(activeBranchId);
     } catch (err: any) {
       console.error("Checkout error:", err);
@@ -592,7 +917,10 @@ export default function POSPage() {
 
   const handlePrintReceipt = async () => {
     if (!receiptRef.current) return;
-    await printReceiptPdf(receiptRef.current, `recu-${lastSale?.sale_number || Date.now()}`);
+    await printReceiptPdf(
+      receiptRef.current,
+      lastSale?.tab_number ? `fiche-${lastSale.tab_number}` : `recu-${lastSale?.sale_number || Date.now()}`
+    );
     toast.success("Reçu PDF téléchargé !");
   };
 
@@ -635,6 +963,73 @@ export default function POSPage() {
                   </span>
                 </div>
               )}
+              <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">Fiches en attente</h3>
+                    <Badge variant="secondary">{pendingTabs.length} ouvertes</Badge>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    onClick={() => {
+                      setPendingTabLabel("");
+                      setPendingTabClientQuery("");
+                      setPendingTabClientResults([]);
+                      setPendingTabSelectedClient(null);
+                      setPendingTabModalOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" /> Nouvelle fiche
+                  </Button>
+                </div>
+                <ScrollArea className="w-full">
+                  <div className="flex gap-2 pb-1">
+                    {pendingTabs.map((tab: any) => {
+                      const active = activePendingTab?.id === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => void loadPendingTabDetail(tab.id)}
+                          className={cn(
+                            "min-w-[180px] max-w-[240px] rounded-xl border p-3 text-left transition-all",
+                            active
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border bg-background hover:border-primary/40 hover:bg-muted/40"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold truncate">{tab.label}</p>
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                {tab.tab_number}
+                              </p>
+                            </div>
+                            <Badge variant={active ? "default" : "outline"} className="text-[10px] h-5">
+                              {format(tab.total_amount)}
+                            </Badge>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>{tab.items_count} article{tab.items_count > 1 ? "s" : ""}</span>
+                            <span>
+                              {new Date(tab.opened_at).toLocaleTimeString("fr-FR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {pendingTabs.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border/60 px-4 py-5 text-sm text-muted-foreground">
+                        Aucune fiche ouverte aujourd'hui
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               <ScrollArea className="h-full pr-4">
@@ -673,13 +1068,27 @@ export default function POSPage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <ShoppingCart className="h-4 w-4" /> Panier ({cart.length})
               </CardTitle>
+              {activePendingTab && (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                  <div className="min-w-0">
+                    <Badge variant="secondary" className="mb-1">Fiche ouverte</Badge>
+                    <p className="text-sm font-semibold truncate">{activePendingTab.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{activePendingTab.tab_number}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={leavePendingTabMode} title="Retourner à la vente normale">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden">
               <ScrollArea className="flex-1 pr-2 -mr-2">
                 {cart.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">Ajoutez des articles pour commencer</p>
+                    <p className="text-sm">
+                      {activePendingTab ? "Ajoutez des articles à la fiche" : "Ajoutez des articles pour commencer"}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -913,14 +1322,40 @@ export default function POSPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
-                  Annuler
-                </Button>
-                <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary h-11 text-base font-semibold">
-                  Encaisser • {format(total)}
-                </Button>
-              </div>
+              {activePendingTab ? (
+                <div className="mt-4 space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="destructive" onClick={async () => {
+                      if (!activePendingTab) return;
+                      try {
+                        await cancelPendingTab(activePendingTab.id);
+                        toast.success("Fiche annulée");
+                        leavePendingTabMode();
+                        await loadPendingTabs();
+                      } catch (error: any) {
+                        toast.error(error?.message || "Impossible d'annuler la fiche");
+                      }
+                    }} disabled={pendingTabSaving || pendingTabLoading}>
+                      Annuler la fiche
+                    </Button>
+                    <Button onClick={savePendingTabDraft} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="bg-primary h-11 text-base font-semibold">
+                      Ajouter au tab
+                    </Button>
+                  </div>
+                  <Button onClick={checkout} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="w-full bg-primary h-11 text-base font-semibold">
+                    Encaisser la fiche • {format(total)}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
+                    Annuler
+                  </Button>
+                  <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary h-11 text-base font-semibold">
+                    Encaisser • {format(total)}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </StaggerItem>
@@ -967,7 +1402,7 @@ export default function POSPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <span>Reçu #{lastSale?.sale_number || ""}</span>
+              <span>{lastSale?.tab_number ? `Fiche #${lastSale.tab_number}` : `Reçu #${lastSale?.sale_number || ""}`}</span>
               <div className="flex gap-1">
                 <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1">
                   <Printer className="h-4 w-4" /> Imprimer
@@ -989,9 +1424,13 @@ export default function POSPage() {
                 cashier_name: lastSale?.cashier_name,
                 customer_name: lastSale?.customer,
                 payment_method: lastSale?.payment,
+                label: lastSale?.label,
+                tab_number: lastSale?.tab_number,
+                opened_at: lastSale?.opened_at,
+                closed_at: lastSale?.closed_at,
               }}
               items={lastSale?.items?.map((i: any) => ({
-                item_name: i.name,
+                item_name: i.name || i.item_name,
                 quantity: i.quantity,
                 unit_price: i.unit_price,
                 total_price: i.quantity * i.unit_price - (i.discount || 0),
@@ -1006,6 +1445,106 @@ export default function POSPage() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
             <Button onClick={handlePrintReceipt}>Télécharger le PDF</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingTabModalOpen} onOpenChange={setPendingTabModalOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Nouvelle fiche</DialogTitle>
+            <DialogDescription>
+              Ouvrez une fiche en attente pour un client, une table ou un libellé libre.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="pending-tab-label">Nom / label *</Label>
+              <Input
+                id="pending-tab-label"
+                placeholder="Ex : Jean, Table 3"
+                value={pendingTabLabel}
+                onChange={(e) => setPendingTabLabel(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="pending-tab-client">Client (optionnel)</Label>
+              {pendingTabSelectedClient ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium">{pendingTabSelectedClient.name}</p>
+                    {pendingTabSelectedClient.phone && (
+                      <p className="text-xs text-muted-foreground">{pendingTabSelectedClient.phone}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => {
+                      setPendingTabSelectedClient(null);
+                      setPendingTabClientQuery("");
+                      setPendingTabClientResults([]);
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      id="pending-tab-client"
+                      className="pl-8"
+                      placeholder="Rechercher un client..."
+                      value={pendingTabClientQuery}
+                      onChange={(e) => handlePendingTabClientQueryChange(e.target.value)}
+                    />
+                    {pendingTabClientLoading && (
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {pendingTabClientQuery.length >= 2 && (
+                    <div className="max-h-40 overflow-auto rounded-lg border border-border bg-background">
+                      {pendingTabClientResults.length === 0 ? (
+                        <p className="px-3 py-3 text-xs text-muted-foreground text-center">Aucun client trouvé</p>
+                      ) : (
+                        pendingTabClientResults.map((client) => (
+                          <button
+                            key={client.id}
+                            onClick={() => {
+                              setPendingTabSelectedClient(client);
+                              setPendingTabClientQuery(client.name);
+                              setPendingTabClientResults([]);
+                            }}
+                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{client.name}</p>
+                              {client.phone && (
+                                <p className="text-xs text-muted-foreground truncate">{client.phone}</p>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="shrink-0 text-[10px]">
+                              {client.visit_count} visite{client.visit_count > 1 ? "s" : ""}
+                            </Badge>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setPendingTabModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={createPendingTabHandler} disabled={pendingTabSaving}>
+              {pendingTabSaving ? "Ouverture..." : "Ouvrir la fiche"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

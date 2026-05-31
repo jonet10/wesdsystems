@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { normalizeEmployeeRole } from '@/lib/employee-role';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -91,7 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [employeeSession, setEmployeeSession] = useState<AuthState['employeeSession']>(() => {
     try {
       const saved = localStorage.getItem('glowup_employee_session');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      return parsed ? { ...parsed, role: normalizeEmployeeRole(parsed.role) || parsed.role } : null;
     } catch {
       return null;
     }
@@ -109,9 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!result.success) {
         return { success: false, error: result.error || 'Erreur inconnue' };
       }
-      
-      setEmployeeSession(result.employee);
-      localStorage.setItem('glowup_employee_session', JSON.stringify(result.employee));
+
+      const normalizedEmployee = {
+        ...result.employee,
+        role: normalizeEmployeeRole(result.employee?.role) || result.employee?.role || "cashier",
+      };
+      setEmployeeSession(normalizedEmployee);
+      localStorage.setItem('glowup_employee_session', JSON.stringify(normalizedEmployee));
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Erreur lors de la connexion' };

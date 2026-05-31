@@ -40,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
+import { normalizeEmployeeRole } from "@/lib/employee-role";
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -83,7 +84,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
-  const { user } = useAuth();
+  const { user, employeeSession } = useAuth();
 
   useEffect(() => {
     const handleUpdate = () => setActiveBiz(glowupStore.getActiveBusiness());
@@ -152,13 +153,30 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     }
   };
 
+  const employeeRole = normalizeEmployeeRole(employeeSession?.role);
+
+  const employeeSpecificItems: SidebarItem[] = employeeRole === "cashier"
+    ? [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/employee", role: "all" },
+        { icon: CreditCard, label: "Caisse", path: "/employee/pos", role: "all" },
+        { icon: ClipboardList, label: "Rapport du jour", path: "/employee", role: "all" },
+        { icon: Calendar, label: "Mon Agenda", path: "/employee/schedule", role: "all" },
+      ]
+    : employeeRole === "barber"
+    ? [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/employee", role: "all" },
+        { icon: Calendar, label: "Mon Agenda", path: "/employee/schedule", role: "all" },
+        { icon: Wallet, label: "Mes gains", path: "/employee", role: "all" },
+      ]
+    : employeeItems;
+
   const items = role === "super_admin"
     ? superAdminItems
     : role === "partner"
     ? partnerItems
     : role === "salon_admin"
     ? getBusinessAdminItems()
-    : employeeItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
+    : employeeSpecificItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
 
   const NavItem = ({ item }: { item: SidebarItem }) => {
     const Icon = item.icon;

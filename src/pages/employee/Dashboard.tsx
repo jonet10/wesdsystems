@@ -1,126 +1,215 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { Calendar, Clock, Wallet, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowRight, Calendar, Clock, CreditCard, DollarSign, TrendingUp, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { normalizeEmployeeRole, canAccessEmployeePos } from "@/lib/employee-role";
 
-interface EmployeeAppointment {
+interface EmployeeSale {
   id: string;
-  client_name: string;
-  service_name: string;
-  start_hour: number;
-  duration: number;
-  date: string;
+  sale_number: string | null;
+  total_amount: number;
+  payment_method: string | null;
+  customer_name: string | null;
+  created_at: string;
 }
 
-interface CommissionResult {
+interface EmployeeCommission {
   gross_revenue: number;
   commission_total: number;
+  transaction_count: number;
 }
 
-const toISODate = (date: Date): string => date.toISOString().split("T")[0];
+const toIsoStart = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+const toIsoEnd = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+};
+
+const paymentLabels: Record<string, string> = {
+  cash: "Espèces",
+  moncash: "MonCash",
+  natcash: "NatCash",
+  card: "Carte",
+  mixed: "Mixte",
+};
 
 export default function EmployeeDashboard() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const { format } = useCurrency();
-  const [employeeName, setEmployeeName] = useState("Employé");
-  const [appointments, setAppointments] = useState<EmployeeAppointment[]>([]);
-  const [commissionDay, setCommissionDay] = useState<CommissionResult>({ gross_revenue: 0, commission_total: 0 });
-  const [commissionWeek, setCommissionWeek] = useState<CommissionResult>({ gross_revenue: 0, commission_total: 0 });
-  const [commissionMonth, setCommissionMonth] = useState<CommissionResult>({ gross_revenue: 0, commission_total: 0 });
+  const { employeeSession } = useAuth();
+  const role = normalizeEmployeeRole(employeeSession?.role) || "cashier";
+  const employeeId = employeeSession?.id || null;
+  const branchId = employeeSession?.branch_id || null;
+
+  const [loading, setLoading] = useState(true);
+  const [salesToday, setSalesToday] = useState<EmployeeSale[]>([]);
+  const [daySummary, setDaySummary] = useState({ revenue: 0, tickets: 0 });
+  const [weekSummary, setWeekSummary] = useState({ revenue: 0, tickets: 0 });
+  const [monthSummary, setMonthSummary] = useState({ revenue: 0, tickets: 0 });
+  const [commissionDay, setCommissionDay] = useState<EmployeeCommission>({ gross_revenue: 0, commission_total: 0, transaction_count: 0 });
+  const [commissionWeek, setCommissionWeek] = useState<EmployeeCommission>({ gross_revenue: 0, commission_total: 0, transaction_count: 0 });
+  const [commissionMonth, setCommissionMonth] = useState<EmployeeCommission>({ gross_revenue: 0, commission_total: 0, transaction_count: 0 });
 
   useEffect(() => {
     const loadEmployeeData = async () => {
-      if (!user?.id) return;
+      if (!employeeId || !branchId) return;
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle();
+      setLoading(true);
+      try {
+        const now = new Date();
+        const todayStart = toIsoStart(now);
+        const todayEnd = toIsoEnd(now);
 
-      if (profileData?.full_name) {
-        setEmployeeName(profileData.full_name);
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        if (role === "cashier") {
+          const [{ data: todaySales }, { data: weekSales }, { data: monthSales }] = await Promise.all([
+            supabase
+              .from("salon_sales")
+              .select("id, sale_number, total_amount, payment_method, customer_name, created_at")
+              .eq("branch_id", branchId)
+              .eq("cashier_id", employeeId)
+              .gte("created_at", todayStart)
+              .lte("created_at", todayEnd)
+              .order("created_at", { ascending: false }),
+            supabase
+              .from("salon_sales")
+              .select("id, total_amount, created_at")
+              .eq("branch_id", branchId)
+              .eq("cashier_id", employeeId)
+              .gte("created_at", toIsoStart(weekStart))
+              .lte("created_at", todayEnd),
+            supabase
+              .from("salon_sales")
+              .select("id, total_amount, created_at")
+              .eq("branch_id", branchId)
+              .eq("cashier_id", employeeId)
+              .gte("created_at", toIsoStart(monthStart))
+              .lte("created_at", todayEnd),
+          ]);
+
+          const totalRevenueToday = (todaySales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+          const totalRevenueWeek = (weekSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+          const totalRevenueMonth = (monthSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+
+          setSalesToday((todaySales || []) as EmployeeSale[]);
+          setDaySummary({ revenue: totalRevenueToday, tickets: (todaySales || []).length });
+          setWeekSummary({ revenue: totalRevenueWeek, tickets: (weekSales || []).length });
+          setMonthSummary({ revenue: totalRevenueMonth, tickets: (monthSales || []).length });
+        } else {
+          const [{ data: dayRows }, { data: weekRows }, { data: monthRows }] = await Promise.all([
+            supabase
+              .from("commission_transactions")
+              .select("sale_amount, commission_amount")
+              .eq("employee_id", employeeId)
+              .eq("branch_id", branchId)
+              .gte("calculated_at", todayStart)
+              .lte("calculated_at", todayEnd)
+              .neq("status", "cancelled"),
+            supabase
+              .from("commission_transactions")
+              .select("sale_amount, commission_amount")
+              .eq("employee_id", employeeId)
+              .eq("branch_id", branchId)
+              .gte("calculated_at", toIsoStart(weekStart))
+              .lte("calculated_at", todayEnd)
+              .neq("status", "cancelled"),
+            supabase
+              .from("commission_transactions")
+              .select("sale_amount, commission_amount")
+              .eq("employee_id", employeeId)
+              .eq("branch_id", branchId)
+              .gte("calculated_at", toIsoStart(monthStart))
+              .lte("calculated_at", todayEnd)
+              .neq("status", "cancelled"),
+          ]);
+
+          const pick = (rows: any[] | null | undefined): EmployeeCommission => ({
+            gross_revenue: (rows || []).reduce((sum, row) => sum + Number(row.sale_amount || 0), 0),
+            commission_total: (rows || []).reduce((sum, row) => sum + Number(row.commission_amount || 0), 0),
+            transaction_count: (rows || []).length,
+          });
+
+          setCommissionDay(pick(dayRows));
+          setCommissionWeek(pick(weekRows));
+          setCommissionMonth(pick(monthRows));
+        }
+      } finally {
+        setLoading(false);
       }
-
-      const { data: linkData } = await supabase
-        .from("employee_accounts")
-        .select("employee_id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      if (!linkData?.employee_id) return;
-
-      const employeeId = linkData.employee_id as string;
-      const today = new Date();
-      const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const weekStart = new Date(dayStart);
-      weekStart.setDate(dayStart.getDate() - ((dayStart.getDay() + 6) % 7));
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
-      const todayStr = toISODate(today);
-
-      const { data: aptData } = await supabase
-        .from("transactions")
-        .select("id, client_name, service_name, start_hour, duration, date")
-        .eq("employee_id", employeeId)
-        .eq("date", todayStr)
-        .order("start_hour", { ascending: true });
-
-      setAppointments((aptData || []) as EmployeeAppointment[]);
-
-      const [{ data: dayRows }, { data: weekRows }, { data: monthRows }] = await Promise.all([
-        supabase.rpc("calculate_employee_commission", {
-          p_employee_id: employeeId,
-          p_start_date: todayStr,
-          p_end_date: todayStr,
-        }),
-        supabase.rpc("calculate_employee_commission", {
-          p_employee_id: employeeId,
-          p_start_date: toISODate(weekStart),
-          p_end_date: todayStr,
-        }),
-        supabase.rpc("calculate_employee_commission", {
-          p_employee_id: employeeId,
-          p_start_date: toISODate(monthStart),
-          p_end_date: todayStr,
-        }),
-      ]);
-
-      const pick = (rows: unknown): CommissionResult => {
-        const r = Array.isArray(rows) && rows[0] ? (rows[0] as Record<string, unknown>) : {};
-        return {
-          gross_revenue: Number(r.gross_revenue || 0),
-          commission_total: Number(r.commission_total || 0),
-        };
-      };
-
-      setCommissionDay(pick(dayRows));
-      setCommissionWeek(pick(weekRows));
-      setCommissionMonth(pick(monthRows));
     };
 
     void loadEmployeeData();
-  }, [user?.id]);
+  }, [branchId, employeeId, role]);
 
-  const totalDurationHours = useMemo(
-    () => appointments.reduce((sum, apt) => sum + Number(apt.duration || 0), 0),
-    [appointments]
-  );
+  const stats = useMemo(() => {
+    if (role === "cashier") {
+      return [
+        { title: "Ventes du jour", value: daySummary.revenue ? format(daySummary.revenue) : format(0), icon: <CreditCard className="h-6 w-6" /> },
+        { title: "Tickets du jour", value: daySummary.tickets.toString(), icon: <Calendar className="h-6 w-6" /> },
+        { title: "Semaine", value: format(weekSummary.revenue), icon: <TrendingUp className="h-6 w-6" /> },
+        { title: "Mois", value: format(monthSummary.revenue), icon: <DollarSign className="h-6 w-6" /> },
+      ];
+    }
 
-  const stats = [
-    { title: "RDV aujourd'hui", value: appointments.length.toString(), icon: <Calendar className="h-6 w-6" /> },
-    { title: "Heures planifiées", value: `${totalDurationHours.toFixed(1)}h`, icon: <Clock className="h-6 w-6" /> },
-    { title: "Commission du jour", value: format(commissionDay.commission_total), icon: <Wallet className="h-6 w-6" /> },
-    { title: "Commission du mois", value: format(commissionMonth.commission_total), icon: <TrendingUp className="h-6 w-6" /> },
-  ];
+    return [
+      { title: "Commission du jour", value: format(commissionDay.commission_total), icon: <Wallet className="h-6 w-6" /> },
+      { title: "Commission semaine", value: format(commissionWeek.commission_total), icon: <TrendingUp className="h-6 w-6" /> },
+      { title: "Commission mois", value: format(commissionMonth.commission_total), icon: <DollarSign className="h-6 w-6" /> },
+      { title: "Transactions", value: commissionMonth.transaction_count.toString(), icon: <Clock className="h-6 w-6" /> },
+    ];
+  }, [commissionDay.commission_total, commissionMonth.commission_total, commissionMonth.transaction_count, commissionWeek.commission_total, daySummary.revenue, daySummary.tickets, format, monthSummary.revenue, role, weekSummary.revenue]);
+
+  if (loading) {
+    return (
+      <DashboardLayout role="employee" title="Mon Dashboard" subtitle="Chargement..." userName={employeeSession?.full_name || "Employé"}>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout role="employee" title="Mon Dashboard" subtitle={`Bonjour ${employeeName} !`} userName={employeeName}>
+    <DashboardLayout
+      role="employee"
+      title={role === "barber" ? "Mes gains" : "Dashboard caisse"}
+      subtitle={role === "barber" ? "Suivi de vos commissions" : "Rapport journalier et caisse"}
+      userName={employeeSession?.full_name || "Employé"}
+    >
       <StaggerContainer className="space-y-8">
+        <StaggerItem>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">{employeeSession?.full_name || "Employé"}</h2>
+              <p className="text-muted-foreground capitalize">
+                Poste: {role || "employé"} • {employeeSession?.branch_id ? "Branche active" : "Branche inconnue"}
+              </p>
+            </div>
+            {role === "cashier" && canAccessEmployeePos(employeeSession?.role) && (
+              <Button onClick={() => navigate("/employee/pos")} className="gap-2">
+                Ouvrir la caisse <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </StaggerItem>
+
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
@@ -129,45 +218,97 @@ export default function EmployeeDashboard() {
           </div>
         </StaggerItem>
 
-        <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-card rounded-xl border border-border p-6">
-              <p className="text-sm text-muted-foreground">Revenus jour</p>
-              <p className="text-2xl font-bold">{format(commissionDay.gross_revenue)}</p>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <p className="text-sm text-muted-foreground">Revenus semaine</p>
-              <p className="text-2xl font-bold">{format(commissionWeek.gross_revenue)}</p>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-6">
-              <p className="text-sm text-muted-foreground">Revenus mois</p>
-              <p className="text-2xl font-bold">{format(commissionMonth.gross_revenue)}</p>
-            </div>
-          </div>
-        </StaggerItem>
-
-        <StaggerItem>
-          <div className="bg-card rounded-xl border border-border shadow-card">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-lg font-semibold font-display">Prestations du jour</h2>
-            </div>
-            <div className="divide-y divide-border">
-              {appointments.length === 0 && <p className="p-6 text-sm text-muted-foreground">Aucun rendez-vous aujourd'hui.</p>}
-              {appointments.map((apt) => (
-                <div key={apt.id} className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{apt.client_name || "Client"}</p>
-                    <p className="text-sm text-muted-foreground">{apt.service_name || "Prestation"}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{String(apt.start_hour ?? "").replace(".", ":")}</p>
-                    <p className="text-xs text-muted-foreground">{apt.duration}h</p>
-                  </div>
+        {role === "cashier" ? (
+          <>
+            <StaggerItem>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Ventes jour</p>
+                  <p className="text-2xl font-bold">{format(daySummary.revenue)}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Ventes semaine</p>
+                  <p className="text-2xl font-bold">{format(weekSummary.revenue)}</p>
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Ventes mois</p>
+                  <p className="text-2xl font-bold">{format(monthSummary.revenue)}</p>
+                </div>
+              </div>
+            </StaggerItem>
+
+            <StaggerItem>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Rapport journalier</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {salesToday.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Aucune vente enregistrée aujourd'hui.</p>
+                  ) : (
+                    salesToday.slice(0, 8).map((sale) => (
+                      <div key={sale.id} className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{sale.customer_name || "Client sans nom"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {sale.sale_number || sale.id.slice(0, 8)} • {paymentLabels[sale.payment_method || "cash"] || sale.payment_method || "Espèces"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">{format(Number(sale.total_amount || 0))}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          </>
+        ) : (
+          <>
+            <StaggerItem>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Revenus jour</p>
+                  <p className="text-2xl font-bold">{format(commissionDay.gross_revenue)}</p>
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Revenus semaine</p>
+                  <p className="text-2xl font-bold">{format(commissionWeek.gross_revenue)}</p>
+                </div>
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <p className="text-sm text-muted-foreground">Revenus mois</p>
+                  <p className="text-2xl font-bold">{format(commissionMonth.gross_revenue)}</p>
+                </div>
+              </div>
+            </StaggerItem>
+
+            <StaggerItem>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Mes commissions</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { label: "Jour", data: commissionDay },
+                    { label: "Semaine", data: commissionWeek },
+                    { label: "Mois", data: commissionMonth },
+                  ].map((block) => (
+                    <div key={block.label} className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-1">
+                      <p className="text-sm font-medium">{block.label}</p>
+                      <p className="text-xs text-muted-foreground">Ventes: {format(block.data.gross_revenue)}</p>
+                      <p className="text-lg font-bold text-primary">{format(block.data.commission_total)}</p>
+                      <p className="text-xs text-muted-foreground">{block.data.transaction_count} transaction{block.data.transaction_count > 1 ? "s" : ""}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          </>
+        )}
       </StaggerContainer>
     </DashboardLayout>
   );

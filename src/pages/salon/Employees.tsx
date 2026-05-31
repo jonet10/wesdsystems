@@ -478,6 +478,8 @@ export default function EmployeesPage() {
   const openEditModal = (emp: any) => {
     const [firstName, ...lastNameParts] = emp.name?.split(" ") || ["", ""];
     setSelectedEmployee(emp);
+    setUsernameAvailable(null);
+    setCheckingUsername(false);
     setFormData({
       firstName,
       lastName: lastNameParts.join(" "),
@@ -901,8 +903,248 @@ export default function EmployeesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* EDIT & DELETE dialogs would follow similar pattern... */}
-        {/* (Omitted for brevity - same structure as ADD with pre-filled values) */}
+        {/* EDIT EMPLOYEE DIALOG */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-5 w-5" /> Modifier l'employé
+              </DialogTitle>
+              <DialogDescription>
+                Mettez à jour les informations, l'accès et les permissions de ce membre d'équipe.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleEditEmployee} className="space-y-5 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-firstName">Prénom *</Label>
+                  <Input
+                    id="edit-firstName"
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-lastName">Nom *</Label>
+                  <Input
+                    id="edit-lastName"
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {isAuthenticated && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">Email professionnel *</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone">Téléphone (optionnel)</Label>
+                    <Input
+                      id="edit-phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-4 pt-2 pb-2 border-t border-b">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h3 className="font-medium">Accès & connexion (Espace Employé)</h3>
+                </div>
+
+                <div className="space-y-3 pl-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-username" className="flex justify-between">
+                      Nom d'utilisateur {formData.role !== "barber" && "*"}
+                      {checkingUsername && <span className="text-xs text-muted-foreground animate-pulse">Vérification...</span>}
+                      {!checkingUsername && usernameAvailable === true && formData.username && (
+                        <span className="text-xs text-success font-medium">Disponible ✅</span>
+                      )}
+                      {!checkingUsername && usernameAvailable === false && (
+                        <span className="text-xs text-destructive font-medium">Déjà pris ❌</span>
+                      )}
+                    </Label>
+                    <Input
+                      id="edit-username"
+                      placeholder="ex: marie_caisse"
+                      value={formData.username || ""}
+                      onChange={(e) => handleInputChange("username", e.target.value.replace(/\s+/g, ""))}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Sans espace. Utilisé pour la connexion à la caisse.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-password">Nouveau mot de passe</Label>
+                      <Input
+                        id="edit-password"
+                        type="password"
+                        value={formData.password || ""}
+                        onChange={(e) => handleInputChange("password", e.target.value)}
+                        placeholder="Laisser vide pour conserver"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-confirmPassword">Confirmer</Label>
+                      <Input
+                        id="edit-confirmPassword"
+                        type="password"
+                        value={formData.confirmPassword || ""}
+                        onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                        placeholder="Laisser vide"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Rôle dans l'équipe *</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {ROLE_OPTIONS.map((roleOpt) => {
+                    const Icon = roleOpt.icon;
+                    return (
+                      <button
+                        key={roleOpt.value}
+                        type="button"
+                        onClick={() => handleInputChange("role", roleOpt.value)}
+                        className={cn(
+                          "p-3 rounded-lg border-2 text-left transition-all",
+                          formData.role === roleOpt.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-muted-foreground/50"
+                        )}
+                      >
+                        <Icon className={cn("h-5 w-5 mb-2", formData.role === roleOpt.value ? "text-primary" : "text-muted-foreground")} />
+                        <p className="text-sm font-medium">{roleOpt.label}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{roleOpt.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {formData.role === "barber" && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-commission">Taux de commission (%)</Label>
+                  <Input
+                    id="edit-commission"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={formData.commissionRate}
+                    onChange={(e) => handleInputChange("commissionRate", Number(e.target.value))}
+                  />
+                  <p className="text-xs text-muted-foreground">Pourcentage sur les prestations réalisées</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Couleur de l'agenda</Label>
+                <div className="flex flex-wrap gap-2">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setColor(c.value)}
+                      className={cn(
+                        "h-8 px-3 rounded-full text-xs font-medium transition-all border-2",
+                        c.value,
+                        color === c.value ? "border-foreground scale-105" : "border-transparent hover:scale-105"
+                      )}
+                      style={{ backgroundColor: c.color }}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Statut de disponibilité</Label>
+                <Select value={status} onValueChange={(val: any) => setStatus(val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">✅ Actif - Peut être assigné</SelectItem>
+                    <SelectItem value="inactive">⏸️ Inactif - Masqué des plannings</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {services.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Prestations qualifiées</Label>
+                  <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-1 border rounded-md">
+                    {services.map((svc: any) => (
+                      <div key={svc.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-svc-${svc.id}`}
+                          checked={formData.services.includes(svc.id)}
+                          onCheckedChange={() => handleServiceToggle(svc.id)}
+                        />
+                        <Label htmlFor={`edit-svc-${svc.id}`} className="text-sm font-normal cursor-pointer">
+                          {svc.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+                <Button type="submit">Enregistrer</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* DELETE EMPLOYEE DIALOG */}
+        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-destructive" /> Retirer l'employé
+              </DialogTitle>
+              <DialogDescription>
+                Cette action masque l'employé des sélections actives sans supprimer son historique.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="py-2 space-y-3">
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-sm font-medium">{selectedEmployee?.name}</p>
+                <p className="text-xs text-muted-foreground">{selectedEmployee?.email || "Aucun email"}</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Voulez-vous vraiment retirer cet employé ?
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+              <Button variant="destructive" onClick={handleDeleteEmployee}>
+                Retirer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Commission History Dialog */}
         <Dialog open={showCommissions} onOpenChange={setShowCommissions}>

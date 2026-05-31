@@ -10,6 +10,7 @@ export * from "./inventory";
 export * from "./lib";
 export * from "./pages";
 export * from "./pos";
+export * from "./pending-tabs";
 export * from "./printing";
 export * from "./settings";
 export * from "./store";

@@ -20,6 +20,7 @@ export default function Login() {
   const [loginMode, setLoginMode] = useState<"admin" | "employee">("admin");
   const [employeeUsername, setEmployeeUsername] = useState("");
   const [employeePassword, setEmployeePassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { loginEmployee } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -122,7 +123,7 @@ export default function Login() {
         title: "Connexion réussie",
         description: "Bienvenue sur l'espace caisse !",
       });
-      navigate("/salon");
+      navigate("/employee");
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -293,12 +294,6 @@ export default function Login() {
               </TabsContent>
             </Tabs>
 
-            {/* Demo credentials hint */}
-            <div className="mt-8 p-4 bg-muted/60 rounded-xl border border-border/40">
-              <p className="text-xs text-muted-foreground text-center leading-relaxed">
-                <strong>Admin :</strong> Utilisez le compte créé dans Supabase. Pour l'environnement local, le script <code className="bg-background px-1.5 py-0.5 rounded font-bold">create-admin.js</code> configure <code className="bg-background px-1.5 py-0.5 rounded font-bold">admin@wesdsystems.store</code>.
-              </p>
-            </div>
           </div>
         </FadeUp>
       </div>

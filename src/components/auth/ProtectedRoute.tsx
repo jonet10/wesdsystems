@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { canAccessEmployeePos, normalizeEmployeeRole } from "@/lib/employee-role";
 
 type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner";
 
@@ -33,8 +34,10 @@ export function ProtectedRoute({
   allowedRoles,
   allowAuthenticatedWithoutRole = false,
 }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated, profile } = useAuth();
+  const { isLoading, isAuthenticated, profile, employeeSession } = useAuth();
   const location = useLocation();
+  const employeeRole = normalizeEmployeeRole(employeeSession?.role);
+  const hasEmployeeSession = !!employeeSession && !profile && !isAuthenticated;
 
   // Session check not finished yet — show minimal loading screen
   if (isLoading) {
@@ -43,6 +46,28 @@ export function ProtectedRoute({
         Vérification de votre session...
       </div>
     );
+  }
+
+  // Employee sessions are handled separately from Supabase auth.
+  if (hasEmployeeSession) {
+    const path = location.pathname;
+    const isEmployeePosRoute = path === "/salon/pos" || path === "/employee/pos";
+    const isEmployeeReportsRoute = path === "/salon/reports";
+    const isEmployeeRoute = path.startsWith("/employee");
+
+    if (isEmployeePosRoute && canAccessEmployeePos(employeeSession?.role)) {
+      return <>{children}</>;
+    }
+
+    if (isEmployeeReportsRoute && (employeeRole === "cashier" || employeeRole === "manager")) {
+      return <>{children}</>;
+    }
+
+    if (isEmployeeRoute) {
+      return <>{children}</>;
+    }
+
+    return <Navigate to="/employee" replace />;
   }
 
   // Not logged in → back to login

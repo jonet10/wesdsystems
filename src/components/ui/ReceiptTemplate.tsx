@@ -4,7 +4,11 @@ interface ReceiptTemplateProps {
   sale: {
     id?: string;
     sale_number?: string;
+    tab_number?: string;
+    label?: string;
     created_at?: string;
+    opened_at?: string;
+    closed_at?: string;
     payment_method?: string;
     total_amount?: number;
     discount_amount?: number;
@@ -38,6 +42,25 @@ export function ReceiptTemplate({
 }: ReceiptTemplateProps) {
   const subtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
   const totalDiscount = sale?.discount_amount || 0;
+  const isTabReceipt = Boolean(sale?.tab_number);
+  const receiptLabel = isTabReceipt ? `FICHE #${sale?.tab_number}` : `${detailed ? "FACTURE" : "REÇU"} #${sale?.sale_number || sale?.id?.slice(0, 8) || "N/A"}`;
+  const openedAt = sale?.opened_at
+    ? new Date(sale.opened_at).toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : null;
+  const closedAt = sale?.closed_at
+    ? new Date(sale.closed_at).toLocaleString("fr-FR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      })
+    : sale?.created_at
+      ? new Date(sale.created_at).toLocaleString("fr-FR", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        })
+      : `${getTodayFr()} ${getTimeFr()}`;
 
   return (
     <div className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight select-none bg-white">
@@ -60,16 +83,21 @@ export function ReceiptTemplate({
         )}
         <div className="mt-2 pt-2" style={{ borderTop: "1px dashed #ccc" }}>
           <p className="font-bold text-[11px]">
-            {detailed ? "FACTURE" : "REÇU"} #{sale?.sale_number || sale?.id?.slice(0, 8) || "N/A"}
+            {receiptLabel}
           </p>
-          <p className="text-[10px] text-gray-600">
-            {sale?.created_at
-              ? new Date(sale.created_at).toLocaleString("fr-FR", {
-                  day: "2-digit", month: "2-digit", year: "numeric",
-                  hour: "2-digit", minute: "2-digit",
-                })
-              : `${getTodayFr()} ${getTimeFr()}`}
-          </p>
+          <p className="text-[10px] text-gray-600">{closedAt}</p>
+          {isTabReceipt && openedAt && (
+            <p className="text-[9px] text-gray-500">Ouverture: {openedAt}</p>
+          )}
+          {isTabReceipt && sale?.closed_at && (
+            <p className="text-[9px] text-gray-500">Encaissement: {new Date(sale.closed_at).toLocaleString("fr-FR", {
+              day: "2-digit", month: "2-digit", year: "numeric",
+              hour: "2-digit", minute: "2-digit",
+            })}</p>
+          )}
+          {sale?.label && isTabReceipt && (
+            <p className="text-[9px] text-gray-500">Label: {sale.label}</p>
+          )}
           {sale?.cashier_name && (
             <p className="text-[9px] text-gray-500">Caissier: {sale.cashier_name}</p>
           )}

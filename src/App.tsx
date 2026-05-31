@@ -291,6 +291,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/employee/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["employee"]}>
+                      <POSPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/employee/schedule"
                   element={
                     <ProtectedRoute allowedRoles={["employee"]}>
