@@ -460,13 +460,25 @@ export default function ServicesPage() {
     <DashboardLayout role="salon_admin" title="Services" subtitle="Prestations indépendantes des produits" userName="Admin Studio">
       <StaggerContainer className="space-y-6">
         <StaggerItem>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            {["Pédicure", "Manicure", "Coiffure / Beauté"].map((catName) => {
+              const catId = categories.find((c) => c.name === catName)?.id;
+              const count = services.filter((s) => s.category_id === catId || (s.category_id === catName && !catId)).length;
+              return (
+                <div key={catName} className="bg-muted/40 p-4 rounded-xl border border-border/50">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{catName}</p>
+                  <p className="text-3xl font-semibold">{count}</p>
+                </div>
+              );
+            })}
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 max-w-md w-full">
+            <div className="relative flex-1 max-w-xl w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher une prestation..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 w-full" />
+              <Input placeholder="Rechercher une prestation..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 w-full bg-background" />
             </div>
-            <Button onClick={() => { resetForm(); setIsAddOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Nouveau service
+            <Button variant="outline" onClick={() => { resetForm(); setIsAddOpen(true); }} className="gap-2">
+              <Plus className="h-4 w-4" /> Nouveau service
             </Button>
           </div>
         </StaggerItem>
@@ -474,7 +486,7 @@ export default function ServicesPage() {
         <StaggerItem>
           <div className="flex flex-wrap gap-2">
             {categoryList.map((cat) => (
-              <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(cat)}>
+              <Button key={cat} variant={selectedCategory === cat ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(cat)} className="rounded-lg">
                 {cat}
               </Button>
             ))}
@@ -486,13 +498,13 @@ export default function ServicesPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px]">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Service</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Catégorie</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Prix</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Options</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
+                  <tr className="border-b border-border bg-background">
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Service</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Catégorie</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Prix de base</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Options</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Statut</th>
+                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -502,34 +514,36 @@ export default function ServicesPage() {
                     return (
                       <tr key={service.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                         <td className="p-4">
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-sm">{service.name}</span>
-                            {service.metadata?.addon_options?.length ? (
-                              <Badge variant="outline" className="text-[10px]">Options</Badge>
-                            ) : null}
-                          </div>
+                          <span className="font-semibold text-sm">{service.name}</span>
                           {service.description && <p className="text-xs text-muted-foreground mt-1">{service.description}</p>}
                         </td>
-                        <td className="p-4 text-muted-foreground text-sm">{category?.name || "—"}</td>
                         <td className="p-4">
-                          <div className="flex items-center gap-1 font-semibold text-primary text-sm">
-                            <span>{Number(service.price_htg || 0).toFixed(2)} HTG</span>
+                          {category?.name ? (
+                            <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              {category.name}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col font-semibold text-sm">
+                            <span>{Number(service.price_htg || 0)}</span>
+                            <span>HTG</span>
                           </div>
                         </td>
                         <td className="p-4">
                           {serviceAddonOptions.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
                               {serviceAddonOptions.map((option) => (
-                                <Button
+                                <button
                                   key={option.name}
                                   type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 rounded-full px-2.5 text-[11px]"
                                   onClick={() => openOptionConfig(service)}
+                                  className="inline-flex px-2.5 py-1 rounded-full text-[11px] border border-border bg-muted/30 text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
                                 >
-                                  {option.name} +{Number(option.extra_cost || 0).toLocaleString("fr-FR")} HTG
-                                </Button>
+                                  {option.name}
+                                </button>
                               ))}
                             </div>
                           ) : (
@@ -537,15 +551,25 @@ export default function ServicesPage() {
                           )}
                         </td>
                         <td className="p-4">
-                          <Badge variant={service.is_active ? "default" : "secondary"}>{service.is_active ? "Actif" : "Inactif"}</Badge>
+                          {service.is_active ? (
+                            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 text-xs font-semibold">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Actif
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-muted-foreground text-xs font-semibold">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                              Inactif
+                            </div>
+                          )}
                         </td>
                         <td className="p-4">
                           <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(service)} className="h-8 w-8 hover:bg-muted">
+                            <Button variant="outline" size="icon" onClick={() => openEdit(service)} className="h-9 w-9">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setSelectedService(service); setIsDeleteOpen(true); }} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="outline" size="icon" onClick={() => { setSelectedService(service); setIsDeleteOpen(true); }} className="h-9 w-9">
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive transition-colors" />
                             </Button>
                           </div>
                         </td>
