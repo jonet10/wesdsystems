@@ -48,7 +48,7 @@ export const DashboardHeader = ({
 }: DashboardHeaderProps) => {
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
-  const [notifications, setNotifications] = useState<Array<{id: string; title: string; read: boolean}>>([]);
+  const [notifications, setNotifications] = useState<Array<{id: string; title: string; message: string; read: boolean; created_at: string}>>([]);
   
   const { currency, setCurrency } = useCurrency();
   const { profile } = useAuth();
@@ -62,30 +62,43 @@ export const DashboardHeader = ({
   const unreadCount = notifications.filter(n => !n.read).length;
 
   useEffect(() => {
-    // Subscribe to real-time notifications via Supabase
+    let mounted = true;
     const channel = supabase
-      .channel('notifications')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
-          setNotifications(prev => [payload.new as any, ...prev]);
+          const next = payload.new as any;
+          if (!mounted) return;
+          setNotifications((prev) => [next, ...prev]);
         }
       )
       .subscribe();
-    
-    // Load initial notifications
+
     const loadNotifications = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData.user?.id;
+      const roleFilter = profile?.role || userRole || "employee";
+      if (!currentUserId) return;
+
       const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .from("notifications")
+        .select("id, title, message, read, created_at")
+        .or(`user_id.eq.${currentUserId},recipient_role.eq.${roleFilter},recipient_role.eq.all`)
+        .order("created_at", { ascending: false })
         .limit(10);
-      if (data) setNotifications(data);
+
+      if (mounted && data) setNotifications(data as any);
     };
-    loadNotifications();
-    
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+
+    void loadNotifications();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.role, userRole]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -93,10 +106,15 @@ export const DashboardHeader = ({
   };
 
   const handleMarkAllRead = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUserId = userData.user?.id;
+    const roleFilter = profile?.role || userRole || "employee";
+    if (!currentUserId) return;
+
     await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ read: true })
-      .eq('user_id', supabase.auth.user()?.id);
+      .or(`user_id.eq.${currentUserId},recipient_role.eq.${roleFilter},recipient_role.eq.all`);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
@@ -265,8 +283,17 @@ export const DashboardHeader = ({
                   >
                     <div>
                       <p className="text-sm font-medium">{notif.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {notif.message}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(notif.id).toLocaleTimeString('fr-HT', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(notif.created_at).toLocaleString('fr-HT', {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </DropdownMenuItem>

@@ -181,9 +181,15 @@ export default function PartnerRegister() {
               <p className="text-sm text-muted-foreground">Votre inscription partenaire est bien enregistrée.</p>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-6">
-            Un administrateur va examiner votre dossier. Une fois approuvé, votre code partenaire et votre lien de parrainage seront générés automatiquement.
-          </p>
+          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+            Votre demande de partenariat a bien été reçue.
+            <br />
+            <br />
+            Notre équipe va analyser votre dossier.
+            <br />
+            <br />
+            Vous recevrez une notification dès que votre demande sera approuvée ou refusée.
+          </div>
           <div className="flex gap-3 flex-wrap">
             <Button onClick={() => navigate("/auth/login")} className="gap-2">
               <ArrowRight className="h-4 w-4" />

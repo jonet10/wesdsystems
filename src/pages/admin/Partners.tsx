@@ -463,25 +463,23 @@ export default function SuperAdminPartnersPage() {
 
   const setPartnerStatus = async (partner: PartnerRow, status: PartnerStatus) => {
     try {
-      if (status === "approved" || status === "active") {
-        const { error } = await supabase.rpc("approve_partner_application", {
-          p_partner_id: partner.id,
-          p_partner_tier_id: partner.partner_tier_id || null,
-        });
-        if (error) throw error;
-        toast.success("Partenaire approuvé et code généré.");
-      } else {
-        const { error } = await supabase
-          .from("partners")
-          .update({
-            status,
-            approved_at: null,
-            approved_by: null,
-          })
-          .eq("id", partner.id);
-        if (error) throw error;
-        toast.success(`Statut passe a ${status}.`);
-      }
+      const rpcName =
+        status === "approved" || status === "active"
+          ? "approve_partner_application"
+          : status === "rejected"
+            ? "reject_partner_application"
+            : "suspend_partner_application";
+
+      const payload =
+        status === "approved" || status === "active"
+          ? { p_partner_id: partner.id, p_partner_tier_id: partner.partner_tier_id || null }
+          : status === "rejected"
+            ? { p_partner_id: partner.id, p_rejection_reason: null }
+            : { p_partner_id: partner.id };
+
+      const { error } = await supabase.rpc(rpcName, payload as any);
+      if (error) throw error;
+      toast.success(status === "approved" || status === "active" ? "Partenaire approuvé et code généré." : `Statut passe a ${status}.`);
       await loadData();
     } catch (error: any) {
       toast.error(error.message || "Impossible de mettre à jour le partenaire.");

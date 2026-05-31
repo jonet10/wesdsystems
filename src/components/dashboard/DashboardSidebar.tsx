@@ -59,6 +59,7 @@ const superAdminItems: SidebarItem[] = [
   { icon: CreditCard, label: "Abonnements", path: "/admin/subscriptions", role: "all" },
   { icon: LibraryBig, label: "Catalogue", path: "/admin/catalog", role: "all" },
   { icon: Handshake, label: "Partenaires", path: "/admin/partners", role: "all" },
+  { icon: Bell, label: "Demandes partenaires", path: "/admin/partners/applications", role: "all" },
   { icon: Settings, label: "Paramètres", path: "/admin/settings", role: "all" },
 ];
 

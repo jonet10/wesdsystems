@@ -20,6 +20,7 @@ import SuperAdminSalons from "./pages/admin/Salons";
 import SuperAdminCatalog from "./pages/admin/Catalog";
 import SuperAdminSubscriptions from "./pages/admin/Subscriptions";
 import SuperAdminPartners from "./pages/admin/Partners";
+import SuperAdminPartnerApplications from "./pages/admin/PartnerApplications";
 import SuperAdminSettings from "./pages/admin/Settings";
 import SalonDashboard from "./pages/salon/Dashboard";
 import ClientsPage from "./pages/salon/Clients";
@@ -101,6 +102,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
                       <SuperAdminPartners />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/partners/applications"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminPartnerApplications />
                     </ProtectedRoute>
                   }
                 />

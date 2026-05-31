@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { glowupStore, Salon } from "@/lib/store";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -20,6 +22,7 @@ export default function SuperAdminDashboard() {
 
   const [recentSalons, setRecentSalons] = useState<Salon[]>([]);
   const [subStats, setSubStats] = useState({ active: 0, expiring: 0, expired: 0 });
+  const [partnerStats, setPartnerStats] = useState({ pending: 0, approved: 0, rejected: 0, suspended: 0 });
 
   const loadData = async () => {
     const salons = glowupStore.getSalons();
@@ -34,11 +37,12 @@ export default function SuperAdminDashboard() {
     const expired = salons.filter(s => s.status === "expired").length;
     setSubStats({ active, expiring, expired });
 
-    const [{ data: businesses }, { data: subscriptions }, { data: branches }, { data: plans }] = await Promise.all([
+    const [{ data: businesses }, { data: subscriptions }, { data: branches }, { data: plans }, { data: partnerRows }] = await Promise.all([
       supabase.from("businesses").select("id, name, owner, status, created_at").order("created_at", { ascending: false }).limit(25),
       supabase.from("business_subscriptions").select("business_id, plan_id, status, price_snapshot, created_at").order("created_at", { ascending: false }),
       supabase.from("business_branches").select("id, business_id, active").order("created_at", { ascending: false }),
       supabase.from("subscription_plans").select("id, name, monthly_price, active"),
+      supabase.from("partners").select("status"),
     ]);
 
     if (businesses && businesses.length > 0) {
@@ -63,6 +67,13 @@ export default function SuperAdminDashboard() {
     }, 0);
     const displaySalonsActifs = activeSubscriptions.length;
     const displayUsers = (branches || []).filter((branch: any) => branch.active !== false).length * 5;
+    const partnerData = (partnerRows || []) as Array<{ status: string | null }>;
+    setPartnerStats({
+      pending: partnerData.filter((row) => row.status === "pending").length,
+      approved: partnerData.filter((row) => row.status === "approved" || row.status === "active").length,
+      rejected: partnerData.filter((row) => row.status === "rejected").length,
+      suspended: partnerData.filter((row) => row.status === "suspended").length,
+    });
 
     setStats([
       { title: "Salons actifs", value: displaySalonsActifs.toLocaleString(), icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
@@ -96,6 +107,50 @@ export default function SuperAdminDashboard() {
               <StatCard key={index} {...stat} />
             ))}
           </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <div>
+                <CardTitle className="text-sm text-muted-foreground">Demandes Partenaires</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">Vue rapide sur les candidatures à valider</p>
+              </div>
+              {partnerStats.pending > 0 ? (
+                <Badge variant="destructive" className="gap-1">
+                  🔔 Nouvelle demande partenaire
+                </Badge>
+              ) : (
+                <Badge variant="outline">Aucune alerte</Badge>
+              )}
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-2xl font-bold">{partnerStats.pending}</p>
+                <p className="text-xs text-muted-foreground">Total en attente</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-success">{partnerStats.approved}</p>
+                <p className="text-xs text-muted-foreground">Total approuvées</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-destructive">{partnerStats.rejected}</p>
+                <p className="text-xs text-muted-foreground">Total refusées</p>
+              </div>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-2xl font-bold">{partnerStats.suspended}</p>
+                  <p className="text-xs text-muted-foreground">Total suspendues</p>
+                </div>
+                <Link to="/admin/partners/applications">
+                  <Button variant="outline" size="sm">
+                    <Handshake className="mr-2 h-4 w-4" />
+                    Voir la file
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </StaggerItem>
 
         {/* Recent Salons */}
