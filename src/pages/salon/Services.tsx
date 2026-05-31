@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
-import { Search, Plus, Clock, Pencil, Trash2, Scissors } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Scissors } from "lucide-react";
 
 type ServiceCategory = {
   id: string;
@@ -26,7 +26,6 @@ type SalonService = {
   id: string;
   name: string;
   description?: string | null;
-  duration_minutes: number;
   price_htg: number;
   category_id?: string | null;
   is_active: boolean;
@@ -35,6 +34,7 @@ type SalonService = {
 };
 
 const FALLBACK_CATEGORIES = ["Pédicure", "Manicure", "Coiffure / Beauté"];
+const DEFAULT_SERVICE_DURATION = 30;
 
 const DEFAULT_SERVICE_CATEGORIES = [
   {
@@ -136,7 +136,6 @@ export default function ServicesPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [duration, setDuration] = useState(60);
   const [price, setPrice] = useState(0);
   const [categoryName, setCategoryName] = useState("Pédicure");
   const [active, setActive] = useState(true);
@@ -218,7 +217,7 @@ export default function ServicesPage() {
               : seed.category_code === "COIFFURE / BEAUTÉ" && seed.name === "Lavage simple"
                 ? "Prestation de coiffure / beauté"
                 : null,
-        duration_minutes: seed.duration_minutes,
+        duration_minutes: DEFAULT_SERVICE_DURATION,
         price_htg: seed.price_htg,
         price_currency: "HTG",
         commission_percentage: 0,
@@ -250,7 +249,7 @@ export default function ServicesPage() {
           .order("sort_order"),
         supabase
           .from("salon_services")
-          .select("id, name, description, duration_minutes, price_htg, category_id, is_active, sort_order, metadata")
+          .select("id, name, description, price_htg, category_id, is_active, sort_order, metadata")
           .eq("branch_id", branchIdToUse)
           .order("sort_order"),
       ]);
@@ -271,7 +270,7 @@ export default function ServicesPage() {
             .order("sort_order"),
           supabase
             .from("salon_services")
-            .select("id, name, description, duration_minutes, price_htg, category_id, is_active, sort_order, metadata")
+            .select("id, name, description, price_htg, category_id, is_active, sort_order, metadata")
             .eq("branch_id", branchIdToUse)
             .order("sort_order"),
         ]);
@@ -300,7 +299,6 @@ export default function ServicesPage() {
     setSelectedService(null);
     setName("");
     setDescription("");
-    setDuration(60);
     setPrice(0);
     setCategoryName("Pédicure");
     setActive(true);
@@ -325,7 +323,6 @@ export default function ServicesPage() {
     setSelectedService(service);
     setName(service.name);
     setDescription(service.description || "");
-    setDuration(service.duration_minutes);
     setPrice(Number(service.price_htg || 0));
     const category = categories.find((cat) => cat.id === service.category_id);
     setCategoryName(category?.name || "Pédicure");
@@ -347,7 +344,7 @@ export default function ServicesPage() {
       category_id: category.id,
       name: name.trim(),
       description: description.trim() || null,
-      duration_minutes: Number(duration || 0),
+      duration_minutes: DEFAULT_SERVICE_DURATION,
       price_htg: Number(price || 0),
       is_active: active,
       metadata: {
@@ -432,7 +429,6 @@ export default function ServicesPage() {
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Service</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Catégorie</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Durée</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Prix</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
                     <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
@@ -453,12 +449,6 @@ export default function ServicesPage() {
                           {service.description && <p className="text-xs text-muted-foreground mt-1">{service.description}</p>}
                         </td>
                         <td className="p-4 text-muted-foreground text-sm">{category?.name || "—"}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                            <Clock className="h-4 w-4" />
-                            <span>{service.duration_minutes} min</span>
-                          </div>
-                        </td>
                         <td className="p-4">
                           <div className="flex items-center gap-1 font-semibold text-primary text-sm">
                             <span>{Number(service.price_htg || 0).toFixed(2)} HTG</span>
@@ -518,10 +508,6 @@ export default function ServicesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Durée (minutes)</Label>
-                  <Input type="number" min="5" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
-                </div>
-                <div className="space-y-2">
                   <Label>Prix (HTG)</Label>
                   <Input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
                 </div>
@@ -569,10 +555,6 @@ export default function ServicesPage() {
                       {categories.map((cat) => <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Durée (minutes)</Label>
-                  <Input type="number" min="5" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label>Prix (HTG)</Label>
