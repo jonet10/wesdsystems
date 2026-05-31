@@ -56,10 +56,22 @@ export function CommissionReport({ businessId }: Props) {
         .neq("status", "cancelled");
 
       if (txns && txns.length > 0) {
-        const { data: employees } = await supabase
-          .from("employees")
-          .select("id, name")
-          .eq("business_id", businessId);
+        const [{ data: branchRows }, { data: legacyBranchRows }] = await Promise.all([
+          supabase.from("business_branches").select("id").eq("business_id", businessId),
+          supabase.from("salon_branches").select("id").eq("business_id", businessId),
+        ]);
+
+        const branchIds = [
+          ...(branchRows || []).map((row: any) => row.id),
+          ...(legacyBranchRows || []).map((row: any) => row.id),
+        ].filter(Boolean);
+
+        const { data: employees } = branchIds.length > 0
+          ? await supabase
+              .from("salon_employees")
+              .select("id, first_name, last_name, branch_id")
+              .in("branch_id", branchIds)
+          : { data: [] as any[] };
 
         const grouped: Record<string, CommissionSummary> = {};
         for (const t of txns) {
@@ -67,7 +79,7 @@ export function CommissionReport({ businessId }: Props) {
             const emp = employees?.find((e: any) => e.id === t.employee_id);
             grouped[t.employee_id] = {
               employee_id: t.employee_id,
-              employee_name: emp?.name || "Inconnu",
+              employee_name: emp ? [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim() : "Inconnu",
               total_sales: 0,
               total_commission: 0,
               transaction_count: 0,

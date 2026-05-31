@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CommissionTx {
@@ -108,6 +108,9 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
       <DialogContent className="max-w-lg max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Commission — {employeeName}</DialogTitle>
+          <DialogDescription>
+            Consultez l'historique des commissions calculées pour cet employé.
+          </DialogDescription>
         </DialogHeader>
         {content}
       </DialogContent>

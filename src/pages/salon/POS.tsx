@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,7 +20,7 @@ import {
   Beer, Gift, Percent, Tag, Barcode, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
+import { useActiveBranchId } from "@/lib/branch";
 import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
 import {
@@ -34,6 +34,7 @@ import {
 import type { PaymentMethod } from "@/modules/salon/types";
 import type { PaymentSplit } from "@/modules/salon/pos";
 import { recordStockMovement } from "@/modules/salon/inventory";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 
 interface CatalogItem {
   id: string;
@@ -89,7 +90,11 @@ export default function POSPage() {
   const { user, profile: authProfile } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
-  const branchScope = resolveBranchScope(authProfile?.business_id, branchId);
+  const { data: branches = [] } = useBusinessBranches();
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
   const [beverages, setBeverages] = useState<CatalogItem[]>([]);
@@ -119,19 +124,24 @@ export default function POSPage() {
     name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678",
   });
 
-  const loadData = async () => {
+  const loadData = async (branchIdToUse: string | null) => {
     try {
+      if (!branchIdToUse) {
+        setProducts([]);
+        setServices([]);
+        setBeverages([]);
+        setPromotions([]);
+        return;
+      }
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
       let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, duration_minutes").eq("is_active", true);
       let beveragesQuery = supabase.from("salon_beverages").select("id, name, unit_price, brand, total_units_available, barcode").eq("is_active", true);
       let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
 
-      if (branchScope) {
-        productsQuery = productsQuery.eq("branch_id", branchScope);
-        servicesQuery = servicesQuery.eq("branch_id", branchScope);
-        beveragesQuery = beveragesQuery.eq("branch_id", branchScope);
-        promotionsQuery = promotionsQuery.eq("branch_id", branchScope);
-      }
+      productsQuery = productsQuery.eq("branch_id", branchIdToUse);
+      servicesQuery = servicesQuery.eq("branch_id", branchIdToUse);
+      beveragesQuery = beveragesQuery.eq("branch_id", branchIdToUse);
+      promotionsQuery = promotionsQuery.eq("branch_id", branchIdToUse);
 
       const [{ data: p }, { data: s }, { data: b }, { data: promos }] = await Promise.all([
         productsQuery.order("name"),
@@ -151,10 +161,22 @@ export default function POSPage() {
 
   const loadEmployees = async () => {
     try {
-      let query = supabase.from("employees").select("id, name").eq("is_active", true);
-      if (branchScope) query = query.eq("branch_id", branchScope);
-      const { data: emp } = await query.order("name");
-      if (emp) setEmployees(emp as EmployeeInfo[]);
+      if (!activeBranchId) {
+        setEmployees([]);
+        return;
+      }
+      const { data: emp } = await supabase
+        .from("salon_employees")
+        .select("id, first_name, last_name")
+        .eq("is_active", true)
+        .eq("branch_id", activeBranchId)
+        .order("first_name");
+      if (emp) {
+        setEmployees((emp || []).map((row: any) => ({
+          id: row.id,
+          name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
+        })));
+      }
     } catch {}
   };
 
@@ -185,10 +207,10 @@ export default function POSPage() {
   };
 
   useEffect(() => {
-    void loadData();
+    void loadData(activeBranchId);
     void loadEmployees();
     void loadBusinessInfo();
-  }, [user, branchScope]);
+  }, [user, activeBranchId]);
 
   const detectPromotions = (cartItems: CartItem[]): CartItem[] => {
     return cartItems.map(item => {
@@ -274,13 +296,13 @@ export default function POSPage() {
     if (global) return { type: global.rate_type, value: Number(global.rate_value) };
 
     const { data: emp } = await supabase
-      .from("employees")
-      .select("commission_rate")
+      .from("salon_employees")
+      .select("commission_percentage")
       .eq("id", employeeId)
       .maybeSingle();
 
-    if (emp?.commission_rate) {
-      return { type: "percentage", value: Number(emp.commission_rate) };
+    if (emp?.commission_percentage) {
+      return { type: "percentage", value: Number(emp.commission_percentage) };
     }
 
     return null;
@@ -300,11 +322,15 @@ export default function POSPage() {
         businessId = profileRow?.business_id ?? null;
       }
 
+      if (!activeBranchId) {
+        throw new Error("Sélectionnez une branche avant d'encaisser");
+      }
+
       const { data: sale, error: saleError } = await supabase
         .from("salon_sales")
         .insert([{
           business_id: businessId,
-          branch_id: branchScope,
+          branch_id: activeBranchId,
           customer_name: customerName || null,
           payment_method: paymentMethod === "mixed" ? "cash" : paymentMethod,
           total_amount: total,
@@ -321,7 +347,7 @@ export default function POSPage() {
 
       const items = cart.map(i => ({
         sale_id: sale.id,
-        branch_id: branchScope,
+        branch_id: activeBranchId,
         ...(i.type === "product" ? { product_id: i.item_id } : {}),
         ...(i.type === "service" ? { service_id: i.item_id } : {}),
         ...(i.type === "beverage" ? { beverage_id: i.item_id } : {}),
@@ -338,7 +364,7 @@ export default function POSPage() {
           resolvedPaymentSplits.map((split) => ({
               sale_id: sale.id,
               business_id: businessId,
-              branch_id: branchScope,
+              branch_id: activeBranchId,
               payment_method: split.method,
               amount: split.amount,
               currency_code: currencyCode,
@@ -363,7 +389,7 @@ export default function POSPage() {
           if (businessId) {
             await recordStockMovement({
               business_id: businessId,
-              branch_id: branchScope,
+              branch_id: activeBranchId,
               product_id: item.item_id,
               movement_type: "sale",
               quantity_delta: -item.quantity,
@@ -382,7 +408,7 @@ export default function POSPage() {
           if (businessId) {
             await recordStockMovement({
               business_id: businessId,
-              branch_id: branchScope,
+              branch_id: activeBranchId,
               beverage_id: item.item_id,
               movement_type: "sale",
               quantity_delta: -item.quantity,
@@ -406,7 +432,7 @@ export default function POSPage() {
 
               await supabase.from("commission_transactions").insert({
                 business_id: businessId,
-                branch_id: branchScope,
+                branch_id: activeBranchId,
                 employee_id: selectedEmployee,
                 sale_id: sale.id,
                 service_id: item.item_id,
@@ -711,6 +737,9 @@ export default function POSPage() {
                 </Button>
               </div>
             </DialogTitle>
+            <DialogDescription>
+              Consultez le reçu de la vente enregistrée et téléchargez une copie PDF.
+            </DialogDescription>
           </DialogHeader>
 
           <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden border">

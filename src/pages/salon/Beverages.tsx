@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
+import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   Beer,
@@ -34,6 +35,7 @@ import {
 } from "lucide-react";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { calculatePackagingEconomics, normalizePackagingQuantity } from "@/lib/packaging";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 
 interface Beverage {
   id: string;
@@ -101,7 +103,11 @@ export default function BeveragesPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
-  const branchScope = resolveBranchScope(profile?.business_id, branchId);
+  const { data: branches = [] } = useBusinessBranches();
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
   const [beverages, setBeverages] = useState<Beverage[]>([]);
   const [masterCategories, setMasterCategories] = useState<MasterCategory[]>([]);
   const [masterBeverages, setMasterBeverages] = useState<MasterBeverage[]>([]);
@@ -117,15 +123,18 @@ export default function BeveragesPage() {
   const [addCases, setAddCases] = useState("1");
   const [addUnits, setAddUnits] = useState("0");
 
-  const loadBeverages = async () => {
+  const loadBeverages = async (branchIdToUse: string | null) => {
     try {
       setLoading(true);
       const [beverageRes, categoryRes, masterBeverageRes] = await Promise.all([
-        supabase
-          .from("salon_beverages")
-          .select("*")
-          .eq("is_active", true)
-          .order("name"),
+        branchIdToUse
+          ? supabase
+              .from("salon_beverages")
+              .select("*")
+              .eq("is_active", true)
+              .eq("branch_id", branchIdToUse)
+              .order("name")
+          : Promise.resolve({ data: [], error: null }),
         supabase
           .from("master_beverage_categories")
           .select("id, name, slug, active")
@@ -138,11 +147,11 @@ export default function BeveragesPage() {
           .order("sort_order"),
       ]);
 
-      if (beverageRes.error) throw beverageRes.error;
+      if (beverageRes && "error" in beverageRes && beverageRes.error) throw beverageRes.error;
       if (categoryRes.error) throw categoryRes.error;
       if (masterBeverageRes.error) throw masterBeverageRes.error;
 
-      setBeverages((beverageRes.data || []) as Beverage[]);
+      setBeverages((beverageRes && "data" in beverageRes ? beverageRes.data : []) as Beverage[]);
       setMasterCategories((categoryRes.data || []) as MasterCategory[]);
       setMasterBeverages((masterBeverageRes.data || []) as MasterBeverage[]);
     } catch (err: any) {
@@ -153,8 +162,8 @@ export default function BeveragesPage() {
   };
 
   useEffect(() => {
-    void loadBeverages();
-  }, [branchScope]);
+    void loadBeverages(activeBranchId);
+  }, [activeBranchId]);
 
   const resetForm = () => {
     setEditing(null);
@@ -242,16 +251,19 @@ export default function BeveragesPage() {
         if (error) throw error;
         toast.success("Boisson modifiée");
       } else {
+        if (!activeBranchId) {
+          throw new Error("Sélectionnez une branche avant d'ajouter une boisson");
+        }
         const { error } = await supabase.from("salon_beverages").insert([{
           ...payload,
-          branch_id: branchScope,
+          branch_id: activeBranchId,
         }]);
         if (error) throw error;
         toast.success("Boisson ajoutée");
       }
       setOpen(false);
       resetForm();
-      await loadBeverages();
+      await loadBeverages(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible d'enregistrer la boisson");
     }
@@ -262,7 +274,7 @@ export default function BeveragesPage() {
       const { error } = await supabase.from("salon_beverages").update({ is_active: false }).eq("id", b.id);
       if (error) throw error;
       toast.success("Boisson supprimée");
-      await loadBeverages();
+      await loadBeverages(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible de supprimer la boisson");
     }
@@ -292,23 +304,23 @@ export default function BeveragesPage() {
       if (error) throw error;
       toast.success(`Stock mis à jour: +${cases} caisse(s), +${units} unité(s)`);
       setOpenStock(false);
-      await loadBeverages();
+      await loadBeverages(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible de mettre à jour le stock");
     }
   };
 
   const importCatalog = async () => {
-    if (!branchScope) return toast.error("Sélectionnez une branche");
+    if (!activeBranchId) return toast.error("Sélectionnez une branche");
     setImporting(true);
     try {
       const { data, error } = await supabase.rpc("import_standard_beverage_catalog", {
-        p_branch_id: branchScope,
+        p_branch_id: activeBranchId,
         p_include_salon_products: true,
       });
       if (error) throw error;
       toast.success(`${data || 0} boisson(s) importée(s) depuis le catalogue.`);
-      await loadBeverages();
+      await loadBeverages(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible d'importer le catalogue");
     } finally {
@@ -393,7 +405,7 @@ export default function BeveragesPage() {
                 Remplissez votre branche avec les boissons haïtiennes préconfigurées en un clic.
               </p>
             </div>
-            <Button onClick={importCatalog} disabled={importing || !branchScope} variant="outline">
+            <Button onClick={importCatalog} disabled={importing || !activeBranchId} variant="outline">
               <Download className="mr-2 h-4 w-4" />
               {importing ? "Import..." : "Importer le catalogue"}
             </Button>
@@ -500,6 +512,9 @@ export default function BeveragesPage() {
         <DialogContent className="sm:max-w-[760px] max-h-[calc(100vh-1rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier la boisson" : "Nouvelle boisson"}</DialogTitle>
+            <DialogDescription>
+              Ajoutez une boisson au catalogue du salon ou créez une référence personnalisée.
+            </DialogDescription>
           </DialogHeader>
           <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 space-y-4 py-4">
             <div className="flex items-center justify-between rounded-lg border p-3">
@@ -657,6 +672,9 @@ export default function BeveragesPage() {
         <DialogContent className="sm:max-w-[420px] max-h-[calc(100vh-1rem)] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Ajouter du stock — {stockAction?.name}</DialogTitle>
+            <DialogDescription>
+              Ajoutez des caisses ou des unités libres à cette boisson.
+            </DialogDescription>
           </DialogHeader>
           <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1 py-4 space-y-4">
             <div className="bg-muted/40 rounded-lg p-3 text-sm">
