@@ -56,7 +56,13 @@ export default function AppointmentsPage() {
   const clients = useMemo(() => {
     if (clientsDb && clientsDb.length > 0) {
       return clientsDb.map((c: any) => ({
-        id: c.id, name: c.full_name, email: c.email || "", phone: c.phone_number || "", lastVisit: "Jamais", visits: 0, totalSpent: c.total_spent ? format(c.total_spent) : format(0)
+        id: c.id,
+        name: c.full_name || c.name || "",
+        email: c.email || "",
+        phone: c.phone_number || c.phone || "",
+        lastVisit: "Jamais",
+        visits: 0,
+        totalSpent: c.total_spent ? format(c.total_spent) : format(0),
       }));
     }
     return localClients.map(c => {
@@ -96,7 +102,7 @@ export default function AppointmentsPage() {
   const [isOpen, setIsOpen] = useState(false);
 
   // Form Fields
-  const [selectedClientName, setSelectedClientName] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startTime, setStartTime] = useState("9"); // decimal hour as string
@@ -129,11 +135,12 @@ export default function AppointmentsPage() {
 
   const handleBooking = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClientName || !selectedServiceId || !selectedEmpId || !startTime) {
+    if (!selectedClientId || !selectedServiceId || !selectedEmpId || !startTime) {
       toast.error("Veuillez remplir tous les champs requis.");
       return;
     }
 
+    const selectedClient = clients.find((client) => client.id === selectedClientId);
     const service = services.find((s: any) => s.id === selectedServiceId);
     if (!service) return;
 
@@ -159,7 +166,7 @@ export default function AppointmentsPage() {
 
     if (isAuthenticated) {
       insertAppointment.mutate({
-        client_id: selectedClientName, // Using name as ID for demo mapping
+        client_id: selectedClientId,
         service_id: service.name,
         employee_id: selectedEmpId,
         scheduled_at: new Date(bookingDate).toISOString(),
@@ -167,7 +174,7 @@ export default function AppointmentsPage() {
         amount: service.price
       }, {
         onSuccess: () => {
-          toast.success(`Le rendez-vous pour ${selectedClientName} a été réservé !`);
+          toast.success(`Le rendez-vous pour ${selectedClient?.name || "le client"} a été réservé !`);
           setIsOpen(false);
           setCurrentDate(new Date(bookingDate));
           resetForm();
@@ -176,14 +183,14 @@ export default function AppointmentsPage() {
       });
     } else {
       glowupStore.addAppointment({
-        clientName: selectedClientName,
+        clientName: selectedClient?.name || selectedClientId,
         serviceName: service.name,
         employeeId: selectedEmpId,
         date: bookingDate,
         startHour: startHourNum,
         duration: durationHours,
       });
-      toast.success(`Le rendez-vous pour ${selectedClientName} a été réservé (Local) !`);
+      toast.success(`Le rendez-vous pour ${selectedClient?.name || "le client"} a été réservé (Local) !`);
       setIsOpen(false);
       setCurrentDate(new Date(bookingDate));
       resetForm();
@@ -191,7 +198,7 @@ export default function AppointmentsPage() {
   };
 
   const resetForm = () => {
-    setSelectedClientName("");
+    setSelectedClientId("");
     setSelectedServiceId("");
     setSelectedEmpId("");
     setStartTime("9");
@@ -351,13 +358,13 @@ export default function AppointmentsPage() {
             {/* Client input */}
             <div className="space-y-2">
               <Label htmlFor="booking-client">Client *</Label>
-              <Select value={selectedClientName} onValueChange={setSelectedClientName}>
+              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
                 <SelectTrigger id="booking-client">
                   <SelectValue placeholder="Sélectionner un client" />
                 </SelectTrigger>
                 <SelectContent>
                   {clients.map(c => (
-                    <SelectItem key={c.id} value={c.name}>
+                    <SelectItem key={c.id} value={c.id}>
                       <div className="flex items-center gap-2">
                         <User className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{c.name} ({c.phone})</span>

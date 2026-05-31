@@ -39,17 +39,19 @@ export default function ClientsPage() {
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, []);
 
+  const normalizeClientRow = (client: any): Client => ({
+    id: client.id,
+    name: client.full_name || client.name || "",
+    email: client.email || "",
+    phone: client.phone_number || client.phone || "",
+    lastVisit: "Jamais",
+    visits: 0,
+    totalSpent: client.total_spent ? format(client.total_spent) : format(0),
+  });
+
   const clients = useMemo(() => {
     if (clientsDb && clientsDb.length > 0) {
-      return clientsDb.map((c: any) => ({
-        id: c.id,
-        name: c.full_name,
-        email: c.email || "",
-        phone: c.phone_number || "",
-        lastVisit: "Jamais",
-        visits: 0,
-        totalSpent: c.total_spent ? format(c.total_spent) : format(0)
-      }));
+      return clientsDb.map(normalizeClientRow);
     }
     return localClients.map(c => {
       // Local client 'totalSpent' might be stored as "540€" string. Let's parse it and format it dynamically.

@@ -168,7 +168,7 @@ export default function POSPage() {
           const info: BusinessInfo = {
             name: biz.name || "Mon Salon",
             address: biz.address || "",
-            phone: biz.phone || "",
+            phone: biz.phone || biz.phone_number || "",
             logo_url: biz.logo_url,
           };
           const { data: ext } = await supabase.from("salon_business_profiles").select("*").eq("business_id", prof.business_id).maybeSingle();

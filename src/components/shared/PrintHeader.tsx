@@ -35,7 +35,7 @@ export function PrintHeader() {
           if (biz) {
             setBusiness({
               name: biz.name || "GlowUp Salon",
-              phone: biz.phone_number || "+33 6 12 34 56 78",
+              phone: biz.phone || biz.phone_number || "+33 6 12 34 56 78",
               email: biz.email || "contact@glowup.com",
               address: biz.address || "15 Rue de la Paix, 75002 Paris",
               logo_url: biz.logo_url,

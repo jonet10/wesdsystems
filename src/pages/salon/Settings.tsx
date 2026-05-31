@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,34 @@ interface BusinessDay {
   isOpen: boolean;
   openTime: string;
   closeTime: string;
+}
+
+interface BusinessRow {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
+  logo_url?: string | null;
+  currency_code?: string | null;
+}
+
+interface SalonBusinessProfileRow {
+  id: string;
+  business_id: string;
+  slogan?: string | null;
+  whatsapp?: string | null;
+  tax_number?: string | null;
+  website?: string | null;
+}
+
+interface SalonBusinessHourRow {
+  id: string;
+  day_of_week: number;
+  is_open: boolean;
+  open_time: string;
+  close_time: string;
 }
 
 const DAYS_OF_WEEK: { label: string; index: number }[] = [
@@ -47,6 +75,31 @@ export default function SalonSettingsPage() {
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+
+  const persistBusinessPatch = useCallback(
+    async (patch: Partial<Pick<BusinessRow, "name" | "email" | "phone" | "address" | "logo_url" | "currency_code">>) => {
+      const targetBusinessId = profile?.business_id ?? businessId;
+      if (!isAuthenticated || !user?.id || !targetBusinessId) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from("businesses")
+        .update(patch)
+        .eq("id", targetBusinessId);
+
+      if (error) {
+        console.error("[SalonSettings] Impossible de mettre à jour le business", {
+          businessId: targetBusinessId,
+          patch,
+          error,
+        });
+        throw new Error(error.message);
+      }
+    },
+    [businessId, isAuthenticated, profile?.business_id, user?.id]
+  );
 
   // Business hours
   const [businessDays, setBusinessDays] = useState<BusinessDay[]>(
@@ -76,54 +129,84 @@ export default function SalonSettingsPage() {
       if (!isAuthenticated || !user?.id) return;
 
       try {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("full_name, business_id")
           .eq("id", user.id)
           .maybeSingle();
 
+        if (profileError) {
+          throw new Error(profileError.message);
+        }
+
         if (profileData?.full_name) setOwner(profileData.full_name);
-        if (!profileData?.business_id) return;
+        if (!profileData?.business_id) {
+          console.debug("[SalonSettings] Aucun business_id associé au profil", { userId: user.id });
+          return;
+        }
 
         const bizId = profileData.business_id;
+        setBusinessId(bizId);
 
-        const { data: businessData } = await supabase
+        const { data: businessData, error: businessError } = await supabase
           .from("businesses")
           .select("*")
           .eq("id", bizId)
           .maybeSingle();
 
+        if (businessError) {
+          throw new Error(businessError.message);
+        }
+
         if (businessData) {
           setSalonName(businessData.name || "");
           setLogoUrl(businessData.logo_url || null);
           setEmail(businessData.email || "");
-          setPhone(businessData.phone || "");
+          setPhone(businessData.phone || businessData.phone_number || "");
           setAddress(businessData.address || "");
+          if (!businessData.name || !businessData.address) {
+            console.debug("[SalonSettings] Données business incomplètes détectées", {
+              businessId: bizId,
+              name: businessData.name,
+              address: businessData.address,
+              logoUrl: businessData.logo_url,
+            });
+          }
         }
 
-        const { data: profileData2 } = await supabase
+        const { data: profileData2, error: profile2Error } = await supabase
           .from("salon_business_profiles")
           .select("*")
           .eq("business_id", bizId)
           .maybeSingle();
 
-        if (profileData2) {
-          setSlogan(profileData2.slogan || "");
-          setWhatsapp(profileData2.whatsapp || "");
-          setTaxNumber(profileData2.tax_number || "");
-          setWebsite(profileData2.website || "");
+        if (profile2Error) {
+          throw new Error(profile2Error.message);
         }
 
-        const { data: hoursData } = await supabase
+        if (profileData2) {
+          const ext = profileData2 as SalonBusinessProfileRow;
+          setSlogan(ext.slogan || "");
+          setWhatsapp(ext.whatsapp || "");
+          setTaxNumber(ext.tax_number || "");
+          setWebsite(ext.website || "");
+        }
+
+        const { data: hoursData, error: hoursError } = await supabase
           .from("salon_business_hours")
           .select("*")
           .eq("business_id", bizId)
           .order("day_of_week");
 
+        if (hoursError) {
+          throw new Error(hoursError.message);
+        }
+
         if (hoursData && hoursData.length > 0) {
+          const normalizedHours = hoursData as SalonBusinessHourRow[];
           setBusinessDays(
             DAYS_OF_WEEK.map((d) => {
-              const h = hoursData.find((h: any) => h.day_of_week === d.index);
+              const h = normalizedHours.find((hour) => hour.day_of_week === d.index);
               return {
                 day: d.label,
                 dayIndex: d.index,
@@ -151,53 +234,73 @@ export default function SalonSettingsPage() {
       }
       setIsSaving(true);
       try {
-        await supabase
+        const { error: profileUpdateError } = await supabase
           .from("profiles")
           .update({ full_name: owner.trim() })
           .eq("id", user.id);
 
+        if (profileUpdateError) {
+          throw new Error(profileUpdateError.message);
+        }
+
         if (profile?.business_id) {
           const bizId = profile.business_id;
 
-          await supabase.from("businesses").update({
+          await persistBusinessPatch({
             name: salonName.trim(),
             logo_url: logoUrl,
             email: email.trim(),
             phone: phone.trim(),
             address: address.trim(),
             currency_code: activeCurrencyCode,
-          }).eq("id", bizId);
+          });
 
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile, error: existingProfileError } = await supabase
             .from("salon_business_profiles")
             .select("id")
             .eq("business_id", bizId)
             .maybeSingle();
 
+          if (existingProfileError) {
+            throw new Error(existingProfileError.message);
+          }
+
           if (existingProfile) {
-            await supabase.from("salon_business_profiles").update({
+            const { error: updateProfileError } = await supabase.from("salon_business_profiles").update({
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),
               tax_number: taxNumber.trim(),
               website: website.trim(),
             }).eq("id", existingProfile.id);
+
+            if (updateProfileError) {
+              throw new Error(updateProfileError.message);
+            }
           } else {
-            await supabase.from("salon_business_profiles").insert({
+            const { error: insertProfileError } = await supabase.from("salon_business_profiles").insert({
               business_id: bizId,
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),
               tax_number: taxNumber.trim(),
               website: website.trim(),
             });
+
+            if (insertProfileError) {
+              throw new Error(insertProfileError.message);
+            }
           }
 
           for (const day of businessDays) {
-            const { data: existing } = await supabase
+            const { data: existing, error: lookupError } = await supabase
               .from("salon_business_hours")
               .select("id")
               .eq("business_id", bizId)
               .eq("day_of_week", day.dayIndex)
               .maybeSingle();
+
+            if (lookupError) {
+              throw new Error(lookupError.message);
+            }
 
             const payload = {
               business_id: bizId,
@@ -208,9 +311,15 @@ export default function SalonSettingsPage() {
             };
 
             if (existing) {
-              await supabase.from("salon_business_hours").update(payload).eq("id", existing.id);
+              const { error: updateHoursError } = await supabase.from("salon_business_hours").update(payload).eq("id", existing.id);
+              if (updateHoursError) {
+                throw new Error(updateHoursError.message);
+              }
             } else {
-              await supabase.from("salon_business_hours").insert(payload);
+              const { error: insertHoursError } = await supabase.from("salon_business_hours").insert(payload);
+              if (insertHoursError) {
+                throw new Error(insertHoursError.message);
+              }
             }
           }
         }
@@ -265,8 +374,20 @@ export default function SalonSettingsPage() {
                     <Label className="mb-4 block">Logo de l'entreprise</Label>
                     <ImageUploader
                       currentImageUrl={logoUrl}
-                      onImageUploaded={(url) => setLogoUrl(url)}
-                      onImageDeleted={() => setLogoUrl(null)}
+                      onImageUploaded={(url) => {
+                        setLogoUrl(url);
+                        void persistBusinessPatch({ logo_url: url }).catch((error) => {
+                          console.error("[SalonSettings] Logo non persisté immédiatement", error);
+                          toast.error("Logo téléversé, mais la sauvegarde automatique a échoué.");
+                        });
+                      }}
+                      onImageDeleted={() => {
+                        setLogoUrl(null);
+                        void persistBusinessPatch({ logo_url: null }).catch((error) => {
+                          console.error("[SalonSettings] Suppression du logo non persistée", error);
+                          toast.error("Logo supprimé localement, mais la mise à jour serveur a échoué.");
+                        });
+                      }}
                       bucketName="logos"
                     />
                   </div>

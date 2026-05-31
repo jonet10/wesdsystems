@@ -129,6 +129,18 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
         console.error("Erreur mise à jour de la devise:", err);
       }
     }
+
+    // Keep the business currency in sync so salon/POS/printing screens resolve the same value.
+    if (isAuthenticated && profile?.business_id) {
+      try {
+        await supabase
+          .from('businesses')
+          .update({ currency_code: code })
+          .eq('id', profile.business_id);
+      } catch (err) {
+        console.error("Erreur mise à jour de la devise du business:", err);
+      }
+    }
   }, [availableCurrencies, isAuthenticated, profile]);
 
   const format = useCallback(
