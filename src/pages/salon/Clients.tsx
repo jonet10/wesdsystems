@@ -16,7 +16,9 @@ import {
 import { glowupStore, Client } from "@/lib/store";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
+import { useActiveBranchId } from "@/lib/branch";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PrintHeader } from "@/components/shared/PrintHeader";
 import { Printer } from "lucide-react";
@@ -24,11 +26,43 @@ import { Printer } from "lucide-react";
 export default function ClientsPage() {
   const { isAuthenticated, profile } = useAuth();
 
-  // --- DUAL MODE DATA ---
-  const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
-  const insertClient = useSupabaseInsert<any>('clients', ['clients']);
-  const updateClientDb = useSupabaseUpdate<any>('clients', ['clients']);
-  const deleteClientDb = useSupabaseDelete('clients', ['clients']);
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const { data: branches = [] } = useBusinessBranches();
+  
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((b) => b.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
+
+  const [clientsDb, setClientsDb] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(true);
+
+  const loadClients = async () => {
+    try {
+      setClientsLoading(true);
+      // Charger tous les clients accessibles (RLS Supabase filtre par les droits)
+      const { data, error } = await supabase
+        .from("salon_customers")
+        .select("*")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      setClientsDb(data || []);
+    } catch (err: any) {
+      console.warn("Erreur chargement clients:", err.message);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  // Ne charger qu'une seule fois quand l'utilisateur est authentifié
+  useEffect(() => {
+    if (isAuthenticated) {
+      void loadClients();
+    } else {
+      setClientsLoading(false);
+    }
+  }, [isAuthenticated]); // ← PAS de activeBranchId ici pour éviter les re-chargements
 
   const { currency, format } = useCurrency();
   const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
@@ -41,25 +75,24 @@ export default function ClientsPage() {
 
   const normalizeClientRow = (client: any): Client => ({
     id: client.id,
-    name: client.full_name || client.name || "",
+    name: `${client.first_name || ""} ${client.last_name || ""}`.trim(),
     email: client.email || "",
-    phone: client.phone_number || client.phone || "",
-    lastVisit: "Jamais",
-    visits: 0,
+    phone: client.phone || "",
+    lastVisit: client.last_visit ? new Date(client.last_visit).toLocaleDateString() : "Jamais",
+    visits: client.visit_count || 0,
     totalSpent: client.total_spent ? format(client.total_spent) : format(0),
   });
 
   const clients = useMemo(() => {
-    if (clientsDb && clientsDb.length > 0) {
+    if (isAuthenticated) {
       return clientsDb.map(normalizeClientRow);
     }
     return localClients.map(c => {
-      // Local client 'totalSpent' might be stored as "540€" string. Let's parse it and format it dynamically.
       const rawString = String(c.totalSpent).replace(/[^\d.-]/g, '');
       const amt = parseFloat(rawString);
       return { ...c, totalSpent: format(isNaN(amt) ? 0 : amt) };
     });
-  }, [clientsDb, localClients, format]);
+  }, [clientsDb, localClients, format, isAuthenticated]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
@@ -75,7 +108,7 @@ export default function ClientsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  const handleAddClient = (e: React.FormEvent) => {
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone) {
       toast.error("Veuillez renseigner le nom et le téléphone.");
@@ -83,14 +116,28 @@ export default function ClientsPage() {
     }
     
     if (isAuthenticated) {
-      insertClient.mutate({ full_name: name, email, phone_number: phone, total_spent: 0 }, {
-        onSuccess: () => {
-          toast.success(`Le client "${name}" a été ajouté.`);
-          setIsAddOpen(false);
-          resetForm();
-        },
-        onError: (err) => toast.error(err.message)
-      });
+      if (!activeBranchId) return toast.error("Aucune branche sélectionnée");
+      
+      const parts = name.trim().split(" ");
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(" ");
+      
+      try {
+        const { error } = await supabase.from("salon_customers").insert([{
+          branch_id: activeBranchId,
+          first_name: firstName,
+          last_name: lastName,
+          email: email || null,
+          phone: phone
+        }]);
+        if (error) throw error;
+        toast.success(`Le client "${name}" a été ajouté.`);
+        setIsAddOpen(false);
+        resetForm();
+        void loadClients();
+      } catch (err: any) {
+        toast.error(err.message);
+      }
     } else {
       glowupStore.addClient({ name, email, phone });
       toast.success(`Le client "${name}" a été ajouté (Local).`);
@@ -99,19 +146,31 @@ export default function ClientsPage() {
     }
   };
 
-  const handleEditClient = (e: React.FormEvent) => {
+  const handleEditClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClient || !name || !phone) return;
 
-    if (isAuthenticated && selectedClient.id.includes('-')) { // Supabase UUID
-      updateClientDb.mutate({ id: selectedClient.id, full_name: name, email, phone_number: phone }, {
-        onSuccess: () => {
-          toast.success(`Le profil de "${name}" a été mis à jour.`);
-          setIsEditOpen(false);
-          resetForm();
-        },
-        onError: (err) => toast.error(err.message)
-      });
+    if (isAuthenticated && selectedClient.id.includes('-')) {
+      const parts = name.trim().split(" ");
+      const firstName = parts[0];
+      const lastName = parts.slice(1).join(" ");
+      
+      try {
+        const { error } = await supabase.from("salon_customers").update({
+          first_name: firstName,
+          last_name: lastName,
+          email: email || null,
+          phone: phone
+        }).eq("id", selectedClient.id);
+        
+        if (error) throw error;
+        toast.success(`Le profil de "${name}" a été mis à jour.`);
+        setIsEditOpen(false);
+        resetForm();
+        void loadClients();
+      } catch (err: any) {
+        toast.error(err.message);
+      }
     } else {
       glowupStore.updateClient({ ...selectedClient, name, email, phone });
       toast.success(`Le profil de "${name}" a été mis à jour (Local).`);
@@ -120,18 +179,20 @@ export default function ClientsPage() {
     }
   };
 
-  const handleDeleteClient = () => {
+  const handleDeleteClient = async () => {
     if (!selectedClient) return;
 
     if (isAuthenticated && selectedClient.id.includes('-')) {
-      deleteClientDb.mutate(selectedClient.id, {
-        onSuccess: () => {
-          toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
-          setIsDeleteOpen(false);
-          setSelectedClient(null);
-        },
-        onError: (err) => toast.error(err.message)
-      });
+      try {
+        const { error } = await supabase.from("salon_customers").update({ is_active: false }).eq("id", selectedClient.id);
+        if (error) throw error;
+        toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
+        setIsDeleteOpen(false);
+        setSelectedClient(null);
+        void loadClients();
+      } catch (err: any) {
+        toast.error(err.message);
+      }
     } else {
       glowupStore.deleteClient(selectedClient.id);
       toast.success(`Le client "${selectedClient.name}" a été supprimé (Local).`);

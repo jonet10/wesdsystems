@@ -31,6 +31,9 @@ interface EmployeeForm {
   lastName: string;
   email: string;
   phone?: string;
+  username?: string;
+  password?: string;
+  confirmPassword?: string;
   role: EmployeeRole;
   permissions: {
     canAccessPOS: boolean;
@@ -177,6 +180,8 @@ export default function EmployeesPage() {
   });
   const [color, setColor] = useState("bg-primary");
   const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   const [commissionsEmp, setCommissionsEmp] = useState<{ id: string; name: string } | null>(null);
   const [showCommissions, setShowCommissions] = useState(false);
@@ -185,7 +190,35 @@ export default function EmployeesPage() {
 
   const handleInputChange = (field: keyof EmployeeForm, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'username' && typeof value === 'string') {
+      checkUsername(value);
+    }
   };
+
+  const checkUsername = useMemo(
+    () => {
+      let timer: any;
+      return (val: string) => {
+        if (!val || val.length < 3) {
+          setUsernameAvailable(null);
+          return;
+        }
+        setCheckingUsername(true);
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          if (!activeBranchId) return;
+          const { count } = await supabase
+            .from("salon_employees")
+            .select("id", { count: "exact", head: true })
+            .eq("username", val)
+            .eq("branch_id", activeBranchId);
+          setUsernameAvailable(count === 0);
+          setCheckingUsername(false);
+        }, 500);
+      };
+    },
+    [activeBranchId]
+  );
 
   const handlePermissionToggle = (perm: keyof EmployeeForm['permissions']) => {
     setFormData(prev => ({
@@ -209,6 +242,9 @@ export default function EmployeesPage() {
       lastName: "",
       email: "",
       phone: "",
+      username: "",
+      password: "",
+      confirmPassword: "",
       role: "cashier",
       permissions: {
         canAccessPOS: true,
@@ -234,6 +270,23 @@ export default function EmployeesPage() {
       toast.error("L'email est requis pour créer un compte employé.");
       return;
     }
+    const needsAuth = formData.role === "cashier" || formData.role === "manager";
+    if (needsAuth && (!formData.username || formData.username.length < 3)) {
+      toast.error(`Le nom d'utilisateur est requis (min 3 car.) pour le rôle ${ROLE_OPTIONS.find(r=>r.value===formData.role)?.label}.`);
+      return;
+    }
+    if (formData.username && usernameAvailable === false) {
+      toast.error("Ce nom d'utilisateur est déjà pris.");
+      return;
+    }
+    if (formData.password && formData.password.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères.");
+      return;
+    }
+    if (formData.password && formData.password !== formData.confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas.");
+      return;
+    }
 
     const fullName = `${formData.firstName} ${formData.lastName}`;
 
@@ -255,6 +308,7 @@ export default function EmployeesPage() {
             last_name: formData.lastName,
             email: formData.email,
             phone: formData.phone,
+            username: formData.username?.trim() || null,
             role: dbRole,
             commission_percentage: formData.commissionRate,
             metadata: {
@@ -296,6 +350,14 @@ export default function EmployeesPage() {
             period_start: new Date().toISOString().split("T")[0],
             period_end: new Date().toISOString().split("T")[0],
           }]);
+        }
+
+        // 4. Set local app password (RPC)
+        if (formData.password) {
+          await supabase.rpc('set_employee_password', {
+            p_employee_id: employeeRow.id,
+            p_password: formData.password
+          });
         }
 
         toast.success(`L'employé "${fullName}" a été créé avec succès !`);
@@ -341,6 +403,7 @@ export default function EmployeesPage() {
               last_name: formData.lastName,
               email: formData.email,
               phone: formData.phone,
+              username: formData.username?.trim() || null,
               role: dbRole,
               commission_percentage: formData.commissionRate,
               is_active: status === "active",
@@ -354,6 +417,15 @@ export default function EmployeesPage() {
             .eq("id", selectedEmployee.id);
 
           if (error) throw error;
+
+          // Set local app password (RPC) if provided during edit
+          if (formData.password) {
+            await supabase.rpc('set_employee_password', {
+              p_employee_id: selectedEmployee.id,
+              p_password: formData.password
+            });
+          }
+
           toast.success(`Les détails de "${fullName}" ont été mis à jour.`);
           setIsEditOpen(false);
           resetForm();
@@ -411,6 +483,9 @@ export default function EmployeesPage() {
       lastName: lastNameParts.join(" "),
       email: emp.email || "",
       phone: emp.phone || "",
+      username: emp.username || "",
+      password: "",
+      confirmPassword: "",
       role: emp.role || "cashier",
       permissions: emp.permissions || {
         canAccessPOS: true,
@@ -644,6 +719,77 @@ export default function EmployeesPage() {
                   </div>
                 </>
               )}
+              
+              {/* Accès & connexion */}
+              <div className="space-y-4 pt-2 pb-2 border-t border-b">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h3 className="font-medium">Accès & connexion (Espace Employé)</h3>
+                </div>
+                
+                <div className="space-y-3 pl-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="username" className="flex justify-between">
+                      Nom d'utilisateur {formData.role !== 'barber' && '*'}
+                      {checkingUsername && <span className="text-xs text-muted-foreground animate-pulse">Vérification...</span>}
+                      {!checkingUsername && usernameAvailable === true && formData.username && (
+                        <span className="text-xs text-success font-medium">Disponible ✅</span>
+                      )}
+                      {!checkingUsername && usernameAvailable === false && (
+                        <span className="text-xs text-destructive font-medium">Déjà pris ❌</span>
+                      )}
+                    </Label>
+                    <Input 
+                      id="username"
+                      placeholder="ex: marie_caisse"
+                      value={formData.username || ""}
+                      onChange={(e) => handleInputChange('username', e.target.value.replace(/\s+/g, ''))}
+                    />
+                    <p className="text-[11px] text-muted-foreground">Sans espace. Utilisé pour la connexion à la caisse.</p>
+                  </div>
+
+                  {formData.username && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Mot de passe *</Label>
+                        <Input 
+                          id="password"
+                          type="password"
+                          value={formData.password || ""}
+                          onChange={(e) => handleInputChange('password', e.target.value)}
+                        />
+                        {formData.password && (
+                          <div className="flex gap-1 h-1 mt-1">
+                            <div className={cn("h-full flex-1 rounded-l-full transition-all", formData.password.length > 0 ? "bg-destructive" : "bg-muted")} />
+                            <div className={cn("h-full flex-1 transition-all", formData.password.length >= 6 ? "bg-warning" : "bg-muted")} />
+                            <div className={cn("h-full flex-1 rounded-r-full transition-all", formData.password.length >= 8 && /[A-Z]/.test(formData.password) ? "bg-success" : "bg-muted")} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirmer *</Label>
+                        <Input 
+                          id="confirmPassword"
+                          type="password"
+                          value={formData.confirmPassword || ""}
+                          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        />
+                        {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                          <p className="text-[10px] text-destructive">Les mots de passe ne correspondent pas.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.role === 'barber' && !formData.username && (
+                    <div className="bg-muted/50 p-2.5 rounded-md border border-border/50">
+                      <p className="text-xs text-muted-foreground">
+                        ℹ️ Sans identifiant, cet employé ne pourra pas se connecter à la plateforme.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               {/* Role Selection */}
               <div className="space-y-3">

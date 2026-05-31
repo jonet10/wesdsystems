@@ -1,42 +1,62 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Plus, Clock, Scissors, Calendar as CalendarIcon, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Scissors, Calendar as CalendarIcon, User, Search, X, Pen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { glowupStore, Appointment, Employee, Client, Service } from "@/lib/store";
+import { glowupStore, Appointment, Employee, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabaseQuery, useSupabaseInsert } from "@/hooks/useSupabaseQuery";
+import { supabase } from "@/lib/supabase";
+import { useActiveBranchId } from "@/lib/branch";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
 export default function AppointmentsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const { format, currency } = useCurrency();
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // --- DUAL MODE DATA ---
-  const { data: employeesDb } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
-  const { data: clientsDb } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
-  const { data: servicesDb } = useSupabaseQuery<any>(['salon_services'], 'salon_services', '*', { enabled: isAuthenticated });
-  const { data: appointmentsDb } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
-  const insertAppointment = useSupabaseInsert<any>('transactions', ['transactions']);
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const { data: branches = [] } = useBusinessBranches();
+
+  const activeBranchId = useMemo(() => {
+    const valid = branchId && branches.some(b => b.id === branchId) ? branchId : null;
+    return valid || branches[0]?.id || null;
+  }, [branchId, branches]);
+
+  const [employeesDb, setEmployeesDb] = useState<any[]>([]);
+  const [servicesDb, setServicesDb] = useState<any[]>([]);
+  const [appointmentsDb, setAppointmentsDb] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!activeBranchId || !isAuthenticated) return;
+    const load = async () => {
+      const [empRes, svcRes, aptRes] = await Promise.all([
+        supabase.from("salon_employees").select("*").eq("branch_id", activeBranchId).eq("is_active", true),
+        supabase.from("salon_services").select("*").eq("branch_id", activeBranchId).eq("is_active", true),
+        supabase.from("salon_appointments").select("*").eq("branch_id", activeBranchId).order("appointment_date"),
+      ]);
+      if (!empRes.error) setEmployeesDb(empRes.data || []);
+      if (!svcRes.error) setServicesDb(svcRes.data || []);
+      if (!aptRes.error) setAppointmentsDb(aptRes.data || []);
+    };
+    void load();
+  }, [activeBranchId, isAuthenticated]);
 
   const [localEmployees, setLocalEmployees] = useState<Employee[]>(glowupStore.getEmployees().filter(e => e.status === "active"));
-  const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
   const [localServices, setLocalServices] = useState<Service[]>(glowupStore.getServices());
   const [localAppointments, setLocalAppointments] = useState<Appointment[]>(glowupStore.getAppointments());
 
   useEffect(() => {
     const handleUpdate = () => {
       setLocalEmployees(glowupStore.getEmployees().filter(e => e.status === "active"));
-      setLocalClients(glowupStore.getClients());
       setLocalServices(glowupStore.getServices());
       setLocalAppointments(glowupStore.getAppointments());
     };
@@ -45,75 +65,173 @@ export default function AppointmentsPage() {
   }, []);
 
   const employees = useMemo(() => {
-    if (employeesDb && employeesDb.length > 0) {
+    if (isAuthenticated && employeesDb.length > 0) {
       return employeesDb.map((e: any) => ({
-        id: e.id, name: e.name, color: e.color || "bg-primary", services: e.services || [], status: e.status || "active"
-      })).filter((e: any) => e.status === "active");
-    }
-    return localEmployees;
-  }, [employeesDb, localEmployees]);
-
-  const clients = useMemo(() => {
-    if (clientsDb && clientsDb.length > 0) {
-      return clientsDb.map((c: any) => ({
-        id: c.id,
-        name: c.full_name || c.name || "",
-        email: c.email || "",
-        phone: c.phone_number || c.phone || "",
-        lastVisit: "Jamais",
-        visits: 0,
-        totalSpent: c.total_spent ? format(c.total_spent) : format(0),
+        id: e.id,
+        name: `${e.first_name || ""} ${e.last_name || ""}`.trim(),
+        color: e.color || "bg-primary",
+        services: [],
+        status: "active"
       }));
     }
-    return localClients.map(c => {
-      const rawString = String(c.totalSpent).replace(/[^\d.-]/g, '');
-      const amt = parseFloat(rawString);
-      return { ...c, totalSpent: format(isNaN(amt) ? 0 : amt) };
-    });
-  }, [clientsDb, localClients, format]);
+    return localEmployees;
+  }, [employeesDb, localEmployees, isAuthenticated]);
 
   const services = useMemo(() => {
-    if (servicesDb && servicesDb.length > 0) {
+    if (isAuthenticated && servicesDb.length > 0) {
       return servicesDb.map((s: any) => ({
         id: s.id,
         name: s.name,
         duration: s.duration_minutes || 60,
         price: Number(s.price_htg || s.price || 0),
-        category: s.category || s.category_id || "Standard",
-        popular: s.popular || false,
+        category: s.category || "Standard",
+        popular: false,
         addon_options: Array.isArray(s.metadata?.addon_options) ? s.metadata.addon_options : [],
       }));
     }
     return localServices;
-  }, [servicesDb, localServices]);
+  }, [servicesDb, localServices, isAuthenticated]);
 
   const appointments = useMemo(() => {
     const formattedDateStr = currentDate.toISOString().split("T")[0];
-    
-    if (appointmentsDb && appointmentsDb.length > 0) {
-      return appointmentsDb.map((a: any) => ({
-        id: a.id,
-        clientName: a.client_id || a.clientName || "Client inconnu",
-        serviceName: a.service_id || a.serviceName || "Service",
-        employeeId: a.employee_id || a.employeeId,
-        date: a.scheduled_at ? a.scheduled_at.split("T")[0] : formattedDateStr,
-        startHour: a.startHour || 9,
-        duration: a.amount ? 1 : 0.5
-      })).filter((apt: any) => apt.date === formattedDateStr);
+    if (isAuthenticated && appointmentsDb.length > 0) {
+      return appointmentsDb
+        .filter((a: any) => a.appointment_date === formattedDateStr)
+        .map((a: any) => {
+          const [hStr, mStr] = (a.appointment_time || "09:00").split(":");
+          const startHour = parseInt(hStr) + parseInt(mStr) / 60;
+          const service = servicesDb.find((s: any) => s.id === a.service_id);
+          // Use guest_name as fallback when no linked customer record
+          const clientLabel = a.guest_name || a.customer_name || "Client inconnu";
+          return {
+            id: a.id,
+            clientName: clientLabel,
+            serviceName: service?.name || "Service",
+            employeeId: a.employee_id,
+            date: a.appointment_date,
+            startHour,
+            duration: (a.duration_minutes || 60) / 60,
+          };
+        });
     }
     return localAppointments.filter(apt => apt.date === formattedDateStr);
-  }, [appointmentsDb, localAppointments, currentDate]);
+  }, [appointmentsDb, localAppointments, currentDate, servicesDb, isAuthenticated]);
 
   // Modal State
   const [isOpen, setIsOpen] = useState(false);
 
+  // ── Client search state (appt form)
+  interface ApptClientResult { id: string | null; name: string; phone: string; isGuest: boolean; }
+  const [apptClient, setApptClient] = useState<ApptClientResult | null>(null);
+  const [apptClientQuery, setApptClientQuery] = useState("");
+  const [apptClientResults, setApptClientResults] = useState<ApptClientResult[]>([]);
+  const [apptClientLoading, setApptClientLoading] = useState(false);
+  const [apptClientDropdown, setApptClientDropdown] = useState(false);
+  const apptClientRef = useRef<HTMLDivElement>(null);
+
+  // ── New-client quick-create (inside appt modal)
+  const [showNewApptClient, setShowNewApptClient] = useState(false);
+  const [newApptClientName, setNewApptClientName] = useState("");
+  const [newApptClientPhone, setNewApptClientPhone] = useState("");
+  const [newApptClientEmail, setNewApptClientEmail] = useState("");
+  const [newApptClientSaving, setNewApptClientSaving] = useState(false);
+
   // Form Fields
-  const [selectedClientId, setSelectedClientId] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startTime, setStartTime] = useState("9"); // decimal hour as string
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0]);
   const [selectedServiceOptions, setSelectedServiceOptions] = useState<string[]>([]);
+
+  // ── Client search helpers
+  const searchApptClients = useCallback(async (q: string) => {
+    if (q.length < 2) { setApptClientResults([]); setApptClientDropdown(false); return; }
+    setApptClientLoading(true);
+    try {
+      const { data } = await supabase
+        .from("salon_customers")
+        .select("id, first_name, last_name, phone")
+        .eq("is_active", true)
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(6);
+      setApptClientResults(
+        (data || []).map((r: any) => ({
+          id: r.id,
+          name: `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+          phone: r.phone || "",
+          isGuest: false,
+        }))
+      );
+      setApptClientDropdown(true);
+    } catch {
+      setApptClientResults([]);
+    } finally {
+      setApptClientLoading(false);
+    }
+  }, []);
+
+  const apptClientTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleApptClientQuery = (val: string) => {
+    setApptClientQuery(val);
+    if (apptClientTimer.current) clearTimeout(apptClientTimer.current);
+    apptClientTimer.current = setTimeout(() => searchApptClients(val), 300);
+  };
+
+  const pickApptClient = (c: ApptClientResult) => {
+    setApptClient(c);
+    setApptClientQuery("");
+    setApptClientResults([]);
+    setApptClientDropdown(false);
+  };
+
+  const clearApptClient = () => { setApptClient(null); setApptClientQuery(""); };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (apptClientRef.current && !apptClientRef.current.contains(e.target as Node))
+        setApptClientDropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const saveNewApptClient = async () => {
+    if (!newApptClientName.trim() || !newApptClientPhone.trim()) {
+      toast.error("Nom et téléphone requis");
+      return;
+    }
+    if (!activeBranchId) { toast.error("Aucune branche sélectionnée"); return; }
+    setNewApptClientSaving(true);
+    try {
+      const parts = newApptClientName.trim().split(" ");
+      const { data, error } = await supabase
+        .from("salon_customers")
+        .insert([{
+          branch_id: activeBranchId,
+          first_name: parts[0],
+          last_name: parts.slice(1).join(" ") || null,
+          phone: newApptClientPhone.trim(),
+          email: newApptClientEmail.trim() || null,
+        }])
+        .select("id, first_name, last_name, phone")
+        .single();
+      if (error) throw error;
+      pickApptClient({
+        id: data.id,
+        name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
+        phone: data.phone || "",
+        isGuest: false,
+      });
+      setShowNewApptClient(false);
+      setNewApptClientName(""); setNewApptClientPhone(""); setNewApptClientEmail("");
+      toast.success("Client créé et sélectionné");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setNewApptClientSaving(false);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("fr-FR", {
@@ -140,21 +258,24 @@ export default function AppointmentsPage() {
     setCurrentDate(new Date());
   };
 
-  const handleBooking = (e: React.FormEvent) => {
+  const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClientId || !selectedServiceId || !selectedEmpId || !startTime) {
-      toast.error("Veuillez remplir tous les champs requis.");
+    if (!selectedServiceId || !selectedEmpId || !startTime) {
+      toast.error("Veuillez remplir les champs Service, Employé et Heure.");
       return;
     }
 
-    const selectedClient = clients.find((client) => client.id === selectedClientId);
     const service = services.find((s: any) => s.id === selectedServiceId);
     if (!service) return;
 
     const startHourNum = parseFloat(startTime);
     const durationHours = service.duration / 60;
     const selectedOptions = (service.addon_options || []).filter((option: any) => selectedServiceOptions.includes(option.name));
-    const optionsTotal = selectedOptions.reduce((sum: number, option: any) => sum + Number(option.extra_cost || 0), 0);
+
+    // Determine client label for display & conflict check
+    const clientLabel = apptClient?.name || "Client sans nom";
+    const clientId = apptClient?.isGuest ? null : (apptClient?.id ?? null);
+    const guestName = apptClient?.isGuest ? apptClient.name : null;
 
     // Check for double-bookings
     const isConflict = appointments.some((apt: any) => {
@@ -173,34 +294,42 @@ export default function AppointmentsPage() {
       return;
     }
 
-    if (isAuthenticated) {
-      insertAppointment.mutate({
-        client_id: selectedClientId,
-        service_id: service.name,
-        employee_id: selectedEmpId,
-        scheduled_at: new Date(bookingDate).toISOString(),
-        status: "pending",
-        amount: Number(service.price || 0) + optionsTotal,
-        notes: selectedOptions.map((option: any) => option.name).join(", "),
-      }, {
-        onSuccess: () => {
-          toast.success(`Le rendez-vous pour ${selectedClient?.name || "le client"} a été réservé !`);
-          setIsOpen(false);
-          setCurrentDate(new Date(bookingDate));
-          resetForm();
-        },
-        onError: (err) => toast.error(err.message)
-      });
+    if (isAuthenticated && activeBranchId) {
+      const hh = Math.floor(startHourNum).toString().padStart(2, "0");
+      const mm = Math.round((startHourNum - Math.floor(startHourNum)) * 60).toString().padStart(2, "0");
+      try {
+        const { error } = await supabase.from("salon_appointments").insert([{
+          branch_id: activeBranchId,
+          customer_id: clientId,
+          guest_name: guestName,
+          service_id: selectedServiceId,
+          employee_id: selectedEmpId || null,
+          appointment_date: bookingDate,
+          appointment_time: `${hh}:${mm}`,
+          duration_minutes: service.duration,
+          status: "pending",
+          notes: selectedOptions.map((o: any) => o.name).join(", ") || null,
+        }]);
+        if (error) throw error;
+        toast.success(`Le rendez-vous pour ${clientLabel} a été réservé !`);
+        setIsOpen(false);
+        setCurrentDate(new Date(bookingDate));
+        resetForm();
+        const aptRes = await supabase.from("salon_appointments").select("*").eq("branch_id", activeBranchId).order("appointment_date");
+        if (!aptRes.error) setAppointmentsDb(aptRes.data || []);
+      } catch (err: any) {
+        toast.error(err.message);
+      }
     } else {
       glowupStore.addAppointment({
-        clientName: selectedClient?.name || selectedClientId,
+        clientName: clientLabel,
         serviceName: service.name,
         employeeId: selectedEmpId,
         date: bookingDate,
         startHour: startHourNum,
         duration: durationHours,
       });
-      toast.success(`Le rendez-vous pour ${selectedClient?.name || "le client"} a été réservé (Local) !`);
+      toast.success(`Le rendez-vous pour ${clientLabel} a été réservé (Local) !`);
       setIsOpen(false);
       setCurrentDate(new Date(bookingDate));
       resetForm();
@@ -208,7 +337,10 @@ export default function AppointmentsPage() {
   };
 
   const resetForm = () => {
-    setSelectedClientId("");
+    setApptClient(null);
+    setApptClientQuery("");
+    setApptClientResults([]);
+    setApptClientDropdown(false);
     setSelectedServiceId("");
     setSelectedEmpId("");
     setStartTime("9");
@@ -366,27 +498,101 @@ export default function AppointmentsPage() {
           </DialogHeader>
           <form onSubmit={handleBooking} className="space-y-4 py-2">
             
-            {/* Client input */}
-            <div className="space-y-2">
-              <Label htmlFor="booking-client">Client *</Label>
-              <Select value={selectedClientId} onValueChange={setSelectedClientId}>
-                <SelectTrigger id="booking-client">
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{c.name} ({c.phone})</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                  {clients.length === 0 && (
-                    <SelectItem value="client_none" disabled>Aucun client trouvé</SelectItem>
+            {/* ── Client (optionnel) ── */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1">
+                <User className="h-3.5 w-3.5" /> Client
+                <span className="text-muted-foreground font-normal text-xs">(optionnel)</span>
+              </Label>
+
+              {apptClient ? (
+                /* Selected state */
+                <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+                  <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                    {apptClient.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{apptClient.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {apptClient.isGuest ? "Client occasionnel" : apptClient.phone || ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearApptClient}
+                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                    title="Désélectionner"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                /* Search state */
+                <div className="relative" ref={apptClientRef}>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        id="booking-client"
+                        type="text"
+                        value={apptClientQuery}
+                        onChange={e => handleApptClientQuery(e.target.value)}
+                        onFocus={() => apptClientQuery.length >= 2 && setApptClientDropdown(true)}
+                        placeholder="Rechercher ou saisir un nom..."
+                        className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
+                      {apptClientLoading && (
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setNewApptClientName(""); setNewApptClientPhone(""); setNewApptClientEmail(""); setShowNewApptClient(true); }}
+                      className="flex items-center gap-1 px-2.5 h-9 text-xs font-medium rounded-md border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Nouveau
+                    </button>
+                  </div>
+
+                  {/* Dropdown */}
+                  {apptClientDropdown && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                      {apptClientResults.length === 0 && (
+                        <p className="px-3 py-2 text-xs text-muted-foreground text-center">Aucun client trouvé</p>
+                      )}
+                      {apptClientResults.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => pickApptClient(c)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                            {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{c.name}</p>
+                            {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                          </div>
+                        </button>
+                      ))}
+                      {/* Always show free-text option */}
+                      {apptClientQuery.trim().length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => pickApptClient({ id: null, name: apptClientQuery.trim(), phone: "", isGuest: true })}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 border-t border-border hover:bg-muted/50 transition-colors text-left text-muted-foreground"
+                        >
+                          <Pen className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="text-xs">
+                            Utiliser <strong className="text-foreground">&ldquo;{apptClientQuery.trim()}&rdquo;</strong> comme nom de client
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
 
             {/* Service Selection */}
@@ -520,6 +726,38 @@ export default function AppointmentsPage() {
               <Button type="submit" variant="hero">Valider le RDV</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Nouveau client depuis le formulaire RDV ── */}
+      <Dialog open={showNewApptClient} onOpenChange={setShowNewApptClient}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Nouveau client</DialogTitle>
+            <DialogDescription>
+              Créez une fiche client et sélectionnez-la pour ce rendez-vous.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="nac-name">Nom complet *</Label>
+              <Input id="nac-name" placeholder="Ex : Jean Martin" value={newApptClientName} onChange={e => setNewApptClientName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nac-phone">Téléphone *</Label>
+              <Input id="nac-phone" placeholder="Ex : +509 34 56 78 90" value={newApptClientPhone} onChange={e => setNewApptClientPhone(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nac-email">Email <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Input id="nac-email" type="email" placeholder="jean@example.com" value={newApptClientEmail} onChange={e => setNewApptClientEmail(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowNewApptClient(false)}>Annuler</Button>
+            <Button onClick={saveNewApptClient} disabled={newApptClientSaving}>
+              {newApptClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

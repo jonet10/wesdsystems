@@ -38,6 +38,10 @@ import PromotionsPage from "./pages/salon/Promotions";
 import EmployeeDashboard from "./pages/employee/Dashboard";
 import EmployeeSchedule from "./pages/employee/Schedule";
 import PartnerDashboard from "./pages/partner/Dashboard";
+import BarDashboard from "./pages/bar/Dashboard";
+import BarPOS from "./pages/bar/POS";
+import BarInventory from "./pages/bar/Inventory";
+import BarCocktails from "./pages/bar/Cocktails";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -239,6 +243,40 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <PromotionsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Bar & Restaurant Routes */}
+                <Route
+                  path="/bar"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin"]} allowAuthenticatedWithoutRole>
+                      <BarDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "employee"]} allowAuthenticatedWithoutRole>
+                      <BarPOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/inventory"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin"]} allowAuthenticatedWithoutRole>
+                      <BarInventory />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/cocktails"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin"]} allowAuthenticatedWithoutRole>
+                      <BarCocktails />
                     </ProtectedRoute>
                   }
                 />

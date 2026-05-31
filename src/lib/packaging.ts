@@ -1,4 +1,10 @@
 export const PACKAGING_TYPES = [
+  "unitaire",
+  "flacon",
+  "boite",
+  "tube",
+  "sachet",
+  "spray",
   "case",
   "carton",
   "sac",
@@ -9,6 +15,39 @@ export const PACKAGING_TYPES = [
 ] as const;
 
 export type PackagingType = (typeof PACKAGING_TYPES)[number];
+
+export const PACKAGING_LABELS: Record<PackagingType, string> = {
+  case: "Caisse",
+  carton: "Carton",
+  sac: "Sac",
+  douzaine: "Douzaine",
+  paquet: "Paquet",
+  lot: "Lot",
+  custom: "Autre",
+  unitaire: "Unitaire",
+  flacon: "Flacon",
+  boite: "Boîte",
+  tube: "Tube",
+  sachet: "Sachet",
+  spray: "Spray",
+};
+
+export const PACKAGING_DEFAULT_QUANTITIES: Record<PackagingType, number> = {
+  case: 24,
+  douzaine: 12,
+  unitaire: 1,
+  flacon: 1,
+  boite: 1,
+  tube: 1,
+  sachet: 1,
+  spray: 1,
+  carton: 12,
+  sac: 1,
+  paquet: 1,
+  lot: 1,
+  custom: 1,
+};
+
 
 export interface PackagingEconomicsInput {
   packagePurchasePrice: number;

@@ -16,6 +16,14 @@ interface AuthState {
   profile: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  employeeSession: {
+    id: string;
+    full_name: string;
+    role: string;
+    branch_id: string;
+  } | null;
+  loginEmployee: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  logoutEmployee: () => void;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -24,6 +32,9 @@ const AuthContext = createContext<AuthState>({
   profile: null,
   isLoading: true,
   isAuthenticated: false,
+  employeeSession: null,
+  loginEmployee: async () => ({ success: false, error: 'Not initialized' }),
+  logoutEmployee: () => {},
 });
 
 const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
@@ -77,6 +88,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [employeeSession, setEmployeeSession] = useState<AuthState['employeeSession']>(() => {
+    try {
+      const saved = localStorage.getItem('glowup_employee_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const loginEmployee = async (username: string, pass: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_employee_login', {
+        p_username: username,
+        p_password: pass
+      });
+      if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; employee?: any };
+      if (!result.success) {
+        return { success: false, error: result.error || 'Erreur inconnue' };
+      }
+      
+      setEmployeeSession(result.employee);
+      localStorage.setItem('glowup_employee_session', JSON.stringify(result.employee));
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erreur lors de la connexion' };
+    }
+  };
+
+  const logoutEmployee = () => {
+    setEmployeeSession(null);
+    localStorage.removeItem('glowup_employee_session');
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -138,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         } else {
           setProfile(null);
+          logoutEmployee(); // Clear employee session if admin logs out
         }
       }
     );
@@ -156,6 +202,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         isLoading,
         isAuthenticated: !!session,
+        employeeSession,
+        loginEmployee,
+        logoutEmployee,
       }}
     >
       {children}

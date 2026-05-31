@@ -120,7 +120,7 @@ export function ReceiptTemplate({
         )}
         <div className="flex justify-between font-bold text-[12px] pt-1" style={{ borderTop: "1px solid #ccc" }}>
           <span>TOTAL</span>
-          <span>{format(sale?.total_amount || total)}</span>
+          <span>{format(sale?.total_amount || (subtotal - totalDiscount))}</span>
         </div>
         <p className="text-center text-[10px] text-gray-500 uppercase pt-1">
           Paiement: {sale?.payment_method === "cash" ? "Espèces" :

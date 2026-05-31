@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
-  Gift, Percent, Tag, Barcode, UserCog
+  Gift, Percent, Tag, Barcode, UserCog, X, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
@@ -87,7 +87,7 @@ interface EmployeeInfo {
 }
 
 export default function POSPage() {
-  const { user, profile: authProfile } = useAuth();
+  const { user, profile: authProfile, employeeSession } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
   const { data: branches = [] } = useBusinessBranches();
@@ -106,8 +106,22 @@ export default function POSPage() {
     { method: "natcash", amount: 0 },
     { method: "card", amount: 0 },
   ]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
+  // ── Client search state
+  interface ClientResult { id: string; name: string; phone: string; visit_count: number; }
+  const [clientQuery, setClientQuery] = useState("");
+  const [clientResults, setClientResults] = useState<ClientResult[]>([]);
+  const [clientLoading, setClientLoading] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ClientResult | null>(null);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+
+  // ── New-client quick-create modal
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientPhone, setNewClientPhone] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientSaving, setNewClientSaving] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"products" | "services">("products");
   const [showReceipt, setShowReceipt] = useState(false);
@@ -179,6 +193,101 @@ export default function POSPage() {
     } catch {}
   };
 
+  // ── Debounced client search
+  const searchClients = useCallback(async (q: string) => {
+    if (q.length < 2) { setClientResults([]); setShowClientDropdown(false); return; }
+    setClientLoading(true);
+    try {
+      const { data } = await supabase
+        .from("salon_customers")
+        .select("id, first_name, last_name, phone, visit_count")
+        .eq("is_active", true)
+        .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(6);
+      const results: ClientResult[] = (data || []).map((r: any) => ({
+        id: r.id,
+        name: `${r.first_name || ""} ${r.last_name || ""}`.trim(),
+        phone: r.phone || "",
+        visit_count: r.visit_count || 0,
+      }));
+      setClientResults(results);
+      setShowClientDropdown(true);
+    } catch {
+      setClientResults([]);
+    } finally {
+      setClientLoading(false);
+    }
+  }, [activeBranchId]);
+
+  // debounce
+  const clientSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleClientQueryChange = (val: string) => {
+    setClientQuery(val);
+    if (clientSearchTimer.current) clearTimeout(clientSearchTimer.current);
+    clientSearchTimer.current = setTimeout(() => searchClients(val), 300);
+  };
+
+  const selectClient = (c: ClientResult) => {
+    setSelectedClient(c);
+    setClientQuery("");
+    setClientResults([]);
+    setShowClientDropdown(false);
+  };
+
+  const deselectClient = () => {
+    setSelectedClient(null);
+    setClientQuery("");
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setShowClientDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const saveNewClient = async () => {
+    if (!newClientName.trim() || !newClientPhone.trim()) {
+      toast.error("Nom et téléphone requis");
+      return;
+    }
+    if (!activeBranchId) { toast.error("Aucune branche sélectionnée"); return; }
+    setNewClientSaving(true);
+    try {
+      const parts = newClientName.trim().split(" ");
+      const { data, error } = await supabase
+        .from("salon_customers")
+        .insert([{
+          branch_id: activeBranchId,
+          first_name: parts[0],
+          last_name: parts.slice(1).join(" ") || null,
+          phone: newClientPhone.trim(),
+          email: newClientEmail.trim() || null,
+        }])
+        .select("id, first_name, last_name, phone, visit_count")
+        .single();
+      if (error) throw error;
+      const created: ClientResult = {
+        id: data.id,
+        name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
+        phone: data.phone || "",
+        visit_count: data.visit_count || 0,
+      };
+      selectClient(created);
+      setShowNewClientModal(false);
+      setNewClientName(""); setNewClientPhone(""); setNewClientEmail("");
+      toast.success(`Client "${created.name}" créé et sélectionné`);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setNewClientSaving(false);
+    }
+  };
+
   const loadBusinessInfo = async () => {
     if (!user) return;
     try {
@@ -209,6 +318,9 @@ export default function POSPage() {
     void loadData(activeBranchId);
     void loadEmployees();
     void loadBusinessInfo();
+    // reset client search if branch changes
+    setSelectedClient(null);
+    setClientQuery("");
   }, [user, activeBranchId]);
 
   const detectPromotions = (cartItems: CartItem[]): CartItem[] => {
@@ -334,7 +446,8 @@ export default function POSPage() {
     }
 
     try {
-      const cashierName = employees.find(e => e.id === selectedEmployee)?.name || user?.email || "Caissier";
+      const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
+      const cashierId = employeeSession?.id || null;
       let businessId = authProfile?.business_id ?? null;
       if (!businessId && user?.id) {
         const { data: profileRow } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
@@ -350,7 +463,8 @@ export default function POSPage() {
         .insert([{
           business_id: businessId,
           branch_id: activeBranchId,
-          customer_name: customerName || null,
+          customer_name: selectedClient?.name || null,
+          customer_id: selectedClient?.id || null,
           payment_method: paymentMethod === "mixed" ? "cash" : paymentMethod,
           total_amount: total,
           discount_amount: totalDiscount,
@@ -358,6 +472,7 @@ export default function POSPage() {
           tax_amount: 0,
           employee_id: selectedEmployee || null,
           cashier_name: cashierName,
+          cashier_id: cashierId,
         }])
         .select("id, sale_number, created_at")
         .single();
@@ -398,22 +513,27 @@ export default function POSPage() {
           const previousStock = Number(product?.stock ?? 0);
           const nextStock = Math.max(0, previousStock - item.quantity);
 
-          await supabase
-            .from("salon_products")
-            .update({ quantity_in_stock: nextStock })
-            .eq("id", item.item_id)
-            .catch(() => {});
+          try {
+            await supabase
+              .from("salon_products")
+              .update({ quantity_in_stock: nextStock })
+              .eq("id", item.item_id);
+          } catch { /* ignore stock update error */ }
 
           if (businessId) {
-            await recordStockMovement({
-              business_id: businessId,
-              branch_id: activeBranchId,
-              product_id: item.item_id,
-              movement_type: "sale",
-              quantity_delta: -item.quantity,
-              reason: `Vente POS #${sale.sale_number || sale.id}`,
-              reference_id: sale.id,
-            }).catch((err) => console.warn("Mouvement stock produit non enregistré:", err.message));
+            try {
+              await recordStockMovement({
+                business_id: businessId,
+                branch_id: activeBranchId,
+                product_id: item.item_id,
+                movement_type: "sale",
+                quantity_delta: -item.quantity,
+                reason: `Vente POS #${sale.sale_number || sale.id}`,
+                reference_id: sale.id,
+              });
+            } catch (err: any) {
+              console.warn("Mouvement stock produit non enregistré:", err.message);
+            }
           }
         }
 
@@ -450,10 +570,11 @@ export default function POSPage() {
 
       toast.success("Vente enregistrée avec succès !");
 
-      setLastSale({ ...sale, items: cart, customer: customerName, payment: paymentMethod, cashier_name: cashierName });
+      setLastSale({ ...sale, items: cart, customer: selectedClient?.name || "", payment: paymentMethod, cashier_name: cashierName });
       setShowReceipt(true);
       setCart([]);
-      setCustomerName("");
+      setSelectedClient(null);
+      setClientQuery("");
       setDiscountPercent(0);
       setPaymentMethod("cash");
       setPaymentSplits([
@@ -634,12 +755,100 @@ export default function POSPage() {
               </div>
 
               <div className="space-y-3 mt-4">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Client</Label>
-                  <div className="flex gap-2">
-                    <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nom" className="flex-1" />
-                    <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Tél" className="w-28" />
-                  </div>
+                {/* ── Client (optionnel) ── */}
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1 text-xs">
+                    <User className="h-3 w-3" /> Client <span className="text-muted-foreground font-normal">(optionnel)</span>
+                  </Label>
+
+                  {selectedClient ? (
+                    /* ── Selected state ── */
+                    <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                        {selectedClient.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium truncate">{selectedClient.name}</span>
+                          {selectedClient.visit_count >= 3 && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                              <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
+                            </span>
+                          )}
+                        </div>
+                        {selectedClient.phone && (
+                          <p className="text-xs text-muted-foreground">{selectedClient.phone}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={deselectClient}
+                        className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                        title="Désélectionner"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    /* ── Search state ── */
+                    <div className="relative" ref={clientDropdownRef}>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <input
+                            id="pos-client-search"
+                            type="text"
+                            value={clientQuery}
+                            onChange={e => handleClientQueryChange(e.target.value)}
+                            onFocus={() => clientQuery.length >= 2 && setShowClientDropdown(true)}
+                            placeholder="Nom ou téléphone..."
+                            className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                          {clientLoading && (
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </div>
+                        <button
+                          onClick={() => { setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setShowNewClientModal(true); }}
+                          className="flex items-center gap-1 px-2.5 h-9 text-xs font-medium rounded-md border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+                          title="Nouveau client"
+                        >
+                          <Plus className="h-3.5 w-3.5" /> Nouveau
+                        </button>
+                      </div>
+
+                      {/* Dropdown */}
+                      {showClientDropdown && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                          {clientResults.length === 0 ? (
+                            <p className="px-3 py-3 text-xs text-muted-foreground text-center">Aucun client trouvé</p>
+                          ) : (
+                            clientResults.map(c => (
+                              <button
+                                key={c.id}
+                                onClick={() => selectClient(c)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+                              >
+                                <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                                  {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm font-medium truncate">{c.name}</span>
+                                    {c.visit_count >= 3 && (
+                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                                        <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
+                                      </span>
+                                    )}
+                                  </div>
+                                  {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -797,6 +1006,54 @@ export default function POSPage() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
             <Button onClick={handlePrintReceipt}>Télécharger le PDF</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Nouveau client rapide ───────────────────────────── */}
+      <Dialog open={showNewClientModal} onOpenChange={setShowNewClientModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Nouveau client</DialogTitle>
+            <DialogDescription>
+              Créez une fiche client et sélectionnez-la immédiatement pour cette vente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="nc-name">Nom complet *</Label>
+              <Input
+                id="nc-name"
+                placeholder="Ex : Marie Dupont"
+                value={newClientName}
+                onChange={e => setNewClientName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nc-phone">Téléphone *</Label>
+              <Input
+                id="nc-phone"
+                placeholder="Ex : +509 34 56 78 90"
+                value={newClientPhone}
+                onChange={e => setNewClientPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nc-email">Email <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Input
+                id="nc-email"
+                type="email"
+                placeholder="Ex : marie@example.com"
+                value={newClientEmail}
+                onChange={e => setNewClientEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowNewClientModal(false)}>Annuler</Button>
+            <Button onClick={saveNewClient} disabled={newClientSaving}>
+              {newClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Pill,
   Utensils,
+  Beer,
   ShoppingBag,
   FileText,
   Layers,
@@ -103,11 +104,21 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
         ];
       case "restaurant":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
-          { icon: Utensils, label: "POS Commandes", path: "/salon/pos", role: "all" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", role: "all" },
+          { icon: Utensils, label: "POS Commandes", path: "/bar/pos", role: "all" },
           { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
           { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
           { icon: Layers, label: "Carte & Cuisine", path: "/salon/services", role: "all" },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
+        ];
+      case "bar":
+        return [
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", role: "all" },
+          { icon: Beer, label: "POS Bar", path: "/bar/pos", role: "all" },
+          { icon: Package, label: "Double Inventaire", path: "/bar/inventory", role: "all" },
+          { icon: Utensils, label: "Recettes Cocktails", path: "/bar/cocktails", role: "all" },
+          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
+          { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
           { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
         ];
       case "market":

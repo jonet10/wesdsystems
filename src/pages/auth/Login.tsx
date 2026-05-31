@@ -3,19 +3,24 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginMode, setLoginMode] = useState<"admin" | "employee">("admin");
+  const [employeeUsername, setEmployeeUsername] = useState("");
+  const [employeePassword, setEmployeePassword] = useState("");
+  const { loginEmployee } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -96,6 +101,40 @@ export default function Login() {
     }
   };
 
+  const handleEmployeeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
+
+    try {
+      const res = await loginEmployee(employeeUsername, employeePassword);
+      if (!res.success) {
+        toast({
+          title: "Erreur de connexion",
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur l'espace caisse !",
+      });
+      navigate("/salon");
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Identifiants incorrects.",
+        variant: "destructive",
+      });
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex text-foreground">
       {/* Left side - Form */}
@@ -117,77 +156,142 @@ export default function Login() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("auth.login.email")}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                     id="email"
-                     type="email"
-                     placeholder="votre@entreprise.com"
-                     value={email}
-                     onChange={(e) => setEmail(e.target.value)}
-                     className="pl-10"
-                     required
-                  />
-                </div>
-              </div>
+            <Tabs value={loginMode} onValueChange={(v: any) => setLoginMode(v)} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="admin">Administrateur</TabsTrigger>
+                <TabsTrigger value="employee">Employé (Caisse)</TabsTrigger>
+              </TabsList>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">{t("auth.login.password")}</Label>
-                  <Link to="#" className="text-sm text-primary hover:underline font-semibold">
-                    {t("auth.login.forgotPassword")}
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
+              <TabsContent value="admin">
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">{t("auth.login.email")}</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                         id="email"
+                         type="email"
+                         placeholder="votre@entreprise.com"
+                         value={email}
+                         onChange={(e) => setEmail(e.target.value)}
+                         className="pl-10"
+                         required
+                      />
+                    </div>
+                  </div>
 
-              <Button type="submit" variant="hero" className="w-full shadow-md" size="lg" disabled={isLoading}>
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                ) : (
-                  <>
-                    {t("auth.login.signIn")}
-                    <ArrowRight className="h-5 w-5 ml-2" />
-                  </>
-                )}
-              </Button>
-            </form>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">{t("auth.login.password")}</Label>
+                      <Link to="#" className="text-sm text-primary hover:underline font-semibold">
+                        {t("auth.login.forgotPassword")}
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
 
-            <div className="mt-6 text-center text-sm">
-              <p className="text-muted-foreground">
-                {t("auth.login.noAccount")}{" "}
-                <Link to="/auth/register" className="text-primary font-bold hover:underline">
-                  {t("auth.login.createAccount")}
-                </Link>
-              </p>
-              <p className="mt-2 text-muted-foreground">
-                {t("auth.login.partnerHint")}{" "}
-                <Link to="/devenir-partenaire" className="text-primary font-bold hover:underline">
-                  {t("auth.login.becomePartner")}
-                </Link>
-              </p>
-            </div>
+                  <Button type="submit" variant="hero" className="w-full shadow-md" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        {t("auth.login.signIn")}
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 text-center text-sm">
+                  <p className="text-muted-foreground">
+                    {t("auth.login.noAccount")}{" "}
+                    <Link to="/auth/register" className="text-primary font-bold hover:underline">
+                      {t("auth.login.createAccount")}
+                    </Link>
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    {t("auth.login.partnerHint")}{" "}
+                    <Link to="/devenir-partenaire" className="text-primary font-bold hover:underline">
+                      {t("auth.login.becomePartner")}
+                    </Link>
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="employee">
+                <form onSubmit={handleEmployeeSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Nom d'utilisateur</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                         id="username"
+                         type="text"
+                         placeholder="Ex: marie_caissiere"
+                         value={employeeUsername}
+                         onChange={(e) => setEmployeeUsername(e.target.value)}
+                         className="pl-10"
+                         required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="emp-password">{t("auth.login.password")}</Label>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="emp-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={employeePassword}
+                        onChange={(e) => setEmployeePassword(e.target.value)}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button type="submit" variant="default" className="w-full shadow-md bg-blue-600 hover:bg-blue-700" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        Accéder à la caisse
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
 
             {/* Demo credentials hint */}
             <div className="mt-8 p-4 bg-muted/60 rounded-xl border border-border/40">

@@ -12,7 +12,7 @@ import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
 import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal } from "lucide-react";
-import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES } from "@/lib/packaging";
+import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES, PACKAGING_LABELS, PACKAGING_DEFAULT_QUANTITIES } from "@/lib/packaging";
 import { listLowStockProducts, listStockMovements, recordStockMovement } from "@/modules/salon/inventory";
 
 interface Product {
@@ -75,6 +75,7 @@ export default function InventoryPage() {
   const [purchasePriceGlobal, setPurchasePriceGlobal] = useState("0");
   const [sellingPrice, setSellingPrice] = useState("0");
   const [reorderLevel, setReorderLevel] = useState("10");
+  const [initCases, setInitCases] = useState("0");
 
   const loadProducts = async (branchIdToUse: string | null) => {
     try {
@@ -133,6 +134,7 @@ export default function InventoryPage() {
     setPurchasePriceGlobal("0");
     setSellingPrice("0");
     setReorderLevel("10");
+    setInitCases("0");
   };
 
   const openCreate = () => {
@@ -151,6 +153,9 @@ export default function InventoryPage() {
     setPurchasePriceGlobal(String(p.purchase_price_global ?? 0));
     setSellingPrice(String(p.unit_price ?? 0));
     setReorderLevel(String(p.reorder_level ?? 10));
+    // Calculer le nombre de caisses actuel depuis le stock en cours
+    const qPerCase = p.package_quantity && p.package_quantity > 0 ? p.package_quantity : 1;
+    setInitCases(String(Math.floor((p.quantity_in_stock ?? 0) / qPerCase)));
     setOpen(true);
   };
 
@@ -178,7 +183,21 @@ export default function InventoryPage() {
       unit_profit: pricingPreview.unitProfit,
       package_profit: pricingPreview.packageProfit,
       reorder_level: Number(reorderLevel || 10),
+      // Stock calculé: nombre de caisses × quantité par caisse
+      quantity_in_stock: editing
+        ? editing.quantity_in_stock  // en mode édition, ne pas écraser le stock existant si le champ n'est pas modifié
+        : Number(initCases || 0) * normalizePackagingQuantity(packageQuantity),
     };
+
+    // En mode édition, si l'utilisateur a modifié le nb de caisses, recalculer le stock
+    if (editing) {
+      const qPerCase = normalizePackagingQuantity(packageQuantity);
+      const newStock = Number(initCases || 0) * qPerCase;
+      const oldCases = Math.floor((editing.quantity_in_stock ?? 0) / qPerCase);
+      if (Number(initCases) !== oldCases) {
+        (payload as any).quantity_in_stock = newStock;
+      }
+    }
 
     try {
       const query = editing
@@ -318,7 +337,8 @@ export default function InventoryPage() {
                     <th className="text-left p-3 text-xs">Produit</th>
                     <th className="text-left p-3 text-xs">Marque</th>
                     <th className="text-left p-3 text-xs">Catégorie</th>
-                    <th className="text-left p-3 text-xs">Stock</th>
+                    <th className="text-left p-3 text-xs">Stock Total</th>
+                    <th className="text-left p-3 text-xs">Détail (Caisses/Unités)</th>
                     <th className="text-left p-3 text-xs">Seuil</th>
                     <th className="text-left p-3 text-xs">Achat</th>
                     <th className="text-left p-3 text-xs">Vente</th>
@@ -326,13 +346,29 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((p) => (
+                  {filtered.map((p) => {
+                    const unitsPerCase = p.package_quantity && p.package_quantity > 0 ? p.package_quantity : 1;
+                    const cases = Math.floor(p.quantity_in_stock / unitsPerCase);
+                    const remainder = p.quantity_in_stock % unitsPerCase;
+                    const hasCases = unitsPerCase > 1;
+
+                    return (
                     <tr key={p.id} className="border-b border-border">
                       <td className="p-3 text-sm font-medium">{p.name}</td>
                       <td className="p-3 text-sm">{p.brand || "-"}</td>
                       <td className="p-3 text-sm">{p.category || "-"}</td>
                       <td className="p-3 text-sm">
                         <Badge variant={p.quantity_in_stock <= p.reorder_level ? "destructive" : "secondary"}>{p.quantity_in_stock}</Badge>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground whitespace-nowrap">
+                        {hasCases ? (
+                          <span className="flex flex-col text-xs">
+                            <span className="font-medium text-foreground">{cases} {PACKAGING_LABELS[p.packaging_type || "case"] || "Caisse"}(s)</span>
+                            <span>+ {remainder} unité(s)</span>
+                          </span>
+                        ) : (
+                          <span>-</span>
+                        )}
                       </td>
                       <td className="p-3 text-sm">{p.reorder_level}</td>
                       <td className="p-3 text-sm">{p.purchase_price_global ?? p.unit_cost_price ?? 0}</td>
@@ -354,7 +390,8 @@ export default function InventoryPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -395,13 +432,36 @@ export default function InventoryPage() {
                 </div>
                 <div>
                   <Label>Type de conditionnement</Label>
-                  <select value={packagingType} onChange={(e) => setPackagingType(e.target.value as PackagingType)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    {PACKAGING_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                  <select 
+                    value={packagingType} 
+                    onChange={(e) => {
+                      const newType = e.target.value as PackagingType;
+                      setPackagingType(newType);
+                      setPackageQuantity(String(PACKAGING_DEFAULT_QUANTITIES[newType] || 1));
+                    }} 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {PACKAGING_TYPES.map((type) => <option key={type} value={type}>{PACKAGING_LABELS[type] || type}</option>)}
                   </select>
                 </div>
                 <div>
                   <Label>Quantité contenue</Label>
                   <Input type="number" min="1" value={packageQuantity} onChange={(e) => setPackageQuantity(e.target.value)} />
+                </div>
+                <div className="md:col-span-2">
+                  <Label className="flex items-center gap-2">
+                    Nombre de caisses
+                    <span className="text-xs text-muted-foreground font-normal">
+                      → Stock total = {Number(initCases || 0)} × {normalizePackagingQuantity(packageQuantity)} = <strong>{Number(initCases || 0) * normalizePackagingQuantity(packageQuantity)} unités</strong>
+                    </span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={initCases}
+                    onChange={(e) => setInitCases(e.target.value)}
+                    placeholder="0"
+                  />
                 </div>
                 <div>
                   <Label>Prix d'achat global</Label>
