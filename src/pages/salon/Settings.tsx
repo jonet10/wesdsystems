@@ -24,9 +24,6 @@ interface BusinessDay {
 interface BusinessRow {
   id: string;
   name?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  phone_number?: string | null;
   logo_url?: string | null;
   currency_code?: string | null;
 }
@@ -34,6 +31,8 @@ interface BusinessRow {
 interface SalonBusinessProfileRow {
   id: string;
   business_id: string;
+  email?: string | null;
+  phone?: string | null;
   address?: string | null;
   slogan?: string | null;
   whatsapp?: string | null;
@@ -78,7 +77,7 @@ export default function SalonSettingsPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
 
   const persistBusinessPatch = useCallback(
-    async (patch: Partial<Pick<BusinessRow, "name" | "email" | "phone" | "logo_url" | "currency_code">>) => {
+    async (patch: Partial<Pick<BusinessRow, "name" | "logo_url" | "currency_code">>) => {
       const targetBusinessId = profile?.business_id ?? businessId;
       if (!isAuthenticated || !user?.id || !targetBusinessId) {
         return;
@@ -150,7 +149,7 @@ export default function SalonSettingsPage() {
 
         const { data: businessData, error: businessError } = await supabase
           .from("businesses")
-          .select("id, name, email, phone, phone_number, logo_url, currency_code")
+          .select("id, name, logo_url, currency_code")
           .eq("id", bizId)
           .maybeSingle();
 
@@ -161,8 +160,6 @@ export default function SalonSettingsPage() {
         if (businessData) {
           setSalonName(businessData.name || "");
           setLogoUrl(businessData.logo_url || null);
-          setEmail(businessData.email || "");
-          setPhone(businessData.phone || businessData.phone_number || "");
         }
 
         const { data: profileData2, error: profile2Error } = await supabase
@@ -177,6 +174,8 @@ export default function SalonSettingsPage() {
 
         if (profileData2) {
           const ext = profileData2 as SalonBusinessProfileRow;
+          setEmail(ext.email || "");
+          setPhone(ext.phone || "");
           setAddress(ext.address || "");
           setSlogan(ext.slogan || "");
           setWhatsapp(ext.whatsapp || "");
@@ -249,8 +248,6 @@ export default function SalonSettingsPage() {
           await persistBusinessPatch({
             name: salonName.trim(),
             logo_url: logoUrl,
-            email: email.trim(),
-            phone: phone.trim(),
             currency_code: activeCurrencyCode,
           });
 
@@ -266,6 +263,8 @@ export default function SalonSettingsPage() {
 
           if (existingProfile) {
             const { error: updateProfileError } = await supabase.from("salon_business_profiles").update({
+              email: email.trim() || null,
+              phone: phone.trim() || null,
               address: address.trim() || null,
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),
@@ -279,6 +278,8 @@ export default function SalonSettingsPage() {
           } else {
             const { error: insertProfileError } = await supabase.from("salon_business_profiles").insert({
               business_id: bizId,
+              email: email.trim() || null,
+              phone: phone.trim() || null,
               address: address.trim() || null,
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),

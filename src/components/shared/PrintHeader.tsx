@@ -28,20 +28,20 @@ export function PrintHeader() {
         if (profile?.business_id) {
           const { data: biz } = await supabase
             .from('businesses')
-            .select('id, name, email, phone, phone_number, logo_url')
+            .select('id, name, logo_url')
             .eq('id', profile.business_id)
             .maybeSingle();
           const { data: ext } = await supabase
             .from('salon_business_profiles')
-            .select('address, slogan')
+            .select('email, phone, address, slogan')
             .eq('business_id', profile.business_id)
             .maybeSingle();
             
           if (biz) {
             setBusiness({
               name: biz.name || "GlowUp Salon",
-              phone: biz.phone || biz.phone_number || "+33 6 12 34 56 78",
-              email: biz.email || "contact@glowup.com",
+              phone: ext?.phone || "+33 6 12 34 56 78",
+              email: ext?.email || "contact@glowup.com",
               address: ext?.address || "15 Rue de la Paix, 75002 Paris",
               logo_url: biz.logo_url,
               slogan: ext?.slogan || "L'excellence à votre service"

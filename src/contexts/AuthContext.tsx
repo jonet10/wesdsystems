@@ -104,6 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         console.error('AuthProvider: erreur session initiale', err);
+        const message = String((err as { message?: string } | undefined)?.message || err || "").toLowerCase();
+        if (message.includes("invalid refresh token") || message.includes("refresh token not found")) {
+          try {
+            await supabase.auth.signOut({ scope: "local" });
+          } catch {
+            // Ignore local cleanup failures; the session is already unusable.
+          }
+        }
         if (mounted) setIsLoading(false);
       }
     };
