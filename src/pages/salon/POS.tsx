@@ -132,7 +132,7 @@ export default function POSPage() {
         return;
       }
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
-      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, duration_minutes").eq("is_active", true);
+      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id").eq("is_active", true);
       let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);

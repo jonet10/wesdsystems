@@ -4,7 +4,6 @@ export const serviceSchema = z.object({
   name: z.string().min(2, "Nom requis (min. 2 caractères)"),
   category_id: z.string().optional(),
   description: z.string().optional(),
-  duration_minutes: z.coerce.number().min(5, "Minimum 5 minutes").max(480, "Maximum 8 heures"),
   price_htg: z.coerce.number().min(0, "Prix requis"),
   commission_percentage: z.coerce.number().min(0).max(100).default(0),
   requires_employee: z.boolean().default(true),
