@@ -110,7 +110,7 @@ export default function POSPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"products" | "services" | "beverages">("products");
+  const [activeTab, setActiveTab] = useState<"products" | "services">("products");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -475,7 +475,7 @@ export default function POSPage() {
     toast.success("Reçu PDF téléchargé !");
   };
 
-  const currentItems = activeTab === "products" ? products : activeTab === "services" ? services : beverages;
+  const currentItems = activeTab === "products" ? products : services;
   const filteredItems = currentItems.filter(i =>
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (i.barcode || "").includes(searchTerm)
@@ -496,9 +496,6 @@ export default function POSPage() {
                   </Button>
                   <Button variant={activeTab === "services" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("services")} className="gap-1">
                     <Scissors className="h-4 w-4" /> Prestations
-                  </Button>
-                  <Button variant={activeTab === "beverages" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("beverages")} className="gap-1">
-                    <Beer className="h-4 w-4" /> Boissons
                   </Button>
                 </div>
                 <div className="relative w-full sm:max-w-xs">
@@ -529,11 +526,10 @@ export default function POSPage() {
                           "w-full h-14 rounded-lg flex items-center justify-center mb-2",
                           activeTab === "products" ? "bg-primary/10 text-primary" :
                           activeTab === "services" ? "bg-info/10 text-info" :
-                          "bg-orange-100 dark:bg-orange-900/30 text-orange-600"
+                          "bg-primary/10 text-primary"
                         )}>
                           {activeTab === "products" ? <Package className="h-6 w-6" /> :
-                           activeTab === "services" ? <Scissors className="h-6 w-6" /> :
-                           <Beer className="h-6 w-6" />}
+                           <Scissors className="h-6 w-6" />}
                         </div>
                         <p className="font-medium text-sm truncate">{item.name}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">

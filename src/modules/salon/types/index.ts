@@ -3,7 +3,6 @@ export type SalonDomain =
   | "inventory"
   | "appointments"
   | "employees"
-  | "beverages"
   | "analytics"
   | "customers";
 
@@ -22,4 +21,3 @@ export interface DateRange {
   start: Date;
   end: Date;
 }
-

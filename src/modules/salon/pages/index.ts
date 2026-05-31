@@ -1,5 +1,4 @@
 export { default as SalonAppointmentsPage } from "@/pages/salon/Appointments";
-export { default as SalonBeveragesPage } from "@/pages/salon/Beverages";
 export { default as SalonClientsPage } from "@/pages/salon/Clients";
 export { default as SalonDashboardPage } from "@/pages/salon/Dashboard";
 export { default as SalonEmployeesPage } from "@/pages/salon/Employees";
@@ -12,4 +11,3 @@ export { default as SalonReportsPage } from "@/pages/salon/Reports";
 export { default as SalonSalesAnalyticsPage } from "@/pages/salon/SalesAnalytics";
 export { default as SalonServicesPage } from "@/pages/salon/Services";
 export { default as SalonSettingsPage } from "@/pages/salon/Settings";
-

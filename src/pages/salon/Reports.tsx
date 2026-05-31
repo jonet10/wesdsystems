@@ -30,6 +30,7 @@ export default function ReportsPage() {
   const { format: fmt } = useCurrency();
   const [period, setPeriod] = useState("month");
   const [sales, setSales] = useState<any[]>([]);
+  const [saleItems, setSaleItems] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,13 +57,21 @@ export default function ReportsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [salesRes, expensesRes] = await Promise.all([
+      const [salesRes, itemsRes, productsRes, servicesRes, expensesRes] = await Promise.all([
         supabase
           .from("salon_sales")
           .select("id, total_amount, discount_amount, tax_amount, payment_method, created_at")
           .gte("created_at", `${dateRange.start}T00:00:00`)
           .lte("created_at", `${dateRange.end}T23:59:59`)
           .order("created_at"),
+        supabase
+          .from("salon_sale_items")
+          .select("id, sale_id, product_id, service_id, quantity, unit_price, total_price, created_at")
+          .gte("created_at", `${dateRange.start}T00:00:00`)
+          .lte("created_at", `${dateRange.end}T23:59:59`)
+          .order("created_at"),
+        supabase.from("salon_products").select("id, name"),
+        supabase.from("salon_services").select("id, name"),
         supabase
           .from("salon_expenses")
           .select("id, category, amount, created_at")
@@ -72,9 +81,19 @@ export default function ReportsPage() {
       ]);
 
       if (salesRes.error) throw salesRes.error;
+      if (itemsRes.error) throw itemsRes.error;
+      if (productsRes.error) throw productsRes.error;
+      if (servicesRes.error) throw servicesRes.error;
       if (expensesRes.error) throw expensesRes.error;
 
       setSales(salesRes.data || []);
+      const productNames = new Map((productsRes.data || []).map((p: any) => [p.id, p.name]));
+      const serviceNames = new Map((servicesRes.data || []).map((s: any) => [s.id, s.name]));
+      setSaleItems((itemsRes.data || []).map((item: any) => ({
+        ...item,
+        product_name: item.product_id ? productNames.get(item.product_id) : undefined,
+        service_name: item.service_id ? serviceNames.get(item.service_id) : undefined,
+      })));
       setExpenses(expensesRes.data || []);
     } catch (err: any) {
       toast.error("Erreur chargement des données");
@@ -89,6 +108,8 @@ export default function ReportsPage() {
   const totalExpenses = expenses.reduce((s, exp) => s + Number(exp.amount || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
   const totalTransactions = sales.length;
+  const totalProductRevenue = saleItems.filter((item) => item.product_id).reduce((s, item) => s + Number(item.total_price || 0), 0);
+  const totalServiceRevenue = saleItems.filter((item) => item.service_id).reduce((s, item) => s + Number(item.total_price || 0), 0);
 
   const dailyData = useMemo(() => {
     const map = new Map<string, { revenue: number; expenses: number; count: number }>();
@@ -119,6 +140,36 @@ export default function ReportsPage() {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [sales]);
 
+  const topProducts = useMemo(() => {
+    const map = new Map<string, { name: string; qty: number; revenue: number }>();
+    saleItems.filter((item) => item.product_id).forEach((item) => {
+      const key = item.product_id;
+      const current = map.get(key) || { name: item.product_name || "Produit", qty: 0, revenue: 0 };
+      current.qty += Number(item.quantity || 0);
+      current.revenue += Number(item.total_price || 0);
+      map.set(key, current);
+    });
+    return Array.from(map.entries())
+      .sort(([, a], [, b]) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map(([id, value]) => ({ id, ...value }));
+  }, [saleItems]);
+
+  const topServices = useMemo(() => {
+    const map = new Map<string, { name: string; qty: number; revenue: number }>();
+    saleItems.filter((item) => item.service_id).forEach((item) => {
+      const key = item.service_id;
+      const current = map.get(key) || { name: item.service_name || "Service", qty: 0, revenue: 0 };
+      current.qty += Number(item.quantity || 0);
+      current.revenue += Number(item.total_price || 0);
+      map.set(key, current);
+    });
+    return Array.from(map.entries())
+      .sort(([, a], [, b]) => b.revenue - a.revenue)
+      .slice(0, 5)
+      .map(([id, value]) => ({ id, ...value }));
+  }, [saleItems]);
+
   const expenseBreakdown = useMemo(() => {
     const map = new Map<string, number>();
     expenses.forEach(exp => {
@@ -128,15 +179,6 @@ export default function ReportsPage() {
       .sort(([, a], [, b]) => b - a)
       .map(([name, value]) => ({ name, value }));
   }, [expenses]);
-
-  const topServices = useMemo(() => {
-    const map = new Map<string, number>();
-    sales.forEach(sale => {
-      const method = sale.payment_method || "Autre";
-      map.set(method, (map.get(method) || 0) + 1);
-    });
-    return Array.from(map.entries()).slice(0, 5);
-  }, [sales]);
 
   const paymentLabels: Record<string, string> = {
     cash: "Espèces", moncash: "MonCash", natcash: "NatCash", card: "Carte",
@@ -210,6 +252,25 @@ export default function ReportsPage() {
                 <p className="text-2xl font-bold">
                   {totalRevenue > 0 ? `${((netProfit / totalRevenue) * 100).toFixed(1)}%` : "0%"}
                 </p>
+              </CardContent>
+            </Card>
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Revenus produits</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-primary">{fmt(totalProductRevenue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Ventes issues du module Produits</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Revenus services</CardTitle></CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-info">{fmt(totalServiceRevenue)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Ventes issues du module Services</p>
               </CardContent>
             </Card>
           </div>
@@ -329,6 +390,43 @@ export default function ReportsPage() {
               </div>
             </CardContent>
           </Card>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Produits les plus vendus</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {topProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucune vente produit.</p>
+                ) : topProducts.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.qty} unité(s)</p>
+                    </div>
+                    <span className="font-semibold text-sm">{fmt(item.revenue)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Services les plus demandés</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {topServices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucune vente service.</p>
+                ) : topServices.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.qty} prestation(s)</p>
+                    </div>
+                    <span className="font-semibold text-sm">{fmt(item.revenue)}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </StaggerItem>
       </StaggerContainer>
     </DashboardLayout>

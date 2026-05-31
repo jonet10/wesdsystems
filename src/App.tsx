@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -32,7 +32,6 @@ import InventoryPage from "./pages/salon/Inventory";
 import POSPage from "./pages/salon/POS";
 import SalesAnalyticsPage from "./pages/salon/SalesAnalytics";
 import ProductsPage from "./pages/salon/Products";
-import BeveragesPage from "./pages/salon/Beverages";
 import ExpensesPage from "./pages/salon/Expenses";
 import ReportsPage from "./pages/salon/Reports";
 import PromotionsPage from "./pages/salon/Promotions";
@@ -207,7 +206,7 @@ const App = () => (
                   path="/salon/beverages"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <BeveragesPage />
+                      <Navigate to="/salon/products" replace />
                     </ProtectedRoute>
                   }
                 />

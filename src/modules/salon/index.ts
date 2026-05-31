@@ -1,7 +1,6 @@
 export * from "./actions";
 export * from "./analytics";
 export * from "./appointments";
-export * from "./beverages";
 export * from "./components";
 export * from "./constants";
 export * from "./customers";
@@ -17,4 +16,3 @@ export * from "./store";
 export * from "./types";
 export * from "./utils";
 export * from "./validations";
-

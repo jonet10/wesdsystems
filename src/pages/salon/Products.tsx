@@ -15,10 +15,11 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
+import { useActiveBranchId } from "@/lib/branch";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { toast } from "sonner";
 import {
-  Package, Search, Plus, Pencil, Trash2, AlertTriangle, Tag
+  Package, Search, Plus, Pencil, Trash2
 } from "lucide-react";
 import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES } from "@/lib/packaging";
 
@@ -28,6 +29,7 @@ interface Product {
   name: string;
   description?: string;
   category?: string;
+  brand?: string;
   sku?: string;
   barcode?: string;
   unit_price: number;
@@ -38,14 +40,12 @@ interface Product {
   unit_cost_price?: number | null;
   unit_profit?: number | null;
   package_profit?: number | null;
-  quantity_in_stock: number;
-  reorder_level: number;
   is_active: boolean;
   created_at: string;
 }
 
 const categories = [
-  "Shampoing", "Gel", "Cire", "Parfum", "Accessoire",
+  "Boissons", "Shampoing", "Gel", "Cire", "Parfum", "Accessoire",
   "Coloration", "Soin", "Huile", "Appareil", "Autre"
 ];
 
@@ -53,7 +53,11 @@ export default function ProductsPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
-  const branchScope = resolveBranchScope(profile?.business_id, branchId);
+  const { data: branches = [] } = useBusinessBranches();
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Tous");
@@ -64,24 +68,23 @@ export default function ProductsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [brand, setBrand] = useState("");
   const [sku, setSku] = useState("");
   const [barcode, setBarcode] = useState("");
   const [packagingType, setPackagingType] = useState<PackagingType>("custom");
   const [packageQuantity, setPackageQuantity] = useState("1");
   const [purchasePriceGlobal, setPurchasePriceGlobal] = useState("0");
   const [unitPrice, setUnitPrice] = useState("0");
-  const [quantity, setQuantity] = useState("0");
-  const [reorderLevel, setReorderLevel] = useState("10");
 
   const loadProducts = async () => {
     try {
       setLoading(true);
       let query = supabase
         .from("salon_products")
-        .select("*")
+        .select("id, branch_id, name, description, category, brand, sku, barcode, unit_price, cost_price, packaging_type, package_quantity, purchase_price_global, unit_cost_price, unit_profit, package_profit, is_active, created_at")
         .eq("is_active", true);
-      if (branchScope) {
-        query = query.eq("branch_id", branchScope);
+      if (activeBranchId) {
+        query = query.eq("branch_id", activeBranchId);
       }
       const { data, error } = await query.order("name");
       if (error) throw error;
@@ -93,25 +96,24 @@ export default function ProductsPage() {
     }
   };
 
-  useEffect(() => { void loadProducts(); }, [branchScope]);
+  useEffect(() => { void loadProducts(); }, [activeBranchId]);
 
   const resetForm = () => {
     setEditing(null);
-    setName(""); setDescription(""); setCategory(""); setSku("");
+    setName(""); setDescription(""); setCategory(""); setBrand(""); setSku("");
     setBarcode(""); setPackagingType("custom"); setPackageQuantity("1"); setPurchasePriceGlobal("0"); setUnitPrice("0");
-    setQuantity("0"); setReorderLevel("10");
   };
 
   const openCreate = () => { resetForm(); setOpen(true); };
   const openEdit = (p: Product) => {
     setEditing(p);
     setName(p.name); setDescription(p.description || ""); setCategory(p.category || "");
+    setBrand(p.brand || "");
     setSku(p.sku || ""); setBarcode(p.barcode || "");
     setPackagingType(p.packaging_type || "custom");
     setPackageQuantity(String(p.package_quantity || 1));
     setPurchasePriceGlobal(String(p.purchase_price_global ?? p.cost_price ?? 0));
     setUnitPrice(String(p.unit_price));
-    setQuantity(String(p.quantity_in_stock)); setReorderLevel(String(p.reorder_level));
     setOpen(true);
   };
 
@@ -130,6 +132,7 @@ export default function ProductsPage() {
       name: name.trim(),
       description: description.trim() || null,
       category: category || null,
+      brand: brand.trim() || null,
       sku: sku.trim() || null,
       barcode: barcode.trim() || null,
       unit_price: Number(unitPrice || 0),
@@ -140,8 +143,6 @@ export default function ProductsPage() {
       unit_cost_price: pricingPreview.unitCost,
       unit_profit: pricingPreview.unitProfit,
       package_profit: pricingPreview.packageProfit,
-      quantity_in_stock: Number(quantity || 0),
-      reorder_level: Number(reorderLevel || 10),
     };
 
     try {
@@ -152,7 +153,7 @@ export default function ProductsPage() {
       } else {
         const { error } = await supabase.from("salon_products").insert([{
           ...payload,
-          branch_id: branchScope,
+          branch_id: activeBranchId,
         }]);
         if (error) throw error;
         toast.success("Produit ajouté");
@@ -187,8 +188,6 @@ export default function ProductsPage() {
     return result;
   }, [products, search, categoryFilter]);
 
-  const lowStock = products.filter(p => p.quantity_in_stock <= p.reorder_level);
-
   if (loading) {
     return (
       <DashboardLayout role="salon_admin" title="Produits" subtitle="Gestion des produits de beauté">
@@ -202,22 +201,6 @@ export default function ProductsPage() {
   return (
     <DashboardLayout role="salon_admin" title="Produits" subtitle="Gérez vos produits de beauté et accessoires">
       <StaggerContainer className="space-y-6">
-        {lowStock.length > 0 && (
-          <StaggerItem>
-            <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
-              <div>
-                <p className="font-semibold text-sm text-warning-foreground">
-                  {lowStock.length} produit(s) en stock faible
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Pensez à réapprovisionner les produits avant rupture.
-                </p>
-              </div>
-            </div>
-          </StaggerItem>
-        )}
-
         <StaggerItem>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
             <div className="flex gap-2 flex-wrap">
@@ -252,9 +235,9 @@ export default function ProductsPage() {
                     <tr className="border-b border-border bg-muted/30">
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Produit</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Catégorie</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Marque</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Conditionnement</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">SKU</th>
-                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Stock</th>
                       <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix vente</th>
                       <th className="text-right p-4 text-xs font-medium text-muted-foreground">Prix achat</th>
                       <th className="text-right p-4 text-xs font-medium text-muted-foreground">Profit / unité</th>
@@ -285,16 +268,13 @@ export default function ProductsPage() {
                         )}
                       </td>
                       <td className="p-4 text-sm">
+                        <span className="text-muted-foreground">{p.brand || "—"}</span>
+                      </td>
+                      <td className="p-4 text-sm">
                         <span className="text-muted-foreground">{p.packaging_type || "custom"}</span>
                         <span className="text-xs text-muted-foreground ml-1">({p.package_quantity || 1})</span>
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">{p.sku || "—"}</td>
-                      <td className="p-4 text-right">
-                        <span className={p.quantity_in_stock <= p.reorder_level ? "text-destructive font-semibold" : "font-medium"}>
-                          {p.quantity_in_stock}
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-1">/ {p.reorder_level}</span>
-                      </td>
                       <td className="p-4 text-right font-medium">{format(p.unit_price)}</td>
                       <td className="p-4 text-right text-muted-foreground">
                         {p.purchase_price_global ? format(p.purchase_price_global) : p.cost_price ? format(p.cost_price) : "—"}
@@ -341,6 +321,10 @@ export default function ProductsPage() {
               <div className="md:col-span-2">
                 <Label>Description</Label>
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              </div>
+              <div>
+                <Label>Marque</Label>
+                <Input value={brand} onChange={e => setBrand(e.target.value)} placeholder="Ex: Prestige" />
               </div>
               <div>
                 <Label>Catégorie</Label>
@@ -391,14 +375,6 @@ export default function ProductsPage() {
               <div>
                 <Label>Code-barres</Label>
                 <Input value={barcode} onChange={e => setBarcode(e.target.value)} placeholder="Optionnel" />
-              </div>
-              <div>
-                <Label>Stock initial</Label>
-                <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} />
-              </div>
-              <div>
-                <Label>Seuil d'alerte</Label>
-                <Input type="number" value={reorderLevel} onChange={e => setReorderLevel(e.target.value)} />
               </div>
               <div className="md:col-span-2 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
                 <p className="font-semibold">Aperçu des marges</p>
