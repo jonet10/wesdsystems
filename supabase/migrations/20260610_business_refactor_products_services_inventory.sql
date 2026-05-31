@@ -152,7 +152,7 @@ service_seed AS (
     ('MANICURE', 'Soak Off Pose', 40, 0, 12),
     ('COIFFURE / BEAUTÉ', 'Lavage simple', 20, 0, 1),
     ('COIFFURE / BEAUTÉ', 'Mise en rouleau', 30, 0, 2),
-    ('COIFFURE / BEAUTÉ', 'Lavage complet (Bain d'huile + Bain de crème)', 60, 0, 3),
+    ('COIFFURE / BEAUTÉ', 'Lavage complet (Bain d''huile + Bain de crème)', 60, 0, 3),
     ('COIFFURE / BEAUTÉ', 'Lavage + Blow', 45, 0, 4),
     ('COIFFURE / BEAUTÉ', 'Brûlage', 15, 0, 5),
     ('COIFFURE / BEAUTÉ', 'Bain de crème', 30, 0, 6),
