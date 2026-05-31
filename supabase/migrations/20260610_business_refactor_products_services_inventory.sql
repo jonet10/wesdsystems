@@ -125,8 +125,26 @@ WHERE NOT EXISTS (
     AND sc.name = c.name
 );
 
-WITH categories AS (
-  SELECT sc.id, sc.branch_id, sc.name
+WITH branches AS (
+  SELECT id FROM public.business_branches
+  UNION
+  SELECT id FROM public.salon_branches
+),
+seed_categories AS (
+  SELECT * FROM (VALUES
+    ('PÉDICURE', 'Pédicure', 'footprints', 1, jsonb_build_object(
+      'addon_options', jsonb_build_array(
+        jsonb_build_object('name', 'Fleur', 'extra_price', 0),
+        jsonb_build_object('name', 'Charme', 'extra_price', 0),
+        jsonb_build_object('name', 'Breloque', 'extra_price', 0)
+      )
+    )),
+    ('MANICURE', 'Manicure', 'handshake', 2, jsonb_build_object('addon_options', jsonb_build_array())),
+    ('COIFFURE / BEAUTÉ', 'Coiffure / Beauté', 'scissors', 3, jsonb_build_object('addon_options', jsonb_build_array()))
+  ) AS t(code, name, icon, sort_order, metadata)
+),
+categories AS (
+  SELECT sc.id, sc.branch_id, sc.name, sc.description
   FROM public.salon_service_categories sc
   WHERE sc.is_active = true
 ),
@@ -190,11 +208,13 @@ INSERT INTO public.salon_services (
   metadata
 )
 SELECT
-  c.branch_id,
+  b.id,
   c.id,
   s.name,
   CASE
-    WHEN s.name IN ('Fleur', 'Charme', 'Breloque') THEN 'Option supplémentaire'
+    WHEN s.category_code = 'PÉDICURE' AND s.name = 'Simple' THEN 'Prestation de pédicure'
+    WHEN s.category_code = 'MANICURE' AND s.name = 'Simple' THEN 'Prestation de manicure'
+    WHEN s.category_code = 'COIFFURE / BEAUTÉ' AND s.name = 'Lavage simple' THEN 'Prestation de coiffure / beauté'
     ELSE NULL
   END,
   s.duration_minutes,
@@ -216,13 +236,14 @@ SELECT
     )
     ELSE '{}'::jsonb
   END
-FROM categories c
+FROM branches b
+JOIN categories c ON c.branch_id = b.id
 JOIN seed_categories sc ON sc.name = c.name
 JOIN service_seed s ON s.category_code = sc.code
 WHERE NOT EXISTS (
   SELECT 1
   FROM public.salon_services sv
-  WHERE sv.branch_id = c.branch_id
+  WHERE sv.branch_id = b.id
     AND sv.name = s.name
     AND sv.category_id = c.id
 );
