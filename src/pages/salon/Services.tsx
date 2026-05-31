@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,85 @@ type SalonService = {
 
 const FALLBACK_CATEGORIES = ["Pédicure", "Manicure", "Coiffure / Beauté"];
 
+const DEFAULT_SERVICE_CATEGORIES = [
+  {
+    code: "PÉDICURE",
+    name: "Pédicure",
+    description: "Prestations de pédicure et options associées",
+    icon: "footprints",
+    color: "emerald",
+    sort_order: 1,
+    metadata: {
+      addon_options: [
+        { name: "Fleur", extra_price: 0 },
+        { name: "Charme", extra_price: 0 },
+        { name: "Breloque", extra_price: 0 },
+      ],
+    },
+  },
+  {
+    code: "MANICURE",
+    name: "Manicure",
+    description: "Prestations de manicure",
+    icon: "handshake",
+    color: "violet",
+    sort_order: 2,
+    metadata: { addon_options: [] },
+  },
+  {
+    code: "COIFFURE / BEAUTÉ",
+    name: "Coiffure / Beauté",
+    description: "Prestations de coiffure et beauté",
+    icon: "scissors",
+    color: "orange",
+    sort_order: 3,
+    metadata: { addon_options: [] },
+  },
+];
+
+const DEFAULT_SERVICE_SEEDS = [
+  { category_code: "PÉDICURE", name: "Simple", duration_minutes: 30, price_htg: 0, sort_order: 1 },
+  { category_code: "PÉDICURE", name: "Vernis ordinaire", duration_minutes: 45, price_htg: 0, sort_order: 2 },
+  { category_code: "PÉDICURE", name: "Vernis Gel", duration_minutes: 60, price_htg: 0, sort_order: 3 },
+  { category_code: "PÉDICURE", name: "Pose pouce (SLM)", duration_minutes: 20, price_htg: 0, sort_order: 4 },
+  { category_code: "PÉDICURE", name: "Full pose Vernis Gel", duration_minutes: 75, price_htg: 0, sort_order: 5 },
+  { category_code: "PÉDICURE", name: "Acrylique toes", duration_minutes: 90, price_htg: 0, sort_order: 6 },
+  { category_code: "MANICURE", name: "Simple", duration_minutes: 30, price_htg: 0, sort_order: 1 },
+  { category_code: "MANICURE", name: "Vernis Gel", duration_minutes: 45, price_htg: 0, sort_order: 2 },
+  { category_code: "MANICURE", name: "Baby Boomers", duration_minutes: 60, price_htg: 0, sort_order: 3 },
+  { category_code: "MANICURE", name: "Pose ongle Almond", duration_minutes: 75, price_htg: 0, sort_order: 4 },
+  { category_code: "MANICURE", name: "Pose ongle carré", duration_minutes: 75, price_htg: 0, sort_order: 5 },
+  { category_code: "MANICURE", name: "Acrylique simple", duration_minutes: 60, price_htg: 0, sort_order: 6 },
+  { category_code: "MANICURE", name: "Avec design", duration_minutes: 75, price_htg: 0, sort_order: 7 },
+  { category_code: "MANICURE", name: "Pose Vernis Gel", duration_minutes: 45, price_htg: 0, sort_order: 8 },
+  { category_code: "MANICURE", name: "Pose Vernis Ordinaire", duration_minutes: 35, price_htg: 0, sort_order: 9 },
+  { category_code: "MANICURE", name: "Deep Powder", duration_minutes: 75, price_htg: 0, sort_order: 10 },
+  { category_code: "MANICURE", name: "Soak Off A", duration_minutes: 30, price_htg: 0, sort_order: 11 },
+  { category_code: "MANICURE", name: "Soak Off Pose", duration_minutes: 40, price_htg: 0, sort_order: 12 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage simple", duration_minutes: 20, price_htg: 0, sort_order: 1 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Mise en rouleau", duration_minutes: 30, price_htg: 0, sort_order: 2 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage complet (Bain d'huile + Bain de crème)", duration_minutes: 60, price_htg: 0, sort_order: 3 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage + Blow", duration_minutes: 45, price_htg: 0, sort_order: 4 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Brûlage", duration_minutes: 15, price_htg: 0, sort_order: 5 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Bain de crème", duration_minutes: 30, price_htg: 0, sort_order: 6 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Brushing (Blow)", duration_minutes: 45, price_htg: 0, sort_order: 7 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Défrisage à chaud cheveux naturels", duration_minutes: 120, price_htg: 0, sort_order: 8 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente cheveux naturels", duration_minutes: 120, price_htg: 0, sort_order: 9 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente + Blow", duration_minutes: 150, price_htg: 0, sort_order: 10 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente", duration_minutes: 120, price_htg: 0, sort_order: 11 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application teinture", duration_minutes: 90, price_htg: 0, sort_order: 12 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application lace", duration_minutes: 60, price_htg: 0, sort_order: 13 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe Tara + cheveux", duration_minutes: 60, price_htg: 0, sort_order: 14 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage perruque", duration_minutes: 45, price_htg: 0, sort_order: 15 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe de cheveux femme", duration_minutes: 45, price_htg: 0, sort_order: 16 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Tresse", duration_minutes: 90, price_htg: 0, sort_order: 17 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Réparation perruque", duration_minutes: 60, price_htg: 0, sort_order: 18 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Make-up simple", duration_minutes: 45, price_htg: 0, sort_order: 19 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Tissage", duration_minutes: 120, price_htg: 0, sort_order: 20 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Mèches", duration_minutes: 90, price_htg: 0, sort_order: 21 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Chignon", duration_minutes: 60, price_htg: 0, sort_order: 22 },
+];
+
 export default function ServicesPage() {
   const { profile } = useAuth();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -62,6 +141,97 @@ export default function ServicesPage() {
   const [categoryName, setCategoryName] = useState("Pédicure");
   const [active, setActive] = useState(true);
   const [addonOptions, setAddonOptions] = useState("Fleur,Charme,Breloque");
+  const bootstrappedBranchRef = useRef<string | null>(null);
+
+  const ensureDefaultServices = async (branchIdToUse: string) => {
+    if (bootstrappedBranchRef.current === branchIdToUse) return;
+    bootstrappedBranchRef.current = branchIdToUse;
+
+    const { data: existingCategories } = await supabase
+      .from("salon_service_categories")
+      .select("id, name, metadata")
+      .eq("branch_id", branchIdToUse);
+
+    const existingByName = new Map((existingCategories || []).map((category) => [category.name, category]));
+
+    for (const seed of DEFAULT_SERVICE_CATEGORIES) {
+      if (existingByName.has(seed.name)) continue;
+      const { error } = await supabase.from("salon_service_categories").insert({
+        branch_id: branchIdToUse,
+        name: seed.name,
+        description: seed.description,
+        icon: seed.icon,
+        color: seed.color,
+        sort_order: seed.sort_order,
+        is_active: true,
+        metadata: seed.metadata,
+      });
+      if (error) throw error;
+    }
+
+    const { data: categoriesAfterInsert } = await supabase
+      .from("salon_service_categories")
+      .select("id, name, metadata")
+      .eq("branch_id", branchIdToUse);
+
+    const refreshedCategories = categoriesAfterInsert || [];
+    const categoryByCode = new Map(
+      DEFAULT_SERVICE_CATEGORIES.map((seed) => [
+        seed.code,
+        refreshedCategories.find((category) => category.name === seed.name),
+      ]),
+    );
+
+    const { data: existingServices } = await supabase
+      .from("salon_services")
+      .select("id, name, category_id")
+      .eq("branch_id", branchIdToUse);
+
+    const serviceKeySet = new Set((existingServices || []).map((service) => `${service.category_id}:${service.name}`));
+
+    for (const seed of DEFAULT_SERVICE_SEEDS) {
+      const category = categoryByCode.get(seed.category_code);
+      if (!category) continue;
+      const serviceKey = `${category.id}:${seed.name}`;
+      if (serviceKeySet.has(serviceKey)) continue;
+
+      const metadata =
+        seed.category_code === "PÉDICURE"
+          ? {
+              addon_options: [
+                { name: "Fleur", extra_price: 0 },
+                { name: "Charme", extra_price: 0 },
+                { name: "Breloque", extra_price: 0 },
+              ],
+            }
+          : {};
+
+      const { error } = await supabase.from("salon_services").insert({
+        branch_id: branchIdToUse,
+        category_id: category.id,
+        name: seed.name,
+        description:
+          seed.category_code === "PÉDICURE" && seed.name === "Simple"
+            ? "Prestation de pédicure"
+            : seed.category_code === "MANICURE" && seed.name === "Simple"
+              ? "Prestation de manicure"
+              : seed.category_code === "COIFFURE / BEAUTÉ" && seed.name === "Lavage simple"
+                ? "Prestation de coiffure / beauté"
+                : null,
+        duration_minutes: seed.duration_minutes,
+        price_htg: seed.price_htg,
+        price_currency: "HTG",
+        commission_percentage: 0,
+        requires_employee: true,
+        requires_product_list: "[]",
+        is_active: true,
+        sort_order: seed.sort_order,
+        metadata,
+      });
+
+      if (error) throw error;
+    }
+  };
 
   const loadData = async (branchIdToUse: string | null) => {
     try {
@@ -89,8 +259,32 @@ export default function ServicesPage() {
       if (servicesRes.error) throw servicesRes.error;
 
       const fetchedCategories = (categoriesRes.data || []) as ServiceCategory[];
-      setCategories(fetchedCategories.length ? fetchedCategories : FALLBACK_CATEGORIES.map((name) => ({ id: name, name })));
       setServices((servicesRes.data || []) as SalonService[]);
+
+      if (!fetchedCategories.length || !(servicesRes.data || []).length) {
+        await ensureDefaultServices(branchIdToUse);
+        const [categoriesAfterSeed, servicesAfterSeed] = await Promise.all([
+          supabase
+            .from("salon_service_categories")
+            .select("id, name, description")
+            .eq("branch_id", branchIdToUse)
+            .order("sort_order"),
+          supabase
+            .from("salon_services")
+            .select("id, name, description, duration_minutes, price_htg, category_id, is_active, sort_order, metadata")
+            .eq("branch_id", branchIdToUse)
+            .order("sort_order"),
+        ]);
+
+        if (categoriesAfterSeed.error) throw categoriesAfterSeed.error;
+        if (servicesAfterSeed.error) throw servicesAfterSeed.error;
+
+        setCategories((categoriesAfterSeed.data || []) as ServiceCategory[]);
+        setServices((servicesAfterSeed.data || []) as SalonService[]);
+        return;
+      }
+
+      setCategories(fetchedCategories.length ? fetchedCategories : FALLBACK_CATEGORIES.map((name) => ({ id: name, name })));
     } catch (err: any) {
       toast.error(err.message || "Erreur chargement services");
     } finally {
