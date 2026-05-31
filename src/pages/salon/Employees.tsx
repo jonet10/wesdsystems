@@ -15,7 +15,6 @@ import { glowupStore, Employee, Service } from "@/lib/store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from "@/hooks/useSupabaseQuery";
 import { supabase } from "@/lib/supabase";
 import { usePermissions, hasPermission, EmployeeRole } from "@/lib/permissions";
 import { CommissionRules } from "@/components/modules/salon/commissions/CommissionRules";
@@ -23,6 +22,8 @@ import { CommissionHistory } from "@/components/modules/salon/commissions/Commis
 import { useBusinessSubscription } from "@/hooks/useBusinessSubscription";
 import { UpgradePrompt } from "@/components/shared/UpgradePrompt";
 import { isUnlimited } from "@/lib/saas";
+import { useActiveBranchId } from "@/lib/branch";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 
 // Types
 interface EmployeeForm {
@@ -57,17 +58,20 @@ const COLORS = [
 export default function EmployeesPage() {
   const { isAuthenticated, profile } = useAuth();
   const perms = usePermissions("salon_admin");
-  
-  // Data fetching
-  const { data: employeesDb } = useSupabaseQuery(['employees'], 'employees', '*', { enabled: isAuthenticated });
-  const { data: servicesDb } = useSupabaseQuery(['services'], 'services', '*', { enabled: isAuthenticated });
-  const insertEmployee = useSupabaseInsert('employees', ['employees']);
-  const updateEmployeeDb = useSupabaseUpdate('employees', ['employees']);
-  const deleteEmployeeDb = useSupabaseDelete('employees', ['employees']);
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const { data: branches = [] } = useBusinessBranches();
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
+  const businessId = profile?.business_id ?? null;
 
   const [localEmployees, setLocalEmployees] = useState(glowupStore.getEmployees());
   const [localServices, setLocalServices] = useState(glowupStore.getServices());
+  const [remoteEmployees, setRemoteEmployees] = useState<any[]>([]);
+  const [remoteServices, setRemoteServices] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [remoteLoading, setRemoteLoading] = useState(false);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -78,17 +82,76 @@ export default function EmployeesPage() {
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, []);
 
+  useEffect(() => {
+    const loadRemoteData = async () => {
+      if (!isAuthenticated || !activeBranchId) {
+        setRemoteEmployees([]);
+        setRemoteServices([]);
+        return;
+      }
+
+      setRemoteLoading(true);
+      try {
+        const [employeeRes, servicesRes] = await Promise.all([
+          supabase
+            .from("salon_employees")
+            .select("id, first_name, last_name, email, phone, role, commission_percentage, is_active, metadata")
+            .eq("branch_id", activeBranchId)
+            .order("first_name"),
+          supabase
+            .from("salon_services")
+            .select("id, name, commission_percentage, is_active, branch_id")
+            .eq("branch_id", activeBranchId)
+            .eq("is_active", true)
+            .order("name"),
+        ]);
+
+        if (employeeRes.error) throw employeeRes.error;
+        if (servicesRes.error) throw servicesRes.error;
+
+        setRemoteEmployees(employeeRes.data || []);
+        setRemoteServices(servicesRes.data || []);
+      } catch (err) {
+        console.error("Erreur chargement employés:", err);
+        setRemoteEmployees([]);
+        setRemoteServices([]);
+      } finally {
+        setRemoteLoading(false);
+      }
+    };
+
+    void loadRemoteData();
+  }, [activeBranchId, isAuthenticated]);
+
   const employees = useMemo(() => {
-    const base = employeesDb?.length ? employeesDb : localEmployees;
+    const base = remoteEmployees.length
+      ? remoteEmployees.map((e: any) => ({
+          id: e.id,
+          name: `${e.first_name || ""} ${e.last_name || ""}`.trim() || "Employé",
+          email: e.email || "",
+          phone: e.phone || "",
+          role: (e.role === "receptionist" ? "cashier" : e.role) || "cashier",
+          services: Array.isArray(e.metadata?.services) ? e.metadata.services : [],
+          color: e.metadata?.color || "bg-primary",
+          status: e.is_active ? "active" : "inactive",
+          commission_rate: e.commission_percentage || 0,
+          permissions: e.metadata?.permissions || {
+            canAccessPOS: true,
+            canManageInventory: false,
+            canViewReports: false,
+            canManageAppointments: false,
+          },
+        }))
+      : localEmployees;
     return base.filter((e: any) => 
       e.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [employeesDb, localEmployees, searchTerm]);
+  }, [remoteEmployees, localEmployees, searchTerm]);
 
   const services = useMemo(() => {
-    return servicesDb?.length ? servicesDb : localServices;
-  }, [servicesDb, localServices]);
+    return remoteServices.length ? remoteServices : localServices;
+  }, [remoteServices, localServices]);
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -176,22 +239,32 @@ export default function EmployeesPage() {
 
     if (isAuthenticated) {
       try {
+        if (!activeBranchId || !businessId) {
+          toast.error("Sélectionnez d'abord une branche valide.");
+          return;
+        }
         setIsCreatingAccount(true);
+        const dbRole = formData.role === "cashier" ? "receptionist" : formData.role;
         
         // 1. Create employee record
         const { data: employeeRow, error: employeeError } = await supabase
-          .from("employees")
+          .from("salon_employees")
           .insert([{
-            name: fullName,
+            branch_id: activeBranchId,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
             email: formData.email,
             phone: formData.phone,
-            color,
-            status,
-            role: formData.role,
-            services: formData.services,
-            commission_rate: formData.commissionRate,
+            role: dbRole,
+            commission_percentage: formData.commissionRate,
+            metadata: {
+              color,
+              status,
+              services: formData.services,
+              permissions: formData.permissions,
+            },
           }])
-          .select("id, business_id")
+          .select("id, branch_id")
           .single();
 
         if (employeeError || !employeeRow?.id) {
@@ -202,7 +275,7 @@ export default function EmployeesPage() {
         const { error: accountError } = await supabase.functions.invoke("create-employee-account", {
           body: {
             employee_id: employeeRow.id,
-            business_id: employeeRow.business_id,
+            business_id: businessId,
             email: formData.email.trim().toLowerCase(),
             temporary_password: Math.random().toString(36).slice(-10),
             role: "employee",
@@ -218,7 +291,7 @@ export default function EmployeesPage() {
         if (formData.commissionRate !== undefined) {
           await supabase.from("employee_commissions").insert([{
             employee_id: employeeRow.id,
-            business_id: employeeRow.business_id,
+            business_id: businessId,
             global_rate: Math.max(0, Math.min(100, formData.commissionRate)),
             period_start: new Date().toISOString().split("T")[0],
             period_end: new Date().toISOString().split("T")[0],
@@ -258,24 +331,36 @@ export default function EmployeesPage() {
     const fullName = `${formData.firstName} ${formData.lastName}`;
 
     if (isAuthenticated && selectedEmployee.id?.includes('-')) {
-      updateEmployeeDb.mutate({
-        id: selectedEmployee.id,
-        name: fullName,
-        email: formData.email,
-        phone: formData.phone,
-        color,
-        status,
-        role: formData.role,
-        services: formData.services,
-        commission_rate: formData.commissionRate,
-      }, {
-        onSuccess: () => {
+      (async () => {
+        try {
+          const dbRole = formData.role === "cashier" ? "receptionist" : formData.role;
+          const { error } = await supabase
+            .from("salon_employees")
+            .update({
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              email: formData.email,
+              phone: formData.phone,
+              role: dbRole,
+              commission_percentage: formData.commissionRate,
+              is_active: status === "active",
+              metadata: {
+                color,
+                status,
+                services: formData.services,
+                permissions: formData.permissions,
+              },
+            })
+            .eq("id", selectedEmployee.id);
+
+          if (error) throw error;
           toast.success(`Les détails de "${fullName}" ont été mis à jour.`);
           setIsEditOpen(false);
           resetForm();
-        },
-        onError: (err: any) => toast.error(err.message)
-      });
+        } catch (err: any) {
+          toast.error(err.message);
+        }
+      })();
     } else {
       glowupStore.updateEmployee({
         ...selectedEmployee,
@@ -296,14 +381,20 @@ export default function EmployeesPage() {
     if (!selectedEmployee) return;
 
     if (isAuthenticated && selectedEmployee.id?.includes('-')) {
-      deleteEmployeeDb.mutate(selectedEmployee.id, {
-        onSuccess: () => {
+      (async () => {
+        try {
+          const { error } = await supabase
+            .from("salon_employees")
+            .update({ is_active: false })
+            .eq("id", selectedEmployee.id);
+          if (error) throw error;
           toast.success(`L'employé "${selectedEmployee.name}" a été retiré.`);
           setIsDeleteOpen(false);
           setSelectedEmployee(null);
-        },
-        onError: (err: any) => toast.error(err.message)
-      });
+        } catch (err: any) {
+          toast.error(err.message);
+        }
+      })();
     } else {
       glowupStore.deleteEmployee(selectedEmployee.id);
       toast.success(`L'employé "${selectedEmployee.name}" a été retiré (local).`);
