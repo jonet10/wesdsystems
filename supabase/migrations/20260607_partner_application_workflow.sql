@@ -28,6 +28,16 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS recipient_role TEXT,
+  ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'info',
+  ADD COLUMN IF NOT EXISTS title TEXT,
+  ADD COLUMN IF NOT EXISTS message TEXT,
+  ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS read BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created
   ON public.notifications (user_id, read, created_at DESC);
 
