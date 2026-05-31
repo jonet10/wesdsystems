@@ -35,7 +35,6 @@ interface Promotion {
   items_config: {
     services?: string[];
     products?: string[];
-    beverages?: string[];
   };
   minimum_quantity?: number;
   valid_from?: string;

@@ -426,20 +426,20 @@ export default function AdminCatalogPage() {
   ];
 
   return (
-    <DashboardLayout role="super_admin" title="Catalogue global" subtitle="Catégories, marques et boissons pour tous les modules" userName="Admin Wesd Systems">
+    <DashboardLayout role="super_admin" title="Catalogue global" subtitle="Catégories, marques et produits pour tous les modules" userName="Admin Wesd Systems">
       <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Catégories</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{categories.length}</p></CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Marques</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{brands.length}</p></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Boissons</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{beverages.length}</p></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Produits</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{beverages.length}</p></CardContent></Card>
           </div>
         </StaggerItem>
 
         <StaggerItem>
           <Tabs defaultValue="beverages" className="w-full">
             <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-              <TabsTrigger value="beverages" className="gap-2"><Package className="h-4 w-4" /> Boissons</TabsTrigger>
+              <TabsTrigger value="beverages" className="gap-2"><Package className="h-4 w-4" /> Produits</TabsTrigger>
               <TabsTrigger value="categories" className="gap-2"><Layers3 className="h-4 w-4" /> Catégories</TabsTrigger>
               <TabsTrigger value="brands" className="gap-2"><Tags className="h-4 w-4" /> Marques</TabsTrigger>
             </TabsList>
@@ -448,10 +448,10 @@ export default function AdminCatalogPage() {
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="relative w-full max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une boisson..." className="pl-9" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher un produit..." className="pl-9" />
                 </div>
                 <Button onClick={() => openBeverage()}>
-                  <Plus className="mr-2 h-4 w-4" /> Nouvelle boisson
+                  <Plus className="mr-2 h-4 w-4" /> Nouveau produit
                 </Button>
               </div>
               <DataTable rows={filteredBeverages} columns={beverageColumns} />
@@ -517,7 +517,7 @@ export default function AdminCatalogPage() {
 
       <Dialog open={isBeverageOpen} onOpenChange={setIsBeverageOpen}>
         <DialogContent className="sm:max-w-[760px]">
-          <DialogHeader><DialogTitle>{editingBeverage ? "Modifier la boisson" : "Nouvelle boisson"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingBeverage ? "Modifier le produit" : "Nouveau produit"}</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={saveBeverage}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-2">

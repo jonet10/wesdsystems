@@ -13,6 +13,7 @@ import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
 import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal } from "lucide-react";
 import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES } from "@/lib/packaging";
+import { listLowStockProducts, listStockMovements, recordStockMovement } from "@/modules/salon/inventory";
 
 interface Product {
   id: string;
@@ -34,6 +35,16 @@ interface Product {
 
 type StockMode = "entry" | "exit" | "adjustment";
 
+interface StockMovement {
+  id: string;
+  product_id?: string | null;
+  movement_type: StockMode | "purchase" | "sale" | "adjustment" | "loss" | "audit";
+  quantity_delta: number;
+  reason?: string | null;
+  reference_id?: string | null;
+  created_at: string;
+}
+
 export default function InventoryPage() {
   const { profile } = useAuth();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -52,6 +63,8 @@ export default function InventoryPage() {
   const [stockMode, setStockMode] = useState<StockMode>("entry");
   const [stockCases, setStockCases] = useState("0");
   const [stockUnits, setStockUnits] = useState("0");
+  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
 
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
@@ -85,8 +98,28 @@ export default function InventoryPage() {
     }
   };
 
+  const loadInventoryMeta = async (branchIdToUse: string | null) => {
+    if (!branchIdToUse) {
+      setLowStockProducts([]);
+      setMovements([]);
+      return;
+    }
+
+    try {
+      const [lowStock, stockMovements] = await Promise.all([
+        listLowStockProducts(branchIdToUse),
+        listStockMovements(branchIdToUse, 25),
+      ]);
+      setLowStockProducts(lowStock as Product[]);
+      setMovements(stockMovements as StockMovement[]);
+    } catch (err: any) {
+      toast.error(err.message || "Impossible de charger les alertes d'inventaire");
+    }
+  };
+
   useEffect(() => {
     void loadProducts(activeBranchId);
+    void loadInventoryMeta(activeBranchId);
   }, [activeBranchId]);
 
   const resetForm = () => {
@@ -175,6 +208,7 @@ export default function InventoryPage() {
     const units = Number(stockUnits || 0);
     const unitsPerCase = normalizePackagingQuantity(stockProduct.package_quantity || 1);
     const delta = cases * unitsPerCase + units;
+    const movementType: "purchase" | "sale" | "adjustment" = stockMode === "entry" ? "purchase" : stockMode === "exit" ? "sale" : "adjustment";
 
     let nextStock = stockProduct.quantity_in_stock;
     if (stockMode === "entry") nextStock += delta;
@@ -182,14 +216,26 @@ export default function InventoryPage() {
     if (stockMode === "adjustment") nextStock = Math.max(0, delta);
 
     try {
+      if (!profile?.business_id) throw new Error("Business introuvable");
       const { error } = await supabase
         .from("salon_products")
         .update({ quantity_in_stock: nextStock })
         .eq("id", stockProduct.id);
       if (error) throw error;
+
+      await recordStockMovement({
+        business_id: profile.business_id,
+        branch_id: activeBranchId as string,
+        product_id: stockProduct.id,
+        movement_type: movementType,
+        quantity_delta: stockMode === "exit" ? -delta : delta,
+        reason: stockMode === "adjustment" ? "Ajustement manuel" : `Stock ${stockMode}`,
+      });
+
       toast.success("Stock mis à jour");
       setStockProduct(null);
       await loadProducts(activeBranchId);
+      await loadInventoryMeta(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible de mettre à jour le stock");
     }
@@ -213,6 +259,23 @@ export default function InventoryPage() {
   return (
     <DashboardLayout role="salon_admin" title="Inventaire & Stock" subtitle="Le stock est géré ici, pas dans Produits">
       <StaggerContainer className="space-y-6">
+      <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Produits en alerte</p>
+              <p className="text-2xl font-bold text-destructive">{lowStockProducts.length}</p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Mouvements récents</p>
+              <p className="text-2xl font-bold">{movements.length}</p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-4">
+              <p className="text-sm text-muted-foreground">Produits suivis</p>
+              <p className="text-2xl font-bold">{products.length}</p>
+            </div>
+          </div>
+        </StaggerItem>
+
         <StaggerItem>
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
             <div className="relative md:max-w-md w-full">
@@ -224,6 +287,27 @@ export default function InventoryPage() {
             </Button>
           </div>
         </StaggerItem>
+
+        {lowStockProducts.length > 0 && (
+          <StaggerItem>
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div>
+                  <p className="font-semibold text-destructive">Alertes de réapprovisionnement</p>
+                  <p className="text-sm text-muted-foreground">Les produits ci-dessous sont sous leur seuil.</p>
+                </div>
+                <Badge variant="destructive">{lowStockProducts.length}</Badge>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {lowStockProducts.slice(0, 8).map((product) => (
+                  <Badge key={product.id} variant="outline" className="border-destructive/30 text-destructive">
+                    {product.name} ({product.quantity_in_stock}/{product.reorder_level})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </StaggerItem>
+        )}
 
         <StaggerItem>
           <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -303,7 +387,7 @@ export default function InventoryPage() {
                 </div>
                 <div>
                   <Label>Catégorie</Label>
-                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Boissons, Soin, etc." />
+                  <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Produits, Soin, etc." />
                 </div>
                 <div>
                   <Label>SKU</Label>
@@ -379,6 +463,47 @@ export default function InventoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <StaggerItem>
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="p-4 border-b border-border">
+              <h3 className="font-semibold">Historique des mouvements</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
+                <thead>
+                  <tr className="bg-muted/40 border-b border-border">
+                    <th className="text-left p-3 text-xs">Date</th>
+                    <th className="text-left p-3 text-xs">Type</th>
+                    <th className="text-left p-3 text-xs">Produit</th>
+                    <th className="text-left p-3 text-xs">Delta</th>
+                    <th className="text-left p-3 text-xs">Motif</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {movements.map((movement) => {
+                    const product = products.find((p) => p.id === movement.product_id);
+                    return (
+                      <tr key={movement.id} className="border-b border-border">
+                        <td className="p-3 text-sm">{new Date(movement.created_at).toLocaleString()}</td>
+                        <td className="p-3 text-sm capitalize">{movement.movement_type}</td>
+                        <td className="p-3 text-sm">{product?.name || movement.product_id || "-"}</td>
+                        <td className="p-3 text-sm font-medium">{movement.quantity_delta > 0 ? `+${movement.quantity_delta}` : movement.quantity_delta}</td>
+                        <td className="p-3 text-sm text-muted-foreground">{movement.reason || "-"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {movements.length === 0 && (
+              <div className="p-8 text-center text-muted-foreground">
+                <RotateCcw className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                <p>Aucun mouvement enregistré</p>
+              </div>
+            )}
+          </div>
+        </StaggerItem>
       </StaggerContainer>
     </DashboardLayout>
   );

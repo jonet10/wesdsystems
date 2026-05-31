@@ -3,7 +3,7 @@ import type { CartItem, Promotion } from "./types";
 const itemMatchesPromotion = (item: CartItem, promotion: Promotion) => {
   if (item.type === "product") return promotion.items_config?.products?.includes(item.item_id);
   if (item.type === "service") return promotion.items_config?.services?.includes(item.item_id);
-  return promotion.items_config?.beverages?.includes(item.item_id);
+  return false;
 };
 
 export function applyPromotions(cartItems: CartItem[], promotions: Promotion[]): CartItem[] {
@@ -21,7 +21,6 @@ export function applyPromotions(cartItems: CartItem[], promotions: Promotion[]):
         const configuredIds = [
           ...(promotion.items_config?.products ?? []),
           ...(promotion.items_config?.services ?? []),
-          ...(promotion.items_config?.beverages ?? []),
         ];
         return configuredIds.length > 0 && configuredIds.every((id) => cartItems.some((cartItem) => cartItem.item_id === id));
       }
@@ -50,4 +49,3 @@ export function applyPromotions(cartItems: CartItem[], promotions: Promotion[]):
     };
   });
 }
-

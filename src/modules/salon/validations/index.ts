@@ -18,7 +18,7 @@ export const commissionRuleSchema = z.object({
   rateValue: z.number().min(0),
 });
 
-export const beverageStockSchema = z.object({
+export const productPackagingSchema = z.object({
   unitsPerCase: z.number().int().positive(),
   stockCases: z.number().int().min(0),
   stockUnits: z.number().int().min(0),
@@ -29,4 +29,3 @@ export const stockMovementSchema = z.object({
   quantityDelta: z.number(),
   reason: z.string().optional(),
 });
-

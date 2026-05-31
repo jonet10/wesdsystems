@@ -1,6 +1,6 @@
 import type { PaymentMethod } from "../types";
 
-export type SaleItemType = "product" | "service" | "beverage";
+export type SaleItemType = "product" | "service";
 
 export interface CatalogItem {
   id: string;
@@ -32,7 +32,7 @@ export interface Promotion {
   promotion_type: "percentage" | "fixed_amount" | "bundle" | "combo";
   discount_value?: number;
   discount_percentage?: number;
-  items_config: { services?: string[]; products?: string[]; beverages?: string[] };
+  items_config: { services?: string[]; products?: string[] };
   minimum_quantity?: number;
 }
 
@@ -48,4 +48,3 @@ export interface CartTotals {
   totalDiscount: number;
   total: number;
 }
-

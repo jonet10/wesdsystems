@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
-  Beer, Gift, Percent, Tag, Barcode, UserCog
+  Gift, Percent, Tag, Barcode, UserCog
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
@@ -41,14 +41,14 @@ interface CatalogItem {
   name: string;
   unit_price: number;
   category?: string;
-  type: "product" | "service" | "beverage";
+  type: "product" | "service";
   stock?: number;
   barcode?: string;
 }
 
 interface CartItem {
   key: string;
-  type: "product" | "service" | "beverage";
+  type: "product" | "service";
   item_id: string;
   name: string;
   quantity: number;
@@ -66,7 +66,7 @@ interface Promotion {
   promotion_type: "percentage" | "fixed_amount" | "bundle" | "combo";
   discount_value?: number;
   discount_percentage?: number;
-  items_config: { services?: string[]; products?: string[]; beverages?: string[] };
+  items_config: { services?: string[]; products?: string[] };
   minimum_quantity?: number;
 }
 
@@ -97,7 +97,6 @@ export default function POSPage() {
   }, [branchId, branches]);
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
-  const [beverages, setBeverages] = useState<CatalogItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -124,34 +123,29 @@ export default function POSPage() {
     name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678",
   });
 
-  const loadData = async (branchIdToUse: string | null) => {
+  const loadData = async (branchIdToUse: string | null = activeBranchId) => {
     try {
       if (!branchIdToUse) {
         setProducts([]);
         setServices([]);
-        setBeverages([]);
         setPromotions([]);
         return;
       }
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
       let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, duration_minutes").eq("is_active", true);
-      let beveragesQuery = supabase.from("salon_beverages").select("id, name, unit_price, brand, total_units_available, barcode").eq("is_active", true);
       let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);
       servicesQuery = servicesQuery.eq("branch_id", branchIdToUse);
-      beveragesQuery = beveragesQuery.eq("branch_id", branchIdToUse);
       promotionsQuery = promotionsQuery.eq("branch_id", branchIdToUse);
 
-      const [{ data: p }, { data: s }, { data: b }, { data: promos }] = await Promise.all([
+      const [{ data: p }, { data: s }, { data: promos }] = await Promise.all([
         productsQuery.order("name"),
         servicesQuery.order("name"),
-        beveragesQuery.order("name"),
         promotionsQuery,
       ]);
       setProducts((p || []).map(x => ({ ...x, unit_price: Number(x.unit_price || 0), stock: x.quantity_in_stock, type: "product" as const })));
       setServices((s || []).map(x => ({ ...x, unit_price: Number(x.price_htg || 0), type: "service" as const })));
-      setBeverages((b || []).map(x => ({ ...x, unit_price: Number(x.unit_price || 0), stock: x.total_units_available, type: "beverage" as const })));
       setPromotions((promos || []) as Promotion[]);
     } catch (err) {
       console.error("Erreur chargement POS:", err);
@@ -218,7 +212,6 @@ export default function POSPage() {
         if (p.promotion_type === "percentage" || p.promotion_type === "fixed_amount") {
           if (item.type === "product" && p.items_config?.products?.includes(item.item_id)) return true;
           if (item.type === "service" && p.items_config?.services?.includes(item.item_id)) return true;
-          if (item.type === "beverage" && p.items_config?.beverages?.includes(item.item_id)) return true;
         }
         if (p.promotion_type === "bundle" && p.minimum_quantity && item.quantity >= p.minimum_quantity) return true;
         if (p.promotion_type === "combo") {
@@ -243,7 +236,7 @@ export default function POSPage() {
     });
   };
 
-  const addToCart = (item: CatalogItem, type: "product" | "service" | "beverage") => {
+  const addToCart = (item: CatalogItem, type: "product" | "service") => {
     setCart(prev => addItemToCart(prev, item, type, promotions));
   };
 
@@ -350,7 +343,6 @@ export default function POSPage() {
         branch_id: activeBranchId,
         ...(i.type === "product" ? { product_id: i.item_id } : {}),
         ...(i.type === "service" ? { service_id: i.item_id } : {}),
-        ...(i.type === "beverage" ? { beverage_id: i.item_id } : {}),
         quantity: i.quantity,
         unit_price: i.unit_price,
         total_price: i.quantity * i.unit_price - (i.discount || 0),
@@ -399,24 +391,6 @@ export default function POSPage() {
           }
         }
 
-        if (item.type === "beverage") {
-          await supabase.rpc("sell_beverage_units", {
-            p_beverage_id: item.item_id,
-            p_units_sold: item.quantity,
-          }).catch(() => {});
-
-          if (businessId) {
-            await recordStockMovement({
-              business_id: businessId,
-              branch_id: activeBranchId,
-              beverage_id: item.item_id,
-              movement_type: "sale",
-              quantity_delta: -item.quantity,
-              reason: `Vente POS #${sale.sale_number || sale.id}`,
-              reference_id: sale.id,
-            }).catch((err) => console.warn("Mouvement stock boisson non enregistré:", err.message));
-          }
-        }
       }
 
       // Calculate commissions
@@ -462,7 +436,7 @@ export default function POSPage() {
         { method: "natcash", amount: 0 },
         { method: "card", amount: 0 },
       ]);
-      await loadData();
+      await loadData(activeBranchId);
     } catch (err: any) {
       console.error("Checkout error:", err);
       toast.error(err.message || "Erreur lors de l'enregistrement");
@@ -520,20 +494,18 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredItems.map((item: any) => (
                     <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-soft active:scale-[0.98]"
-                      onClick={() => addToCart(item, activeTab === "products" ? "product" : activeTab === "services" ? "service" : "beverage")}>
+                      onClick={() => addToCart(item, activeTab === "products" ? "product" : "service")}>
                       <CardContent className="p-3">
                         <div className={cn(
                           "w-full h-14 rounded-lg flex items-center justify-center mb-2",
                           activeTab === "products" ? "bg-primary/10 text-primary" :
-                          activeTab === "services" ? "bg-info/10 text-info" :
-                          "bg-primary/10 text-primary"
+                          "bg-info/10 text-info"
                         )}>
-                          {activeTab === "products" ? <Package className="h-6 w-6" /> :
-                           <Scissors className="h-6 w-6" />}
+                          {activeTab === "products" ? <Package className="h-6 w-6" /> : <Scissors className="h-6 w-6" />}
                         </div>
                         <p className="font-medium text-sm truncate">{item.name}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {item.stock !== undefined ? `Stock: ${item.stock}` : item.duration_minutes ? `${item.duration_minutes}min` : ""}
+                          {item.stock !== undefined ? `Stock: ${item.stock}` : ""}
                         </p>
                         <p className="text-primary font-semibold mt-1 text-sm">{format(item.unit_price)}</p>
                       </CardContent>

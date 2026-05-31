@@ -22,7 +22,7 @@ export const productSchema = z.object({
   barcode: z.string().optional(),
 });
 
-export const beverageSchema = z.object({
+export const productPackagingSchema = z.object({
   name: z.string().min(2, "Nom requis"),
   brand: z.string().optional(),
   description: z.string().optional(),
@@ -52,7 +52,6 @@ export const promotionSchema = z.object({
   items_config: z.object({
     services: z.array(z.string()).optional(),
     products: z.array(z.string()).optional(),
-    beverages: z.array(z.string()).optional(),
   }).default({}),
   minimum_quantity: z.coerce.number().int().min(0).optional(),
   valid_from: z.string().optional(),
@@ -81,7 +80,7 @@ export const appointmentSchema = z.object({
 
 export type ServiceFormData = z.infer<typeof serviceSchema>;
 export type ProductFormData = z.infer<typeof productSchema>;
-export type BeverageFormData = z.infer<typeof beverageSchema>;
+export type ProductPackagingFormData = z.infer<typeof productPackagingSchema>;
 export type ExpenseFormData = z.infer<typeof expenseSchema>;
 export type PromotionFormData = z.infer<typeof promotionSchema>;
 export type CustomerFormData = z.infer<typeof customerSchema>;
