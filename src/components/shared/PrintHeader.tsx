@@ -28,8 +28,13 @@ export function PrintHeader() {
         if (profile?.business_id) {
           const { data: biz } = await supabase
             .from('businesses')
-            .select('*')
+            .select('id, name, email, phone, phone_number, logo_url')
             .eq('id', profile.business_id)
+            .maybeSingle();
+          const { data: ext } = await supabase
+            .from('salon_business_profiles')
+            .select('address, slogan')
+            .eq('business_id', profile.business_id)
             .maybeSingle();
             
           if (biz) {
@@ -37,9 +42,9 @@ export function PrintHeader() {
               name: biz.name || "GlowUp Salon",
               phone: biz.phone || biz.phone_number || "+33 6 12 34 56 78",
               email: biz.email || "contact@glowup.com",
-              address: biz.address || "15 Rue de la Paix, 75002 Paris",
+              address: ext?.address || "15 Rue de la Paix, 75002 Paris",
               logo_url: biz.logo_url,
-              slogan: "L'excellence à votre service"
+              slogan: ext?.slogan || "L'excellence à votre service"
             });
           }
         }

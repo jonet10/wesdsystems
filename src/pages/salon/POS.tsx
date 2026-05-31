@@ -163,21 +163,21 @@ export default function POSPage() {
     try {
       const { data: prof } = await supabase.from("profiles").select("business_id").eq("id", user.id).maybeSingle();
       if (prof?.business_id) {
-        const { data: biz } = await supabase.from("businesses").select("*").eq("id", prof.business_id).maybeSingle();
-        if (biz) {
-          const info: BusinessInfo = {
-            name: biz.name || "Mon Salon",
-            address: biz.address || "",
-            phone: biz.phone || biz.phone_number || "",
-            logo_url: biz.logo_url,
-          };
-          const { data: ext } = await supabase.from("salon_business_profiles").select("*").eq("business_id", prof.business_id).maybeSingle();
-          if (ext) {
-            info.whatsapp = ext.whatsapp || "";
-            info.email = biz.email || "";
-            info.slogan = ext.slogan || "";
-            info.tax_number = ext.tax_number || "";
-          }
+        const { data: biz } = await supabase.from("businesses").select("id, name, email, phone, phone_number, logo_url").eq("id", prof.business_id).maybeSingle();
+        const { data: ext } = await supabase.from("salon_business_profiles").select("address, whatsapp, slogan, tax_number").eq("business_id", prof.business_id).maybeSingle();
+          if (biz) {
+            const info: BusinessInfo = {
+              name: biz.name || "Mon Salon",
+              address: ext?.address || "",
+              phone: biz.phone || biz.phone_number || "",
+              logo_url: biz.logo_url,
+            };
+            if (ext) {
+              info.whatsapp = ext.whatsapp || "";
+              info.email = biz.email || "";
+              info.slogan = ext.slogan || "";
+              info.tax_number = ext.tax_number || "";
+            }
           setBusinessInfo(info);
         }
       }

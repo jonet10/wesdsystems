@@ -27,7 +27,6 @@ interface BusinessRow {
   email?: string | null;
   phone?: string | null;
   phone_number?: string | null;
-  address?: string | null;
   logo_url?: string | null;
   currency_code?: string | null;
 }
@@ -35,6 +34,7 @@ interface BusinessRow {
 interface SalonBusinessProfileRow {
   id: string;
   business_id: string;
+  address?: string | null;
   slogan?: string | null;
   whatsapp?: string | null;
   tax_number?: string | null;
@@ -78,7 +78,7 @@ export default function SalonSettingsPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
 
   const persistBusinessPatch = useCallback(
-    async (patch: Partial<Pick<BusinessRow, "name" | "email" | "phone" | "address" | "logo_url" | "currency_code">>) => {
+    async (patch: Partial<Pick<BusinessRow, "name" | "email" | "phone" | "logo_url" | "currency_code">>) => {
       const targetBusinessId = profile?.business_id ?? businessId;
       if (!isAuthenticated || !user?.id || !targetBusinessId) {
         return;
@@ -150,7 +150,7 @@ export default function SalonSettingsPage() {
 
         const { data: businessData, error: businessError } = await supabase
           .from("businesses")
-          .select("*")
+          .select("id, name, email, phone, phone_number, logo_url, currency_code")
           .eq("id", bizId)
           .maybeSingle();
 
@@ -163,15 +163,6 @@ export default function SalonSettingsPage() {
           setLogoUrl(businessData.logo_url || null);
           setEmail(businessData.email || "");
           setPhone(businessData.phone || businessData.phone_number || "");
-          setAddress(businessData.address || "");
-          if (!businessData.name || !businessData.address) {
-            console.debug("[SalonSettings] Données business incomplètes détectées", {
-              businessId: bizId,
-              name: businessData.name,
-              address: businessData.address,
-              logoUrl: businessData.logo_url,
-            });
-          }
         }
 
         const { data: profileData2, error: profile2Error } = await supabase
@@ -186,10 +177,19 @@ export default function SalonSettingsPage() {
 
         if (profileData2) {
           const ext = profileData2 as SalonBusinessProfileRow;
+          setAddress(ext.address || "");
           setSlogan(ext.slogan || "");
           setWhatsapp(ext.whatsapp || "");
           setTaxNumber(ext.tax_number || "");
           setWebsite(ext.website || "");
+          if (!businessData?.name || !ext.address) {
+            console.debug("[SalonSettings] Données business incomplètes détectées", {
+              businessId: bizId,
+              name: businessData?.name,
+              address: ext.address,
+              logoUrl: businessData?.logo_url,
+            });
+          }
         }
 
         const { data: hoursData, error: hoursError } = await supabase
@@ -251,7 +251,6 @@ export default function SalonSettingsPage() {
             logo_url: logoUrl,
             email: email.trim(),
             phone: phone.trim(),
-            address: address.trim(),
             currency_code: activeCurrencyCode,
           });
 
@@ -267,6 +266,7 @@ export default function SalonSettingsPage() {
 
           if (existingProfile) {
             const { error: updateProfileError } = await supabase.from("salon_business_profiles").update({
+              address: address.trim() || null,
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),
               tax_number: taxNumber.trim(),
@@ -279,6 +279,7 @@ export default function SalonSettingsPage() {
           } else {
             const { error: insertProfileError } = await supabase.from("salon_business_profiles").insert({
               business_id: bizId,
+              address: address.trim() || null,
               slogan: slogan.trim(),
               whatsapp: whatsapp.trim(),
               tax_number: taxNumber.trim(),
