@@ -10,6 +10,7 @@ export interface CatalogItem {
   type: SaleItemType;
   stock?: number;
   barcode?: string;
+  metadata?: any;
 }
 
 export interface CartItem {

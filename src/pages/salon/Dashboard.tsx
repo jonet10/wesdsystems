@@ -44,7 +44,7 @@ export default function SalonDashboard() {
   const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
   const { data: employeesDb, isLoading: empLoading } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
   const { data: appointmentsDb, isLoading: aptLoading } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
-  const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['salon_services'], 'salon_services', '*', { enabled: isAuthenticated });
   const isDataLoading = clientsLoading || empLoading || aptLoading || servLoading || dashboardLoading;
 
   const clients = useMemo(() => {

@@ -147,6 +147,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/services"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <ServicesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/salon/appointments"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>

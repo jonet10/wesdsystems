@@ -1,29 +1,33 @@
 import type { CartItem, CatalogItem, SaleItemType } from "./types";
 import { applyPromotions } from "./promotion-engine";
 
-export function createCartItem(item: CatalogItem, type: SaleItemType): CartItem {
+export function createCartItem(item: CatalogItem, type: SaleItemType, customOptions?: { optionsText?: string, extraCost?: number }): CartItem {
+  const optionsSuffix = customOptions?.optionsText ? ` (${customOptions.optionsText})` : "";
+  const keyOptions = customOptions?.optionsText ? `-${customOptions.optionsText}` : "";
+  
   return {
-    key: `${type}-${item.id}`,
+    key: `${type}-${item.id}${keyOptions}`,
     type,
     item_id: item.id,
-    name: item.name,
+    name: `${item.name}${optionsSuffix}`,
     quantity: 1,
-    unit_price: item.unit_price,
+    unit_price: item.unit_price + (customOptions?.extraCost || 0),
     category: item.category,
     promotion_applied: false,
     discount: 0,
   };
 }
 
-export function addItemToCart(cart: CartItem[], item: CatalogItem, type: SaleItemType, promotions = []) {
-  const key = `${type}-${item.id}`;
+export function addItemToCart(cart: CartItem[], item: CatalogItem, type: SaleItemType, promotions = [], customOptions?: { optionsText?: string, extraCost?: number }) {
+  const keyOptions = customOptions?.optionsText ? `-${customOptions.optionsText}` : "";
+  const key = `${type}-${item.id}${keyOptions}`;
   const existingIndex = cart.findIndex((cartItem) => cartItem.key === key);
   const next = [...cart];
 
   if (existingIndex >= 0) {
     next[existingIndex] = { ...next[existingIndex], quantity: next[existingIndex].quantity + 1 };
   } else {
-    next.push(createCartItem(item, type));
+    next.push(createCartItem(item, type, customOptions));
   }
 
   return applyPromotions(next, promotions);

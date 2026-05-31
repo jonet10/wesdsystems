@@ -24,7 +24,7 @@ export default function AppointmentsPage() {
   // --- DUAL MODE DATA ---
   const { data: employeesDb } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
   const { data: clientsDb } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
-  const { data: servicesDb } = useSupabaseQuery<any>(['services'], 'services', '*', { enabled: isAuthenticated });
+  const { data: servicesDb } = useSupabaseQuery<any>(['salon_services'], 'salon_services', '*', { enabled: isAuthenticated });
   const { data: appointmentsDb } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
   const insertAppointment = useSupabaseInsert<any>('transactions', ['transactions']);
 
@@ -75,7 +75,13 @@ export default function AppointmentsPage() {
   const services = useMemo(() => {
     if (servicesDb && servicesDb.length > 0) {
       return servicesDb.map((s: any) => ({
-        id: s.id, name: s.name, duration: s.duration || 60, price: s.price || 0, category: s.category || "Standard", popular: s.popular || false
+        id: s.id,
+        name: s.name,
+        duration: s.duration_minutes || 60,
+        price: Number(s.price_htg || s.price || 0),
+        category: s.category || s.category_id || "Standard",
+        popular: s.popular || false,
+        addon_options: Array.isArray(s.metadata?.addon_options) ? s.metadata.addon_options : [],
       }));
     }
     return localServices;
@@ -107,6 +113,7 @@ export default function AppointmentsPage() {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startTime, setStartTime] = useState("9"); // decimal hour as string
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedServiceOptions, setSelectedServiceOptions] = useState<string[]>([]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("fr-FR", {
@@ -146,6 +153,8 @@ export default function AppointmentsPage() {
 
     const startHourNum = parseFloat(startTime);
     const durationHours = service.duration / 60;
+    const selectedOptions = (service.addon_options || []).filter((option: any) => selectedServiceOptions.includes(option.name));
+    const optionsTotal = selectedOptions.reduce((sum: number, option: any) => sum + Number(option.extra_cost || 0), 0);
 
     // Check for double-bookings
     const isConflict = appointments.some((apt: any) => {
@@ -171,7 +180,8 @@ export default function AppointmentsPage() {
         employee_id: selectedEmpId,
         scheduled_at: new Date(bookingDate).toISOString(),
         status: "pending",
-        amount: service.price
+        amount: Number(service.price || 0) + optionsTotal,
+        notes: selectedOptions.map((option: any) => option.name).join(", "),
       }, {
         onSuccess: () => {
           toast.success(`Le rendez-vous pour ${selectedClient?.name || "le client"} a été réservé !`);
@@ -203,6 +213,7 @@ export default function AppointmentsPage() {
     setSelectedEmpId("");
     setStartTime("9");
     setBookingDate(new Date().toISOString().split("T")[0]);
+    setSelectedServiceOptions([]);
   };
 
   const formatHourString = (decHour: number) => {
@@ -381,7 +392,13 @@ export default function AppointmentsPage() {
             {/* Service Selection */}
             <div className="space-y-2">
               <Label htmlFor="booking-service">Service *</Label>
-              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+              <Select
+                value={selectedServiceId}
+                onValueChange={(value) => {
+                  setSelectedServiceId(value);
+                  setSelectedServiceOptions([]);
+                }}
+              >
                 <SelectTrigger id="booking-service">
                   <SelectValue placeholder="Sélectionner la prestation" />
                 </SelectTrigger>
@@ -393,13 +410,42 @@ export default function AppointmentsPage() {
                           <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
                           {s.name}
                         </span>
-                        <span className="text-xs text-muted-foreground font-semibold">({s.duration} min • {format(s.price)})</span>
+                        <span className="text-xs text-muted-foreground font-semibold">
+                          ({format(s.price)}{(s.addon_options?.length || 0) > 0 ? " • options" : ""})
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {services.find((s: any) => s.id === selectedServiceId)?.addon_options?.length > 0 && (
+              <div className="space-y-2">
+                <Label>Options supplémentaires</Label>
+                <div className="space-y-2 rounded-lg border border-border p-3">
+                  {services.find((s: any) => s.id === selectedServiceId)?.addon_options?.map((option: any) => (
+                    <label key={option.name} className="flex items-center justify-between gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedServiceOptions.includes(option.name)}
+                          onChange={(e) => {
+                            setSelectedServiceOptions((prev) =>
+                              e.target.checked ? [...prev, option.name] : prev.filter((item) => item !== option.name)
+                            );
+                          }}
+                        />
+                        <span>{option.name}</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        +{format(Number(option.extra_cost || 0))}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Employee Selection */}
             <div className="space-y-2">

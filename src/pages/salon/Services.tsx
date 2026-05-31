@@ -33,8 +33,18 @@ type SalonService = {
   metadata?: Record<string, any> | null;
 };
 
+type ServiceAddonOption = {
+  name: string;
+  extra_cost: number;
+  enabled: boolean;
+};
+
 const FALLBACK_CATEGORIES = ["Pédicure", "Manicure", "Coiffure / Beauté"];
 const DEFAULT_SERVICE_DURATION = 30;
+const DEFAULT_ADDON_OPTIONS = ["Fleur", "Charme", "Breloque"];
+
+const createDefaultAddonOptions = (): ServiceAddonOption[] =>
+  DEFAULT_ADDON_OPTIONS.map((name) => ({ name, extra_cost: 0, enabled: true }));
 
 const DEFAULT_SERVICE_CATEGORIES = [
   {
@@ -73,46 +83,46 @@ const DEFAULT_SERVICE_CATEGORIES = [
 ];
 
 const DEFAULT_SERVICE_SEEDS = [
-  { category_code: "PÉDICURE", name: "Simple", duration_minutes: 30, price_htg: 0, sort_order: 1 },
-  { category_code: "PÉDICURE", name: "Vernis ordinaire", duration_minutes: 45, price_htg: 0, sort_order: 2 },
-  { category_code: "PÉDICURE", name: "Vernis Gel", duration_minutes: 60, price_htg: 0, sort_order: 3 },
-  { category_code: "PÉDICURE", name: "Pose pouce (SLM)", duration_minutes: 20, price_htg: 0, sort_order: 4 },
-  { category_code: "PÉDICURE", name: "Full pose Vernis Gel", duration_minutes: 75, price_htg: 0, sort_order: 5 },
-  { category_code: "PÉDICURE", name: "Acrylique toes", duration_minutes: 90, price_htg: 0, sort_order: 6 },
-  { category_code: "MANICURE", name: "Simple", duration_minutes: 30, price_htg: 0, sort_order: 1 },
-  { category_code: "MANICURE", name: "Vernis Gel", duration_minutes: 45, price_htg: 0, sort_order: 2 },
-  { category_code: "MANICURE", name: "Baby Boomers", duration_minutes: 60, price_htg: 0, sort_order: 3 },
-  { category_code: "MANICURE", name: "Pose ongle Almond", duration_minutes: 75, price_htg: 0, sort_order: 4 },
-  { category_code: "MANICURE", name: "Pose ongle carré", duration_minutes: 75, price_htg: 0, sort_order: 5 },
-  { category_code: "MANICURE", name: "Acrylique simple", duration_minutes: 60, price_htg: 0, sort_order: 6 },
-  { category_code: "MANICURE", name: "Avec design", duration_minutes: 75, price_htg: 0, sort_order: 7 },
-  { category_code: "MANICURE", name: "Pose Vernis Gel", duration_minutes: 45, price_htg: 0, sort_order: 8 },
-  { category_code: "MANICURE", name: "Pose Vernis Ordinaire", duration_minutes: 35, price_htg: 0, sort_order: 9 },
-  { category_code: "MANICURE", name: "Deep Powder", duration_minutes: 75, price_htg: 0, sort_order: 10 },
-  { category_code: "MANICURE", name: "Soak Off A", duration_minutes: 30, price_htg: 0, sort_order: 11 },
-  { category_code: "MANICURE", name: "Soak Off Pose", duration_minutes: 40, price_htg: 0, sort_order: 12 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage simple", duration_minutes: 20, price_htg: 0, sort_order: 1 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Mise en rouleau", duration_minutes: 30, price_htg: 0, sort_order: 2 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage complet (Bain d'huile + Bain de crème)", duration_minutes: 60, price_htg: 0, sort_order: 3 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage + Blow", duration_minutes: 45, price_htg: 0, sort_order: 4 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Brûlage", duration_minutes: 15, price_htg: 0, sort_order: 5 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Bain de crème", duration_minutes: 30, price_htg: 0, sort_order: 6 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Brushing (Blow)", duration_minutes: 45, price_htg: 0, sort_order: 7 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Défrisage à chaud cheveux naturels", duration_minutes: 120, price_htg: 0, sort_order: 8 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente cheveux naturels", duration_minutes: 120, price_htg: 0, sort_order: 9 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente + Blow", duration_minutes: 150, price_htg: 0, sort_order: 10 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente", duration_minutes: 120, price_htg: 0, sort_order: 11 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Application teinture", duration_minutes: 90, price_htg: 0, sort_order: 12 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Application lace", duration_minutes: 60, price_htg: 0, sort_order: 13 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe Tara + cheveux", duration_minutes: 60, price_htg: 0, sort_order: 14 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage perruque", duration_minutes: 45, price_htg: 0, sort_order: 15 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe de cheveux femme", duration_minutes: 45, price_htg: 0, sort_order: 16 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Tresse", duration_minutes: 90, price_htg: 0, sort_order: 17 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Réparation perruque", duration_minutes: 60, price_htg: 0, sort_order: 18 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Make-up simple", duration_minutes: 45, price_htg: 0, sort_order: 19 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Tissage", duration_minutes: 120, price_htg: 0, sort_order: 20 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Mèches", duration_minutes: 90, price_htg: 0, sort_order: 21 },
-  { category_code: "COIFFURE / BEAUTÉ", name: "Chignon", duration_minutes: 60, price_htg: 0, sort_order: 22 },
+  { category_code: "PÉDICURE", name: "Simple", duration_minutes: 30, price_htg: 500, sort_order: 1 },
+  { category_code: "PÉDICURE", name: "Vernis ordinaire", duration_minutes: 45, price_htg: 700, sort_order: 2 },
+  { category_code: "PÉDICURE", name: "Vernis Gel", duration_minutes: 60, price_htg: 900, sort_order: 3 },
+  { category_code: "PÉDICURE", name: "Pose pouce (SLM)", duration_minutes: 20, price_htg: 1200, sort_order: 4 },
+  { category_code: "PÉDICURE", name: "Full pose Vernis Gel", duration_minutes: 75, price_htg: 1500, sort_order: 5 },
+  { category_code: "PÉDICURE", name: "Acrylique toes", duration_minutes: 90, price_htg: 1800, sort_order: 6 },
+  { category_code: "MANICURE", name: "Simple", duration_minutes: 30, price_htg: 400, sort_order: 1 },
+  { category_code: "MANICURE", name: "Vernis Gel", duration_minutes: 45, price_htg: 800, sort_order: 2 },
+  { category_code: "MANICURE", name: "Baby Boomers", duration_minutes: 60, price_htg: 1000, sort_order: 3 },
+  { category_code: "MANICURE", name: "Pose ongle Almond", duration_minutes: 75, price_htg: 1400, sort_order: 4 },
+  { category_code: "MANICURE", name: "Pose ongle carré", duration_minutes: 75, price_htg: 1400, sort_order: 5 },
+  { category_code: "MANICURE", name: "Acrylique simple", duration_minutes: 60, price_htg: 1600, sort_order: 6 },
+  { category_code: "MANICURE", name: "Avec design", duration_minutes: 75, price_htg: 1800, sort_order: 7 },
+  { category_code: "MANICURE", name: "Pose Vernis Gel", duration_minutes: 45, price_htg: 950, sort_order: 8 },
+  { category_code: "MANICURE", name: "Pose Vernis Ordinaire", duration_minutes: 35, price_htg: 600, sort_order: 9 },
+  { category_code: "MANICURE", name: "Deep Powder", duration_minutes: 75, price_htg: 1700, sort_order: 10 },
+  { category_code: "MANICURE", name: "Soak Off A", duration_minutes: 30, price_htg: 500, sort_order: 11 },
+  { category_code: "MANICURE", name: "Soak Off Pose", duration_minutes: 40, price_htg: 700, sort_order: 12 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage simple", duration_minutes: 20, price_htg: 600, sort_order: 1 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Mise en rouleau", duration_minutes: 30, price_htg: 800, sort_order: 2 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage complet (Bain d'huile + Bain de crème)", duration_minutes: 60, price_htg: 1200, sort_order: 3 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage + Blow", duration_minutes: 45, price_htg: 1400, sort_order: 4 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Brûlage", duration_minutes: 15, price_htg: 500, sort_order: 5 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Bain de crème", duration_minutes: 30, price_htg: 700, sort_order: 6 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Brushing (Blow)", duration_minutes: 45, price_htg: 1000, sort_order: 7 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Défrisage à chaud cheveux naturels", duration_minutes: 120, price_htg: 2000, sort_order: 8 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente cheveux naturels", duration_minutes: 120, price_htg: 2500, sort_order: 9 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente + Blow", duration_minutes: 150, price_htg: 2800, sort_order: 10 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application permanente", duration_minutes: 120, price_htg: 2200, sort_order: 11 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application teinture", duration_minutes: 90, price_htg: 1800, sort_order: 12 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Application lace", duration_minutes: 60, price_htg: 1500, sort_order: 13 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe Tara + cheveux", duration_minutes: 60, price_htg: 1200, sort_order: 14 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Lavage perruque", duration_minutes: 45, price_htg: 800, sort_order: 15 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Coupe de cheveux femme", duration_minutes: 45, price_htg: 900, sort_order: 16 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Tresse", duration_minutes: 90, price_htg: 1600, sort_order: 17 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Réparation perruque", duration_minutes: 60, price_htg: 1000, sort_order: 18 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Make-up simple", duration_minutes: 45, price_htg: 1500, sort_order: 19 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Tissage", duration_minutes: 120, price_htg: 3000, sort_order: 20 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Mèches", duration_minutes: 90, price_htg: 2000, sort_order: 21 },
+  { category_code: "COIFFURE / BEAUTÉ", name: "Chignon", duration_minutes: 60, price_htg: 1200, sort_order: 22 },
 ];
 
 export default function ServicesPage() {
@@ -139,7 +149,9 @@ export default function ServicesPage() {
   const [price, setPrice] = useState(0);
   const [categoryName, setCategoryName] = useState("Pédicure");
   const [active, setActive] = useState(true);
-  const [addonOptions, setAddonOptions] = useState("Fleur,Charme,Breloque");
+  const [addonOptions, setAddonOptions] = useState<ServiceAddonOption[]>(createDefaultAddonOptions());
+  const [optionConfigService, setOptionConfigService] = useState<SalonService | null>(null);
+  const [isOptionConfigOpen, setIsOptionConfigOpen] = useState(false);
   const bootstrappedBranchRef = useRef<string | null>(null);
 
   const ensureDefaultServices = async (branchIdToUse: string) => {
@@ -232,6 +244,23 @@ export default function ServicesPage() {
     }
   };
 
+  const resolveAddonOptions = (service: SalonService | null) => {
+    const rawOptions = service?.metadata?.addon_options;
+    if (Array.isArray(rawOptions) && rawOptions.length > 0) {
+      return DEFAULT_ADDON_OPTIONS.map((name) => {
+        const existing = rawOptions.find((option: any) => option.name === name);
+        return {
+          name,
+          extra_cost: Number(existing?.extra_cost ?? existing?.extra_price ?? 0),
+          enabled: existing ? existing.enabled !== false : true,
+        } satisfies ServiceAddonOption;
+      });
+    }
+    return createDefaultAddonOptions();
+  };
+
+  const isAddonCategory = (categoryNameValue: string) => ["Pédicure", "Manicure"].includes(categoryNameValue);
+
   const loadData = async (branchIdToUse: string | null) => {
     try {
       setLoading(true);
@@ -302,7 +331,7 @@ export default function ServicesPage() {
     setPrice(0);
     setCategoryName("Pédicure");
     setActive(true);
-    setAddonOptions("Fleur,Charme,Breloque");
+    setAddonOptions(createDefaultAddonOptions());
   };
 
   const categoryList = useMemo(() => {
@@ -327,8 +356,7 @@ export default function ServicesPage() {
     const category = categories.find((cat) => cat.id === service.category_id);
     setCategoryName(category?.name || "Pédicure");
     setActive(service.is_active);
-    const options = service.metadata?.addon_options;
-    setAddonOptions(Array.isArray(options) ? options.map((o: any) => o.name).join(",") : "Fleur,Charme,Breloque");
+    setAddonOptions(resolveAddonOptions(service));
     setIsEditOpen(true);
   };
 
@@ -348,11 +376,11 @@ export default function ServicesPage() {
       price_htg: Number(price || 0),
       is_active: active,
       metadata: {
-        addon_options: addonOptions
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .map((item) => ({ name: item, extra_price: 0 })),
+        addon_options: isAddonCategory(categoryName)
+          ? addonOptions
+              .filter((option) => option.enabled)
+              .map((option) => ({ name: option.name, extra_cost: Number(option.extra_cost || 0) }))
+          : [],
       },
     };
 
@@ -383,6 +411,38 @@ export default function ServicesPage() {
       await loadData(activeBranchId);
     } catch (err: any) {
       toast.error(err.message || "Impossible de supprimer le service");
+    }
+  };
+
+  const openOptionConfig = (service: SalonService) => {
+    setOptionConfigService(service);
+    setAddonOptions(resolveAddonOptions(service));
+    setIsOptionConfigOpen(true);
+  };
+
+  const saveOptionConfig = async () => {
+    if (!optionConfigService || !activeBranchId) return;
+
+    try {
+      const nextMetadata = {
+        ...(optionConfigService.metadata || {}),
+        addon_options: addonOptions
+          .filter((option) => option.enabled)
+          .map((option) => ({ name: option.name, extra_cost: Number(option.extra_cost || 0) })),
+      };
+
+      const { error } = await supabase
+        .from("salon_services")
+        .update({ metadata: nextMetadata })
+        .eq("id", optionConfigService.id);
+
+      if (error) throw error;
+      toast.success("Options appliquées");
+      setIsOptionConfigOpen(false);
+      setOptionConfigService(null);
+      await loadData(activeBranchId);
+    } catch (err: any) {
+      toast.error(err.message || "Impossible de configurer les options");
     }
   };
 
@@ -430,6 +490,7 @@ export default function ServicesPage() {
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Service</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Catégorie</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Prix</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Options</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
                     <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
@@ -437,6 +498,7 @@ export default function ServicesPage() {
                 <tbody>
                   {filteredServices.map((service) => {
                     const category = categories.find((cat) => cat.id === service.category_id || cat.name === service.category_id);
+                    const serviceAddonOptions = isAddonCategory(category?.name || "") ? resolveAddonOptions(service) : [];
                     return (
                       <tr key={service.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                         <td className="p-4">
@@ -453,6 +515,26 @@ export default function ServicesPage() {
                           <div className="flex items-center gap-1 font-semibold text-primary text-sm">
                             <span>{Number(service.price_htg || 0).toFixed(2)} HTG</span>
                           </div>
+                        </td>
+                        <td className="p-4">
+                          {serviceAddonOptions.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {serviceAddonOptions.map((option) => (
+                                <Button
+                                  key={option.name}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 rounded-full px-2.5 text-[11px]"
+                                  onClick={() => openOptionConfig(service)}
+                                >
+                                  {option.name} +{Number(option.extra_cost || 0).toLocaleString("fr-FR")} HTG
+                                </Button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="p-4">
                           <Badge variant={service.is_active ? "default" : "secondary"}>{service.is_active ? "Actif" : "Inactif"}</Badge>
@@ -500,7 +582,13 @@ export default function ServicesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Catégorie</Label>
-                  <Select value={categoryName} onValueChange={setCategoryName}>
+                  <Select
+                    value={categoryName}
+                    onValueChange={(value) => {
+                      setCategoryName(value);
+                      setAddonOptions(isAddonCategory(value) ? createDefaultAddonOptions() : []);
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>)}
@@ -511,10 +599,40 @@ export default function ServicesPage() {
                   <Label>Prix (HTG)</Label>
                   <Input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Options supplémentaires</Label>
-                  <Input value={addonOptions} onChange={(e) => setAddonOptions(e.target.value)} placeholder="Fleur, Charme, Breloque" />
-                </div>
+                {isAddonCategory(categoryName) && (
+                  <div className="md:col-span-2 space-y-3 rounded-xl border border-border p-4">
+                    <Label>Options supplémentaires</Label>
+                    <div className="space-y-3">
+                      {addonOptions.map((option, index) => (
+                        <div key={option.name} className="grid grid-cols-[1fr_auto] gap-3 items-center rounded-lg border border-border p-3">
+                          <label className="flex items-center gap-2 text-sm font-medium">
+                            <input
+                              type="checkbox"
+                              checked={option.enabled}
+                              onChange={(e) => {
+                                setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, enabled: e.target.checked } : row));
+                              }}
+                            />
+                            {option.name}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={option.extra_cost}
+                              onChange={(e) => {
+                                const value = Number(e.target.value || 0);
+                                setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, extra_cost: value } : row));
+                              }}
+                              className="w-32"
+                            />
+                            <span className="text-xs text-muted-foreground">HTG</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -549,7 +667,13 @@ export default function ServicesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Catégorie</Label>
-                  <Select value={categoryName} onValueChange={setCategoryName}>
+                  <Select
+                    value={categoryName}
+                    onValueChange={(value) => {
+                      setCategoryName(value);
+                      setAddonOptions(isAddonCategory(value) ? createDefaultAddonOptions() : []);
+                    }}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>)}
@@ -560,10 +684,40 @@ export default function ServicesPage() {
                   <Label>Prix (HTG)</Label>
                   <Input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Options supplémentaires</Label>
-                  <Input value={addonOptions} onChange={(e) => setAddonOptions(e.target.value)} />
-                </div>
+                {isAddonCategory(categoryName) && (
+                  <div className="md:col-span-2 space-y-3 rounded-xl border border-border p-4">
+                    <Label>Options supplémentaires</Label>
+                    <div className="space-y-3">
+                      {addonOptions.map((option, index) => (
+                        <div key={option.name} className="grid grid-cols-[1fr_auto] gap-3 items-center rounded-lg border border-border p-3">
+                          <label className="flex items-center gap-2 text-sm font-medium">
+                            <input
+                              type="checkbox"
+                              checked={option.enabled}
+                              onChange={(e) => {
+                                setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, enabled: e.target.checked } : row));
+                              }}
+                            />
+                            {option.name}
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={option.extra_cost}
+                              onChange={(e) => {
+                                const value = Number(e.target.value || 0);
+                                setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, extra_cost: value } : row));
+                              }}
+                              className="w-32"
+                            />
+                            <span className="text-xs text-muted-foreground">HTG</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <div>
@@ -591,6 +745,50 @@ export default function ServicesPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
               <Button variant="destructive" onClick={deleteService}>Supprimer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isOptionConfigOpen} onOpenChange={setIsOptionConfigOpen}>
+          <DialogContent className="sm:max-w-[560px]">
+            <DialogHeader>
+              <DialogTitle>Configurer les options</DialogTitle>
+              <DialogDescription>
+                {optionConfigService?.name} - ajustez le coût additionnel de chaque option.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              {addonOptions.map((option, index) => (
+                <div key={option.name} className="grid grid-cols-[1fr_auto] gap-3 items-center rounded-lg border border-border p-3">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={option.enabled}
+                      onChange={(e) => {
+                        setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, enabled: e.target.checked } : row));
+                      }}
+                    />
+                    {option.name}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={option.extra_cost}
+                      onChange={(e) => {
+                        const value = Number(e.target.value || 0);
+                        setAddonOptions((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, extra_cost: value } : row));
+                      }}
+                      className="w-32"
+                    />
+                    <span className="text-xs text-muted-foreground">HTG</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsOptionConfigOpen(false)}>Annuler</Button>
+              <Button onClick={saveOptionConfig}>Appliquer</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

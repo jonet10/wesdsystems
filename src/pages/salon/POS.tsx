@@ -116,6 +116,11 @@ export default function POSPage() {
   const [showDiscount, setShowDiscount] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // Modal options
+  const [optionsModalOpen, setOptionsModalOpen] = useState(false);
+  const [selectedServiceForOptions, setSelectedServiceForOptions] = useState<CatalogItem | null>(null);
+  const [selectedServiceOptions, setSelectedServiceOptions] = useState<string[]>([]);
+
   // Employee & Business
   const [employees, setEmployees] = useState<EmployeeInfo[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
@@ -132,7 +137,7 @@ export default function POSPage() {
         return;
       }
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
-      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id").eq("is_active", true);
+      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, metadata").eq("is_active", true);
       let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);
@@ -236,8 +241,29 @@ export default function POSPage() {
     });
   };
 
-  const addToCart = (item: CatalogItem, type: "product" | "service") => {
-    setCart(prev => addItemToCart(prev, item, type, promotions));
+  const handleItemClick = (item: CatalogItem, type: "product" | "service") => {
+    if (type === "service" && Array.isArray(item.metadata?.addon_options) && item.metadata.addon_options.length > 0) {
+      setSelectedServiceForOptions(item);
+      setSelectedServiceOptions([]);
+      setOptionsModalOpen(true);
+      return;
+    }
+    addToCart(item, type);
+  };
+
+  const confirmServiceOptions = () => {
+    if (!selectedServiceForOptions) return;
+    const serviceAddons = selectedServiceForOptions.metadata?.addon_options || [];
+    const chosenAddons = serviceAddons.filter((o: any) => selectedServiceOptions.includes(o.name));
+    const optionsText = chosenAddons.map((o: any) => o.name).join(", ");
+    const extraCost = chosenAddons.reduce((sum: number, o: any) => sum + Number(o.extra_cost || 0), 0);
+    
+    addToCart(selectedServiceForOptions, "service", { optionsText, extraCost });
+    setOptionsModalOpen(false);
+  };
+
+  const addToCart = (item: CatalogItem, type: "product" | "service", customOptions?: { optionsText?: string, extraCost?: number }) => {
+    setCart(prev => addItemToCart(prev, item, type, promotions, customOptions));
   };
 
   const updateQuantity = (key: string, delta: number) => {
@@ -494,7 +520,7 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredItems.map((item: any) => (
                     <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-soft active:scale-[0.98]"
-                      onClick={() => addToCart(item, activeTab === "products" ? "product" : "service")}>
+                      onClick={() => handleItemClick(item, activeTab === "products" ? "product" : "service")}>
                       <CardContent className="p-3">
                         <div className={cn(
                           "w-full h-14 rounded-lg flex items-center justify-center mb-2",
@@ -690,6 +716,43 @@ export default function POSPage() {
           </Card>
         </StaggerItem>
       </StaggerContainer>
+
+      <Dialog open={optionsModalOpen} onOpenChange={setOptionsModalOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Options pour {selectedServiceForOptions?.name}</DialogTitle>
+            <DialogDescription>
+              Sélectionnez les options supplémentaires.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {selectedServiceForOptions?.metadata?.addon_options?.map((option: any) => (
+              <label key={option.name} className="flex items-center justify-between gap-3 text-sm border border-border rounded-md p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-primary rounded border-input"
+                    checked={selectedServiceOptions.includes(option.name)}
+                    onChange={(e) => {
+                      setSelectedServiceOptions((prev) =>
+                        e.target.checked ? [...prev, option.name] : prev.filter((item) => item !== option.name)
+                      );
+                    }}
+                  />
+                  <span className="font-medium">{option.name}</span>
+                </div>
+                <span className="text-muted-foreground text-xs font-semibold">
+                  +{format(Number(option.extra_cost || 0))}
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setOptionsModalOpen(false)}>Annuler</Button>
+            <Button onClick={confirmServiceOptions}>Ajouter au panier</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-md">
