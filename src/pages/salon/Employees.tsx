@@ -325,23 +325,7 @@ export default function EmployeesPage() {
           throw new Error(employeeError?.message || "Création employé impossible");
         }
 
-        // 2. Create auth account via Edge Function
-        const { error: accountError } = await supabase.functions.invoke("create-employee-account", {
-          body: {
-            employee_id: employeeRow.id,
-            business_id: businessId,
-            email: formData.email.trim().toLowerCase(),
-            temporary_password: Math.random().toString(36).slice(-10),
-            role: "employee",
-            employee_role: formData.role,
-            permissions: formData.permissions,
-            is_active: status === "active",
-          },
-        });
-
-        if (accountError) throw new Error(accountError.message);
-
-        // 3. Create commission record
+        // 2. Create commission record
         if (formData.commissionRate !== undefined) {
           await supabase.from("employee_commissions").insert([{
             employee_id: employeeRow.id,
@@ -352,7 +336,7 @@ export default function EmployeesPage() {
           }]);
         }
 
-        // 4. Set local app password (RPC)
+        // 3. Set local app password (RPC)
         if (formData.password) {
           await supabase.rpc('set_employee_password', {
             p_employee_id: employeeRow.id,
