@@ -7,11 +7,11 @@
     "startTrial": "Start free trial"
   },
   "hero": {
-    "badge": "Used by businesses in 40+ countries",
+    "badge": "Used by businesses in {{count}} countries",
     "title1": "The modern business",
     "title2": "management platform",
     "subtitle": "One platform to run your salon, pharmacy, restaurant, grocery store, or boutique — with real-time POS, analytics, and team management built in.",
-    "cta": "Start 14-day free trial",
+    "cta": "Start 7-day free trial",
     "demo": "View demo dashboard",
     "noCreditCard": "No credit card required · Cancel anytime"
   },

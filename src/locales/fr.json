@@ -7,11 +7,11 @@
     "startTrial": "Essai gratuit"
   },
   "hero": {
-    "badge": "Utilisé dans plus de 40 pays",
+    "badge": "Utilisé par des entreprises dans {{count}} pays",
     "title1": "La plateforme SaaS de",
     "title2": "gestion d'entreprise",
     "subtitle": "Un seul système pour gérer votre salon, pharmacie, restaurant, supermarché ou boutique. Caisse POS en temps réel, statistiques et gestion d'équipe incluses.",
-    "cta": "Démarrer l'essai de 14 jours",
+    "cta": "Démarrer l'essai de 7 jours",
     "demo": "Voir le dashboard démo",
     "noCreditCard": "Sans carte bancaire · Annulation à tout moment"
   },

@@ -7,11 +7,11 @@
     "startTrial": "Prueba gratuita"
   },
   "hero": {
-    "badge": "Usado en más de 40 países",
+    "badge": "Usado por empresas en {{count}} países",
     "title1": "La plataforma moderna de",
     "title2": "gestión empresarial",
     "subtitle": "Una sola plataforma para administrar su salón, farmacia, restaurante, supermercado o boutique. POS en tiempo real, análisis y gestión de personal.",
-    "cta": "Comenzar prueba de 14 días",
+    "cta": "Comenzar prueba de 7 días",
     "demo": "Ver demo del dashboard",
     "noCreditCard": "Sin tarjeta de crédito · Cancele en cualquier momento"
   },

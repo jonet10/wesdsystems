@@ -97,6 +97,7 @@ interface BusinessInfo {
 interface EmployeeInfo {
   id: string;
   name: string;
+  role: string;
 }
 
 interface PendingTabClientResult {
@@ -240,7 +241,7 @@ export default function POSPage() {
       }
       const { data: emp } = await supabase
         .from("salon_employees")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, role")
         .eq("is_active", true)
         .eq("branch_id", activeBranchId)
         .order("first_name");
@@ -248,6 +249,7 @@ export default function POSPage() {
         setEmployees((emp || []).map((row: any) => ({
           id: row.id,
           name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
+          role: row.role || "cashier",
         })));
       }
     } catch {}
@@ -680,6 +682,10 @@ export default function POSPage() {
   };
 
   const hasServices = useMemo(() => cart.some(i => i.type === "service"), [cart]);
+  const barberEmployees = useMemo(
+    () => employees.filter((employee) => employee.role === "barber"),
+    [employees]
+  );
 
   const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
   const { subtotal, totalDiscount, total } = totals;
@@ -734,6 +740,9 @@ export default function POSPage() {
 
   const checkout = async () => {
     if (cart.length === 0) return toast.error("Panier vide");
+    if (hasServices && !selectedEmployee) {
+      return toast.error("Veuillez sélectionner le barbier qui a réalisé la prestation.");
+    }
     if (paymentMethod === "mixed" && !paymentValidation.isPaid) {
       return toast.error(`Paiement incomplet. Reste à payer: ${format(paymentValidation.remaining)}`);
     }
@@ -1126,22 +1135,28 @@ export default function POSPage() {
                 )}
               </ScrollArea>
 
-              {/* Employee Selector */}
-              {employees.length > 0 && (
+              {/* Barber Selector */}
+              {hasServices && (
                 <div className="mt-2">
                   <Label className="text-xs flex items-center gap-1 mb-1">
-                    <UserCog className="h-3 w-3" /> Employé
+                    <UserCog className="h-3 w-3" /> Barbier en charge
                   </Label>
-                  <select
-                    value={selectedEmployee}
-                    onChange={(e) => setSelectedEmployee(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">Sélectionner...</option>
-                    {employees.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
+                  {barberEmployees.length > 0 ? (
+                    <select
+                      value={selectedEmployee}
+                      onChange={(e) => setSelectedEmployee(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="">Sélectionner un barbier...</option>
+                      {barberEmployees.map((employee) => (
+                        <option key={employee.id} value={employee.id}>{employee.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                      Aucun barbier actif n'a été trouvé pour cette branche.
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -7,11 +7,11 @@
     "startTrial": "Kòmanse gratis"
   },
   "hero": {
-    "badge": "Itilize nan plis pase 40 peyi",
+    "badge": "Itilize pa biznis nan {{count}} peyi",
     "title1": "Platfòm modèn pou",
     "title2": "jere biznis ou",
     "subtitle": "Yon sèl sistèm pou jere salon w, famasi, restoran, makèt oswa boutik. Kès POS rapid, estatistik, ak jesyon anplwaye yo enkli.",
-    "cta": "Kòmanse esè 14 jou a",
+    "cta": "Kòmanse esè 7 jou a",
     "demo": "Gade dashboard la",
     "noCreditCard": "Ou pa bezwen kat kredi · Anile nenpòt kilè"
   },
