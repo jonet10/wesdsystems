@@ -57,7 +57,7 @@ export interface PendingTabCheckoutInput {
   amount_paid: number;
   cashier_id?: string | null;
   cashier_name?: string | null;
+  employee_id?: string | null;
   currency_code?: string;
   payment_splits?: Array<{ method: string; amount: number }>;
 }
-

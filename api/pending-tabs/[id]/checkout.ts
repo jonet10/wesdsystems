@@ -24,6 +24,43 @@ const groupItems = (items: any[]) => {
   return Array.from(grouped.values());
 };
 
+const getCommissionRate = async (employeeId: string, serviceId: string) => {
+  const { data: rules, error: ruleError } = await apiSupabase
+    .from("commission_rules")
+    .select("rate_type, rate_value")
+    .eq("employee_id", employeeId)
+    .eq("service_id", serviceId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (ruleError) throw ruleError;
+  if (rules) return { type: rules.rate_type, value: Number(rules.rate_value) };
+
+  const { data: global, error: globalError } = await apiSupabase
+    .from("commission_rules")
+    .select("rate_type, rate_value")
+    .eq("employee_id", employeeId)
+    .is("service_id", null)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (globalError) throw globalError;
+  if (global) return { type: global.rate_type, value: Number(global.rate_value) };
+
+  const { data: emp, error: empError } = await apiSupabase
+    .from("salon_employees")
+    .select("commission_percentage")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (empError) throw empError;
+  if (emp?.commission_percentage) {
+    return { type: "percentage", value: Number(emp.commission_percentage) };
+  }
+
+  return null;
+};
+
 export default async function handler(req: any, res: any) {
   try {
     const tabId = String(req.query.id || "");
@@ -33,6 +70,7 @@ export default async function handler(req: any, res: any) {
     const body = req.body || {};
     const paymentMethod = String(body.payment_method || "cash");
     const cashierId = body.cashier_id || null;
+    const employeeId = body.employee_id || null;
     const paymentSplits = Array.isArray(body.payment_splits) ? body.payment_splits : null;
 
     const tab = await loadTabDetail(tabId);
@@ -67,6 +105,7 @@ export default async function handler(req: any, res: any) {
         discount_amount: 0,
         discount_percentage: 0,
         tax_amount: 0,
+        employee_id: employeeId,
         cashier_name: cashierName,
         cashier_id: cashierId,
       })
@@ -125,22 +164,54 @@ export default async function handler(req: any, res: any) {
       const previousStock = Number(product?.quantity_in_stock || 0);
       const nextStock = Math.max(0, previousStock - Number(item.quantity || 0));
 
-      await apiSupabase
+      const { error: productUpdateError } = await apiSupabase
         .from("salon_products")
         .update({ quantity_in_stock: nextStock })
         .eq("id", item.item_id);
+      if (productUpdateError) throw productUpdateError;
 
-      await apiSupabase.from("salon_stock_movements").insert({
+      const { error: stockMovementError } = await apiSupabase.from("salon_stock_movements").insert({
         business_id: branch.business_id,
         branch_id: tab.branch_id,
         product_id: item.item_id,
         movement_type: "sale",
         quantity_delta: -Number(item.quantity || 0),
+        quantity_before: previousStock,
+        quantity_after: nextStock,
         reason: `Vente fiche #${tab.tab_number}`,
         reference_type: "pending_tab",
         reference_id: tab.id,
         created_by: cashierId || null,
       });
+      if (stockMovementError) throw stockMovementError;
+    }
+
+    if (employeeId) {
+      for (const item of saleItems) {
+        if (item.item_type !== "service") continue;
+        const rate = await getCommissionRate(employeeId, item.item_id);
+        if (!rate) continue;
+
+        const saleAmount = Number(item.quantity || 0) * Number(item.unit_price || 0);
+        const commissionAmount = rate.type === "percentage"
+          ? saleAmount * (rate.value / 100)
+          : rate.value;
+
+        const { error: commissionError } = await apiSupabase.from("commission_transactions").insert({
+          business_id: branch.business_id,
+          branch_id: tab.branch_id,
+          employee_id: employeeId,
+          sale_id: sale.id,
+          service_id: item.item_id,
+          rate_type: rate.type,
+          rate_value: rate.value,
+          sale_amount: saleAmount,
+          commission_amount: commissionAmount,
+          currency_code: body.currency_code || "HTG",
+          status: "pending",
+        });
+        if (commissionError) throw commissionError;
+      }
     }
 
     const { error: closeError } = await apiSupabase
@@ -171,4 +242,3 @@ export default async function handler(req: any, res: any) {
     return json(res, 500, { error: error?.message || "Erreur serveur" });
   }
 }
-

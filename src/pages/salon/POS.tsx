@@ -762,6 +762,7 @@ export default function POSPage() {
           amount_paid: paymentValidation.paid || total,
           cashier_id: cashierId,
           cashier_name: cashierName,
+          employee_id: selectedEmployee || null,
           currency_code: currencyCode,
           payment_splits: resolvedPaymentSplits.map((split) => ({
             method: split.method,

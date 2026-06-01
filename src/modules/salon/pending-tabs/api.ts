@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { recordStockMovement } from "@/modules/salon/inventory";
 import type {
   PendingTabCheckoutInput,
   PendingTabCreateInput,
@@ -46,6 +47,76 @@ const endOfToday = () => {
 };
 
 const toNumber = (value: unknown) => Number(value || 0);
+
+const groupTabItems = (items: PendingTabDetail["items"]) => {
+  const grouped = new Map<string, PendingTabDetail["items"][number] & { source_ids: string[] }>();
+
+  for (const item of items) {
+    const key = `${item.item_type}:${item.item_id}:${item.item_name}:${Number(item.unit_price || 0)}`;
+    const current = grouped.get(key) || {
+      ...item,
+      quantity: 0,
+      subtotal: 0,
+      source_ids: [],
+    };
+
+    current.quantity += Number(item.quantity || 0);
+    current.subtotal += Number(item.subtotal || 0);
+    current.source_ids.push(item.id);
+    grouped.set(key, current);
+  }
+
+  return Array.from(grouped.values()).map(({ source_ids, ...item }) => item);
+};
+
+const getBusinessIdForBranch = async (branchId: string) => {
+  const { data, error } = await supabase
+    .from("salon_branches")
+    .select("id, business_id")
+    .eq("id", branchId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data?.business_id) throw new Error("Business introuvable pour cette branche");
+  return String(data.business_id);
+};
+
+const getCommissionRate = async (employeeId: string, serviceId: string): Promise<{ type: string; value: number } | null> => {
+  const { data: rules, error: ruleError } = await supabase
+    .from("commission_rules")
+    .select("rate_type, rate_value")
+    .eq("employee_id", employeeId)
+    .eq("service_id", serviceId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (ruleError) throw new Error(ruleError.message);
+  if (rules) return { type: rules.rate_type, value: Number(rules.rate_value) };
+
+  const { data: global, error: globalError } = await supabase
+    .from("commission_rules")
+    .select("rate_type, rate_value")
+    .eq("employee_id", employeeId)
+    .is("service_id", null)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (globalError) throw new Error(globalError.message);
+  if (global) return { type: global.rate_type, value: Number(global.rate_value) };
+
+  const { data: emp, error: empError } = await supabase
+    .from("salon_employees")
+    .select("commission_percentage")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (empError) throw new Error(empError.message);
+  if (emp?.commission_percentage) {
+    return { type: "percentage", value: Number(emp.commission_percentage) };
+  }
+
+  return null;
+};
 
 const makeTabNumber = (branchId: string, tabs: PendingTabDetail[]) => {
   const prefix = branchId.slice(0, 3).toUpperCase() || "TAB";
@@ -142,29 +213,153 @@ const addLocalItem = (tab: PendingTabDetail, input: PendingTabItemInput) => {
 
 const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput) => {
   const now = new Date().toISOString();
-  const sale = {
-    id: crypto.randomUUID(),
-    sale_number: tab.tab_number,
-    total_amount: tab.total_amount,
-    subtotal: tab.total_amount,
-    discount_amount: 0,
-    payment_method: input.payment_method,
-    amount_paid: input.amount_paid,
-    created_at: now,
-    cashier_id: input.cashier_id || tab.cashier_id || null,
-    cashier_name: input.cashier_name || null,
-    branch_id: tab.branch_id,
-    status: "completed",
-  };
+  const saleItems = groupTabItems(tab.items);
 
-  const closedTab: PendingTabDetail = {
-    ...tab,
-    status: "closed",
-    closed_at: now,
-  };
+  return (async () => {
+    const businessId = await getBusinessIdForBranch(tab.branch_id);
+    const totalAmount = saleItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0);
 
-  updateLocalTab(closedTab);
-  return { sale, items: tab.items, tab: closedTab };
+    const { data: sale, error: saleError } = await supabase
+      .from("salon_sales")
+      .insert({
+        business_id: businessId,
+        branch_id: tab.branch_id,
+        customer_name: tab.label,
+        customer_id: tab.client_id || null,
+        payment_method: input.payment_method === "mixed" ? "cash" : input.payment_method,
+        total_amount: totalAmount,
+        discount_amount: 0,
+        discount_percentage: 0,
+        tax_amount: 0,
+        employee_id: input.employee_id || null,
+        cashier_name: input.cashier_name || null,
+        cashier_id: input.cashier_id || tab.cashier_id || null,
+      })
+      .select("id, sale_number, created_at")
+      .single();
+
+    if (saleError || !sale?.id) throw new Error(saleError?.message || "Impossible de créer la transaction");
+
+    const { error: saleItemError } = await supabase.from("salon_sale_items").insert(
+      saleItems.map((item) => ({
+        sale_id: sale.id,
+        branch_id: tab.branch_id,
+        ...(item.item_type === "product" ? { product_id: item.item_id } : {}),
+        ...(item.item_type === "service" ? { service_id: item.item_id } : {}),
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.subtotal,
+      }))
+    );
+    if (saleItemError) throw new Error(saleItemError.message);
+
+    if (Array.isArray(input.payment_splits) && input.payment_splits.length > 0) {
+      const { error: paymentError } = await supabase.from("salon_sale_payments").insert(
+        input.payment_splits.map((split) => ({
+          sale_id: sale.id,
+          business_id: businessId,
+          branch_id: tab.branch_id,
+          payment_method: split.method || input.payment_method,
+          amount: Number(split.amount || 0),
+          currency_code: input.currency_code || "HTG",
+        }))
+      );
+      if (paymentError) throw new Error(paymentError.message);
+    } else {
+      const { error: paymentError } = await supabase.from("salon_sale_payments").insert({
+        sale_id: sale.id,
+        business_id: businessId,
+        branch_id: tab.branch_id,
+        payment_method: input.payment_method,
+        amount: Number(input.amount_paid || totalAmount),
+        currency_code: input.currency_code || "HTG",
+      });
+      if (paymentError) throw new Error(paymentError.message);
+    }
+
+    for (const item of saleItems) {
+      if (item.item_type !== "product") continue;
+
+      const { data: product, error: productError } = await supabase
+        .from("salon_products")
+        .select("id, quantity_in_stock")
+        .eq("id", item.item_id)
+        .maybeSingle();
+      if (productError) throw new Error(productError.message);
+
+      const previousStock = Number(product?.quantity_in_stock || 0);
+      const nextStock = Math.max(0, previousStock - Number(item.quantity || 0));
+
+      const { error: updateError } = await supabase
+        .from("salon_products")
+        .update({ quantity_in_stock: nextStock })
+        .eq("id", item.item_id);
+      if (updateError) throw new Error(updateError.message);
+
+      await recordStockMovement({
+        business_id: businessId,
+        branch_id: tab.branch_id,
+        product_id: item.item_id,
+        movement_type: "sale",
+        quantity_delta: -Number(item.quantity || 0),
+        reason: `Vente fiche #${tab.tab_number}`,
+        reference_id: sale.id,
+      });
+    }
+
+    const hasServices = saleItems.some((item) => item.item_type === "service");
+    if (input.employee_id && hasServices) {
+      for (const item of saleItems) {
+        if (item.item_type !== "service") continue;
+
+        const rate = await getCommissionRate(input.employee_id, item.item_id);
+        if (!rate) continue;
+
+        const saleAmount = Number(item.quantity || 0) * Number(item.unit_price || 0);
+        const commissionAmount = rate.type === "percentage"
+          ? saleAmount * (rate.value / 100)
+          : rate.value;
+
+        const { error: commissionError } = await supabase.from("commission_transactions").insert({
+          business_id: businessId,
+          branch_id: tab.branch_id,
+          employee_id: input.employee_id,
+          sale_id: sale.id,
+          service_id: item.item_id,
+          rate_type: rate.type,
+          rate_value: rate.value,
+          sale_amount: saleAmount,
+          commission_amount: commissionAmount,
+          currency_code: input.currency_code || "HTG",
+          status: "pending",
+        });
+        if (commissionError) throw new Error(commissionError.message);
+      }
+    }
+
+    const closedTab: PendingTabDetail = {
+      ...tab,
+      status: "closed",
+      closed_at: now,
+    };
+
+    updateLocalTab(closedTab);
+
+    return {
+      sale: {
+        ...sale,
+        tab_number: tab.tab_number,
+        label: tab.label,
+        customer_name: tab.label,
+        customer_id: tab.client_id || null,
+        opened_at: tab.opened_at,
+        closed_at: now,
+        cashier_name: input.cashier_name || null,
+      },
+      items: saleItems,
+      tab: closedTab,
+    };
+  })();
 };
 
 const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T | null> => {

@@ -1,16 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Area,
-  AreaChart,
   Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from "recharts";
 import {
   ArrowRight,
@@ -25,7 +21,6 @@ import {
   Pill,
   ChevronRight,
   BarChart3,
-  Clock3,
   Scissors,
   ShoppingBag,
   Star,
@@ -55,36 +50,28 @@ const businessKeys = [
 
 const LANGUAGE_CODES = ["en", "fr", "es", "ht"] as const;
 const PIE_COLORS = ["#8b5cf6", "#22d3ee", "#14b8a6"];
+const HERO_SLIDES = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images/4.jpg"];
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const { detectedRegionName, detectedCountry, availableCountries, setCountryPreference, priceForPlan, formatPrice, isLoading } =
     usePricing();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 4500);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const starterPrice = priceForPlan("Starter") || priceForPlan("Basic");
   const proPrice = priceForPlan("Pro");
   const enterprisePrice = priceForPlan("Enterprise") || priceForPlan("Premium");
 
   const countryCount = availableCountries.length || 31;
-
-  const priceChartData = useMemo(
-    () => [
-      {
-        name: "Starter",
-        value: starterPrice?.monthly_price ?? 0,
-      },
-      {
-        name: "Pro",
-        value: proPrice?.monthly_price ?? 0,
-      },
-      {
-        name: "Enterprise",
-        value: enterprisePrice?.monthly_price ?? 0,
-      },
-    ],
-    [enterprisePrice?.monthly_price, proPrice?.monthly_price, starterPrice?.monthly_price]
-  );
 
   const coverageData = useMemo(
     () => [
@@ -311,179 +298,53 @@ export default function Landing() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[56px_1.35fr_0.9fr]">
-                <div className="hidden flex-col items-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/5 py-4 text-white/55 xl:flex">
-                  <div className="rounded-2xl bg-cyan-400/15 p-2 text-cyan-300">
-                    <LayoutGrid className="h-4 w-4" />
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/55 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-cyan-500/10" />
+                <div className="relative flex items-center justify-between border-b border-white/8 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-white/55">Featured slides</p>
+                    <p className="text-xs text-white/40">Local images from /images</p>
                   </div>
-                  <div className="rounded-2xl p-2 hover:bg-white/8">
-                    <BarChart3 className="h-4 w-4" />
-                  </div>
-                  <div className="rounded-2xl p-2 hover:bg-white/8">
-                    <PieChartIcon className="h-4 w-4" />
-                  </div>
-                  <div className="rounded-2xl p-2 hover:bg-white/8">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="rounded-2xl p-2 hover:bg-white/8">
-                    <DollarSign className="h-4 w-4" />
+                  <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70">
+                    {currentSlide + 1}/{HERO_SLIDES.length}
                   </div>
                 </div>
 
-                <div className="grid gap-4">
-                  <div className="rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-white/7 to-white/4 p-4">
-                    <div className="mb-4 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-white/55">Sales Performance</p>
-                        <p className="text-2xl font-bold tracking-tight">
-                          {starterPrice ? formatPrice(starterPrice.monthly_price, starterPrice.currency_code) : "—"}
-                        </p>
-                        <p className="text-xs text-white/45">Starter plan, detected market</p>
-                      </div>
-                      <div className="rounded-full border border-white/10 bg-slate-950/40 px-3 py-1.5 text-xs font-medium text-white/70">
-                        All month
-                      </div>
+                <div className="relative h-[620px] sm:h-[700px]">
+                  <AnimatePresence mode="wait">
+                    <motion.img
+                      key={HERO_SLIDES[currentSlide]}
+                      src={HERO_SLIDES[currentSlide]}
+                      alt={`BetMatch slide ${currentSlide + 1}`}
+                      initial={{ opacity: 0, scale: 1.04 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </AnimatePresence>
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-4 pb-4">
+                    <div className="max-w-[72%]">
+                      <p className="text-xs uppercase tracking-[0.24em] text-white/45">BetMatch gallery</p>
+                      <h4 className="mt-1 text-xl font-bold">Real visuals, live atmosphere</h4>
+                      <p className="mt-1 text-sm text-white/60">
+                        A rotating showcase of the platform inside the hero dashboard zone.
+                      </p>
                     </div>
-
-                    <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={priceChartData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="priceGlow" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.58} />
-                              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.03} />
-                            </linearGradient>
-                          </defs>
-                          <XAxis dataKey="name" tickLine={false} axisLine={false} stroke="#94a3b8" fontSize={11} />
-                          <YAxis tickLine={false} axisLine={false} stroke="#94a3b8" fontSize={11} width={32} />
-                          <Tooltip
-                            cursor={{ stroke: "rgba(255,255,255,0.12)" }}
-                            contentStyle={{
-                              background: "rgba(2, 6, 23, 0.95)",
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              borderRadius: 16,
-                              color: "#fff",
-                            }}
-                            labelStyle={{ color: "#cbd5e1" }}
-                            formatter={(value: number) =>
-                              starterPrice ? [formatPrice(value, starterPrice.currency_code), "Monthly price"] : [value, "Monthly price"]
-                            }
-                          />
-                          <Area type="monotone" dataKey="value" stroke="#22d3ee" strokeWidth={3} fill="url(#priceGlow)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {[
-                      { title: "Gross profit", value: latestPriceLabel, icon: DollarSign },
-                      { title: "Active customers", value: `${countryCount * 413}`, icon: Users },
-                    ].map((card) => {
-                      const Icon = card.icon;
-                      return (
-                        <div key={card.title} className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                          <div className="mb-3 flex items-center justify-between">
-                            <p className="text-sm font-medium text-white/55">{card.title}</p>
-                            <Icon className="h-4 w-4 text-cyan-300" />
-                          </div>
-                          <p className="text-2xl font-bold tracking-tight">{card.value}</p>
-                          <div className="mt-2 h-1.5 rounded-full bg-white/8">
-                            <div className="h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" style={{ width: "72%" }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid gap-4">
-                  <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-white/55">Revenue by category</p>
-                        <p className="text-xl font-semibold">Live distribution</p>
-                      </div>
-                      <PieChartIcon className="h-5 w-5 text-cyan-300" />
-                    </div>
-
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={coverageData}
-                            dataKey="value"
-                            innerRadius={42}
-                            outerRadius={62}
-                            paddingAngle={4}
-                          >
-                            {coverageData.map((entry, index) => (
-                              <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              background: "rgba(2, 6, 23, 0.95)",
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              borderRadius: 16,
-                              color: "#fff",
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                      {coverageData.map((item, index) => (
-                        <div key={item.name} className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/35 px-3 py-3">
-                          <div className="flex items-center gap-3">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                            <span className="text-sm font-medium text-white/80">{item.name}</span>
-                          </div>
-                          <span className="text-sm font-semibold text-white">{item.value}</span>
-                        </div>
+                    <div className="flex gap-2">
+                      {HERO_SLIDES.map((slide, index) => (
+                        <button
+                          key={slide}
+                          type="button"
+                          aria-label={`Slide ${index + 1}`}
+                          onClick={() => setCurrentSlide(index)}
+                          className={`h-2.5 rounded-full transition-all ${
+                            index === currentSlide ? "w-8 bg-white" : "w-2.5 bg-white/35 hover:bg-white/60"
+                          }`}
+                        />
                       ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-white/55">Top products</p>
-                        <p className="text-lg font-semibold">Team hours</p>
-                      </div>
-                      <MoreHorizontal className="h-5 w-5 text-white/40" />
-                    </div>
-
-                    <div className="space-y-3">
-                      {visibleCountries.map((country, index) => (
-                        <div key={country.country_code} className="flex items-center justify-between rounded-2xl border border-white/8 bg-slate-950/35 px-3 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-white/85">{country.country_name}</p>
-                            <p className="text-xs text-white/45">{country.currency_code}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-white">{36 - index * 4} hrs</p>
-                            <div className="mt-1 h-1.5 w-24 rounded-full bg-white/8">
-                              <div
-                                className="h-1.5 rounded-full bg-gradient-to-r from-violet-400 to-cyan-300"
-                                style={{ width: `${92 - index * 14}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl border border-white/8 bg-slate-950/35 px-3 py-3">
-                        <p className="text-xs uppercase tracking-wider text-white/45">Avg ticket</p>
-                        <p className="mt-1 text-lg font-bold">{latestPriceLabel}</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-slate-950/35 px-3 py-3">
-                        <p className="text-xs uppercase tracking-wider text-white/45">Open branches</p>
-                        <p className="mt-1 text-lg font-bold">{businessKeys.length + 2}</p>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -567,56 +428,74 @@ export default function Landing() {
 
           <div className="grid gap-5 md:grid-cols-3">
             {[
-              { key: "starter", title: t("pricing.starter"), price: starterPrice, features: ["1 business", "3 staff", "Standard POS"] },
-              { key: "pro", title: t("pricing.pro"), price: proPrice, features: ["2 businesses", "10 staff", "Advanced analytics"] },
-              { key: "enterprise", title: t("pricing.enterprise"), price: enterprisePrice, features: ["Unlimited businesses", "Unlimited staff", "Priority support"] },
-            ].map((plan, index) => {
-              const featured = plan.key === "pro";
-              return (
-                <div
-                  key={plan.key}
-                  className={`relative overflow-hidden rounded-[1.75rem] border p-7 shadow-xl shadow-black/10 ${
-                    featured
-                      ? "border-cyan-400/30 bg-gradient-to-br from-violet-500/18 to-cyan-500/16"
-                      : "border-white/10 bg-white/5"
-                  }`}
-                >
-                  {featured && (
-                    <div className="absolute right-5 top-5 inline-flex items-center gap-2 rounded-full bg-cyan-400 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-950">
-                      <Star className="h-3.5 w-3.5" />
-                      Most popular
-                    </div>
-                  )}
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-white/50">{plan.title}</p>
-                  <div className="mt-3 flex items-end gap-2">
-                    <span className="text-4xl font-black">
-                      {plan.price ? formatPrice(plan.price.monthly_price, plan.price.currency_code) : "—"}
-                    </span>
-                    <span className="pb-1 text-sm text-white/50">{t("pricing.monthly")}</span>
+              {
+                key: "starter",
+                label: "STARTER",
+                price: "1 500 G/mois",
+                features: ["1 business", "Up to 5 staff", "Standard POS", "Email support"],
+                featured: false,
+              },
+              {
+                key: "pro",
+                label: "PROFESSIONNEL",
+                price: "2 500 G/mois",
+                features: ["2 businesses", "Up to 15 staff", "Advanced analytics", "Priority support"],
+                featured: true,
+              },
+              {
+                key: "enterprise",
+                label: "ENTREPRISE",
+                price: "5 000 G/mois",
+                features: ["Unlimited businesses", "Unlimited staff", "Advanced analytics", "Priority support + dedicated manager"],
+                featured: false,
+              },
+            ].map((plan) => (
+              <div
+                key={plan.key}
+                className={`relative overflow-hidden rounded-[1.85rem] border p-7 shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${
+                  plan.featured
+                    ? "border-cyan-400/30 bg-gradient-to-b from-[#17172f] to-[#12112a]"
+                    : "border-white/8 bg-[#12112a]"
+                }`}
+              >
+                {plan.featured && (
+                  <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-cyan-400 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-950">
+                    <Star className="h-3.5 w-3.5" />
+                    Most popular
                   </div>
-                  <div className="mt-6 space-y-3">
-                    {plan.features.map((feature) => (
-                      <div key={feature} className="flex items-center gap-3 text-sm text-white/70">
-                        <Check className="h-4 w-4 text-cyan-300" />
-                        {feature}
-                      </div>
-                    ))}
-                  </div>
-                  <Link to="/auth/register" className="mt-8 block">
-                    <Button
-                      className={`h-12 w-full rounded-full font-semibold ${
-                        featured
-                          ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white"
-                          : "border border-white/12 bg-white/5 text-white hover:bg-white/10"
-                      }`}
-                      variant={featured ? "default" : "outline"}
-                    >
-                      {t("pricing.getStarted")}
-                    </Button>
-                  </Link>
+                )}
+
+                <p className="text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-white/45">
+                  {plan.label}
+                </p>
+
+                <div className="mt-4 text-[3rem] font-black leading-none text-white">
+                  {plan.price}
                 </div>
-              );
-            })}
+
+                <div className="mt-7 space-y-3">
+                  {plan.features.map((feature) => (
+                    <div key={feature} className="flex items-start gap-3 text-sm leading-6 text-white/80">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-white/85" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link to="/auth/register" className="mt-8 block">
+                  <Button
+                    className={`h-12 w-full rounded-full font-semibold ${
+                      plan.featured
+                        ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-500 hover:to-cyan-400"
+                        : "border border-white/12 bg-transparent text-white hover:bg-white/5"
+                    }`}
+                    variant={plan.featured ? "default" : "outline"}
+                  >
+                    Commencer
+                  </Button>
+                </Link>
+              </div>
+            ))}
           </div>
         </section>
 
