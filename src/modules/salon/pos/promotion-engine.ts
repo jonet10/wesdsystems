@@ -1,5 +1,24 @@
 import type { CartItem, Promotion } from "./types";
 
+const isPrestigeItem = (item: CartItem) =>
+  item.type === "product" && item.name.toLowerCase().includes("prestige");
+
+const calculatePrestigeDiscount = (item: CartItem) => {
+  const quantity = Math.max(0, Number(item.quantity || 0));
+  const unitPrice = Number(item.unit_price || 0);
+  const bundleCount = Math.floor(quantity / 3);
+  const remainder = quantity % 3;
+  const prestigeUnitPrice = 175;
+  const prestigeBundlePrice = 500;
+  const expectedTotal = bundleCount * prestigeBundlePrice + remainder * prestigeUnitPrice;
+  const lineTotal = unitPrice * quantity;
+
+  return {
+    discount: Math.max(0, lineTotal - expectedTotal),
+    isBundleApplied: bundleCount > 0,
+  };
+};
+
 const itemMatchesPromotion = (item: CartItem, promotion: Promotion) => {
   if (item.type === "product") return promotion.items_config?.products?.includes(item.item_id);
   if (item.type === "service") return promotion.items_config?.services?.includes(item.item_id);
@@ -8,6 +27,18 @@ const itemMatchesPromotion = (item: CartItem, promotion: Promotion) => {
 
 export function applyPromotions(cartItems: CartItem[], promotions: Promotion[]): CartItem[] {
   return cartItems.map((item) => {
+    if (isPrestigeItem(item)) {
+      const prestige = calculatePrestigeDiscount(item);
+      if (prestige.isBundleApplied) {
+        return {
+          ...item,
+          promotion_applied: true,
+          promotion_name: "3 Prestige = 500 Gdes",
+          discount: Math.min(item.unit_price * item.quantity, prestige.discount),
+        };
+      }
+    }
+
     const applicablePromo = promotions.find((promotion) => {
       if (promotion.promotion_type === "percentage" || promotion.promotion_type === "fixed_amount") {
         return itemMatchesPromotion(item, promotion);

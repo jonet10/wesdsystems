@@ -278,38 +278,8 @@ export default function Landing() {
             <div className="absolute -inset-6 rounded-[2.25rem] bg-gradient-to-tr from-violet-500/20 via-cyan-400/10 to-fuchsia-500/15 blur-3xl" />
 
             <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/60 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
-              <div className="mb-4 flex items-center justify-between border-b border-white/8 pb-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-white/75">
-                  <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                  {t("hero.badge", { count: countryCount })}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-xs font-medium text-white/70">
-                    Full chart
-                  </button>
-                  <button className="rounded-full border border-white/10 bg-white/6 px-3 py-1.5 text-xs font-medium text-white/70">
-                    Decorations
-                  </button>
-                  <div className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-cyan-300" />
-                    <span className="h-2 w-2 rounded-full bg-violet-300" />
-                    <span className="h-2 w-2 rounded-full bg-fuchsia-300" />
-                  </div>
-                </div>
-              </div>
-
               <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/55 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-cyan-500/10" />
-                <div className="relative flex items-center justify-between border-b border-white/8 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-white/55">Featured slides</p>
-                    <p className="text-xs text-white/40">Local images from /images</p>
-                  </div>
-                  <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/70">
-                    {currentSlide + 1}/{HERO_SLIDES.length}
-                  </div>
-                </div>
-
                 <div className="relative h-[620px] sm:h-[700px]">
                   <AnimatePresence mode="wait">
                     <motion.img
@@ -327,11 +297,11 @@ export default function Landing() {
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-4 pb-4">
                     <div className="max-w-[72%]">
-                      <p className="text-xs uppercase tracking-[0.24em] text-white/45">BetMatch gallery</p>
-                      <h4 className="mt-1 text-xl font-bold">Real visuals, live atmosphere</h4>
-                      <p className="mt-1 text-sm text-white/60">
-                        A rotating showcase of the platform inside the hero dashboard zone.
-                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-cyan-300" />
+                        <span className="h-2 w-2 rounded-full bg-violet-300" />
+                        <span className="h-2 w-2 rounded-full bg-fuchsia-300" />
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       {HERO_SLIDES.map((slide, index) => (

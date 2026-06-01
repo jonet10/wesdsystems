@@ -1,9 +1,13 @@
 import type { CartItem, CatalogItem, SaleItemType } from "./types";
 import { applyPromotions } from "./promotion-engine";
 
+const isPrestigeProduct = (item: CatalogItem, type: SaleItemType) =>
+  type === "product" && item.name.toLowerCase().includes("prestige");
+
 export function createCartItem(item: CatalogItem, type: SaleItemType, customOptions?: { optionsText?: string, extraCost?: number }): CartItem {
   const optionsSuffix = customOptions?.optionsText ? ` (${customOptions.optionsText})` : "";
   const keyOptions = customOptions?.optionsText ? `-${customOptions.optionsText}` : "";
+  const basePrice = isPrestigeProduct(item, type) ? 175 : item.unit_price;
   
   return {
     key: `${type}-${item.id}${keyOptions}`,
@@ -11,7 +15,7 @@ export function createCartItem(item: CatalogItem, type: SaleItemType, customOpti
     item_id: item.id,
     name: `${item.name}${optionsSuffix}`,
     quantity: 1,
-    unit_price: item.unit_price + (customOptions?.extraCost || 0),
+    unit_price: basePrice + (customOptions?.extraCost || 0),
     category: item.category,
     promotion_applied: false,
     discount: 0,
@@ -48,4 +52,3 @@ export function updateCartQuantity(cart: CartItem[], key: string, delta: number,
 export function removeCartItem(cart: CartItem[], key: string, promotions = []) {
   return applyPromotions(cart.filter((item) => item.key !== key), promotions);
 }
-
