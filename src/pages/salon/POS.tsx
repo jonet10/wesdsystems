@@ -520,7 +520,6 @@ export default function POSPage() {
       const mappedItems = (refreshed?.items || []).map((item: any) => mapPendingItemToCart(item));
       setCart(mappedItems);
       setPendingTabDraftItems(mappedItems);
-      await loadData(activeBranchId);
       await loadPendingTabs();
       toast.success("Fiche mise à jour");
     } catch (error: any) {
@@ -1358,7 +1357,10 @@ export default function POSPage() {
                     }} disabled={pendingTabSaving || pendingTabLoading}>
                       Annuler la fiche
                     </Button>
-                    <Button onClick={savePendingTabDraft} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="bg-primary h-11 text-base font-semibold">
+                    <Button onClick={async () => {
+                      await savePendingTabDraft();
+                      await loadData(activeBranchId);
+                    }} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="bg-primary h-11 text-base font-semibold">
                       Ajouter au tab
                     </Button>
                   </div>
