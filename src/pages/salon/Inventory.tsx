@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal } from "lucide-react";
 import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES, PACKAGING_LABELS, PACKAGING_DEFAULT_QUANTITIES } from "@/lib/packaging";
@@ -47,6 +48,7 @@ interface StockMovement {
 
 export default function InventoryPage() {
   const { profile } = useAuth();
+  const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const { data: branches = [] } = useBusinessBranches();
   const activeBranchId = useMemo(() => {
@@ -165,6 +167,26 @@ export default function InventoryPage() {
     unitSellingPrice: Number(sellingPrice || 0),
   }), [packageQuantity, purchasePriceGlobal, sellingPrice]);
 
+  const inventorySummary = useMemo(() => {
+    const rows = products.map((product) => {
+      const unitsPerCase = normalizePackagingQuantity(product.package_quantity || 1);
+      const unitCost = Number(product.unit_cost_price ?? (product.purchase_price_global ? Number(product.purchase_price_global) / unitsPerCase : 0));
+      const unitRevenue = Number(product.unit_price || 0);
+      const unitProfit = Number(product.unit_profit ?? (unitRevenue - unitCost));
+      const stockValue = Number(product.quantity_in_stock || 0) * unitCost;
+      const potentialRevenue = Number(product.quantity_in_stock || 0) * unitRevenue;
+      const potentialProfit = Number(product.quantity_in_stock || 0) * unitProfit;
+      return { stockValue, potentialRevenue, potentialProfit };
+    });
+
+    const stockInvestment = rows.reduce((sum, row) => sum + row.stockValue, 0);
+    const potentialProfit = rows.reduce((sum, row) => sum + row.potentialProfit, 0);
+    const potentialRevenue = rows.reduce((sum, row) => sum + row.potentialRevenue, 0);
+    const margin = potentialRevenue > 0 ? (potentialProfit / potentialRevenue) * 100 : 0;
+
+    return { stockInvestment, potentialProfit, margin };
+  }, [products]);
+
   const saveProduct = async () => {
     if (!activeBranchId) return toast.error("Sélectionnez une branche");
     if (!name.trim()) return toast.error("Nom produit requis");
@@ -278,7 +300,7 @@ export default function InventoryPage() {
   return (
     <DashboardLayout role="salon_admin" title="Inventaire & Stock" subtitle="Le stock est géré ici, pas dans Produits">
       <StaggerContainer className="space-y-6">
-      <StaggerItem>
+        <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-sm text-muted-foreground">Produits en alerte</p>
@@ -291,6 +313,26 @@ export default function InventoryPage() {
             <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-sm text-muted-foreground">Produits suivis</p>
               <p className="text-2xl font-bold">{products.length}</p>
+            </div>
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground">Valeur d'investissement</p>
+              <p className="text-2xl font-bold">{format(inventorySummary.stockInvestment)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Coût total du stock en magasin</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground">Profit potentiel</p>
+              <p className="text-2xl font-bold text-success">{format(inventorySummary.potentialProfit)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Selon le stock disponible actuel</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground">Marge moyenne</p>
+              <p className="text-2xl font-bold">{inventorySummary.margin.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground mt-1">Marge calculée sur les prix de vente</p>
             </div>
           </div>
         </StaggerItem>
@@ -342,6 +384,8 @@ export default function InventoryPage() {
                     <th className="text-left p-3 text-xs">Seuil</th>
                     <th className="text-left p-3 text-xs">Achat</th>
                     <th className="text-left p-3 text-xs">Vente</th>
+                    <th className="text-left p-3 text-xs">Investissement</th>
+                    <th className="text-left p-3 text-xs">Marge</th>
                     <th className="text-right p-3 text-xs">Action</th>
                   </tr>
                 </thead>
@@ -351,6 +395,11 @@ export default function InventoryPage() {
                     const cases = Math.floor(p.quantity_in_stock / unitsPerCase);
                     const remainder = p.quantity_in_stock % unitsPerCase;
                     const hasCases = unitsPerCase > 1;
+                    const unitCost = Number(p.unit_cost_price ?? (p.purchase_price_global ? Number(p.purchase_price_global) / unitsPerCase : 0));
+                    const unitRevenue = Number(p.unit_price || 0);
+                    const unitProfit = Number(p.unit_profit ?? (unitRevenue - unitCost));
+                    const stockInvestment = Number(p.quantity_in_stock || 0) * unitCost;
+                    const margin = unitRevenue > 0 ? (unitProfit / unitRevenue) * 100 : 0;
 
                     return (
                     <tr key={p.id} className="border-b border-border">
@@ -371,8 +420,12 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td className="p-3 text-sm">{p.reorder_level}</td>
-                      <td className="p-3 text-sm">{p.purchase_price_global ?? p.unit_cost_price ?? 0}</td>
-                      <td className="p-3 text-sm">{p.unit_price}</td>
+                      <td className="p-3 text-sm">{format(Number(p.purchase_price_global ?? p.unit_cost_price ?? 0))}</td>
+                      <td className="p-3 text-sm">{format(Number(p.unit_price || 0))}</td>
+                      <td className="p-3 text-sm">{format(stockInvestment)}</td>
+                      <td className="p-3 text-sm">
+                        <Badge variant={margin >= 0 ? "secondary" : "destructive"}>{margin.toFixed(1)}%</Badge>
+                      </td>
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}>
@@ -479,6 +532,9 @@ export default function InventoryPage() {
                   <p className="font-semibold">Aperçu des marges</p>
                   <p className="text-muted-foreground mt-1">
                     Coût unitaire: {pricingPreview.unitCost.toFixed(2)} | Profit unitaire: {pricingPreview.unitProfit.toFixed(2)} | Profit par conditionnement: {pricingPreview.packageProfit.toFixed(2)}
+                  </p>
+                  <p className="text-muted-foreground mt-1">
+                    Investissement initial: {format(Number(initCases || 0) * normalizePackagingQuantity(packageQuantity) * pricingPreview.unitCost)} | Marge moyenne: {pricingPreview.unitCost > 0 ? (((pricingPreview.unitProfit / (pricingPreview.unitCost + pricingPreview.unitProfit)) || 0) * 100).toFixed(1) : "0.0"}%
                   </p>
                 </div>
               </div>

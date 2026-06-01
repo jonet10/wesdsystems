@@ -520,6 +520,7 @@ export default function POSPage() {
       const mappedItems = (refreshed?.items || []).map((item: any) => mapPendingItemToCart(item));
       setCart(mappedItems);
       setPendingTabDraftItems(mappedItems);
+      await loadData(activeBranchId);
       await loadPendingTabs();
       toast.success("Fiche mise à jour");
     } catch (error: any) {
@@ -1349,6 +1350,7 @@ export default function POSPage() {
                         await cancelPendingTab(activePendingTab.id);
                         toast.success("Fiche annulée");
                         leavePendingTabMode();
+                        await loadData(activeBranchId);
                         await loadPendingTabs();
                       } catch (error: any) {
                         toast.error(error?.message || "Impossible d'annuler la fiche");

@@ -25,7 +25,7 @@ export async function listLowStockProducts(branchId: string) {
 export async function listStockMovements(branchId: string, limit = 50) {
   const { data, error } = await supabase
     .from("salon_stock_movements")
-    .select("id, product_id, movement_type, quantity_delta, reason, reference_id, created_at")
+    .select("id, product_id, movement_type, quantity_delta, quantity_before, quantity_after, reason, reference_type, reference_id, created_at")
     .eq("branch_id", branchId)
     .order("created_at", { ascending: false })
     .limit(limit);

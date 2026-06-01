@@ -120,6 +120,62 @@ const getCommissionRate = async (employeeId: string, serviceId: string): Promise
   return null;
 };
 
+const adjustLocalProductStock = async (
+  tab: PendingTabDetail,
+  productId: string,
+  quantityDelta: number,
+  reason: string,
+  referenceId: string,
+  createdBy: string | null = null
+) => {
+  const businessId = await getBusinessIdForBranch(tab.branch_id);
+  const { data: product, error: productError } = await supabase
+    .from("salon_products")
+    .select("id, quantity_in_stock, unit_cost_price")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (productError) throw new Error(productError.message);
+
+  const previousStock = Number(product?.quantity_in_stock || 0);
+  const nextStock = previousStock + Number(quantityDelta || 0);
+  if (nextStock < 0) throw new Error("Stock insuffisant pour cette fiche");
+
+  const { error: updateError } = await supabase
+    .from("salon_products")
+    .update({ quantity_in_stock: nextStock })
+    .eq("id", productId);
+  if (updateError) throw new Error(updateError.message);
+
+  await recordStockMovement({
+    business_id: businessId,
+    branch_id: tab.branch_id,
+    product_id: productId,
+    movement_type: quantityDelta < 0 ? "sale" : "adjustment",
+    quantity_delta: quantityDelta,
+    quantity_before: previousStock,
+    quantity_after: nextStock,
+    unit_cost: product?.unit_cost_price ?? null,
+    reason,
+    reference_type: "pending_tab",
+    reference_id: referenceId,
+    created_by: createdBy,
+  });
+};
+
+const restoreLocalPendingTabStock = async (tab: PendingTabDetail) => {
+  for (const item of tab.items) {
+    if (item.item_type !== "product") continue;
+    await adjustLocalProductStock(
+      tab,
+      item.item_id,
+      Number(item.quantity || 0),
+      `Annulation fiche #${tab.tab_number}`,
+      tab.id
+    );
+  }
+};
+
 const makeTabNumber = (branchId: string, tabs: PendingTabDetail[]) => {
   const prefix = branchId.slice(0, 3).toUpperCase() || "TAB";
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -420,6 +476,16 @@ export async function addPendingTabItem(tabId: string, input: PendingTabItemInpu
   const state = readLocalState();
   const tab = state.tabs.find((entry) => entry.id === tabId);
   if (!tab) throw new Error("Fiche introuvable");
+  if (input.item_type === "product") {
+    await adjustLocalProductStock(
+      tab,
+      input.item_id,
+      -Math.max(1, Number(input.quantity || 1)),
+      `Réservation fiche #${tab.tab_number}`,
+      tab.id,
+      input.added_by || null
+    );
+  }
   return updateLocalTab(addLocalItem(tab, input));
 }
 
@@ -433,6 +499,21 @@ export async function updatePendingTabItem(tabId: string, itemId: string, quanti
   const state = readLocalState();
   const tab = state.tabs.find((entry) => entry.id === tabId);
   if (!tab) throw new Error("Fiche introuvable");
+  const currentItem = tab.items.find((item) => item.id === itemId);
+  if (!currentItem) throw new Error("Article introuvable");
+  if (currentItem.item_type === "product") {
+    const delta = Math.max(1, Number(quantity || 1)) - Number(currentItem.quantity || 0);
+    if (delta !== 0) {
+      await adjustLocalProductStock(
+        tab,
+        currentItem.item_id,
+        -delta,
+        `Ajustement fiche #${tab.tab_number}`,
+        tab.id,
+        currentItem.added_by
+      );
+    }
+  }
   const items = tab.items.map((item) =>
     item.id === itemId
       ? { ...item, quantity: Math.max(1, Number(quantity || 1)), subtotal: Number(item.unit_price || 0) * Math.max(1, Number(quantity || 1)) }
@@ -454,6 +535,18 @@ export async function deletePendingTabItem(tabId: string, itemId: string) {
   const state = readLocalState();
   const tab = state.tabs.find((entry) => entry.id === tabId);
   if (!tab) throw new Error("Fiche introuvable");
+  const currentItem = tab.items.find((item) => item.id === itemId);
+  if (!currentItem) throw new Error("Article introuvable");
+  if (currentItem.item_type === "product") {
+    await adjustLocalProductStock(
+      tab,
+      currentItem.item_id,
+      Number(currentItem.quantity || 0),
+      `Suppression fiche #${tab.tab_number}`,
+      tab.id,
+      currentItem.added_by
+    );
+  }
   return updateLocalTab(deleteLocalItem(tab, itemId));
 }
 
@@ -465,6 +558,7 @@ export async function cancelPendingTab(tabId: string) {
   const state = readLocalState();
   const tab = state.tabs.find((entry) => entry.id === tabId);
   if (!tab) throw new Error("Fiche introuvable");
+  await restoreLocalPendingTabStock(tab);
   return updateLocalTab({ ...tab, status: "cancelled", closed_at: new Date().toISOString() });
 }
 

@@ -1,5 +1,5 @@
 import { apiSupabase } from "../../_supabase";
-import { json, loadTabDetail } from "../_shared";
+import { adjustProductStock, json, loadTabDetail, restorePendingTabStock } from "../_shared";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -11,12 +11,39 @@ export default async function handler(req: any, res: any) {
     if (!current) return json(res, 404, { error: "Fiche introuvable" });
     if (current.status !== "open") return json(res, 400, { error: "La fiche ne peut plus être annulée" });
 
-    const { error } = await apiSupabase
-      .from("pending_tabs")
-      .update({ status: "cancelled" })
-      .eq("id", tabId);
+    const { data: branch, error: branchError } = await apiSupabase
+      .from("salon_branches")
+      .select("business_id")
+      .eq("id", current.branch_id)
+      .maybeSingle();
+    if (branchError) throw branchError;
+    if (!branch?.business_id) return json(res, 400, { error: "Business introuvable pour cette branche" });
 
-    if (error) throw error;
+    try {
+      await restorePendingTabStock(current, String(branch.business_id), null);
+
+      const { error } = await apiSupabase
+        .from("pending_tabs")
+        .update({ status: "cancelled" })
+        .eq("id", tabId);
+
+      if (error) throw error;
+    } catch (cancelError) {
+      for (const item of current.items) {
+        if (item.item_type !== "product") continue;
+        await adjustProductStock({
+          businessId: String(branch.business_id),
+          branchId: current.branch_id,
+          productId: item.item_id,
+          quantityDelta: -Number(item.quantity || 0),
+          reason: `Rétablissement après échec d'annulation fiche #${current.tab_number}`,
+          referenceId: current.id,
+          referenceType: "pending_tab",
+          createdBy: null,
+        });
+      }
+      throw cancelError;
+    }
 
     const tab = await loadTabDetail(tabId);
     return json(res, 200, { data: tab });

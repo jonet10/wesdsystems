@@ -154,40 +154,6 @@ export default async function handler(req: any, res: any) {
       if (paymentError) throw paymentError;
     }
 
-    for (const item of saleItems) {
-      if (item.item_type !== "product") continue;
-
-      const { data: product } = await apiSupabase
-        .from("salon_products")
-        .select("id, quantity_in_stock")
-        .eq("id", item.item_id)
-        .maybeSingle();
-
-      const previousStock = Number(product?.quantity_in_stock || 0);
-      const nextStock = Math.max(0, previousStock - Number(item.quantity || 0));
-
-      const { error: productUpdateError } = await apiSupabase
-        .from("salon_products")
-        .update({ quantity_in_stock: nextStock })
-        .eq("id", item.item_id);
-      if (productUpdateError) throw productUpdateError;
-
-      const { error: stockMovementError } = await apiSupabase.from("salon_stock_movements").insert({
-        business_id: branch.business_id,
-        branch_id: tab.branch_id,
-        product_id: item.item_id,
-        movement_type: "sale",
-        quantity_delta: -Number(item.quantity || 0),
-        quantity_before: previousStock,
-        quantity_after: nextStock,
-        reason: `Vente fiche #${tab.tab_number}`,
-        reference_type: "pending_tab",
-        reference_id: tab.id,
-        created_by: cashierId || null,
-      });
-      if (stockMovementError) throw stockMovementError;
-    }
-
     if (employeeId) {
       for (const item of saleItems) {
         if (item.item_type !== "service") continue;

@@ -1,5 +1,5 @@
 import { apiSupabase } from "../../_supabase";
-import { json, loadTabDetail } from "../_shared";
+import { adjustProductStock, json, loadTabDetail } from "../_shared";
 
 export default async function handler(req: any, res: any) {
   try {
@@ -21,18 +21,53 @@ export default async function handler(req: any, res: any) {
 
     const quantity = Math.max(1, Number(body.quantity || 1));
     const unitPrice = Number(body.unit_price || 0);
+    const { data: branch, error: branchError } = await apiSupabase
+      .from("salon_branches")
+      .select("business_id")
+      .eq("id", tab.branch_id)
+      .maybeSingle();
+    if (branchError) throw branchError;
 
-    const { error } = await apiSupabase.from("pending_tab_items").insert({
-      tab_id: tabId,
-      item_type: body.item_type,
-      item_id: body.item_id,
-      item_name: body.item_name,
-      unit_price: unitPrice,
-      quantity,
-      added_by: body.added_by || null,
-    });
+    if (body.item_type === "product" && branch?.business_id) {
+      await adjustProductStock({
+        businessId: String(branch.business_id),
+        branchId: tab.branch_id,
+        productId: body.item_id,
+        quantityDelta: -quantity,
+        reason: `Réservation fiche #${tab.tab_number}`,
+        referenceId: tab.id,
+        referenceType: "pending_tab",
+        createdBy: body.added_by || null,
+      });
+    }
 
-    if (error) throw error;
+    try {
+      const { error } = await apiSupabase.from("pending_tab_items").insert({
+        tab_id: tabId,
+        item_type: body.item_type,
+        item_id: body.item_id,
+        item_name: body.item_name,
+        unit_price: unitPrice,
+        quantity,
+        added_by: body.added_by || null,
+      });
+
+      if (error) throw error;
+    } catch (insertError) {
+      if (body.item_type === "product" && branch?.business_id) {
+        await adjustProductStock({
+          businessId: String(branch.business_id),
+          branchId: tab.branch_id,
+          productId: body.item_id,
+          quantityDelta: quantity,
+          reason: `Annulation ajout fiche #${tab.tab_number}`,
+          referenceId: tab.id,
+          referenceType: "pending_tab",
+          createdBy: body.added_by || null,
+        });
+      }
+      throw insertError;
+    }
 
     const refreshed = await loadTabDetail(tabId);
     return json(res, 201, { data: refreshed });
