@@ -82,6 +82,15 @@ const getBusinessIdForBranch = async (branchId: string) => {
 };
 
 const getCommissionRate = async (employeeId: string, serviceId: string): Promise<{ type: string; value: number } | null> => {
+  const { data: employee, error: employeeError } = await supabase
+    .from("salon_employees")
+    .select("role, commission_percentage")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (employeeError) throw new Error(employeeError.message);
+  if (employee?.role !== "barber") return null;
+
   const { data: rules, error: ruleError } = await supabase
     .from("commission_rules")
     .select("rate_type, rate_value")
@@ -104,15 +113,8 @@ const getCommissionRate = async (employeeId: string, serviceId: string): Promise
   if (globalError) throw new Error(globalError.message);
   if (global) return { type: global.rate_type, value: Number(global.rate_value) };
 
-  const { data: emp, error: empError } = await supabase
-    .from("salon_employees")
-    .select("commission_percentage")
-    .eq("id", employeeId)
-    .maybeSingle();
-
-  if (empError) throw new Error(empError.message);
-  if (emp?.commission_percentage) {
-    return { type: "percentage", value: Number(emp.commission_percentage) };
+  if (employee?.commission_percentage) {
+    return { type: "percentage", value: Number(employee.commission_percentage) };
   }
 
   return null;

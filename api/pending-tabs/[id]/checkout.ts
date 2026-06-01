@@ -25,6 +25,15 @@ const groupItems = (items: any[]) => {
 };
 
 const getCommissionRate = async (employeeId: string, serviceId: string) => {
+  const { data: employee, error: employeeError } = await apiSupabase
+    .from("salon_employees")
+    .select("role, commission_percentage")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (employeeError) throw employeeError;
+  if (employee?.role !== "barber") return null;
+
   const { data: rules, error: ruleError } = await apiSupabase
     .from("commission_rules")
     .select("rate_type, rate_value")
@@ -47,15 +56,8 @@ const getCommissionRate = async (employeeId: string, serviceId: string) => {
   if (globalError) throw globalError;
   if (global) return { type: global.rate_type, value: Number(global.rate_value) };
 
-  const { data: emp, error: empError } = await apiSupabase
-    .from("salon_employees")
-    .select("commission_percentage")
-    .eq("id", employeeId)
-    .maybeSingle();
-
-  if (empError) throw empError;
-  if (emp?.commission_percentage) {
-    return { type: "percentage", value: Number(emp.commission_percentage) };
+  if (employee?.commission_percentage) {
+    return { type: "percentage", value: Number(employee.commission_percentage) };
   }
 
   return null;

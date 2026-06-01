@@ -705,6 +705,14 @@ export default function POSPage() {
   };
 
   const getCommissionRate = async (employeeId: string, serviceId: string): Promise<{ type: string; value: number } | null> => {
+    const { data: employee } = await supabase
+      .from("salon_employees")
+      .select("role, commission_percentage")
+      .eq("id", employeeId)
+      .maybeSingle();
+
+    if (employee?.role !== "barber") return null;
+
     const { data: rules } = await supabase
       .from("commission_rules")
       .select("rate_type, rate_value")
@@ -725,14 +733,8 @@ export default function POSPage() {
 
     if (global) return { type: global.rate_type, value: Number(global.rate_value) };
 
-    const { data: emp } = await supabase
-      .from("salon_employees")
-      .select("commission_percentage")
-      .eq("id", employeeId)
-      .maybeSingle();
-
-    if (emp?.commission_percentage) {
-      return { type: "percentage", value: Number(emp.commission_percentage) };
+    if (employee?.commission_percentage) {
+      return { type: "percentage", value: Number(employee.commission_percentage) };
     }
 
     return null;
