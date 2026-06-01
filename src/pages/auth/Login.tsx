@@ -184,7 +184,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">{t("auth.login.password")}</Label>
-                      <Link to="#" className="text-sm text-primary hover:underline font-semibold">
+                      <Link to="/auth/forgot-password" className="text-sm text-primary hover:underline font-semibold">
                         {t("auth.login.forgotPassword")}
                       </Link>
                     </div>

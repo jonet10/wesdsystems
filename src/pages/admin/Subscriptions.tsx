@@ -13,6 +13,7 @@ import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedC
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -33,6 +34,7 @@ import {
   EyeOff,
   Gift,
   Layers3,
+  Search,
   Plus,
   Save,
   ShieldAlert,
@@ -156,7 +158,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead key={header.id} className="h-10 px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
@@ -168,7 +170,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} className="px-3 py-2 align-middle text-sm">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -205,6 +207,10 @@ export default function SuperAdminSubscriptionsPage() {
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editingBranch, setEditingBranch] = useState<BusinessBranch | null>(null);
   const [selectedDebt, setSelectedDebt] = useState<DebtRow | null>(null);
+  const [subscriptionSearch, setSubscriptionSearch] = useState("");
+  const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState<string>("all");
+  const [subscriptionBillingFilter, setSubscriptionBillingFilter] = useState<string>("all");
+  const [subscriptionRenewFilter, setSubscriptionRenewFilter] = useState<string>("all");
 
   const planForm = useForm<PlanFormValues>({
     resolver: zodResolver(planSchema),
@@ -257,7 +263,7 @@ export default function SuperAdminSubscriptionsPage() {
       supabase.from("subscription_plans").select("id, name, monthly_price, yearly_price, max_businesses, max_branches, max_staff, active, description").order("created_at", { ascending: false }),
       supabase.from("subscription_features").select("id, plan_id, feature_key, enabled, feature_label, feature_group, sort_order").order("sort_order", { ascending: true }),
       supabase.from("business_branches").select("id, business_id, name, phone, email, address, manager_id, active, branch_code, created_at, updated_at").order("created_at", { ascending: false }),
-      supabase.from("businesses").select("id, name, owner, status, plan_id").order("created_at", { ascending: false }),
+      supabase.from("businesses").select("id, name, status, plan_id, created_at").order("created_at", { ascending: false }),
       supabase.from("business_subscriptions").select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes").order("created_at", { ascending: false }),
       supabase.from("loyalty_program_settings").select("id, business_id, points_per_currency, currency_spend_for_point, redemption_points_per_reward, active").order("created_at", { ascending: false }),
       supabase.from("loyalty_rewards").select("id, business_id, branch_id, name, description, points_cost, reward_value, reward_type, active").order("created_at", { ascending: false }),
@@ -300,6 +306,17 @@ export default function SuperAdminSubscriptionsPage() {
 
   useEffect(() => {
     void loadAll();
+    const interval = window.setInterval(() => {
+      void loadAll();
+    }, 30000);
+    const handleFocus = () => {
+      void loadAll();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const planFeatures = (planId: string) => features.filter((feature) => feature.plan_id === planId);
@@ -497,7 +514,16 @@ export default function SuperAdminSubscriptionsPage() {
 
   const totalBusinesses = businesses.length;
   const activeSubscriptions = subscriptions.filter((row) => row.status === "active");
+  const trialingSubscriptions = subscriptions.filter((row) => row.status === "trialing");
+  const pastDueSubscriptions = subscriptions.filter((row) => row.status === "past_due");
+  const cancelledSubscriptions = subscriptions.filter((row) => row.status === "cancelled");
   const expiredSubscriptions = subscriptions.filter((row) => row.status === "expired");
+  const expiringSoonSubscriptions = subscriptions.filter((row) => {
+    if (!row.end_date) return false;
+    const endDate = new Date(`${row.end_date}T23:59:59`);
+    const diffDays = (endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7 && (row.status === "active" || row.status === "trialing");
+  });
   const monthlyRecurringRevenue = activeSubscriptions.reduce((sum, row) => {
     const plan = plans.find((p) => p.id === row.plan_id);
     const price = row.price_snapshot || plan?.monthly_price || 0;
@@ -505,6 +531,43 @@ export default function SuperAdminSubscriptionsPage() {
   }, 0);
   const totalBranches = branches.filter((branch) => branch.active !== false).length;
   const totalOutstanding = debts.reduce((sum, debt) => sum + Number(debt.outstanding_balance || 0), 0);
+  const totalAutoRenew = subscriptions.filter((row) => row.auto_renew !== false).length;
+  const totalActiveFeatures = features.filter((feature) => feature.enabled).length;
+  const totalLoyaltyRewards = rewards.filter((reward) => reward.active).length;
+  const totalLoyaltyAccounts = loyaltySettings.length;
+  const totalPendingDebts = debts.filter((debt) => debt.status !== "settled").length;
+
+  const businessById = useMemo(() => new Map(businesses.map((business) => [business.id, business])), [businesses]);
+  const planById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
+  const subscriptionRows = useMemo(
+    () =>
+      subscriptions.map((subscription) => ({
+        ...subscription,
+        business: businessById.get(subscription.business_id),
+        plan: planById.get(subscription.plan_id),
+      })),
+    [businessById, planById, subscriptions]
+  );
+  const filteredSubscriptionRows = useMemo(() => {
+    const term = subscriptionSearch.trim().toLowerCase();
+    return subscriptionRows.filter((subscription) => {
+      const businessName = subscription.business?.name || "";
+      const planName = subscription.plan?.name || "";
+      const status = subscription.status || "";
+      const billing = subscription.billing_cycle || "monthly";
+      const searchMatch =
+        !term ||
+        [businessName, planName, status, billing, subscription.business_id, subscription.plan_id]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      const statusMatch = subscriptionStatusFilter === "all" || subscription.status === subscriptionStatusFilter;
+      const billingMatch = subscriptionBillingFilter === "all" || billing === subscriptionBillingFilter;
+      const renewMatch =
+        subscriptionRenewFilter === "all" ||
+        (subscriptionRenewFilter === "auto" ? subscription.auto_renew !== false : subscription.auto_renew === false);
+      return searchMatch && statusMatch && billingMatch && renewMatch;
+    });
+  }, [subscriptionBillingFilter, subscriptionRenewFilter, subscriptionRows, subscriptionSearch, subscriptionStatusFilter]);
 
   const planPopularity = useMemo(() => {
     const counts = new Map<string, number>();
@@ -672,7 +735,7 @@ export default function SuperAdminSubscriptionsPage() {
     <DashboardLayout role="super_admin" title="Subscription Management" subtitle="Plans, branches, loyalty, debt and usage across all modules" userName="Admin Wesd Systems">
       <StaggerContainer className="space-y-6">
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Total businesses</CardTitle>
@@ -705,13 +768,30 @@ export default function SuperAdminSubscriptionsPage() {
                 <p className="text-2xl font-bold text-destructive">{format(totalOutstanding)}</p>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Trialing</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-primary">{trialingSubscriptions.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">En retard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-warning">{pastDueSubscriptions.length}</p>
+              </CardContent>
+            </Card>
           </div>
         </StaggerItem>
 
         <StaggerItem>
           <Tabs defaultValue="plans" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 max-w-4xl">
+            <TabsList className="grid w-full grid-cols-6 max-w-5xl">
               <TabsTrigger value="plans" className="gap-2"><Layers3 className="h-4 w-4" /> Plans</TabsTrigger>
+              <TabsTrigger value="subscriptions" className="gap-2"><CreditCard className="h-4 w-4" /> Subscriptions</TabsTrigger>
               <TabsTrigger value="branches" className="gap-2"><Building2 className="h-4 w-4" /> Branches</TabsTrigger>
               <TabsTrigger value="loyalty" className="gap-2"><Gift className="h-4 w-4" /> Loyalty</TabsTrigger>
               <TabsTrigger value="debt" className="gap-2"><CreditCard className="h-4 w-4" /> Debt</TabsTrigger>
@@ -729,6 +809,129 @@ export default function SuperAdminSubscriptionsPage() {
                 title="Plan limits are now runtime configurable"
                 message="When a plan changes here, branch and staff limits will follow without a code deploy."
               />
+            </TabsContent>
+
+            <TabsContent value="subscriptions" className="mt-6 space-y-4">
+              <div className="flex flex-col xl:flex-row gap-3 xl:items-center xl:justify-between">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={subscriptionSearch}
+                      onChange={(e) => setSubscriptionSearch(e.target.value)}
+                      placeholder="Search business, plan or status"
+                      className="pl-9"
+                    />
+                  </div>
+                  <Select value={subscriptionStatusFilter} onValueChange={setSubscriptionStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="trialing">Trialing</SelectItem>
+                      <SelectItem value="past_due">Past due</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={subscriptionBillingFilter} onValueChange={setSubscriptionBillingFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Billing" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All billing</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={subscriptionRenewFilter} onValueChange={setSubscriptionRenewFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Renewal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All renewal</SelectItem>
+                      <SelectItem value="auto">Auto renew</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Expiring soon</CardTitle>
+                  </CardHeader>
+                  <CardContent><p className="text-2xl font-bold text-warning">{expiringSoonSubscriptions.length}</p></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Cancelled</CardTitle>
+                  </CardHeader>
+                  <CardContent><p className="text-2xl font-bold text-destructive">{cancelledSubscriptions.length}</p></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Auto renew</CardTitle>
+                  </CardHeader>
+                  <CardContent><p className="text-2xl font-bold">{totalAutoRenew}</p></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Active features</CardTitle>
+                  </CardHeader>
+                  <CardContent><p className="text-2xl font-bold">{totalActiveFeatures}</p></CardContent>
+                </Card>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Business</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Billing</TableHead>
+                      <TableHead>Auto renew</TableHead>
+                      <TableHead>Ends</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSubscriptionRows.map((subscription) => (
+                      <TableRow key={subscription.id}>
+                        <TableCell>{subscription.business?.name || subscription.business_id}</TableCell>
+                        <TableCell>{subscription.plan?.name || subscription.plan_id}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              subscription.status === "active"
+                                ? "default"
+                                : subscription.status === "trialing"
+                                  ? "secondary"
+                                  : subscription.status === "past_due"
+                                    ? "outline"
+                                    : "destructive"
+                            }
+                          >
+                            {subscription.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="capitalize">{subscription.billing_cycle || "monthly"}</TableCell>
+                        <TableCell>{subscription.auto_renew ? "Yes" : "No"}</TableCell>
+                        <TableCell>{subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredSubscriptionRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No subscriptions match your filters
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </TabsContent>
 
             <TabsContent value="branches" className="mt-6 space-y-4">
@@ -750,19 +953,19 @@ export default function SuperAdminSubscriptionsPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground">Loyalty accounts</CardTitle>
                   </CardHeader>
-                  <CardContent><p className="text-2xl font-bold">{loyaltySettings.length || 0}</p></CardContent>
+                  <CardContent><p className="text-2xl font-bold">{totalLoyaltyAccounts}</p></CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground">Rewards configured</CardTitle>
                   </CardHeader>
-                  <CardContent><p className="text-2xl font-bold">{rewards.length}</p></CardContent>
+                  <CardContent><p className="text-2xl font-bold">{totalLoyaltyRewards}</p></CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-muted-foreground">Transactions</CardTitle>
+                    <CardTitle className="text-sm text-muted-foreground">Open debts</CardTitle>
                   </CardHeader>
-                  <CardContent><p className="text-2xl font-bold">{0}</p></CardContent>
+                  <CardContent><p className="text-2xl font-bold">{totalPendingDebts}</p></CardContent>
                 </Card>
               </div>
 
@@ -811,7 +1014,7 @@ export default function SuperAdminSubscriptionsPage() {
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground">Open debts</CardTitle>
                   </CardHeader>
-                  <CardContent><p className="text-2xl font-bold">{debts.filter((debt) => debt.status !== "settled").length}</p></CardContent>
+                  <CardContent><p className="text-2xl font-bold">{totalPendingDebts}</p></CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
@@ -845,9 +1048,9 @@ export default function SuperAdminSubscriptionsPage() {
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-muted-foreground">Plan popularity</CardTitle>
+                    <CardTitle className="text-sm text-muted-foreground">Cancelled subs</CardTitle>
                   </CardHeader>
-                  <CardContent><p className="text-2xl font-bold">{planPopularity.reduce((sum, plan) => sum + plan.count, 0)}</p></CardContent>
+                  <CardContent><p className="text-2xl font-bold">{cancelledSubscriptions.length}</p></CardContent>
                 </Card>
               </div>
 

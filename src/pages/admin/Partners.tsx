@@ -167,7 +167,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
+                <TableHead key={header.id} className="h-10 px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">
                   {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                 </TableHead>
               ))}
@@ -179,7 +179,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell key={cell.id} className="px-3 py-2 align-middle text-sm">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -209,6 +209,9 @@ export default function SuperAdminPartnersPage() {
   const [payouts, setPayouts] = useState<PartnerPayoutRow[]>([]);
   const [businesses, setBusinesses] = useState<BusinessRow[]>([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [tierFilter, setTierFilter] = useState<string>("all");
 
   const [isPartnerOpen, setIsPartnerOpen] = useState(false);
   const [isTierOpen, setIsTierOpen] = useState(false);
@@ -301,17 +304,33 @@ export default function SuperAdminPartnersPage() {
 
   useEffect(() => {
     void loadData();
+    const interval = window.setInterval(() => {
+      void loadData();
+    }, 30000);
+    const handleFocus = () => {
+      void loadData();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const filteredPartners = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return partners;
-    return partners.filter((partner) =>
-      [partner.display_name, partner.email, partner.company_name, partner.referral_code, partner.partner_level, partner.status]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term))
-    );
-  }, [partners, search]);
+    return partners.filter((partner) => {
+      const textMatch =
+        !term ||
+        [partner.display_name, partner.email, partner.company_name, partner.referral_code, partner.partner_level, partner.status]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term));
+      const statusMatch = statusFilter === "all" || partner.status === statusFilter;
+      const levelMatch = levelFilter === "all" || partner.partner_level === levelFilter;
+      const tierMatch = tierFilter === "all" || partner.partner_tier_id === tierFilter;
+      return textMatch && statusMatch && levelMatch && tierMatch;
+    });
+  }, [levelFilter, partners, search, statusFilter, tierFilter]);
 
   const businessCountByPartner = useMemo(() => {
     const map = new Map<string, number>();
@@ -332,6 +351,7 @@ export default function SuperAdminPartnersPage() {
   }, [commissions]);
 
   const activePartners = partners.filter((partner) => partner.status === "approved" || partner.status === "active");
+  const suspendedPartners = partners.filter((partner) => partner.status === "suspended");
   const pendingPayoutTotal = payouts
     .filter((payout) => payout.status === "pending")
     .reduce((sum, payout) => sum + payout.requested_amount, 0);
@@ -343,6 +363,8 @@ export default function SuperAdminPartnersPage() {
     })
     .reduce((sum, commission) => sum + commission.amount, 0);
   const lifetimeEarnings = wallets.reduce((sum, wallet) => sum + wallet.lifetime_earnings, 0);
+  const totalWalletBalance = wallets.reduce((sum, wallet) => sum + wallet.available_balance, 0);
+  const pendingWalletBalance = wallets.reduce((sum, wallet) => sum + wallet.pending_balance, 0);
 
   const openCreateTier = () => {
     setEditingTier(null);
@@ -514,7 +536,7 @@ export default function SuperAdminPartnersPage() {
     {
       header: "Partner",
       cell: ({ row }) => (
-        <div className="space-y-1">
+          <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="font-medium">{row.original.display_name}</span>
             <Badge variant={row.original.status === "approved" || row.original.status === "active" ? "default" : row.original.status === "pending" ? "secondary" : "destructive"}>
@@ -528,6 +550,7 @@ export default function SuperAdminPartnersPage() {
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground">{row.original.company_name || row.original.email || row.original.referral_code}</div>
+          <div className="text-[11px] text-muted-foreground">Code: {row.original.referral_code}</div>
         </div>
       ),
     },
@@ -551,9 +574,14 @@ export default function SuperAdminPartnersPage() {
           <div className="space-y-1 text-sm">
             <div>{format(wallet?.available_balance || 0)}</div>
             <div className="text-xs text-muted-foreground">Pending {format(wallet?.pending_balance || 0)}</div>
+            <div className="text-xs text-muted-foreground">Lifetime {format(wallet?.lifetime_earnings || 0)}</div>
           </div>
         );
       },
+    },
+    {
+      header: "Joined",
+      cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
     },
     {
       header: "Actions",
@@ -668,7 +696,7 @@ export default function SuperAdminPartnersPage() {
     >
       <StaggerContainer className="space-y-6">
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">Total partners</CardTitle>
@@ -701,6 +729,14 @@ export default function SuperAdminPartnersPage() {
                 <p className="text-2xl font-bold text-warning">{format(pendingPayoutTotal)}</p>
               </CardContent>
             </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Suspended partners</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-destructive">{suspendedPartners.length}</p>
+              </CardContent>
+            </Card>
           </div>
         </StaggerItem>
 
@@ -724,10 +760,49 @@ export default function SuperAdminPartnersPage() {
             </TabsList>
 
             <TabsContent value="partners" className="mt-6 space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="relative w-full max-w-md">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search partners" className="pl-9" />
+              <div className="flex flex-col xl:flex-row gap-3 xl:items-center xl:justify-between">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search partners" className="pl-9" />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={levelFilter} onValueChange={setLevelFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All levels</SelectItem>
+                      <SelectItem value="affiliate">Affiliate</SelectItem>
+                      <SelectItem value="reseller">Reseller</SelectItem>
+                      <SelectItem value="agency">Agency</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={tierFilter} onValueChange={setTierFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All tiers</SelectItem>
+                      {tiers.map((tier) => (
+                        <SelectItem key={tier.id} value={tier.id}>
+                          {tier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button onClick={loadData} variant="outline">
                   <RefreshCcw className="mr-2 h-4 w-4" /> Refresh
@@ -778,6 +853,21 @@ export default function SuperAdminPartnersPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-2xl font-bold">{businesses.filter((business) => !!business.referred_by_partner_id).length}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Wallet balances</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span>Available</span>
+                      <span className="font-medium">{format(totalWalletBalance)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Pending</span>
+                      <span className="font-medium">{format(pendingWalletBalance)}</span>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

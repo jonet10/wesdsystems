@@ -1,72 +1,174 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle, Handshake } from "lucide-react";
+import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle, Handshake, GitBranch, Gift, BadgeDollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { glowupStore, Salon } from "@/lib/store";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 
+type DashboardStat = {
+  title: string;
+  value: string;
+  icon: ReactNode;
+  trend?: { value: number; isPositive: boolean };
+};
+
+type SubscriptionRow = {
+  business_id: string;
+  plan_id: string;
+  status: "active" | "trialing" | "past_due" | "expired" | "cancelled";
+  price_snapshot: number | null;
+  created_at: string;
+  end_date: string | null;
+  billing_cycle: "monthly" | "yearly" | "custom" | null;
+};
+
+type BusinessRow = {
+  id: string;
+  name: string;
+  status: string | null;
+  created_at: string;
+  plan_id: string | null;
+  planName: string;
+};
+
+type PlatformModule = {
+  name: string;
+  phase: "complete" | "building";
+  description: string;
+  label: string;
+};
+
+const platformModules: PlatformModule[] = [
+  {
+    name: "Salon",
+    phase: "complete",
+    label: "Complet",
+    description: "Rendez-vous, POS, services, stock et équipe déjà en production.",
+  },
+  {
+    name: "Pharmacie",
+    phase: "building",
+    label: "En construction",
+    description: "Ordonnances, stock médicaments et caisse sont en intégration.",
+  },
+  {
+    name: "Bar & resto",
+    phase: "complete",
+    label: "Complet",
+    description: "POS, cuisine, bar, commandes et reporting sont opérationnels.",
+  },
+  {
+    name: "Market",
+    phase: "building",
+    label: "En construction",
+    description: "Inventaire, caisse et flux de vente sont en cours d'industrialisation.",
+  },
+  {
+    name: "Boutique",
+    phase: "building",
+    label: "En construction",
+    description: "Stocks, produits et caisse sont préparés pour le prochain déploiement.",
+  },
+];
+
 export default function SuperAdminDashboard() {
   const { formatCompact } = useCurrency();
-  const [stats, setStats] = useState([
-    { title: "Salons actifs", value: "0", icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
+  const [stats, setStats] = useState<DashboardStat[]>([
+    { title: "Établissements actifs", value: "0", icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
     { title: "Revenus mensuels", value: "0", icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
     { title: "Utilisateurs totaux", value: "0", icon: <Users className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
-    { title: "Croissance", value: "+23%", icon: <TrendingUp className="h-6 w-6" /> },
+    { title: "Branches actives", value: "0", icon: <GitBranch className="h-6 w-6" />, trend: { value: 6, isPositive: true } },
+    { title: "Plans actifs", value: "0", icon: <TrendingUp className="h-6 w-6" /> },
+    { title: "Encours clients", value: "0", icon: <BadgeDollarSign className="h-6 w-6" /> },
   ]);
 
-  const [recentSalons, setRecentSalons] = useState<Salon[]>([]);
-  const [subStats, setSubStats] = useState({ active: 0, expiring: 0, expired: 0 });
+  const [recentBusinesses, setRecentBusinesses] = useState<BusinessRow[]>([]);
+  const [platformCounts, setPlatformCounts] = useState({
+    loyaltyAccounts: 0,
+    loyaltyRewards: 0,
+    openDebts: 0,
+  });
+  const [subscriptionStats, setSubscriptionStats] = useState({
+    active: 0,
+    expiringSoon: 0,
+    expired: 0,
+    trialing: 0,
+    pastDue: 0,
+  });
   const [partnerStats, setPartnerStats] = useState({ pending: 0, approved: 0, rejected: 0, suspended: 0 });
 
   const loadData = async () => {
-    const salons = glowupStore.getSalons();
-
-    // Sort chronologically by date desc (recent first)
-    const sortedSalons = [...salons].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    setRecentSalons(sortedSalons.slice(0, 5)); // show top 5
-
     // Counts
-    const active = salons.filter(s => s.status === "active").length;
-    const expiring = salons.filter(s => s.status === "expiring").length;
-    const expired = salons.filter(s => s.status === "expired").length;
-    setSubStats({ active, expiring, expired });
-
-    const [{ data: businesses }, { data: subscriptions }, { data: branches }, { data: plans }, { data: partnerRows }] = await Promise.all([
-      supabase.from("businesses").select("id, name, owner, status, created_at").order("created_at", { ascending: false }).limit(25),
-      supabase.from("business_subscriptions").select("business_id, plan_id, status, price_snapshot, created_at").order("created_at", { ascending: false }),
+    const [
+      { data: businesses },
+      { count: totalBusinessesCount },
+      { data: subscriptions },
+      { data: branches },
+      { data: plans },
+      { data: partnerRows },
+      { count: totalUsersCount },
+      { count: loyaltyAccountsCount },
+      { data: rewards },
+      { data: debts },
+    ] = await Promise.all([
+      supabase.from("businesses").select("id, name, status, created_at, plan_id").order("created_at", { ascending: false }).limit(25),
+      supabase.from("businesses").select("id", { count: "exact", head: true }),
+      supabase.from("business_subscriptions").select("business_id, plan_id, status, price_snapshot, created_at, end_date, billing_cycle").order("created_at", { ascending: false }),
       supabase.from("business_branches").select("id, business_id, active").order("created_at", { ascending: false }),
       supabase.from("subscription_plans").select("id, name, monthly_price, active"),
       supabase.from("partners").select("status"),
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("customer_loyalty_accounts").select("id", { count: "exact", head: true }),
+      supabase.from("loyalty_rewards").select("active"),
+      supabase.from("customer_debts").select("status, outstanding_balance"),
     ]);
 
-    if (businesses && businesses.length > 0) {
-      setRecentSalons(
-        businesses.slice(0, 5).map((business: any) => ({
-          id: business.id,
-          name: business.name,
-          owner: business.owner || "—",
-          plan: "Basic",
-          status: business.status === "inactive" ? "expired" : "active",
-          date: business.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
-        }))
-      );
-    }
-
     const planById = new Map((plans || []).map((plan: any) => [plan.id, plan]));
-    const activeSubscriptions = (subscriptions || []).filter((subscription: any) => subscription.status === "active");
+    const subscriptionRows = (subscriptions || []) as SubscriptionRow[];
+    const activeSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "active");
+    const now = new Date();
+    const expiringSoon = subscriptionRows.filter((subscription) => {
+      if (!subscription.end_date) return false;
+      const endDate = new Date(`${subscription.end_date}T23:59:59`);
+      const diffDays = (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays <= 7 && (subscription.status === "active" || subscription.status === "trialing");
+    }).length;
+    const expiredSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "expired").length;
+    const trialingSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "trialing").length;
+    const pastDueSubscriptions = subscriptionRows.filter((subscription) => subscription.status === "past_due").length;
+
+    const activeSubscriptionByBusiness = new Map(
+      activeSubscriptions.map((subscription) => [subscription.business_id, subscription])
+    );
+
+    setRecentBusinesses(
+      ((businesses || []) as BusinessRow[]).slice(0, 5).map((business) => ({
+        id: business.id,
+        name: business.name || "Établissement sans nom",
+        status: business.status,
+        created_at: business.created_at,
+        plan_id: activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id,
+        planName: planById.get(activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id)?.name || "Sans plan",
+      }))
+    );
+
     const mrrTotal = activeSubscriptions.reduce((sum: number, subscription: any) => {
       const plan = planById.get(subscription.plan_id);
       const price = subscription.price_snapshot ?? plan?.monthly_price ?? 0;
       return sum + Number(price || 0);
     }, 0);
     const displaySalonsActifs = activeSubscriptions.length;
-    const displayUsers = (branches || []).filter((branch: any) => branch.active !== false).length * 5;
+    const displayUsers = Number(totalUsersCount || 0);
+    const activeBranches = (branches || []).filter((branch: any) => branch.active !== false).length;
+    const loyaltyRewards = (rewards || []).filter((reward: any) => reward.active !== false).length;
+    const debtsData = (debts || []) as Array<{ status: string; outstanding_balance: number | string | null }>;
+    const openDebts = debtsData.filter((debt) => debt.status !== "settled").length;
+    const outstandingDebt = debtsData.reduce((sum, debt) => sum + Number(debt.outstanding_balance || 0), 0);
     const partnerData = (partnerRows || []) as Array<{ status: string | null }>;
     setPartnerStats({
       pending: partnerData.filter((row) => row.status === "pending").length,
@@ -74,12 +176,27 @@ export default function SuperAdminDashboard() {
       rejected: partnerData.filter((row) => row.status === "rejected").length,
       suspended: partnerData.filter((row) => row.status === "suspended").length,
     });
+    setSubscriptionStats({
+      active: activeSubscriptions.length,
+      expiringSoon,
+      expired: expiredSubscriptions,
+      trialing: trialingSubscriptions,
+      pastDue: pastDueSubscriptions,
+    });
+    setPlatformCounts({
+      loyaltyAccounts: Number(loyaltyAccountsCount || 0),
+      loyaltyRewards,
+      openDebts,
+    });
 
     setStats([
-      { title: "Salons actifs", value: displaySalonsActifs.toLocaleString(), icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
+      { title: "Établissements actifs", value: displaySalonsActifs.toLocaleString(), icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
       { title: "Revenus mensuels", value: formatCompact(mrrTotal), icon: <CreditCard className="h-6 w-6" />, trend: { value: 8, isPositive: true } },
       { title: "Utilisateurs totaux", value: displayUsers.toLocaleString(), icon: <Users className="h-6 w-6" />, trend: { value: 15, isPositive: true } },
-      { title: "Croissance", value: "+23%", icon: <TrendingUp className="h-6 w-6" /> },
+      { title: "Entreprises totales", value: Number(totalBusinessesCount || 0).toLocaleString(), icon: <Building2 className="h-6 w-6" /> },
+      { title: "Branches actives", value: activeBranches.toLocaleString(), icon: <GitBranch className="h-6 w-6" /> },
+      { title: "Plans actifs", value: (plans || []).filter((plan: any) => plan.active !== false).length.toLocaleString(), icon: <TrendingUp className="h-6 w-6" /> },
+      { title: "Encours clients", value: formatCompact(outstandingDebt), icon: <BadgeDollarSign className="h-6 w-6" /> },
     ]);
   };
 
@@ -88,8 +205,19 @@ export default function SuperAdminDashboard() {
     const handleUpdate = () => {
       void loadData();
     };
+    const interval = window.setInterval(() => {
+      void loadData();
+    }, 30000);
+    const handleFocus = () => {
+      void loadData();
+    };
     window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("glowup-store-update", handleUpdate);
+      window.removeEventListener("focus", handleFocus);
+      window.clearInterval(interval);
+    };
   }, [formatCompact]);
 
   return (
@@ -105,6 +233,56 @@ export default function SuperAdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
               <StatCard key={index} {...stat} />
+            ))}
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Modules complétés</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold font-display">{platformModules.filter((module) => module.phase === "complete").length}</p>
+                <p className="text-xs text-muted-foreground mt-1">Modules déjà en production</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Modules en construction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold font-display">{platformModules.filter((module) => module.phase === "building").length}</p>
+                <p className="text-xs text-muted-foreground mt-1">Fonctions en cours d'intégration</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Modules disponibles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold font-display">{platformModules.length}</p>
+                <p className="text-xs text-muted-foreground mt-1">Salon, Pharmacie, Bar & resto, Market, Boutique</p>
+              </CardContent>
+            </Card>
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            {platformModules.map((module) => (
+              <Card key={module.name} className="border-border/70 bg-card/80">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <CardTitle className="text-sm">{module.name}</CardTitle>
+                    <Badge variant={module.phase === "complete" ? "default" : "secondary"}>{module.label}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground leading-5">{module.description}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </StaggerItem>
@@ -158,7 +336,7 @@ export default function SuperAdminDashboard() {
           <div className="bg-card rounded-xl border border-border shadow-card">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold font-display">Salons récents</h2>
+                <h2 className="text-lg font-semibold font-display">Établissements récents</h2>
                 <p className="text-sm text-muted-foreground">Dernières inscriptions et activités</p>
               </div>
               <Link to="/admin/salons">
@@ -169,8 +347,7 @@ export default function SuperAdminDashboard() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Salon</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Propriétaire</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Établissement</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Plan</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
@@ -178,38 +355,31 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentSalons.map((salon) => (
-                    <tr key={salon.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                  {recentBusinesses.map((business) => (
+                    <tr key={business.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                            {salon.name.charAt(0)}
+                            {business.name.charAt(0)}
                           </div>
-                          <span className="font-semibold text-sm">{salon.name}</span>
+                          <span className="font-semibold text-sm">{business.name}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-muted-foreground text-sm">{salon.owner}</td>
                       <td className="p-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                          salon.plan === "Premium" ? "bg-warning/20 text-warning" :
-                          salon.plan === "Pro" ? "bg-primary/20 text-primary" :
-                          "bg-muted text-muted-foreground"
-                        }`}>
-                          {salon.plan}
+                        <span className="font-medium text-sm">
+                          {business.planName}
                         </span>
                       </td>
                       <td className="p-4">
-                        <div className={`flex items-center gap-1.5 text-xs font-semibold ${
-                          salon.status === "active" ? "text-success" :
-                          salon.status === "expiring" ? "text-warning" :
-                          "text-destructive"
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          business.status === "inactive" ? "bg-destructive/20 text-destructive" :
+                          business.status === "suspended" ? "bg-warning/20 text-warning" :
+                          "bg-muted text-muted-foreground"
                         }`}>
-                          {salon.status === "active" ? <CheckCircle className="h-4 w-4" /> :
-                           <AlertTriangle className="h-4 w-4" />}
-                          <span className="capitalize">{salon.status === "expiring" ? "Expire bientôt" : salon.status === "expired" ? "Expiré" : "Actif"}</span>
-                        </div>
+                          {business.status === "inactive" ? "Suspendu" : business.status === "suspended" ? "Suspendu" : "Actif"}
+                        </span>
                       </td>
-                      <td className="p-4 text-muted-foreground text-sm">{salon.date.split("-").reverse().join("/")}</td>
+                      <td className="p-4 text-muted-foreground text-sm">{business.created_at.split("T")[0].split("-").reverse().join("/")}</td>
                       <td className="p-4 text-right">
                         <Link to="/admin/salons">
                           <Button variant="ghost" size="sm" className="h-8">Gérer</Button>
@@ -217,9 +387,9 @@ export default function SuperAdminDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {recentSalons.length === 0 && (
+                  {recentBusinesses.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground text-sm font-medium">Aucun salon enregistré.</td>
+                      <td colSpan={5} className="p-8 text-center text-muted-foreground text-sm font-medium">Aucun établissement enregistré.</td>
                     </tr>
                   )}
                 </tbody>
@@ -230,7 +400,7 @@ export default function SuperAdminDashboard() {
 
         {/* Quick Stats Cards */}
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 rounded-lg bg-success/10 text-success">
@@ -238,7 +408,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <span className="font-semibold text-sm">Abonnements actifs</span>
               </div>
-              <p className="text-3xl font-bold font-display">{subStats.active * 35}</p>
+              <p className="text-3xl font-bold font-display">{subscriptionStats.active}</p>
               <p className="text-xs text-muted-foreground mt-1">Accès total autorisé</p>
             </div>
 
@@ -249,7 +419,7 @@ export default function SuperAdminDashboard() {
                 </div>
                 <span className="font-semibold text-sm">Expirent bientôt</span>
               </div>
-              <p className="text-3xl font-bold font-display">{subStats.expiring * 35}</p>
+              <p className="text-3xl font-bold font-display">{subscriptionStats.expiringSoon}</p>
               <p className="text-xs text-muted-foreground mt-1">Dans les 7 prochains jours</p>
             </div>
 
@@ -258,10 +428,32 @@ export default function SuperAdminDashboard() {
                 <div className="p-2 rounded-lg bg-destructive/10 text-destructive">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
-                <span className="font-semibold text-sm">Expirés</span>
+                <span className="font-semibold text-sm">En retard</span>
               </div>
-              <p className="text-3xl font-bold font-display">{subStats.expired * 35}</p>
-              <p className="text-xs text-muted-foreground mt-1">Accès bloqué</p>
+              <p className="text-3xl font-bold font-display">{subscriptionStats.pastDue}</p>
+              <p className="text-xs text-muted-foreground mt-1">Paiements à régulariser</p>
+            </div>
+
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-muted/50 text-muted-foreground">
+                  <Gift className="h-5 w-5" />
+                </div>
+                <span className="font-semibold text-sm">Fidélité active</span>
+              </div>
+              <p className="text-3xl font-bold font-display">{platformCounts.loyaltyAccounts}</p>
+              <p className="text-xs text-muted-foreground mt-1">{platformCounts.loyaltyRewards} récompenses configurées</p>
+            </div>
+
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <BadgeDollarSign className="h-5 w-5" />
+                </div>
+                <span className="font-semibold text-sm">Créances ouvertes</span>
+              </div>
+              <p className="text-3xl font-bold font-display">{platformCounts.openDebts}</p>
+              <p className="text-xs text-muted-foreground mt-1">Soldes clients à recouvrer</p>
             </div>
           </div>
         </StaggerItem>

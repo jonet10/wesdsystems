@@ -370,7 +370,7 @@ export default function Landing() {
               {
                 icon: Layers,
                 title: "One platform, many verticals",
-                desc: "Salon, pharmacy, restaurant, market and boutique all in one product.",
+                desc: "Beauty, pharmacy, restaurant, retail and service businesses all in one product.",
               },
             ].map((feature) => {
               const Icon = feature.icon;

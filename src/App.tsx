@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -13,11 +14,12 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 // Pages
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 import Register from "./pages/auth/Register";
 import PartnerRegister from "./pages/auth/PartnerRegister";
 import SuperAdminDashboard from "./pages/admin/Dashboard";
 import SuperAdminSalons from "./pages/admin/Salons";
-import SuperAdminCatalog from "./pages/admin/Catalog";
+import SuperAdminModules from "./pages/admin/Modules";
 import SuperAdminSubscriptions from "./pages/admin/Subscriptions";
 import SuperAdminPartners from "./pages/admin/Partners";
 import SuperAdminPartnerApplications from "./pages/admin/PartnerApplications";
@@ -49,18 +51,20 @@ const queryClient = new QueryClient();
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <CurrencyProvider>
-        <PricingProvider>
-          <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
-                <Routes>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="wesd-theme">
+        <CurrencyProvider>
+          <PricingProvider>
+            <AuthProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                  <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
+                    <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth/login" element={<Login />} />
+                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
                 <Route path="/auth/register" element={<Register />} />
                 <Route path="/register/partner" element={<PartnerRegister />} />
                 <Route path="/become-partner" element={<PartnerRegister />} />
@@ -85,13 +89,14 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/admin/catalog"
+                  path="/admin/modules"
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
-                      <SuperAdminCatalog />
+                      <SuperAdminModules />
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/admin/catalog" element={<Navigate to="/admin/modules" replace />} />
                 <Route
                   path="/admin/subscriptions"
                   element={
@@ -378,10 +383,11 @@ const App = () => (
                 </Routes>
               </Suspense>
             </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
-        </PricingProvider>
-      </CurrencyProvider>
+              </TooltipProvider>
+            </AuthProvider>
+          </PricingProvider>
+        </CurrencyProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

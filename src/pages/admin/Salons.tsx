@@ -1,367 +1,827 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Plus, Building2, Pencil, Trash2, CheckCircle, AlertTriangle, User } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { glowupStore, Salon } from "@/lib/store";
-import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { toast } from "sonner";
+import {
+  AlertTriangle,
+  Ban,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  Pencil,
+  RefreshCcw,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Wallet,
+  Layers3,
+} from "lucide-react";
+
+type SubscriptionStatus = "active" | "trialing" | "past_due" | "expired" | "cancelled" | string;
+
+interface BusinessRow {
+  id: string;
+  name: string | null;
+  status: string | null;
+  plan_id: string | null;
+  referred_by_partner_code: string | null;
+  created_at: string;
+}
+
+interface SubscriptionRow {
+  id: string;
+  business_id: string;
+  plan_id: string;
+  status: SubscriptionStatus;
+  billing_cycle: string;
+  auto_renew: boolean;
+  start_date: string;
+  end_date: string | null;
+  price_snapshot: number | string | null;
+  currency_code: string | null;
+  created_at: string;
+}
+
+interface BranchRow {
+  id: string;
+  business_id: string;
+  active: boolean;
+  created_at: string;
+}
+
+interface PlanRow {
+  id: string;
+  name: string;
+  monthly_price: number | string | null;
+  active: boolean;
+}
+
+interface LoyaltyAccountRow {
+  id: string;
+  business_id: string;
+  active: boolean;
+}
+
+interface DebtRow {
+  id: string;
+  business_id: string;
+  outstanding_balance: number | string | null;
+  status: string;
+}
+
+interface EstablishmentRow {
+  id: string;
+  name: string;
+  statusLabel: string;
+  statusValue: SubscriptionStatus;
+  planName: string;
+  billingCycle: string;
+  autoRenew: boolean;
+  createdAt: string;
+  endDate: string | null;
+  priceSnapshot: number;
+  currencyCode: string;
+  branchCount: number;
+  activeBranchCount: number;
+  loyaltyAccountsCount: number;
+  openDebtsCount: number;
+  openDebtAmount: number;
+  partnerCode: string | null;
+  isPremium: boolean;
+  expiringSoon: boolean;
+  subscriptionId: string | null;
+}
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "Tous les statuts" },
+  { value: "active", label: "Actif" },
+  { value: "trialing", label: "Essai" },
+  { value: "past_due", label: "En retard" },
+  { value: "expired", label: "Expiré" },
+  { value: "cancelled", label: "Annulé" },
+] as const;
+
+const BILLING_OPTIONS = [
+  { value: "all", label: "Tous les cycles" },
+  { value: "monthly", label: "Mensuel" },
+  { value: "yearly", label: "Annuel" },
+  { value: "custom", label: "Personnalisé" },
+] as const;
+
+const SORT_OPTIONS = [
+  { value: "recent", label: "Plus récents" },
+  { value: "oldest", label: "Plus anciens" },
+  { value: "name", label: "Nom A-Z" },
+  { value: "branches", label: "Plus de branches" },
+] as const;
+
+function toNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("fr-FR");
+}
+
+function daysUntil(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const diff = date.getTime() - Date.now();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function statusMeta(status: SubscriptionStatus) {
+  switch (status) {
+    case "active":
+      return { label: "Actif", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20" };
+    case "trialing":
+      return { label: "Essai", className: "bg-cyan-500/15 text-cyan-300 border-cyan-500/20" };
+    case "past_due":
+      return { label: "En retard", className: "bg-amber-500/15 text-amber-300 border-amber-500/20" };
+    case "expired":
+      return { label: "Expiré", className: "bg-rose-500/15 text-rose-300 border-rose-500/20" };
+    case "cancelled":
+      return { label: "Annulé", className: "bg-slate-500/15 text-slate-300 border-slate-500/20" };
+    default:
+      return { label: "Sans abonnement", className: "bg-slate-500/15 text-slate-300 border-slate-500/20" };
+  }
+}
 
 export default function SalonsPage() {
   const { format } = useCurrency();
-  const [salons, setSalons] = useState<Salon[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessRow[]>([]);
+  const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [branches, setBranches] = useState<BranchRow[]>([]);
+  const [plans, setPlans] = useState<PlanRow[]>([]);
+  const [loyaltyAccounts, setLoyaltyAccounts] = useState<LoyaltyAccountRow[]>([]);
+  const [debts, setDebts] = useState<DebtRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [billingFilter, setBillingFilter] = useState<string>("all");
   const [planFilter, setPlanFilter] = useState<string>("all");
+  const [sortFilter, setSortFilter] = useState<string>("recent");
+  const [editingRow, setEditingRow] = useState<EstablishmentRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPlanId, setEditPlanId] = useState("");
 
-  // Modal states
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedSalon, setSelectedSalon] = useState<Salon | null>(null);
+  const loadData = async () => {
+    setLoading(true);
+    setErrorMessage(null);
 
-  // Form states
-  const [name, setName] = useState("");
-  const [owner, setOwner] = useState("");
-  const [plan, setPlan] = useState<"Basic" | "Pro" | "Premium">("Pro");
-  const [status, setStatus] = useState<"active" | "expiring" | "expired">("active");
+    const [
+      businessesResult,
+      subscriptionsResult,
+      branchesResult,
+      plansResult,
+      loyaltyResult,
+      debtsResult,
+    ] = await Promise.all([
+      supabase
+        .from("businesses")
+        .select("id, name, status, plan_id, referred_by_partner_code, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_subscriptions")
+        .select("id, business_id, plan_id, status, billing_cycle, auto_renew, start_date, end_date, price_snapshot, currency_code, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_branches")
+        .select("id, business_id, active, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("subscription_plans")
+        .select("id, name, monthly_price, active")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("customer_loyalty_accounts")
+        .select("id, business_id, active"),
+      supabase
+        .from("customer_debts")
+        .select("id, business_id, outstanding_balance, status"),
+    ]);
 
-  const loadSalons = () => {
-    setSalons(glowupStore.getSalons());
+    const firstError =
+      businessesResult.error ||
+      subscriptionsResult.error ||
+      branchesResult.error ||
+      plansResult.error ||
+      loyaltyResult.error ||
+      debtsResult.error;
+
+    if (firstError) {
+      setErrorMessage(firstError.message);
+      toast.error("Impossible de charger les établissements.");
+    }
+
+    setBusinesses((businessesResult.data as BusinessRow[] | null) ?? []);
+    setSubscriptions((subscriptionsResult.data as SubscriptionRow[] | null) ?? []);
+    setBranches((branchesResult.data as BranchRow[] | null) ?? []);
+    setPlans((plansResult.data as PlanRow[] | null) ?? []);
+    setLoyaltyAccounts((loyaltyResult.data as LoyaltyAccountRow[] | null) ?? []);
+    setDebts((debtsResult.data as DebtRow[] | null) ?? []);
+    setLoading(false);
   };
 
   useEffect(() => {
-    loadSalons();
-    
-    // Register store update listener
-    const handleUpdate = () => {
-      loadSalons();
+    void loadData();
+
+    const handleFocus = () => {
+      void loadData();
     };
-    window.addEventListener("glowup-store-update", handleUpdate);
-    return () => window.removeEventListener("glowup-store-update", handleUpdate);
+
+    const timer = window.setInterval(() => {
+      void loadData();
+    }, 30000);
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
-  const handleAddSalon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !owner) {
-      toast.error("Veuillez remplir tous les champs obligatoires.");
+  const rows = useMemo(() => {
+    const latestSubscriptionByBusiness = new Map<string, SubscriptionRow>();
+    subscriptions
+      .slice()
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .forEach((subscription) => {
+        if (!latestSubscriptionByBusiness.has(subscription.business_id)) {
+          latestSubscriptionByBusiness.set(subscription.business_id, subscription);
+        }
+      });
+
+    const planById = new Map(plans.map((plan) => [plan.id, plan]));
+
+    const branchStats = branches.reduce(
+      (acc, branch) => {
+        const current = acc.get(branch.business_id) ?? { total: 0, active: 0 };
+        current.total += 1;
+        if (branch.active) current.active += 1;
+        acc.set(branch.business_id, current);
+        return acc;
+      },
+      new Map<string, { total: number; active: number }>()
+    );
+
+    const loyaltyStats = loyaltyAccounts.reduce(
+      (acc, account) => {
+        const current = acc.get(account.business_id) ?? 0;
+        acc.set(account.business_id, current + 1);
+        return acc;
+      },
+      new Map<string, number>()
+    );
+
+    const debtStats = debts.reduce(
+      (acc, debt) => {
+        const current = acc.get(debt.business_id) ?? { count: 0, amount: 0 };
+        const balance = toNumber(debt.outstanding_balance);
+        if (["open", "partial"].includes(debt.status) && balance > 0) {
+          current.count += 1;
+          current.amount += balance;
+        }
+        acc.set(debt.business_id, current);
+        return acc;
+      },
+      new Map<string, { count: number; amount: number }>()
+    );
+
+    return businesses.map((business) => {
+      const subscription = latestSubscriptionByBusiness.get(business.id);
+      const plan = subscription ? planById.get(subscription.plan_id) : business.plan_id ? planById.get(business.plan_id) : undefined;
+      const branchStat = branchStats.get(business.id) ?? { total: 0, active: 0 };
+      const loyaltyCount = loyaltyStats.get(business.id) ?? 0;
+      const debtStat = debtStats.get(business.id) ?? { count: 0, amount: 0 };
+      const statusValue = subscription?.status ?? business.status ?? "unknown";
+      const daysLeft = daysUntil(subscription?.end_date ?? null);
+      const expiringSoon =
+        (statusValue === "active" || statusValue === "trialing") &&
+        daysLeft !== null &&
+        daysLeft >= 0 &&
+        daysLeft <= 14;
+
+      return {
+        id: business.id,
+        name: business.name || "Établissement sans nom",
+        statusLabel: statusMeta(statusValue).label,
+        statusValue,
+        planName: plan?.name || "Plan non défini",
+        billingCycle: subscription?.billing_cycle || "monthly",
+        autoRenew: subscription?.auto_renew ?? false,
+        createdAt: business.created_at,
+        endDate: subscription?.end_date ?? null,
+        priceSnapshot: toNumber(subscription?.price_snapshot ?? plan?.monthly_price ?? 0),
+        currencyCode: subscription?.currency_code || "HTG",
+        branchCount: branchStat.total,
+        activeBranchCount: branchStat.active,
+        loyaltyAccountsCount: loyaltyCount,
+        openDebtsCount: debtStat.count,
+        openDebtAmount: debtStat.amount,
+        partnerCode: business.referred_by_partner_code,
+        isPremium: (plan?.name || "").toLowerCase().includes("premium") || toNumber(plan?.monthly_price ?? 0) >= 99,
+        expiringSoon,
+        subscriptionId: subscription?.id ?? null,
+      } satisfies EstablishmentRow;
+    });
+  }, [businesses, branches, debts, loyaltyAccounts, plans, subscriptions]);
+
+  const filteredRows = useMemo(() => {
+    const searchTerm = searchQuery.trim().toLowerCase();
+
+    return rows
+      .filter((row) => {
+        const matchesSearch =
+          searchTerm.length === 0 ||
+          [row.name, row.planName, row.statusLabel, row.billingCycle, row.partnerCode || "", row.id]
+            .join(" ")
+            .toLowerCase()
+            .includes(searchTerm);
+        const matchesStatus = statusFilter === "all" || row.statusValue === statusFilter;
+        const matchesBilling = billingFilter === "all" || row.billingCycle === billingFilter;
+        const matchesPlan = planFilter === "all" || row.planName === planFilter;
+        return matchesSearch && matchesStatus && matchesBilling && matchesPlan;
+      })
+      .sort((a, b) => {
+        if (sortFilter === "name") return a.name.localeCompare(b.name);
+        if (sortFilter === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        if (sortFilter === "branches") return b.branchCount - a.branchCount;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [billingFilter, planFilter, rows, searchQuery, sortFilter, statusFilter]);
+
+  const planOptions = useMemo(() => {
+    return Array.from(new Set(rows.map((row) => row.planName))).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const totalBusinesses = rows.length;
+  const activeBusinesses = rows.filter((row) => row.statusValue === "active" || row.statusValue === "trialing").length;
+  const expiringSoonBusinesses = rows.filter((row) => row.expiringSoon).length;
+  const overdueBusinesses = rows.filter((row) => row.statusValue === "past_due").length;
+  const activeBranches = branches.filter((branch) => branch.active).length;
+  const totalLoyaltyAccounts = loyaltyAccounts.filter((account) => account.active).length;
+  const openDebtCount = debts.filter((debt) => ["open", "partial"].includes(debt.status) && toNumber(debt.outstanding_balance) > 0).length;
+  const openDebtAmount = debts.reduce((sum, debt) => {
+    if (!["open", "partial"].includes(debt.status)) return sum;
+    return sum + toNumber(debt.outstanding_balance);
+  }, 0);
+
+  const openEditModal = (row: EstablishmentRow) => {
+    setEditingRow(row);
+    setEditName(row.name);
+    const matchedPlan = plans.find((plan) => plan.name === row.planName);
+    setEditPlanId(matchedPlan?.id || "");
+  };
+
+  const saveEdit = async () => {
+    if (!editingRow) return;
+
+    const { error: businessError } = await supabase
+      .from("businesses")
+      .update({
+        name: editName.trim(),
+        plan_id: editPlanId || null,
+      })
+      .eq("id", editingRow.id);
+
+    if (businessError) {
+      toast.error(businessError.message);
       return;
     }
-    glowupStore.addSalon({
-      name,
-      owner,
-      plan,
-      status,
-      date: new Date().toISOString().split("T")[0]
-    });
-    toast.success(`Le salon "${name}" a été créé avec succès !`);
-    setIsAddOpen(false);
-    resetForm();
+
+    if (editingRow.subscriptionId) {
+      const selectedPlan = plans.find((plan) => plan.id === editPlanId);
+      const { error: subscriptionError } = await supabase
+        .from("business_subscriptions")
+        .update({
+          plan_id: editPlanId || null,
+          price_snapshot: toNumber(selectedPlan?.monthly_price ?? editingRow.priceSnapshot),
+        })
+        .eq("id", editingRow.subscriptionId);
+
+      if (subscriptionError) {
+        toast.error(subscriptionError.message);
+        return;
+      }
+    }
+
+    toast.success("Établissement modifié avec succès.");
+    setEditingRow(null);
+    await loadData();
   };
 
-  const handleEditSalon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSalon || !name || !owner) return;
-    
-    glowupStore.updateSalon({
-      ...selectedSalon,
-      name,
-      owner,
-      plan,
-      status
-    });
-    toast.success(`Le salon "${name}" a été modifié avec succès !`);
-    setIsEditOpen(false);
-    resetForm();
+  const toggleSuspension = async (row: EstablishmentRow) => {
+    const shouldSuspend = row.statusValue === "active" || row.statusValue === "trialing";
+    const nextBusinessStatus = shouldSuspend ? "inactive" : "active";
+    const nextSubscriptionStatus = shouldSuspend ? "cancelled" : "active";
+
+    const { error: businessError } = await supabase
+      .from("businesses")
+      .update({ status: nextBusinessStatus })
+      .eq("id", row.id);
+
+    if (businessError) {
+      toast.error(businessError.message);
+      return;
+    }
+
+    if (row.subscriptionId) {
+      const { error: subscriptionError } = await supabase
+        .from("business_subscriptions")
+        .update({ status: nextSubscriptionStatus })
+        .eq("id", row.subscriptionId);
+
+      if (subscriptionError) {
+        toast.error(subscriptionError.message);
+        return;
+      }
+    }
+
+    toast.success(shouldSuspend ? "Établissement suspendu." : "Établissement réactivé.");
+    await loadData();
   };
 
-  const handleDeleteSalon = () => {
-    if (!selectedSalon) return;
-    glowupStore.deleteSalon(selectedSalon.id);
-    toast.success(`Le salon "${selectedSalon.name}" a été supprimé.`);
-    setIsDeleteOpen(false);
-    setSelectedSalon(null);
-  };
+  const deleteEstablishment = async (row: EstablishmentRow) => {
+    const confirmed = window.confirm(`Supprimer définitivement ${row.name} ? Cette action est irréversible.`);
+    if (!confirmed) return;
 
-  const resetForm = () => {
-    setName("");
-    setOwner("");
-    setPlan("Pro");
-    setStatus("active");
-    setSelectedSalon(null);
-  };
+    const { error } = await supabase.from("businesses").delete().eq("id", row.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
 
-  const openEditModal = (salon: Salon) => {
-    setSelectedSalon(salon);
-    setName(salon.name);
-    setOwner(salon.owner);
-    setPlan(salon.plan);
-    setStatus(salon.status);
-    setIsEditOpen(true);
+    toast.success("Établissement supprimé.");
+    await loadData();
   };
-
-  const openDeleteModal = (salon: Salon) => {
-    setSelectedSalon(salon);
-    setIsDeleteOpen(true);
-  };
-
-  const filteredSalons = salons.filter(salon => {
-    const matchesSearch = salon.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          salon.owner.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || salon.status === statusFilter;
-    const matchesPlan = planFilter === "all" || salon.plan === planFilter;
-    return matchesSearch && matchesStatus && matchesPlan;
-  });
 
   return (
     <DashboardLayout
       role="super_admin"
-      title="Gestion des Salons"
-      subtitle="Supervisez les établissements abonnés à GlowUp"
-      userName="Admin GlowUp"
+      title="Établissements"
+      subtitle="Supervisez tous les business connectés à Wesd Systems, avec leurs abonnements, branches et services associés."
+      userName="Admin Wesd"
     >
       <StaggerContainer className="space-y-6">
-        {/* Actions Bar */}
         <StaggerItem>
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 max-w-2xl">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher par salon ou gérant..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="expiring">Expire bientôt</SelectItem>
-                  <SelectItem value="expired">Expiré</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={planFilter} onValueChange={setPlanFilter}>
-                <SelectTrigger className="w-full sm:w-[150px]">
-                  <SelectValue placeholder="Plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les plans</SelectItem>
-                  <SelectItem value="Basic">Basic</SelectItem>
-                  <SelectItem value="Pro">Pro</SelectItem>
-                  <SelectItem value="Premium">Premium</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button variant="hero" onClick={() => { resetForm(); setIsAddOpen(true); }} className="w-full md:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Nouveau salon
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Total établissements</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{loading ? "..." : totalBusinesses}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Actifs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-success">{loading ? "..." : activeBusinesses}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Expirent bientôt</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-warning">{loading ? "..." : expiringSoonBusinesses}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Branches actives</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-cyan-300">{loading ? "..." : activeBranches}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Créances ouvertes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold text-destructive">{loading ? "..." : openDebtCount}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {loading ? "Chargement..." : format(openDebtAmount)}
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </StaggerItem>
 
-        {/* Salons List Grid */}
         <StaggerItem>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSalons.map((salon) => (
-              <div key={salon.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-soft transition-all relative overflow-hidden flex flex-col justify-between h-[230px]">
-                <div>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                        {salon.name.charAt(0)}
+          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card/70 p-4 backdrop-blur sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:flex-1">
+                <div className="relative w-full md:max-w-md">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                    placeholder="Rechercher un établissement, un plan ou un code parrain..."
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Statut" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={billingFilter} onValueChange={setBillingFilter}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Cycle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BILLING_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={planFilter} onValueChange={setPlanFilter}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les plans</SelectItem>
+                    {planOptions.map((planName) => (
+                      <SelectItem key={planName} value={planName}>
+                        {planName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortFilter} onValueChange={setSortFilter}>
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Tri" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button variant="outline" onClick={() => void loadData()} className="w-full lg:w-auto">
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                Actualiser
+              </Button>
+            </div>
+
+            {errorMessage && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {errorMessage}
+              </div>
+            )}
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            {filteredRows.map((row) => {
+              const meta = statusMeta(row.statusValue);
+              return (
+                <div
+                  key={row.id}
+                  className="group rounded-2xl border border-border bg-card/85 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 text-lg font-bold text-white shadow-lg shadow-violet-500/20">
+                        {row.name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg line-clamp-1">{salon.name}</h3>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-                          <User className="h-3.5 w-3.5" />
-                          <span>{salon.owner}</span>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-base font-semibold">{row.name}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                          <span>Créé le {formatDate(row.createdAt)}</span>
+                          {row.partnerCode && (
+                            <span className="rounded-full border border-border px-2 py-0.5 text-xs">
+                              Parrain {row.partnerCode}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      salon.plan === "Premium" ? "bg-warning/20 text-warning" :
-                      salon.plan === "Pro" ? "bg-primary/20 text-primary" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {salon.plan}
+
+                    <Badge variant="outline" className={meta.className}>
+                      {meta.label}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Plan</div>
+                      <div className="mt-1 font-medium">{row.planName}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {row.priceSnapshot > 0 ? format(row.priceSnapshot) : "Tarif non défini"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Abonnement</div>
+                      <div className="mt-1 font-medium capitalize">{row.billingCycle}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Renouvellement {row.autoRenew ? "automatique" : "désactivé"}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Branches</div>
+                      <div className="mt-1 font-medium">
+                        {row.activeBranchCount}/{row.branchCount} actives
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">Structure opérationnelle</div>
+                    </div>
+                    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">Fidélité & crédit</div>
+                      <div className="mt-1 font-medium">
+                        {row.loyaltyAccountsCount} comptes, {row.openDebtsCount} dettes
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Encours: {format(row.openDebtAmount)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      {row.isPremium ? "Profil premium" : "Profil standard"}
                     </span>
-                  </div>
-
-                  <div className="mt-5 space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Créé le :</span>
-                      <span className="font-medium text-foreground">{salon.date.split("-").reverse().join("/")}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Statut d'abonnement :</span>
-                      <span className={`inline-flex items-center gap-1 font-semibold ${
-                        salon.status === "active" ? "text-success" :
-                        salon.status === "expiring" ? "text-warning" :
-                        "text-destructive"
-                      }`}>
-                        {salon.status === "active" ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                        <span className="capitalize text-xs">{salon.status === "expiring" ? "Expire bientôt" : salon.status === "expired" ? "Expiré" : "Actif"}</span>
+                    {row.expiringSoon && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-300">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        Expire bientôt
                       </span>
-                    </div>
+                    )}
+                    {row.statusValue === "past_due" && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-rose-300">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Paiement en retard
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2 border-t border-border/70 pt-4">
+                    <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Modifier
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void toggleSuspension(row)}>
+                      {row.statusValue === "active" || row.statusValue === "trialing" ? (
+                        <>
+                          <Ban className="mr-2 h-4 w-4" />
+                          Suspendre
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Réactiver
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => void deleteEstablishment(row)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Supprimer
+                    </Button>
                   </div>
                 </div>
-
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-border mt-4">
-                  <Button variant="outline" size="sm" onClick={() => openEditModal(salon)} className="h-8">
-                    <Pencil className="h-3.5 w-3.5 mr-1" />
-                    Modifier
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => openDeleteModal(salon)} className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Supprimer
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </StaggerItem>
 
-        {filteredSalons.length === 0 && (
+        {!loading && filteredRows.length === 0 && (
           <StaggerItem>
-            <div className="bg-card rounded-xl border border-dashed border-border p-12 text-center">
-              <Building2 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground font-medium">Aucun salon ne correspond à vos critères de recherche.</p>
+            <div className="rounded-2xl border border-dashed border-border bg-card/60 p-12 text-center">
+              <Building2 className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+              <p className="font-medium text-foreground">Aucun établissement ne correspond à vos filtres.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Essayez de retirer un filtre ou de modifier la recherche.
+              </p>
             </div>
           </StaggerItem>
         )}
 
-        {/* ADD SALON DIALOG */}
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Ajouter un nouveau salon</DialogTitle>
-              <DialogDescription>
-                Créez une fiche d'établissement abonné à la plateforme GlowUp.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddSalon} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="add-name">Nom du Salon *</Label>
-                <Input id="add-name" placeholder="Ex: Barber Paris" value={name} onChange={(e) => setName(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="add-owner">Nom du Propriétaire / Gérant *</Label>
-                <Input id="add-owner" placeholder="Ex: Jean Dupont" value={owner} onChange={(e) => setOwner(e.target.value)} required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="add-plan">Formule d'Abonnement</Label>
-                  <Select value={plan} onValueChange={(val: any) => setPlan(val)}>
-                    <SelectTrigger id="add-plan">
-                      <SelectValue placeholder="Choisir un plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Basic">Basic ({format(29)}/m)</SelectItem>
-                      <SelectItem value="Pro">Pro ({format(59)}/m)</SelectItem>
-                      <SelectItem value="Premium">Premium ({format(99)}/m)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="add-status">Statut de Facturation</Label>
-                  <Select value={status} onValueChange={(val: any) => setStatus(val)}>
-                    <SelectTrigger id="add-status">
-                      <SelectValue placeholder="Choisir un statut" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Actif</SelectItem>
-                      <SelectItem value="expiring">Expire bientôt</SelectItem>
-                      <SelectItem value="expired">Expiré</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
-                <Button type="submit" variant="hero">Créer le salon</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {loading && (
+          <StaggerItem>
+            <div className="rounded-2xl border border-border bg-card/60 p-12 text-center text-sm text-muted-foreground">
+              Chargement des établissements depuis Supabase...
+            </div>
+          </StaggerItem>
+        )}
 
-        {/* EDIT SALON DIALOG */}
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+        <Dialog open={!!editingRow} onOpenChange={(open) => !open && setEditingRow(null)}>
+          <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
-              <DialogTitle>Modifier le salon</DialogTitle>
+              <DialogTitle>Modifier l'établissement</DialogTitle>
               <DialogDescription>
-                Mettez à jour les informations et le statut d'abonnement de cet établissement.
+                Mettez à jour le nom public et le plan associé à cet établissement.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleEditSalon} className="space-y-4 py-4">
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Nom du Salon *</Label>
-                <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Label htmlFor="edit-establishment-name">Nom</Label>
+                <Input id="edit-establishment-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-owner">Nom du Propriétaire / Gérant *</Label>
-                <Input id="edit-owner" value={owner} onChange={(e) => setOwner(e.target.value)} required />
+                <Label>Plan</Label>
+                <Select value={editPlanId} onValueChange={setEditPlanId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-plan">Formule d'Abonnement</Label>
-                  <Select value={plan} onValueChange={(val: any) => setPlan(val)}>
-                    <SelectTrigger id="edit-plan">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Basic">Basic ({format(29)}/m)</SelectItem>
-                      <SelectItem value="Pro">Pro ({format(59)}/m)</SelectItem>
-                      <SelectItem value="Premium">Premium ({format(99)}/m)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">Statut de Facturation</Label>
-                  <Select value={status} onValueChange={(val: any) => setStatus(val)}>
-                    <SelectTrigger id="edit-status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Actif</SelectItem>
-                      <SelectItem value="expiring">Expire bientôt</SelectItem>
-                      <SelectItem value="expired">Expiré</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
-                <Button type="submit" variant="hero">Enregistrer</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* DELETE CONFIRMATION DIALOG */}
-        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle className="text-destructive">Supprimer le salon</DialogTitle>
-              <DialogDescription>
-                Êtes-vous absolument sûr de vouloir supprimer le salon <strong>{selectedSalon?.name}</strong> ? Cette action est irréversible et révoquera immédiatement tout accès à la plateforme pour cet établissement.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0 mt-4">
-              <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
-              <Button type="button" variant="destructive" onClick={handleDeleteSalon}>Supprimer définitivement</Button>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingRow(null)}>
+                Annuler
+              </Button>
+              <Button type="button" onClick={() => void saveEdit()}>
+                Enregistrer
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <StaggerItem>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Abonnements actifs</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                <div>
+                  <div className="text-xl font-bold">
+                    {rows.filter((row) => row.statusValue === "active" || row.statusValue === "trialing").length}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Actifs ou en essai</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Plans disponibles</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center gap-3">
+                <Layers3 className="h-5 w-5 text-cyan-300" />
+                <div>
+                  <div className="text-xl font-bold">{plans.length}</div>
+                  <div className="text-xs text-muted-foreground">Offres disponibles</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-muted-foreground">Comptes fidélité</CardTitle>
+              </CardHeader>
+              <CardContent className="flex items-center gap-3">
+                <Wallet className="h-5 w-5 text-violet-300" />
+                <div>
+                  <div className="text-xl font-bold">{totalLoyaltyAccounts}</div>
+                  <div className="text-xs text-muted-foreground">Comptes actifs</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </StaggerItem>
       </StaggerContainer>
     </DashboardLayout>
   );
