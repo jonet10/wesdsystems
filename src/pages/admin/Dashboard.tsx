@@ -2,13 +2,14 @@ import { useState, useEffect, type ReactNode } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle, Handshake, GitBranch, Gift, BadgeDollarSign } from "lucide-react";
+import { Building2, CreditCard, Users, TrendingUp, AlertTriangle, CheckCircle, Handshake, GitBranch, Gift, BadgeDollarSign, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 type DashboardStat = {
   title: string;
@@ -119,11 +120,14 @@ export default function SuperAdminDashboard() {
     pastDue: 0,
   });
   const [partnerStats, setPartnerStats] = useState({ pending: 0, approved: 0, rejected: 0, suspended: 0 });
+  const [missingPlansCount, setMissingPlansCount] = useState(0);
+  const [repairingPlans, setRepairingPlans] = useState(false);
 
   const loadData = async () => {
     // Counts
     const [
       { data: businesses },
+      { data: allBusinesses },
       { count: totalBusinessesCount },
       { data: subscriptions },
       { data: branches },
@@ -135,6 +139,7 @@ export default function SuperAdminDashboard() {
       { data: debts },
     ] = await Promise.all([
       supabase.from("businesses").select("id, name, status, created_at, plan_id").order("created_at", { ascending: false }).limit(25),
+      supabase.from("businesses").select("id, plan_id"),
       supabase.from("businesses").select("id", { count: "exact", head: true }),
       supabase.from("business_subscriptions").select("business_id, plan_id, status, price_snapshot, created_at, end_date, billing_cycle").order("created_at", { ascending: false }),
       supabase.from("business_branches").select("id, business_id, active").order("created_at", { ascending: false }),
@@ -162,6 +167,13 @@ export default function SuperAdminDashboard() {
 
     const activeSubscriptionByBusiness = new Map(
       activeSubscriptions.map((subscription) => [subscription.business_id, subscription])
+    );
+    const allBusinessesRows = (allBusinesses || []) as Array<{ id: string; plan_id: string | null }>;
+    setMissingPlansCount(
+      allBusinessesRows.filter((business) => {
+        const currentPlanId = activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id;
+        return !currentPlanId;
+      }).length
     );
 
     setRecentBusinesses(
@@ -219,6 +231,34 @@ export default function SuperAdminDashboard() {
       { title: "Plans actifs", value: (plans || []).filter((plan: any) => plan.active !== false).length.toLocaleString(), icon: <TrendingUp className="h-6 w-6" /> },
       { title: "Encours clients", value: formatCompact(outstandingDebt), icon: <BadgeDollarSign className="h-6 w-6" /> },
     ]);
+  };
+
+  const repairMissingPlans = async () => {
+    setRepairingPlans(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      const response = await fetch("/api/admin/fix-missing-plans", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Impossible de corriger les plans");
+      }
+
+      toast.success(payload?.message || "Plans corrigés avec succès");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de la correction des plans");
+    } finally {
+      setRepairingPlans(false);
+    }
   };
 
   useEffect(() => {
@@ -360,9 +400,23 @@ export default function SuperAdminDashboard() {
                 <h2 className="text-lg font-semibold font-display">Établissements récents</h2>
                 <p className="text-sm text-muted-foreground">Dernières inscriptions et activités</p>
               </div>
-              <Link to="/admin/salons">
-                <Button variant="outline" size="sm">Voir tout</Button>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Badge variant={missingPlansCount > 0 ? "destructive" : "outline"} className="hidden sm:inline-flex">
+                  {missingPlansCount > 0 ? `${missingPlansCount} sans plan` : "Plans synchronisés"}
+                </Badge>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={repairMissingPlans}
+                  disabled={repairingPlans || missingPlansCount === 0}
+                >
+                  <RefreshCcw className={`mr-2 h-4 w-4 ${repairingPlans ? "animate-spin" : ""}`} />
+                  {repairingPlans ? "Correction..." : "Corriger les plans"}
+                </Button>
+                <Link to="/admin/salons">
+                  <Button variant="outline" size="sm">Voir tout</Button>
+                </Link>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">

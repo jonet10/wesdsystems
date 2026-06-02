@@ -18,6 +18,8 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { CreditCard } from "lucide-react";
+import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
@@ -34,6 +36,7 @@ interface DashboardStat {
 export default function SalonDashboard() {
   const { isAuthenticated, profile } = useAuth();
   const { formatCompact, format } = useCurrency();
+  const subscriptionReminder = useSubscriptionPaymentReminder();
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const activeBranchId = useMemo(() => {
@@ -259,6 +262,34 @@ export default function SalonDashboard() {
       subtitle="Vue d'ensemble de votre activité"
     >
       <StaggerContainer className="space-y-6">
+        {subscriptionReminder.shouldPrompt && (
+          <StaggerItem>
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{subscriptionReminder.title}</p>
+                    <p className="text-sm text-muted-foreground">{subscriptionReminder.description}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {subscriptionReminder.planName ? `${subscriptionReminder.planName} • ` : ""}
+                      {subscriptionReminder.businessName}
+                    </p>
+                  </div>
+                </div>
+                <Button asChild disabled={!subscriptionReminder.paymentUrl}>
+                  <Link to={subscriptionReminder.paymentUrl || "#"}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    {subscriptionReminder.ctaLabel}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </StaggerItem>
+        )}
+
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {stats.map((stat, i) => (

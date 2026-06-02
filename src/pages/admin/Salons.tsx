@@ -11,12 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
+import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
 import {
   AlertTriangle,
   Ban,
   Building2,
   CheckCircle2,
   Clock3,
+  Copy,
   Pencil,
   RefreshCcw,
   Search,
@@ -505,6 +507,28 @@ export default function SalonsPage() {
     await loadData();
   };
 
+  const buildMonCashPaymentLink = (row: EstablishmentRow) => {
+    const url = new URL(MONCASH_PUBLIC_URLS.subscriptionPaymentUrl);
+    url.searchParams.set("business_id", row.id);
+    if (row.subscriptionId) url.searchParams.set("subscription_id", row.subscriptionId);
+    if (row.planRef) url.searchParams.set("plan_id", row.planRef);
+    url.searchParams.set("billing_cycle", row.billingCycle || "monthly");
+    url.searchParams.set("business_name", row.name);
+    url.searchParams.set("plan_name", row.planName);
+    url.searchParams.set("amount", String(row.priceSnapshot || 0));
+    url.searchParams.set("currency_code", row.currencyCode || "HTG");
+    return url.toString();
+  };
+
+  const copyMonCashPaymentLink = async (row: EstablishmentRow) => {
+    try {
+      await navigator.clipboard.writeText(buildMonCashPaymentLink(row));
+      toast.success("Lien MonCash copié.");
+    } catch {
+      toast.error("Impossible de copier le lien MonCash.");
+    }
+  };
+
   return (
     <DashboardLayout
       role="super_admin"
@@ -733,6 +757,14 @@ export default function SalonsPage() {
                     <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Modifier
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => window.open(buildMonCashPaymentLink(row), "_blank")}>
+                      <Wallet className="mr-2 h-4 w-4" />
+                      MonCash
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => void copyMonCashPaymentLink(row)}>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copier le lien
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => void toggleSuspension(row)}>
                       {row.statusValue === "active" || row.statusValue === "trialing" ? (

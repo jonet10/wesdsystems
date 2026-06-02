@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Shield, CreditCard, Database, Check } from "lucide-react";
+import { Globe, Shield, CreditCard, Database, Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
+import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
 
 export default function SuperAdminSettingsPage() {
   const [siteName, setSiteName] = useState("Wesd Systems");
@@ -18,10 +19,22 @@ export default function SuperAdminSettingsPage() {
   const [requireVerification, setRequireVerification] = useState(false);
   const [stripeLive, setStripeLive] = useState(false);
   const [stripePublicKey, setStripePublicKey] = useState("pk_test_51Nx...");
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const { t } = useTranslation();
 
   const handleSave = (section: string) => {
     toast.success(`Les paramètres de ${section} ont été sauvegardés avec succès !`);
+  };
+
+  const copyUrl = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedUrl(label);
+      toast.success(`${label} copié.`);
+      window.setTimeout(() => setCopiedUrl((current) => (current === label ? null : current)), 1500);
+    } catch {
+      toast.error(`Impossible de copier ${label.toLowerCase()}.`);
+    }
   };
 
   return (
@@ -163,6 +176,68 @@ export default function SuperAdminSettingsPage() {
                   <Button variant="hero" onClick={() => handleSave("Paiements")}>
                     Sauvegarder les clés
                   </Button>
+                </div>
+
+                <div className="pt-6 border-t border-border space-y-4">
+                  <div>
+                    <h4 className="text-base font-semibold font-display">Configuration MonCash</h4>
+                    <p className="text-sm text-muted-foreground">
+                      URLs à fournir à MonCash pour connecter les notifications et la page de confirmation.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="moncash-website">Website Url</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-2"
+                          onClick={() => copyUrl(MONCASH_PUBLIC_URLS.websiteUrl, "Website Url")}
+                        >
+                          {copiedUrl === "Website Url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copiedUrl === "Website Url" ? "Copié" : "Copier"}
+                        </Button>
+                      </div>
+                      <Input id="moncash-website" value={MONCASH_PUBLIC_URLS.websiteUrl} readOnly />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="moncash-return">Return Url</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-2"
+                          onClick={() => copyUrl(MONCASH_PUBLIC_URLS.returnUrl, "Return Url")}
+                        >
+                          {copiedUrl === "Return Url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copiedUrl === "Return Url" ? "Copié" : "Copier"}
+                        </Button>
+                      </div>
+                      <Input id="moncash-return" value={MONCASH_PUBLIC_URLS.returnUrl} readOnly />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="moncash-alert">Alert Url</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-2"
+                          onClick={() => copyUrl(MONCASH_PUBLIC_URLS.alertUrl, "Alert Url")}
+                        >
+                          {copiedUrl === "Alert Url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copiedUrl === "Alert Url" ? "Copié" : "Copier"}
+                        </Button>
+                      </div>
+                      <Input id="moncash-alert" value={MONCASH_PUBLIC_URLS.alertUrl} readOnly />
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>

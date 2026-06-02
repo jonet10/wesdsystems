@@ -2,16 +2,19 @@ import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash } from "lucide-react";
+import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { Link } from "react-router-dom";
+import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 
 interface BusinessDay {
   day: string;
@@ -61,6 +64,7 @@ const DAYS_OF_WEEK: { label: string; index: number }[] = [
 export default function SalonSettingsPage() {
   const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
+  const subscriptionReminder = useSubscriptionPaymentReminder();
 
   // Profile fields
   const [salonName, setSalonName] = useState("");
@@ -346,6 +350,35 @@ export default function SalonSettingsPage() {
     >
       <StaggerContainer>
         <form onSubmit={handleSaveSettings} className="max-w-4xl">
+          {subscriptionReminder.shouldPrompt && (
+            <StaggerItem>
+              <Card className="mb-6 border-primary/20 bg-primary/5">
+                <CardContent className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <AlertCircle className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{subscriptionReminder.title}</p>
+                        <p className="text-sm text-muted-foreground">{subscriptionReminder.description}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {subscriptionReminder.planName ? `${subscriptionReminder.planName} • ` : ""}
+                          {subscriptionReminder.businessName}
+                        </p>
+                      </div>
+                    </div>
+                    <Button asChild disabled={!subscriptionReminder.paymentUrl}>
+                      <Link to={subscriptionReminder.paymentUrl || "#"}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        {subscriptionReminder.ctaLabel}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )}
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="profile" className="gap-2">

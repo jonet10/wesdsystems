@@ -17,6 +17,8 @@ import Login from "./pages/auth/Login";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Register from "./pages/auth/Register";
 import PartnerRegister from "./pages/auth/PartnerRegister";
+import MonCashConfirmation from "./pages/MonCashConfirmation";
+import MonCashSubscriptionPay from "./pages/MonCashSubscriptionPay";
 import SuperAdminDashboard from "./pages/admin/Dashboard";
 import SuperAdminSalons from "./pages/admin/Salons";
 import SuperAdminModules from "./pages/admin/Modules";
@@ -70,6 +72,8 @@ const App = () => (
                 <Route path="/become-partner" element={<PartnerRegister />} />
                 <Route path="/inscription-partenaire" element={<PartnerRegister />} />
                 <Route path="/devenir-partenaire" element={<PartnerRegister />} />
+                <Route path="/moncash/confirmation" element={<MonCashConfirmation />} />
+                <Route path="/billing/moncash" element={<MonCashSubscriptionPay />} />
 
                 {/* Super Admin Routes */}
                 <Route

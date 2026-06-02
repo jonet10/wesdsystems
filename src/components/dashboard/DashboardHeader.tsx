@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check, AlertCircle, CreditCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
+import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
+import { Link } from "react-router-dom";
 
 interface DashboardHeaderProps {
   title: string;
@@ -54,9 +57,11 @@ export const DashboardHeader = ({
   const { profile, employeeSession, logoutEmployee } = useAuth();
   const { data: branches = [] } = useBusinessBranches();
   const { branchId, setActiveBranchId } = useActiveBranchId(profile?.business_id ?? null);
+  const subscriptionReminder = useSubscriptionPaymentReminder();
   const { i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
 
   const initials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -129,7 +134,25 @@ export const DashboardHeader = ({
     [branches, branchId]
   );
 
+  useEffect(() => {
+    if (!subscriptionReminder.shouldPrompt || !subscriptionReminder.storageKey) {
+      setSubscriptionDialogOpen(false);
+      return;
+    }
+
+    const dismissed = sessionStorage.getItem(subscriptionReminder.storageKey) === "1";
+    setSubscriptionDialogOpen(!dismissed);
+  }, [subscriptionReminder.shouldPrompt, subscriptionReminder.storageKey]);
+
+  const handleSubscriptionDialogOpenChange = (open: boolean) => {
+    setSubscriptionDialogOpen(open);
+    if (!open && subscriptionReminder.storageKey) {
+      sessionStorage.setItem(subscriptionReminder.storageKey, "1");
+    }
+  };
+
   return (
+    <>
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 
                       border-b border-purple-500/10 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60
                       px-6 shadow-lg shadow-purple-950/10">
@@ -345,5 +368,35 @@ export const DashboardHeader = ({
         </DropdownMenu>
       </div>
     </header>
+
+      <Dialog open={subscriptionDialogOpen} onOpenChange={handleSubscriptionDialogOpenChange}>
+        <DialogContent className="border-primary/20 bg-background">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary sm:mx-0">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <DialogTitle>{subscriptionReminder.title}</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <span>{subscriptionReminder.description}</span>
+              <span className="block text-xs text-muted-foreground">
+                {subscriptionReminder.businessName}
+                {subscriptionReminder.planName ? ` • ${subscriptionReminder.planName}` : ""}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => handleSubscriptionDialogOpenChange(false)}>
+              Plus tard
+            </Button>
+            <Button asChild disabled={!subscriptionReminder.paymentUrl}>
+              <Link to={subscriptionReminder.paymentUrl || "#"}>
+                <CreditCard className="mr-2 h-4 w-4" />
+                {subscriptionReminder.ctaLabel}
+              </Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

@@ -13,17 +13,17 @@
 @layer base {
   :root {
     /* ──────────────────────────────────────
-       FUTURISTIC PLATFORM BASE
-       Dark navy shell with violet/cyan accents, aligned with landing page.
+       LIGHT PLATFORM BASE
+       Clean ivory shell with the same violet/cyan accent system.
     ────────────────────────────────────── */
-    --background: 224 71% 5%;
-    --foreground: 210 40% 98%;
+    --background: 210 40% 98%;
+    --foreground: 224 71% 4%;
 
-    --card: 224 50% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
 
-    --popover: 224 50% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
 
     /* ──────────────────────────────────────
        PRIMARY — Violet to blue accent
@@ -34,20 +34,20 @@
     /* ──────────────────────────────────────
        SECONDARY — Deep slate
     ────────────────────────────────────── */
-    --secondary: 224 40% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 214 32% 96%;
+    --secondary-foreground: 224 71% 4%;
 
     /* ──────────────────────────────────────
        MUTED — Deep neutral surface
     ────────────────────────────────────── */
-    --muted: 224 40% 10%;
-    --muted-foreground: 215 20% 72%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 18% 34%;
 
     /* ──────────────────────────────────────
        ACCENT — Violet glass
     ────────────────────────────────────── */
-    --accent: 262 70% 18%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 262 90% 96%;
+    --accent-foreground: 224 71% 4%;
 
     /* ──────────────────────────────────────
        SEMANTIC COLORS
@@ -67,8 +67,8 @@
     /* ──────────────────────────────────────
        BORDERS & INPUTS — glassy slate
     ────────────────────────────────────── */
-    --border: 224 40% 14%;
-    --input: 224 40% 14%;
+    --border: 214 28% 88%;
+    --input: 214 28% 88%;
     --ring: 262 83% 65%;
 
     --radius: 0.75rem;
@@ -78,8 +78,8 @@
        Futuristic purple/cyan system
     ────────────────────────────────────── */
     --gradient-primary: linear-gradient(135deg, hsl(262 83% 65%) 0%, hsl(189 84% 62%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 9%) 48%, hsl(224 71% 5%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(224 50% 9%) 0%, hsl(224 40% 8%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(210 40% 99%) 0%, hsl(257 100% 96%) 48%, hsl(210 40% 98%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 40% 98%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(38 92% 55%) 0%, hsl(25 85% 55%) 100%);
     --gradient-blue-soft: linear-gradient(135deg, hsl(262 100% 16%) 0%, hsl(189 100% 16%) 100%);
 
@@ -99,14 +99,19 @@
     /* ──────────────────────────────────────
        SIDEBAR — aligned with the futuristic shell
     ────────────────────────────────────── */
-    --sidebar-background: 224 71% 4%;
-    --sidebar-foreground: 220 20% 84%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 71% 4%;
     --sidebar-primary: 262 83% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 40% 11%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 224 40% 12%;
+    --sidebar-accent: 214 32% 96%;
+    --sidebar-accent-foreground: 224 71% 4%;
+    --sidebar-border: 214 28% 88%;
     --sidebar-ring: 262 83% 65%;
+
+    --page-background-start: hsl(210 40% 99%);
+    --page-background-mid: hsl(257 100% 97%);
+    --page-background-end: hsl(210 40% 98%);
+    --page-grid-line: rgba(30, 41, 59, 0.05);
   }
 
   /* ──────────────────────────────────────
@@ -151,6 +156,11 @@
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 224 40% 8%;
     --sidebar-ring: 262 83% 65%;
+
+    --page-background-start: hsl(224 71% 4%);
+    --page-background-mid: hsl(258 63% 8%);
+    --page-background-end: hsl(224 71% 5%);
+    --page-grid-line: rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -176,9 +186,9 @@
     font-size: 15px;
     line-height: 1.6;
     background-image:
-      linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 8%) 48%, hsl(224 71% 5%) 100%),
-      linear-gradient(rgba(168, 85, 247, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+      linear-gradient(135deg, var(--page-background-start) 0%, var(--page-background-mid) 48%, var(--page-background-end) 100%),
+      linear-gradient(var(--page-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px);
     background-size: auto, 48px 48px, 48px 48px;
     background-attachment: fixed;
   }

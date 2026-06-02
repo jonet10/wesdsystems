@@ -32,8 +32,11 @@ import {
   Users,
   X,
   MoreHorizontal,
+  Moon,
   Zap,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 
 import { Logo } from "@/components/brand/Logo";
@@ -55,6 +58,7 @@ const HERO_SLIDES = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const { detectedRegionName, detectedCountry, availableCountries, setCountryPreference, priceForPlan, formatPrice, isLoading } =
     usePricing();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -97,38 +101,84 @@ export default function Landing() {
     i18n.changeLanguage(lng);
   };
 
-  return (
-    <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.25),transparent_38%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_30%),linear-gradient(180deg,#050816_0%,#09041a_45%,#0a0815_100%)] text-white">
-      <div className="fixed inset-0 pointer-events-none opacity-40 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:44px_44px]" />
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
-      <nav className="sticky top-0 z-50 border-b border-white/8 bg-slate-950/70 backdrop-blur-xl">
+  const isDarkMode = theme !== "light";
+  const pageText = isDarkMode ? "text-white" : "text-slate-950";
+  const pageMuted = isDarkMode ? "text-white/68" : "text-slate-700";
+  const pageSoft = isDarkMode ? "text-white/55" : "text-slate-600";
+  const panelBase = isDarkMode ? "border-white/10 bg-white/5" : "border-slate-900/10 bg-white";
+  const panelCard = isDarkMode ? "border-white/10 bg-white/5 shadow-black/10" : "border-slate-900/10 bg-white shadow-slate-900/10";
+  const panelSoft = isDarkMode ? "border-white/10 bg-slate-950/35" : "border-slate-900/10 bg-slate-950/5";
+  const sectionAccent = isDarkMode ? "text-cyan-300/80" : "text-cyan-700";
+
+  return (
+    <div
+      className={`min-h-screen overflow-x-hidden transition-colors duration-500 ${
+        isDarkMode
+          ? "bg-[radial-gradient(circle_at_top_left,rgba(139,92,246,0.25),transparent_38%),radial-gradient(circle_at_top_right,rgba(34,211,238,0.16),transparent_30%),linear-gradient(180deg,#050816_0%,#09041a_45%,#0a0815_100%)] text-white"
+          : "bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_35%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.1),transparent_30%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)] text-slate-950"
+      }`}
+    >
+      <div
+        className={`fixed inset-0 pointer-events-none opacity-40 transition-opacity duration-500 ${
+          isDarkMode
+            ? "bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)]"
+            : "bg-[linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)]"
+        } bg-[length:44px_44px]`}
+      />
+
+      <nav
+        className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-colors duration-500 ${
+          isDarkMode ? "border-white/8 bg-slate-950/70" : "border-slate-900/10 bg-white/80"
+        }`}
+      >
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
           <Link to="/" className="relative z-10">
             <Logo size="md" />
           </Link>
 
-          <div className="hidden items-center gap-8 text-sm font-medium text-white/75 md:flex">
-            <a href="#solutions" className="transition-colors hover:text-white">
+          <div className={`hidden items-center gap-8 text-sm font-medium md:flex ${pageMuted}`}>
+            <a href="#solutions" className={`transition-colors ${isDarkMode ? "hover:text-white" : "hover:text-slate-950"}`}>
               {t("nav.solutions")}
             </a>
-            <a href="#features" className="transition-colors hover:text-white">
+            <a href="#features" className={`transition-colors ${isDarkMode ? "hover:text-white" : "hover:text-slate-950"}`}>
               {t("nav.features")}
             </a>
-            <a href="#pricing" className="transition-colors hover:text-white">
+            <a href="#pricing" className={`transition-colors ${isDarkMode ? "hover:text-white" : "hover:text-slate-950"}`}>
               {t("nav.pricing")}
             </a>
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
-            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Passer au mode jour" : "Passer au mode nuit"}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                isDarkMode
+                  ? "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                  : "border-slate-900/10 bg-slate-950/5 text-slate-700 hover:bg-slate-950/10 hover:text-slate-950"
+              }`}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+
+            <div className={`flex items-center gap-1 rounded-full border p-1 ${panelBase}`}>
               {LANGUAGE_CODES.map((lang) => (
                 <button
                   key={lang}
                   onClick={() => changeLanguage(lang)}
                   className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider transition ${
                     i18n.language.startsWith(lang)
-                      ? "bg-white text-slate-950"
-                      : "text-white/60 hover:bg-white/8 hover:text-white"
+                      ? isDarkMode
+                        ? "bg-white text-slate-950"
+                        : "bg-slate-950 text-white"
+                      : isDarkMode
+                        ? "text-white/60 hover:bg-white/8 hover:text-white"
+                        : "text-slate-600 hover:bg-slate-950/5 hover:text-slate-950"
                   }`}
                 >
                   {lang}
@@ -137,7 +187,10 @@ export default function Landing() {
             </div>
 
             <Link to="/auth/login">
-              <Button variant="ghost" className="rounded-full text-white/80 hover:bg-white/8 hover:text-white">
+              <Button
+                variant="ghost"
+                className={`rounded-full ${isDarkMode ? "text-white/80 hover:bg-white/8 hover:text-white" : "text-slate-700 hover:bg-slate-950/5 hover:text-slate-950"}`}
+              >
                 {t("nav.signIn")}
               </Button>
             </Link>
@@ -149,7 +202,7 @@ export default function Landing() {
           </div>
 
           <button
-            className="rounded-xl border border-white/10 bg-white/5 p-2 text-white md:hidden"
+            className={`rounded-xl border p-2 md:hidden ${isDarkMode ? "border-white/10 bg-white/5 text-white" : "border-slate-900/10 bg-white text-slate-950"}`}
             onClick={() => setIsMobileMenuOpen((value) => !value)}
             aria-label="Menu"
           >
@@ -163,19 +216,46 @@ export default function Landing() {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="border-t border-white/8 bg-slate-950/95 px-5 py-4 md:hidden"
+            className={`border-t px-5 py-4 md:hidden transition-colors duration-500 ${
+              isDarkMode ? "border-white/8 bg-slate-950/95" : "border-slate-900/10 bg-white/95"
+            }`}
             >
               <div className="flex flex-col gap-4">
-                <a href="#solutions" onClick={() => setIsMobileMenuOpen(false)} className="text-white/80">
+                <a
+                  href="#solutions"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={isDarkMode ? "text-white/80" : "text-slate-700"}
+                >
                   {t("nav.solutions")}
                 </a>
-                <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-white/80">
+                <a
+                  href="#features"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={isDarkMode ? "text-white/80" : "text-slate-700"}
+                >
                   {t("nav.features")}
                 </a>
-                <a href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-white/80">
+                <a
+                  href="#pricing"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={isDarkMode ? "text-white/80" : "text-slate-700"}
+                >
                   {t("nav.pricing")}
                 </a>
                 <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors ${
+                      isDarkMode
+                        ? "border-white/10 bg-white/5 text-white/80"
+                        : "border-slate-900/10 bg-slate-950/5 text-slate-700"
+                    }`}
+                  >
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                    {theme === "dark" ? "Mode jour" : "Mode nuit"}
+                  </button>
+
                   {LANGUAGE_CODES.map((lang) => (
                     <button
                       key={lang}
@@ -183,7 +263,11 @@ export default function Landing() {
                         changeLanguage(lang);
                         setIsMobileMenuOpen(false);
                       }}
-                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase text-white/80"
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase transition-colors ${
+                        isDarkMode
+                          ? "border-white/10 bg-white/5 text-white/80"
+                          : "border-slate-900/10 bg-slate-950/5 text-slate-700"
+                      }`}
                     >
                       {lang}
                     </button>
@@ -191,7 +275,12 @@ export default function Landing() {
                 </div>
                 <div className="flex gap-3 pt-2">
                   <Link to="/auth/login" className="flex-1">
-                    <Button variant="outline" className="w-full rounded-full border-white/10 bg-transparent text-white">
+                    <Button
+                      variant="outline"
+                      className={`w-full rounded-full ${
+                        isDarkMode ? "border-white/10 bg-transparent text-white" : "border-slate-900/10 bg-white text-slate-950"
+                      }`}
+                    >
                       {t("nav.signIn")}
                     </Button>
                   </Link>
@@ -208,15 +297,17 @@ export default function Landing() {
       </nav>
 
       <main className="relative z-10">
-        <section className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-10 px-5 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20">
+        <section className={`mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-10 px-5 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-20 ${pageText}`}>
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
             className="max-w-2xl"
           >
-            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm font-medium text-white/80">
-              <Zap className="h-4 w-4 text-cyan-300" />
+            <div className={`mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium ${
+              isDarkMode ? "border-white/10 bg-white/6 text-white/80" : "border-slate-900/10 bg-slate-950/5 text-slate-700"
+            }`}>
+              <Zap className={`h-4 w-4 ${isDarkMode ? "text-cyan-300" : "text-cyan-700"}`} />
               {t("hero.badge", { count: countryCount })}
             </div>
 
@@ -231,7 +322,7 @@ export default function Landing() {
               <span className="bg-gradient-to-r from-violet-200 to-cyan-300 bg-clip-text text-transparent">platform</span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/68 sm:text-xl">
+            <p className={`mt-6 max-w-xl text-lg leading-8 sm:text-xl ${pageMuted}`}>
               {t("hero.subtitle")}
             </p>
 
@@ -245,7 +336,11 @@ export default function Landing() {
               <Link to="/auth/login">
                 <Button
                   variant="outline"
-                  className="h-12 rounded-full border-white/12 bg-white/5 px-7 text-base font-semibold text-white hover:bg-white/10"
+                  className={`h-12 rounded-full px-7 text-base font-semibold ${
+                    isDarkMode
+                      ? "border-white/12 bg-white/5 text-white hover:bg-white/10"
+                      : "border-slate-900/10 bg-white text-slate-950 hover:bg-slate-950/5"
+                  }`}
                 >
                   {t("hero.demo")}
                 </Button>
@@ -253,19 +348,19 @@ export default function Landing() {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/75">
+              <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
                 {countryCount} countries
               </div>
-              <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/75">
+              <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
                 {businessKeys.length} verticals
               </div>
-              <div className="rounded-full border border-white/10 bg-white/6 px-4 py-2 text-sm text-white/75">
+              <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
                 Starter from {latestPriceLabel}
               </div>
             </div>
 
-            <p className="mt-8 flex items-center gap-2 text-sm text-white/55">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
+            <p className={`mt-8 flex items-center gap-2 text-sm ${pageSoft}`}>
+              <Sparkles className={`h-4 w-4 ${isDarkMode ? "text-cyan-300" : "text-cyan-700"}`} />
               {t("hero.noCreditCard")}
             </p>
           </motion.div>
@@ -278,8 +373,18 @@ export default function Landing() {
           >
             <div className="absolute -inset-6 rounded-[2.25rem] bg-gradient-to-tr from-violet-500/20 via-cyan-400/10 to-fuchsia-500/15 blur-3xl" />
 
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/60 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
-              <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/55 shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+            <div
+              className={`relative overflow-hidden rounded-[2rem] border p-4 shadow-2xl backdrop-blur-xl transition-colors duration-500 ${
+                isDarkMode ? "border-white/10 bg-slate-950/60 shadow-black/40" : "border-slate-900/10 bg-white/75 shadow-slate-900/10"
+              }`}
+            >
+              <div
+                className={`relative overflow-hidden rounded-[1.75rem] border transition-colors duration-500 ${
+                  isDarkMode
+                    ? "border-white/10 bg-slate-950/55 shadow-[0_20px_60px_rgba(0,0,0,0.25)]"
+                    : "border-slate-900/10 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.12)]"
+                }`}
+              >
                 <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-cyan-500/10" />
                 <div className="relative h-[620px] sm:h-[700px]">
                   <AnimatePresence mode="wait">
@@ -295,7 +400,13 @@ export default function Landing() {
                     />
                   </AnimatePresence>
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
+                  <div
+                    className={`absolute inset-0 ${
+                      isDarkMode
+                        ? "bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent"
+                        : "bg-gradient-to-t from-white via-white/20 to-transparent"
+                    }`}
+                  />
                   <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 px-4 pb-4">
                     <div className="max-w-[72%]">
                       <div className="flex items-center gap-1.5">
@@ -327,10 +438,15 @@ export default function Landing() {
         <section id="solutions" className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:px-8">
           <div className="mb-8 flex items-end justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">Solutions</p>
+              <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${sectionAccent}`}>Solutions</p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Built for every business vertical</h2>
             </div>
-            <a href="#pricing" className="hidden items-center gap-2 text-sm font-medium text-white/70 transition hover:text-white md:flex">
+            <a
+              href="#pricing"
+              className={`hidden items-center gap-2 text-sm font-medium transition md:flex ${
+                isDarkMode ? "text-white/70 hover:text-white" : "text-slate-600 hover:text-slate-950"
+              }`}
+            >
               Explore pricing <ChevronRight className="h-4 w-4" />
             </a>
           </div>
@@ -342,13 +458,13 @@ export default function Landing() {
                 <motion.div
                   key={business.id}
                   whileHover={{ y: -4 }}
-                  className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-sm"
+                  className={`rounded-3xl border p-5 shadow-lg backdrop-blur-sm ${panelCard}`}
                 >
-                  <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-cyan-300">
+                  <div className={`mb-4 inline-flex rounded-2xl border p-3 ${panelSoft} ${isDarkMode ? "text-cyan-300" : "text-cyan-700"}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="text-lg font-semibold">{t(`businesses.${business.id}.name`)}</h3>
-                  <p className="mt-2 text-sm leading-6 text-white/60">{t(`businesses.${business.id}.desc`)}</p>
+                  <p className={`mt-2 text-sm leading-6 ${pageSoft}`}>{t(`businesses.${business.id}.desc`)}</p>
                 </motion.div>
               );
             })}
@@ -376,12 +492,12 @@ export default function Landing() {
             ].map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                  <div className="mb-4 inline-flex rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-cyan-300">
+                <div key={feature.title} className={`rounded-3xl border p-6 ${panelCard}`}>
+                  <div className={`mb-4 inline-flex rounded-2xl border p-3 ${panelSoft} ${isDarkMode ? "text-cyan-300" : "text-cyan-700"}`}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold">{feature.title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-white/60">{feature.desc}</p>
+                  <h3 className={`text-xl font-semibold ${pageText}`}>{feature.title}</h3>
+                  <p className={`mt-3 text-sm leading-6 ${pageSoft}`}>{feature.desc}</p>
                 </div>
               );
             })}
@@ -390,9 +506,9 @@ export default function Landing() {
 
         <section id="pricing" className="mx-auto max-w-7xl px-5 py-16 sm:px-6 lg:px-8">
           <div className="mb-8 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">{t("pricing.title")}</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t("pricing.subtitle")}</h2>
-            <p className="mt-3 text-sm text-white/55">
+              <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${sectionAccent}`}>{t("pricing.title")}</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{t("pricing.subtitle")}</h2>
+            <p className={`mt-3 text-sm ${pageSoft}`}>
               {isLoading ? "Loading country pricing..." : `${countryCount} countries loaded for ${detectedRegionName}`}
             </p>
           </div>
@@ -425,8 +541,12 @@ export default function Landing() {
                 key={plan.key}
                 className={`relative overflow-hidden rounded-[1.85rem] border p-7 shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${
                   plan.featured
-                    ? "border-cyan-400/30 bg-gradient-to-b from-[#17172f] to-[#12112a]"
-                    : "border-white/8 bg-[#12112a]"
+                    ? isDarkMode
+                      ? "border-cyan-400/30 bg-gradient-to-b from-[#17172f] to-[#12112a]"
+                      : "border-cyan-500/20 bg-gradient-to-b from-white to-slate-50"
+                    : isDarkMode
+                      ? "border-white/8 bg-[#12112a]"
+                      : "border-slate-900/10 bg-white"
                 }`}
               >
                 {plan.featured && (
@@ -436,18 +556,18 @@ export default function Landing() {
                   </div>
                 )}
 
-                <p className="text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-white/45">
+                <p className={`text-[0.75rem] font-semibold uppercase tracking-[0.15em] ${isDarkMode ? "text-white/45" : "text-slate-500"}`}>
                   {plan.label}
                 </p>
 
-                <div className="mt-4 text-[3rem] font-black leading-none text-white">
+                <div className={`mt-4 text-[3rem] font-black leading-none ${isDarkMode ? "text-white" : "text-slate-950"}`}>
                   {plan.price}
                 </div>
 
                 <div className="mt-7 space-y-3">
                   {plan.features.map((feature) => (
-                    <div key={feature} className="flex items-start gap-3 text-sm leading-6 text-white/80">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-white/85" />
+                    <div key={feature} className={`flex items-start gap-3 text-sm leading-6 ${isDarkMode ? "text-white/80" : "text-slate-700"}`}>
+                      <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isDarkMode ? "text-white/85" : "text-slate-700"}`} />
                       <span>{feature}</span>
                     </div>
                   ))}
@@ -458,7 +578,9 @@ export default function Landing() {
                     className={`h-12 w-full rounded-full font-semibold ${
                       plan.featured
                         ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-500 hover:to-cyan-400"
-                        : "border border-white/12 bg-transparent text-white hover:bg-white/5"
+                        : isDarkMode
+                          ? "border border-white/12 bg-transparent text-white hover:bg-white/5"
+                          : "border border-slate-900/10 bg-white text-slate-950 hover:bg-slate-950/5"
                     }`}
                     variant={plan.featured ? "default" : "outline"}
                   >
@@ -471,14 +593,14 @@ export default function Landing() {
         </section>
 
         <section className="mx-auto max-w-7xl px-5 py-10 pb-20 sm:px-6 lg:px-8">
-          <div className="rounded-[2rem] border border-white/10 bg-gradient-to-r from-violet-500/18 via-slate-950/60 to-cyan-500/18 px-7 py-8 shadow-2xl shadow-black/20">
+          <div className={`rounded-[2rem] border px-7 py-8 shadow-2xl ${isDarkMode ? "border-white/10 bg-gradient-to-r from-violet-500/18 via-slate-950/60 to-cyan-500/18 shadow-black/20" : "border-slate-900/10 bg-gradient-to-r from-violet-100 via-white to-cyan-100 shadow-slate-900/10"}`}>
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300/80">Get started</p>
+                <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${sectionAccent}`}>Get started</p>
                 <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
                   Launch Wesd Systems with your real pricing and real country coverage.
                 </h2>
-                <p className="mt-3 text-white/65">
+                <p className={`mt-3 ${pageMuted}`}>
                   The landing page now reflects the actual data loaded from Supabase: supported countries, detected region, and plan prices.
                 </p>
               </div>
@@ -491,7 +613,11 @@ export default function Landing() {
                 <Link to="/auth/login">
                   <Button
                     variant="outline"
-                    className="h-12 rounded-full border-white/12 bg-white/5 px-6 font-semibold text-white hover:bg-white/10"
+                    className={`h-12 rounded-full px-6 font-semibold ${
+                      isDarkMode
+                        ? "border-white/12 bg-white/5 text-white hover:bg-white/10"
+                        : "border-slate-900/10 bg-white text-slate-950 hover:bg-slate-950/5"
+                    }`}
                   >
                     {t("nav.signIn")}
                   </Button>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 import {
   BadgeCheck,
   Building2,
@@ -23,34 +24,40 @@ import {
 type ActivityMeta = {
   label: string;
   icon: typeof Users2;
-  accent: string;
+  darkAccent: string;
+  lightAccent: string;
 };
 
 const ACTIVITY_META: Record<CommunityActivityType, ActivityMeta> = {
   partner_joined: {
     label: "Partenaire",
     icon: Users2,
-    accent: "from-cyan-400/25 to-cyan-300/10 border-cyan-300/20 text-cyan-100",
+    darkAccent: "from-cyan-400/25 to-cyan-300/10 border-cyan-300/20 text-cyan-100",
+    lightAccent: "from-cyan-50 to-white border-cyan-200 text-cyan-800 shadow-cyan-900/5",
   },
   ambassador_joined: {
     label: "Ambassadeur",
     icon: Sparkles,
-    accent: "from-fuchsia-400/25 to-fuchsia-300/10 border-fuchsia-300/20 text-fuchsia-100",
+    darkAccent: "from-fuchsia-400/25 to-fuchsia-300/10 border-fuchsia-300/20 text-fuchsia-100",
+    lightAccent: "from-fuchsia-50 to-white border-fuchsia-200 text-fuchsia-800 shadow-fuchsia-900/5",
   },
   salon_joined: {
     label: "Salon",
     icon: Building2,
-    accent: "from-emerald-400/25 to-emerald-300/10 border-emerald-300/20 text-emerald-100",
+    darkAccent: "from-emerald-400/25 to-emerald-300/10 border-emerald-300/20 text-emerald-100",
+    lightAccent: "from-emerald-50 to-white border-emerald-200 text-emerald-800 shadow-emerald-900/5",
   },
   service_published: {
     label: "Service",
     icon: BadgeCheck,
-    accent: "from-amber-400/25 to-amber-300/10 border-amber-300/20 text-amber-100",
+    darkAccent: "from-amber-400/25 to-amber-300/10 border-amber-300/20 text-amber-100",
+    lightAccent: "from-amber-50 to-white border-amber-200 text-amber-800 shadow-amber-900/5",
   },
   reservation_created: {
     label: "Réservation",
     icon: CalendarCheck2,
-    accent: "from-sky-400/25 to-sky-300/10 border-sky-300/20 text-sky-100",
+    darkAccent: "from-sky-400/25 to-sky-300/10 border-sky-300/20 text-sky-100",
+    lightAccent: "from-sky-50 to-white border-sky-200 text-sky-800 shadow-sky-900/5",
   },
 };
 
@@ -98,38 +105,56 @@ function AnimatedCount({ value }: { value: number }) {
   return <span>{Math.round(displayValue).toLocaleString("fr-FR")}</span>;
 }
 
-function ActivityCard({ activity }: { activity: CommunityActivity }) {
+function ActivityCard({ activity, isDarkMode }: { activity: CommunityActivity; isDarkMode: boolean }) {
   const meta = ACTIVITY_META[activity.type];
   const Icon = meta.icon;
 
   return (
     <div
       className={cn(
-        "group flex min-w-[280px] max-w-[340px] items-start gap-3 rounded-2xl border bg-white/5 p-4 shadow-lg shadow-black/20 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/8",
-        meta.accent
+        "group flex min-w-[280px] max-w-[340px] items-start gap-3 rounded-2xl border bg-gradient-to-br p-4 shadow-lg backdrop-blur-xl transition hover:-translate-y-0.5",
+        isDarkMode ? meta.darkAccent : meta.lightAccent
       )}
     >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/15 text-white/90 shadow-[0_0_20px_rgba(255,255,255,0.08)]">
+      <div
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border",
+          isDarkMode
+            ? "border-white/10 bg-black/15 text-white/90 shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+            : "border-slate-900/10 bg-white text-slate-800 shadow-sm"
+        )}
+      >
         <Icon className="h-5 w-5" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-white/10 bg-white/6 text-[10px] uppercase tracking-[0.18em] text-white/70">
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-[10px] uppercase tracking-[0.18em]",
+              isDarkMode ? "border-white/10 bg-white/6 text-white/70" : "border-slate-900/10 bg-white text-slate-600"
+            )}
+          >
             {meta.label}
           </Badge>
           {activity.city && (
-            <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-0.5 text-[10px] font-medium text-white/60">
+            <span
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-[10px] font-medium",
+                isDarkMode ? "border-white/10 bg-black/20 text-white/60" : "border-slate-900/10 bg-slate-950/5 text-slate-600"
+              )}
+            >
               {activity.city}
             </span>
           )}
         </div>
 
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-white/88">
+        <p className={cn("mt-2 line-clamp-3 text-sm leading-6", isDarkMode ? "text-white/88" : "text-slate-800")}>
           {activity.message}
         </p>
 
-        <p className="mt-2 text-xs font-medium text-white/48">
+        <p className={cn("mt-2 text-xs font-medium", isDarkMode ? "text-white/48" : "text-slate-500")}>
           {formatRelativeTime(activity.created_at)}
         </p>
       </div>
@@ -141,24 +166,33 @@ function StatCard({
   icon: Icon,
   label,
   value,
-  tone,
+  darkTone,
+  lightTone,
+  isDarkMode,
 }: {
   icon: typeof Users2;
   label: string;
   value: number;
-  tone: string;
+  darkTone: string;
+  lightTone: string;
+  isDarkMode: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg shadow-black/10 backdrop-blur-xl">
+    <div
+      className={cn(
+        "rounded-2xl border p-4 shadow-lg backdrop-blur-xl",
+        isDarkMode ? "border-white/10 bg-white/5 shadow-black/10" : "border-slate-900/10 bg-white shadow-slate-900/5"
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
-        <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border", tone)}>
+        <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl border", isDarkMode ? darkTone : lightTone)}>
           <Icon className="h-5 w-5" />
         </div>
         <div className="text-right">
-          <div className="text-2xl font-black tracking-tight text-white">
+          <div className={cn("text-2xl font-black tracking-tight", isDarkMode ? "text-white" : "text-slate-950")}>
             <AnimatedCount value={value} />
           </div>
-          <div className="text-[11px] uppercase tracking-[0.16em] text-white/45">
+          <div className={cn("text-[11px] uppercase tracking-[0.16em]", isDarkMode ? "text-white/45" : "text-slate-500")}>
             {label}
           </div>
         </div>
@@ -169,7 +203,9 @@ function StatCard({
 
 export function CommunityActivitySection() {
   const { data, isLoading } = useCommunityActivityFeed(30);
+  const { theme } = useTheme();
   const [isPaused, setIsPaused] = useState(false);
+  const isDarkMode = theme !== "light";
 
   const activities = data.feed.length > 0 ? data.feed : DEFAULT_COMMUNITY_ACTIVITIES;
   const stats = data.stats ?? DEFAULT_COMMUNITY_STATS;
@@ -183,36 +219,60 @@ export function CommunityActivitySection() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.25 }}
         transition={{ duration: 0.65, ease: "easeOut" }}
-        className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_36%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.16),transparent_32%),linear-gradient(180deg,rgba(7,11,24,0.96),rgba(9,12,24,0.98))] px-5 py-6 shadow-2xl shadow-black/25 sm:px-6 lg:px-8 lg:py-8"
+        className={cn(
+          "relative overflow-hidden rounded-[2rem] border px-5 py-6 shadow-2xl transition-colors duration-500 sm:px-6 lg:px-8 lg:py-8",
+          isDarkMode
+            ? "border-white/10 bg-[linear-gradient(180deg,rgba(7,11,24,0.96),rgba(9,12,24,0.98))] shadow-black/25"
+            : "border-slate-900/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.98))] shadow-slate-900/10"
+        )}
       >
-        <div className="absolute inset-0 pointer-events-none opacity-60 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:42px_42px]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/50 to-transparent" />
+        <div
+          className={cn(
+            "absolute inset-0 pointer-events-none opacity-60 bg-[length:42px_42px]",
+            isDarkMode
+              ? "bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)]"
+              : "bg-[linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)]"
+          )}
+        />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
 
         <div className="relative">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100/80">
-                <MessageCircleMore className="h-4 w-4 text-cyan-300" />
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em]",
+                  isDarkMode ? "border-white/10 bg-white/5 text-cyan-100/80" : "border-cyan-200 bg-cyan-50 text-cyan-800"
+                )}
+              >
+                <MessageCircleMore className={cn("h-4 w-4", isDarkMode ? "text-cyan-300" : "text-cyan-700")} />
                 Ce qui se passe actuellement sur la plateforme
               </div>
-              <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              <h2 className={cn("mt-4 text-3xl font-black tracking-tight sm:text-4xl", isDarkMode ? "text-white" : "text-slate-950")}>
                 🔥 Activité de la communauté
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60 sm:text-base">
+              <p className={cn("mt-3 max-w-2xl text-sm leading-7 sm:text-base", isDarkMode ? "text-white/60" : "text-slate-600")}>
                 Un bandeau public en temps réel pour montrer que la plateforme vit, que des salons avancent, que des partenaires rejoignent le réseau et que les réservations circulent.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 self-start rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-xs font-semibold text-emerald-100 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
+            <div
+              className={cn(
+                "flex items-center gap-2 self-start rounded-full border px-4 py-2 text-xs font-semibold",
+                isDarkMode
+                  ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100 shadow-[0_0_24px_rgba(16,185,129,0.12)]"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm"
+              )}
+            >
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]" />
               Realtime Supabase
-              {isLoading && <span className="text-emerald-100/60">Chargement...</span>}
+              {isLoading && <span className={cn(isDarkMode ? "text-emerald-100/60" : "text-emerald-700/70")}>Chargement...</span>}
             </div>
           </div>
 
-          <div className="relative mt-6 overflow-hidden rounded-3xl border border-white/10 bg-black/20">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#070b18] to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#070b18] to-transparent" />
+          <div className={cn("relative mt-6 overflow-hidden rounded-3xl border", isDarkMode ? "border-white/10 bg-black/20" : "border-slate-900/10 bg-slate-950/5")}>
+            <div className={cn("pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r to-transparent", isDarkMode ? "from-[#070b18]" : "from-white")} />
+            <div className={cn("pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l to-transparent", isDarkMode ? "from-[#070b18]" : "from-white")} />
 
             <div
               className="overflow-hidden py-4"
@@ -227,39 +287,46 @@ export function CommunityActivitySection() {
                 }}
               >
                 {marqueeItems.map((activity, index) => (
-                  <ActivityCard key={`${activity.id}-${index}`} activity={activity} />
+                  <ActivityCard key={`${activity.id}-${index}`} activity={activity} isDarkMode={isDarkMode} />
                 ))}
               </div>
             </div>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <StatCard icon={Building2} label="Salons inscrits" value={stats.salonCount} tone="border-emerald-400/20 bg-emerald-400/10 text-emerald-100" />
-            <StatCard icon={Users2} label="Partenaires approuvés" value={stats.partnerCount} tone="border-cyan-400/20 bg-cyan-400/10 text-cyan-100" />
-            <StatCard icon={Sparkles} label="Ambassadeurs approuvés" value={stats.ambassadorCount} tone="border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-100" />
-            <StatCard icon={BadgeCheck} label="Utilisateurs inscrits" value={stats.userCount} tone="border-violet-400/20 bg-violet-400/10 text-violet-100" />
-            <StatCard icon={CalendarCheck2} label="Réservations" value={stats.reservationCount} tone="border-sky-400/20 bg-sky-400/10 text-sky-100" />
-            <StatCard icon={Scissors} label="Services publiés" value={stats.serviceCount} tone="border-amber-400/20 bg-amber-400/10 text-amber-100" />
+            <StatCard icon={Building2} label="Salons inscrits" value={stats.salonCount} darkTone="border-emerald-400/20 bg-emerald-400/10 text-emerald-100" lightTone="border-emerald-200 bg-emerald-50 text-emerald-700" isDarkMode={isDarkMode} />
+            <StatCard icon={Users2} label="Partenaires approuvés" value={stats.partnerCount} darkTone="border-cyan-400/20 bg-cyan-400/10 text-cyan-100" lightTone="border-cyan-200 bg-cyan-50 text-cyan-700" isDarkMode={isDarkMode} />
+            <StatCard icon={Sparkles} label="Ambassadeurs approuvés" value={stats.ambassadorCount} darkTone="border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-100" lightTone="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" isDarkMode={isDarkMode} />
+            <StatCard icon={BadgeCheck} label="Utilisateurs inscrits" value={stats.userCount} darkTone="border-violet-400/20 bg-violet-400/10 text-violet-100" lightTone="border-violet-200 bg-violet-50 text-violet-700" isDarkMode={isDarkMode} />
+            <StatCard icon={CalendarCheck2} label="Réservations" value={stats.reservationCount} darkTone="border-sky-400/20 bg-sky-400/10 text-sky-100" lightTone="border-sky-200 bg-sky-50 text-sky-700" isDarkMode={isDarkMode} />
+            <StatCard icon={Scissors} label="Services publiés" value={stats.serviceCount} darkTone="border-amber-400/20 bg-amber-400/10 text-amber-100" lightTone="border-amber-200 bg-amber-50 text-amber-700" isDarkMode={isDarkMode} />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-lg shadow-black/10 backdrop-blur-xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100/70">
+            <div className={cn("rounded-3xl border p-5 shadow-lg backdrop-blur-xl", isDarkMode ? "border-white/10 bg-white/5 shadow-black/10" : "border-slate-900/10 bg-white shadow-slate-900/5")}>
+              <p className={cn("text-sm font-semibold uppercase tracking-[0.18em]", isDarkMode ? "text-cyan-100/70" : "text-cyan-800")}>
                 Notre communauté grandit chaque jour
               </p>
-              <div className="mt-4 space-y-3 text-sm leading-7 text-white/72">
-                <p>Plus de <span className="font-semibold text-white">{stats.salonCount.toLocaleString("fr-FR")}</span> salons utilisent déjà la plateforme.</p>
-                <p><span className="font-semibold text-white">{stats.partnerCount.toLocaleString("fr-FR")}</span> partenaires nous font confiance.</p>
-                <p><span className="font-semibold text-white">{stats.ambassadorCount.toLocaleString("fr-FR")}</span> ambassadeurs représentent notre communauté.</p>
+              <div className={cn("mt-4 space-y-3 text-sm leading-7", isDarkMode ? "text-white/72" : "text-slate-700")}>
+                <p>Plus de <span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.salonCount.toLocaleString("fr-FR")}</span> salons utilisent déjà la plateforme.</p>
+                <p><span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.partnerCount.toLocaleString("fr-FR")}</span> partenaires nous font confiance.</p>
+                <p><span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.ambassadorCount.toLocaleString("fr-FR")}</span> ambassadeurs représentent notre communauté.</p>
                 <p>Des centaines de clients utilisent déjà nos services.</p>
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-5 shadow-lg shadow-black/10 backdrop-blur-xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
+            <div
+              className={cn(
+                "rounded-3xl border p-5 shadow-lg backdrop-blur-xl",
+                isDarkMode
+                  ? "border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] shadow-black/10"
+                  : "border-slate-900/10 bg-[linear-gradient(180deg,rgba(248,250,252,1),rgba(255,255,255,1))] shadow-slate-900/5"
+              )}
+            >
+              <p className={cn("text-sm font-semibold uppercase tracking-[0.18em]", isDarkMode ? "text-white/60" : "text-slate-600")}>
                 Preuve sociale
               </p>
-              <ul className="mt-4 space-y-3 text-sm text-white/70">
+              <ul className={cn("mt-4 space-y-3 text-sm", isDarkMode ? "text-white/70" : "text-slate-700")}>
                 <li className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
                   Activités publiques visibles en temps réel, sans information privée.

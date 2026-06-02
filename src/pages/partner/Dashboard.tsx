@@ -19,10 +19,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
+import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
 import {
   BarChart3,
   Copy,
   ExternalLink,
+  CreditCard,
   Gift,
   Link as LinkIcon,
   Megaphone,
@@ -125,6 +127,7 @@ interface SubscriptionRow {
   status: string;
   start_date: string;
   end_date: string | null;
+  billing_cycle?: string | null;
   price_snapshot: number;
 }
 
@@ -203,7 +206,7 @@ export default function PartnerDashboard() {
       supabase.from("partner_wallets").select("id, partner_id, currency_code, available_balance, pending_balance, lifetime_earnings, total_payouts").eq("partner_id", partnerData.id).maybeSingle(),
       supabase.from("partner_tiers").select("id, name, slug, recurring_commission_rate, one_time_commission_rate, fixed_commission_amount, active").eq("id", partnerData.partner_tier_id || "").maybeSingle(),
       supabase.from("businesses").select("id, name, owner, status, referred_by_partner_id, created_at").eq("referred_by_partner_id", partnerData.id).order("created_at", { ascending: false }),
-      supabase.from("business_subscriptions").select("id, business_id, plan_id, status, start_date, end_date, price_snapshot").order("created_at", { ascending: false }),
+      supabase.from("business_subscriptions").select("id, business_id, plan_id, status, start_date, end_date, billing_cycle, price_snapshot").order("created_at", { ascending: false }),
       supabase.from("partner_commissions").select("id, partner_id, business_id, commission_type, source_event, rate_value, base_amount, amount, currency_code, status, created_at").eq("partner_id", partnerData.id).order("created_at", { ascending: false }),
       supabase.from("partner_payout_requests").select("id, partner_id, requested_amount, payout_method, status, requested_at, note").eq("partner_id", partnerData.id).order("created_at", { ascending: false }),
       supabase.from("partner_referrals").select("id, partner_id, business_id, referral_code, referral_url, clicks, signups, converted_at, last_clicked_at").eq("partner_id", partnerData.id).order("created_at", { ascending: false }),
@@ -265,6 +268,20 @@ export default function PartnerDashboard() {
     if (!referralUrl) return;
     await navigator.clipboard.writeText(referralUrl);
     toast.success("Lien de parrainage copié.");
+  };
+
+  const buildMonCashPaymentLink = (subscription: SubscriptionRow) => {
+    const url = new URL(MONCASH_PUBLIC_URLS.subscriptionPaymentUrl);
+    const business = businesses.find((item) => item.id === subscription.business_id);
+    url.searchParams.set("business_id", subscription.business_id);
+    url.searchParams.set("subscription_id", subscription.id);
+    url.searchParams.set("plan_id", subscription.plan_id);
+    url.searchParams.set("billing_cycle", subscription.billing_cycle || "monthly");
+    url.searchParams.set("business_name", business?.name || subscription.business_id);
+    url.searchParams.set("plan_name", subscription.plan_id);
+    url.searchParams.set("amount", String(subscription.price_snapshot || 0));
+    url.searchParams.set("currency_code", "HTG");
+    return url.toString();
   };
 
   const onRequestPayout = payoutForm.handleSubmit(async (values) => {
@@ -477,6 +494,7 @@ export default function PartnerDashboard() {
                         <TableHead>Price</TableHead>
                         <TableHead>Start</TableHead>
                         <TableHead>End</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -487,11 +505,17 @@ export default function PartnerDashboard() {
                           <TableCell>{format(subscription.price_snapshot || 0)}</TableCell>
                           <TableCell>{subscription.start_date}</TableCell>
                           <TableCell>{subscription.end_date || "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => window.open(buildMonCashPaymentLink(subscription), "_blank")}>
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              MonCash
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                       {subscriptions.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                             No subscriptions yet.
                           </TableCell>
                         </TableRow>
