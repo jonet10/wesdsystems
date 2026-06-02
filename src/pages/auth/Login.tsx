@@ -299,18 +299,18 @@ export default function Login() {
       </div>
 
       {/* Right side - Decorative */}
-      <div className="hidden lg:flex flex-1 items-center justify-center p-8 relative overflow-hidden bg-foreground">
-        <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:30px_30px]" />
-        <div className="absolute inset-0 gradient-primary opacity-90" />
-        <div className="relative z-10 text-center text-primary-foreground max-w-lg">
-          <h2 className="text-4xl font-bold font-sans tracking-tight mb-6 text-white">
+      <div className="hidden lg:flex flex-1 items-center justify-center p-8 relative overflow-hidden bg-slate-950">
+        <div className="absolute inset-0 opacity-12 bg-[linear-gradient(to_right,rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.18)_1px,transparent_1px)] bg-[size:30px_30px]" />
+        <div className="absolute inset-0 gradient-primary opacity-85" />
+        <div className="relative z-10 text-center max-w-lg px-6">
+          <h2 className="text-4xl font-bold font-sans tracking-tight mb-6 text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.35)]">
             Propulsez la croissance de votre commerce
           </h2>
-          <p className="text-lg opacity-85 leading-relaxed text-muted/20">
+          <p className="text-lg leading-relaxed text-white/85 drop-shadow-[0_1px_10px_rgba(0,0,0,0.28)]">
             Wesd Systems centralise vos caisses, rendez-vous, facturations et inventaires pour simplifier la vie de vos collaborateurs.
           </p>
         </div>
-        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-white/12 rounded-full blur-3xl" />
         <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-white/10 rounded-full blur-3xl" />
       </div>
     </div>
