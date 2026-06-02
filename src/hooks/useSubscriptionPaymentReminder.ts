@@ -31,6 +31,9 @@ type PlanRow = {
 
 export type SubscriptionPaymentReminder = {
   shouldPrompt: boolean;
+  severity: "none" | "warning" | "critical";
+  isCritical: boolean;
+  dismissible: boolean;
   storageKey: string;
   title: string;
   description: string;
@@ -115,7 +118,11 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
       const isPastDue = subscription?.status === "past_due";
       const isTrialingSoon = subscription?.status === "trialing" && daysRemaining !== null && daysRemaining <= 7;
       const isExpiringSoon = subscription?.status === "active" && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 7;
-      const shouldPrompt = Boolean(planId && (isExpired || isPastDue || isTrialingSoon || isExpiringSoon));
+      const severity: SubscriptionPaymentReminder["severity"] =
+        isExpired || isPastDue ? "critical" : isTrialingSoon || isExpiringSoon ? "warning" : "none";
+      const shouldPrompt = Boolean(planId && severity !== "none");
+      const isCritical = severity === "critical";
+      const dismissible = !isCritical;
 
       const statusLabel = isPastDue
         ? "past_due"
@@ -164,6 +171,9 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
 
       return {
         shouldPrompt,
+        severity,
+        isCritical,
+        dismissible,
         storageKey,
         title,
         description,
@@ -180,6 +190,9 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
   const fallbackValue = useMemo<SubscriptionPaymentReminder>(
     () => ({
       shouldPrompt: false,
+      severity: "none",
+      isCritical: false,
+      dismissible: true,
       storageKey: "",
       title: "",
       description: "",

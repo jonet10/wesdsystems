@@ -140,11 +140,19 @@ export const DashboardHeader = ({
       return;
     }
 
+    if (subscriptionReminder.isCritical) {
+      setSubscriptionDialogOpen(true);
+      return;
+    }
+
     const dismissed = sessionStorage.getItem(subscriptionReminder.storageKey) === "1";
     setSubscriptionDialogOpen(!dismissed);
-  }, [subscriptionReminder.shouldPrompt, subscriptionReminder.storageKey]);
+  }, [subscriptionReminder.isCritical, subscriptionReminder.shouldPrompt, subscriptionReminder.storageKey]);
 
   const handleSubscriptionDialogOpenChange = (open: boolean) => {
+    if (subscriptionReminder.isCritical && !open) {
+      return;
+    }
     setSubscriptionDialogOpen(open);
     if (!open && subscriptionReminder.storageKey) {
       sessionStorage.setItem(subscriptionReminder.storageKey, "1");
@@ -385,9 +393,11 @@ export const DashboardHeader = ({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => handleSubscriptionDialogOpenChange(false)}>
-              Plus tard
-            </Button>
+            {!subscriptionReminder.isCritical && (
+              <Button variant="outline" onClick={() => handleSubscriptionDialogOpenChange(false)}>
+                Plus tard
+              </Button>
+            )}
             <Button asChild disabled={!subscriptionReminder.paymentUrl}>
               <Link to={subscriptionReminder.paymentUrl || "#"}>
                 <CreditCard className="mr-2 h-4 w-4" />
