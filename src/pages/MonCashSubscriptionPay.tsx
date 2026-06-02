@@ -20,6 +20,7 @@ export default function MonCashSubscriptionPayPage() {
   const businessName = toText(params.get("business_name")) || "Votre établissement";
   const planName = toText(params.get("plan_name")) || "Abonnement";
   const billingCycle = toText(params.get("billing_cycle")) || "monthly";
+  const durationMonths = Math.max(1, Math.min(12, Number(toText(params.get("duration_months")) || "1")));
   const amount = Number(params.get("amount") || 0);
   const currencyCode = toText(params.get("currency_code")) || "HTG";
 
@@ -41,6 +42,7 @@ export default function MonCashSubscriptionPayPage() {
           subscription_id: subscriptionId || null,
           plan_id: planId,
           billing_cycle: billingCycle,
+          duration_months: durationMonths,
         }),
       });
 
@@ -102,7 +104,9 @@ export default function MonCashSubscriptionPayPage() {
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs uppercase tracking-wide text-white/50">Plan</p>
                 <p className="mt-1 text-base font-medium">{planName}</p>
-                <p className="mt-1 text-xs text-white/60 capitalize">{billingCycle}</p>
+                <p className="mt-1 text-xs text-white/60 capitalize">
+                  {durationMonths} mois · {billingCycle}
+                </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs uppercase tracking-wide text-white/50">Montant</p>
@@ -146,4 +150,3 @@ export default function MonCashSubscriptionPayPage() {
     </div>
   );
 }
-

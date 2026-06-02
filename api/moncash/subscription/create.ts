@@ -4,10 +4,12 @@ import { createMonCashPayment } from "../_service";
 
 const toNumber = (value: unknown) => Number(value || 0);
 
-const addBillingCycle = (date: Date, billingCycle: string) => {
+const addBillingCycle = (date: Date, billingCycle: string, durationMonths = 1) => {
   const next = new Date(date);
   if (billingCycle === "yearly") {
     next.setFullYear(next.getFullYear() + 1);
+  } else if (billingCycle === "custom") {
+    next.setMonth(next.getMonth() + Math.max(1, durationMonths));
   } else {
     next.setMonth(next.getMonth() + 1);
   }
@@ -48,6 +50,7 @@ export default async function handler(req: any, res: any) {
     const subscriptionId = body.subscription_id ? String(body.subscription_id) : null;
     const requestedPlanId = body.plan_id ? String(body.plan_id) : "";
     const billingCycle = String(body.billing_cycle || "monthly");
+    const durationMonths = Math.max(1, Math.min(12, Number(body.duration_months || 1)));
 
     if (!businessId) return json(res, 400, { error: "business_id requis" });
 
@@ -74,9 +77,10 @@ export default async function handler(req: any, res: any) {
     if (!plan) return json(res, 404, { error: "Plan introuvable" });
     if (plan.active === false) return json(res, 400, { error: "Plan inactif" });
 
-    const amount = billingCycle === "yearly"
+    const normalizedCycle = durationMonths >= 12 ? "yearly" : durationMonths === 1 ? "monthly" : "custom";
+    const amount = normalizedCycle === "yearly"
       ? toNumber(plan.yearly_price || toNumber(plan.monthly_price) * 12)
-      : toNumber(plan.monthly_price);
+      : toNumber(plan.monthly_price) * durationMonths;
 
     if (amount <= 0) {
       return json(res, 400, { error: "Le montant de l'abonnement doit être supérieur à 0" });
@@ -89,7 +93,8 @@ export default async function handler(req: any, res: any) {
         business_id: businessId,
         subscription_id: currentSubscription?.id || subscriptionId || null,
         plan_id: planId,
-        billing_cycle: billingCycle,
+        billing_cycle: normalizedCycle,
+        duration_months: durationMonths,
         payment_provider: "moncash",
         amount,
         currency_code: "HTG",
@@ -98,7 +103,8 @@ export default async function handler(req: any, res: any) {
         gateway_payload: {
           business_name: business.name,
           plan_name: plan.name,
-          billing_cycle: billingCycle,
+          billing_cycle: normalizedCycle,
+          duration_months: durationMonths,
         },
       })
       .select("id, order_id")
@@ -132,16 +138,17 @@ export default async function handler(req: any, res: any) {
     if (updateError) throw updateError;
 
     return json(res, 200, {
-      data: {
-        payment_id: paymentRow.id,
-        order_id: orderId,
-        redirect_url: payment.redirectUrl,
-        amount,
-        currency_code: "HTG",
-        business: {
-          id: business.id,
-          name: business.name,
-        },
+        data: {
+          payment_id: paymentRow.id,
+          order_id: orderId,
+          redirect_url: payment.redirectUrl,
+          amount,
+          currency_code: "HTG",
+          duration_months: durationMonths,
+          business: {
+            id: business.id,
+            name: business.name,
+          },
         plan: {
           id: plan.id,
           name: plan.name,

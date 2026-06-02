@@ -3,10 +3,12 @@ import { json } from "../pending-tabs/_shared";
 import { MONCASH_PUBLIC_URLS } from "../../src/lib/moncash";
 import { retrieveMonCashTransaction } from "./_service";
 
-const addBillingCycle = (start: Date, billingCycle: string) => {
+const addBillingCycle = (start: Date, billingCycle: string, durationMonths = 1) => {
   const next = new Date(start);
   if (billingCycle === "yearly") {
     next.setFullYear(next.getFullYear() + 1);
+  } else if (billingCycle === "custom") {
+    next.setMonth(next.getMonth() + Math.max(1, durationMonths));
   } else {
     next.setMonth(next.getMonth() + 1);
   }
@@ -42,7 +44,8 @@ const findPaymentRecord = async (transactionId: string, orderId: string) => {
 
 const upsertSubscriptionActivation = async (payment: any, transaction: any) => {
   const today = new Date();
-  const endDate = addBillingCycle(today, payment.billing_cycle || "monthly");
+  const durationMonths = Math.max(1, Math.min(12, Number(payment.gateway_payload?.duration_months || 1)));
+  const endDate = addBillingCycle(today, payment.billing_cycle || "monthly", durationMonths);
   const subscriptionPayload = {
     business_id: payment.business_id,
     plan_id: payment.plan_id,
@@ -53,7 +56,7 @@ const upsertSubscriptionActivation = async (payment: any, transaction: any) => {
     auto_renew: true,
     price_snapshot: Number(payment.amount || 0),
     currency_code: payment.currency_code || "HTG",
-    notes: `MonCash ${payment.order_id}${transaction?.payment?.transaction_id ? ` · tx ${transaction.payment.transaction_id}` : ""}`,
+    notes: `MonCash ${payment.order_id}${transaction?.payment?.transaction_id ? ` · tx ${transaction.payment.transaction_id}` : ""} · ${durationMonths} mois`,
   };
 
   if (payment.subscription_id) {

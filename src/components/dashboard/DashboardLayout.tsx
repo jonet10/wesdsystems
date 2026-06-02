@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CreditCard, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SubscriptionPaymentCard } from "./SubscriptionPaymentCard";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -33,6 +34,7 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
         <div className="flex-1 flex flex-col overflow-hidden">
           <DashboardHeader title={title} subtitle={subtitle} userName={userName} userRole={role} />
           <main className="relative flex-1 overflow-auto p-6">
+            {isBusinessArea && <SubscriptionPaymentCard compact />}
             {subscriptionReminder.shouldPrompt && isBusinessArea && (
               <div
                 className={cn(

@@ -14,6 +14,7 @@ export type MonCashSubscriptionPaymentLinkInput = {
   subscriptionId?: string | null;
   planId: string;
   billingCycle?: string | null;
+  durationMonths?: number | null;
   businessName?: string | null;
   planName?: string | null;
   amount?: number | null;
@@ -26,6 +27,9 @@ export function buildMonCashSubscriptionPaymentLink(input: MonCashSubscriptionPa
   params.set("plan_id", input.planId);
   if (input.subscriptionId) params.set("subscription_id", input.subscriptionId);
   if (input.billingCycle) params.set("billing_cycle", input.billingCycle);
+  if (typeof input.durationMonths === "number" && Number.isFinite(input.durationMonths)) {
+    params.set("duration_months", String(input.durationMonths));
+  }
   if (input.businessName) params.set("business_name", input.businessName);
   if (input.planName) params.set("plan_name", input.planName);
   if (typeof input.amount === "number" && Number.isFinite(input.amount)) params.set("amount", String(input.amount));
