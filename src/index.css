@@ -266,10 +266,14 @@
   .btn-glow:hover { box-shadow: 0 4px 20px hsl(221 83% 60% / 0.35); }
 
   /* ── Animations ── */
-  .animate-float    { animation: float 6s ease-in-out infinite; }
-  .animate-fade-up  { animation: fadeUp 0.5s ease-out forwards; }
-  .animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
-  .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+.animate-float    { animation: float 6s ease-in-out infinite; }
+.animate-fade-up  { animation: fadeUp 0.5s ease-out forwards; }
+.animate-scale-in { animation: scaleIn 0.3s ease-out forwards; }
+.animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+.animate-community-marquee {
+  animation: communityMarquee 36s linear infinite;
+  will-change: transform;
+}
 }
 
 /* ============================================================
@@ -323,6 +327,11 @@
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes communityMarquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 
 /* ============================================================

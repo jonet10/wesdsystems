@@ -37,6 +37,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { Logo } from "@/components/brand/Logo";
+import { CommunityActivitySection } from "@/components/home/CommunityActivitySection";
 import { Button } from "@/components/ui/button";
 import { usePricing } from "@/contexts/PricingContext";
 
@@ -499,6 +500,8 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        <CommunityActivitySection />
       </main>
     </div>
   );
