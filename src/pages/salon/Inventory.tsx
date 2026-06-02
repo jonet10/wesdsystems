@@ -12,7 +12,7 @@ import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
-import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal } from "lucide-react";
+import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal, AlertCircle } from "lucide-react";
 import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES, PACKAGING_LABELS, PACKAGING_DEFAULT_QUANTITIES } from "@/lib/packaging";
 import { listLowStockProducts, listStockMovements, recordStockMovement } from "@/modules/salon/inventory";
 
@@ -50,7 +50,7 @@ export default function InventoryPage() {
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
-  const { data: branches = [] } = useBusinessBranches();
+  const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   const activeBranchId = useMemo(() => {
     const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
     return validBranchId || branches[0]?.id || null;
@@ -286,6 +286,24 @@ export default function InventoryPage() {
     const q = search.toLowerCase();
     return products.filter((p) => [p.name, p.brand, p.sku, p.category].some((v) => String(v || "").toLowerCase().includes(q)));
   }, [products, search]);
+
+  if ((profile && branchesFetching) || (profile && !activeBranchId)) {
+    return (
+      <DashboardLayout role="salon_admin" title="Inventaire & Stock" subtitle="Initialisation du salon...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">L’inventaire se prépare</h2>
+            <p className="text-muted-foreground">
+              Nous créons la branche principale de votre salon avant d’ouvrir la gestion du stock. Vous pourrez ensuite ajouter vos produits et mouvements sans avoir à choisir une branche.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (loading) {
     return (

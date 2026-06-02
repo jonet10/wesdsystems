@@ -83,6 +83,7 @@ interface EstablishmentRow {
   name: string;
   statusLabel: string;
   statusValue: SubscriptionStatus;
+  planRef: string | null;
   planName: string;
   billingCycle: string;
   autoRenew: boolean;
@@ -143,6 +144,34 @@ function daysUntil(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null;
   const diff = date.getTime() - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function addDays(value: string, days: number) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function normalizePlanKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function resolvePlan(plans: PlanRow[], rawValue: string | null | undefined) {
+  if (!rawValue) return null;
+  const normalized = normalizePlanKey(rawValue);
+  const aliasMap: Record<string, string> = {
+    basic: "starter",
+    pro: "professional",
+    premium: "enterprise",
+  };
+  const alias = aliasMap[normalized];
+  const candidates = new Set([normalized, alias ? normalizePlanKey(alias) : ""]);
+
+  return plans.find((plan) => {
+    const idKey = normalizePlanKey(plan.id);
+    const nameKey = normalizePlanKey(plan.name);
+    return candidates.has(idKey) || candidates.has(nameKey);
+  }) ?? null;
 }
 
 function statusMeta(status: SubscriptionStatus) {
@@ -307,28 +336,31 @@ export default function SalonsPage() {
 
     return businesses.map((business) => {
       const subscription = latestSubscriptionByBusiness.get(business.id);
-      const plan = subscription ? planById.get(subscription.plan_id) : business.plan_id ? planById.get(business.plan_id) : undefined;
+      const rawPlanRef = subscription?.plan_id ?? business.plan_id ?? null;
+      const plan = resolvePlan(plans, rawPlanRef) ?? (subscription ? planById.get(subscription.plan_id) : business.plan_id ? planById.get(business.plan_id) : undefined);
       const branchStat = branchStats.get(business.id) ?? { total: 0, active: 0 };
       const loyaltyCount = loyaltyStats.get(business.id) ?? 0;
       const debtStat = debtStats.get(business.id) ?? { count: 0, amount: 0 };
       const statusValue = subscription?.status ?? business.status ?? "unknown";
-      const daysLeft = daysUntil(subscription?.end_date ?? null);
+      const trialEnd = subscription?.end_date ?? addDays(subscription?.start_date || business.created_at, 7).toISOString();
+      const daysLeft = daysUntil(trialEnd);
       const expiringSoon =
         (statusValue === "active" || statusValue === "trialing") &&
         daysLeft !== null &&
         daysLeft >= 0 &&
-        daysLeft <= 14;
+        daysLeft <= 7;
 
       return {
         id: business.id,
         name: business.name || "Établissement sans nom",
         statusLabel: statusMeta(statusValue).label,
         statusValue,
-        planName: plan?.name || "Plan non défini",
+        planRef: rawPlanRef,
+        planName: plan?.name || rawPlanRef || "Plan non défini",
         billingCycle: subscription?.billing_cycle || "monthly",
         autoRenew: subscription?.auto_renew ?? false,
         createdAt: business.created_at,
-        endDate: subscription?.end_date ?? null,
+        endDate: trialEnd,
         priceSnapshot: toNumber(subscription?.price_snapshot ?? plan?.monthly_price ?? 0),
         currencyCode: subscription?.currency_code || "HTG",
         branchCount: branchStat.total,
@@ -337,7 +369,7 @@ export default function SalonsPage() {
         openDebtsCount: debtStat.count,
         openDebtAmount: debtStat.amount,
         partnerCode: business.referred_by_partner_code,
-        isPremium: (plan?.name || "").toLowerCase().includes("premium") || toNumber(plan?.monthly_price ?? 0) >= 99,
+        isPremium: (plan?.name || rawPlanRef || "").toLowerCase().includes("premium") || toNumber(plan?.monthly_price ?? 0) >= 99,
         expiringSoon,
         subscriptionId: subscription?.id ?? null,
       } satisfies EstablishmentRow;
@@ -387,7 +419,7 @@ export default function SalonsPage() {
   const openEditModal = (row: EstablishmentRow) => {
     setEditingRow(row);
     setEditName(row.name);
-    const matchedPlan = plans.find((plan) => plan.name === row.planName);
+    const matchedPlan = resolvePlan(plans, row.planRef) ?? plans.find((plan) => plan.name === row.planName);
     setEditPlanId(matchedPlan?.id || "");
   };
 
@@ -651,7 +683,7 @@ export default function SalonsPage() {
                       <div className="text-xs uppercase tracking-wide text-muted-foreground">Abonnement</div>
                       <div className="mt-1 font-medium capitalize">{row.billingCycle}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Renouvellement {row.autoRenew ? "automatique" : "désactivé"}
+                        {row.autoRenew ? "Renouvellement automatique" : "Renouvellement désactivé"}
                       </div>
                     </div>
                     <div className="rounded-xl border border-border/70 bg-background/60 p-3">
@@ -677,6 +709,12 @@ export default function SalonsPage() {
                       <ShieldCheck className="h-3.5 w-3.5" />
                       {row.isPremium ? "Profil premium" : "Profil standard"}
                     </span>
+                    {row.endDate && (row.statusValue === "active" || row.statusValue === "trialing") && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2.5 py-1 text-cyan-300">
+                        <Clock3 className="h-3.5 w-3.5" />
+                        Fin d'essai {formatDate(row.endDate)}
+                      </span>
+                    )}
                     {row.expiringSoon && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-300">
                         <Clock3 className="h-3.5 w-3.5" />

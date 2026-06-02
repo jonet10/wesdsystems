@@ -575,13 +575,19 @@ export async function checkoutPendingTab(tabId: string, input: PendingTabCheckou
   return checkoutLocalTab(tab, input);
 }
 
-export async function findClientOptions(query: string) {
-  const { data } = await supabase
+export async function findClientOptions(query: string, branchId?: string | null) {
+  let request = supabase
     .from("salon_customers")
     .select("id, first_name, last_name, phone, visit_count")
     .eq("is_active", true)
     .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
     .limit(6);
+
+  if (branchId) {
+    request = request.eq("branch_id", branchId);
+  }
+
+  const { data } = await request;
 
   return (data || []).map((row: any) => ({
     id: row.id,

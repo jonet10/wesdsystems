@@ -12,7 +12,8 @@ import {
 import { Link } from "react-router-dom";
 import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabaseQuery } from "@/hooks/useSupabaseQuery";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { useActiveBranchId } from "@/lib/branch";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -31,8 +32,16 @@ interface DashboardStat {
 }
 
 export default function SalonDashboard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const { formatCompact, format } = useCurrency();
+  const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
+  const isBranchInitialising = Boolean(isAuthenticated && branchesFetching);
+
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
   const [todaySales, setTodaySales] = useState<any[]>([]);
   const [todayRevenue, setTodayRevenue] = useState(0);
@@ -40,115 +49,123 @@ export default function SalonDashboard() {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; revenue: number; appointments: number }[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
-
-  const { data: clientsDb, isLoading: clientsLoading } = useSupabaseQuery<any>(['clients'], 'clients', '*', { enabled: isAuthenticated });
-  const { data: employeesDb, isLoading: empLoading } = useSupabaseQuery<any>(['employees'], 'employees', '*', { enabled: isAuthenticated });
-  const { data: appointmentsDb, isLoading: aptLoading } = useSupabaseQuery<any>(['transactions'], 'transactions', '*', { enabled: isAuthenticated });
-  const { data: servicesDb, isLoading: servLoading } = useSupabaseQuery<any>(['salon_services'], 'salon_services', '*', { enabled: isAuthenticated });
-  const isDataLoading = clientsLoading || empLoading || aptLoading || servLoading || dashboardLoading;
-
-  const clients = useMemo(() => {
-    if (clientsDb && clientsDb.length > 0) return clientsDb;
-    return glowupStore.getClients();
-  }, [clientsDb]);
-
-  const employees = useMemo(() => {
-    return (employeesDb && employeesDb.length > 0) ? employeesDb : glowupStore.getEmployees();
-  }, [employeesDb]);
-
-  const appointments = useMemo(() => {
-    if (appointmentsDb && appointmentsDb.length > 0) {
-      return appointmentsDb.map((a: any) => ({
-        ...a,
-        date: a.scheduled_at ? a.scheduled_at.split("T")[0] : new Date().toISOString().split("T")[0],
-        duration: a.amount ? 1 : 0.5,
-      }));
-    }
-    return glowupStore.getAppointments();
-  }, [appointmentsDb]);
-
-  const services = useMemo(() => {
-    return (servicesDb && servicesDb.length > 0) ? servicesDb : glowupStore.getServices();
-  }, [servicesDb]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const isDataLoading = dashboardLoading;
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    loadDashboardData();
+    if (!isAuthenticated) {
+      setClients(glowupStore.getClients());
+      setEmployees(glowupStore.getEmployees());
+      setAppointments(glowupStore.getAppointments());
+      setServices(glowupStore.getServices());
+      return;
+    }
+
+    const loadDashboardData = async () => {
+      setDashboardLoading(true);
+      try {
+        if (!activeBranchId) {
+          setClients([]);
+          setEmployees([]);
+          setAppointments([]);
+          setServices([]);
+          setTodaySales([]);
+          setTodayRevenue(0);
+          setRecentSales([]);
+          setLowStockCount(0);
+          setWeeklyData([]);
+          return;
+        }
+
+        const today = new Date().toISOString().split("T")[0];
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const [
+          { data: clientsRes },
+          { data: employeesRes },
+          { data: appointmentsRes },
+          { data: servicesRes },
+          { data: salesToday },
+          { data: recent },
+          { data: products },
+          { data: weekSales },
+        ] = await Promise.all([
+          supabase.from("salon_customers").select("id, first_name, last_name, email, phone, total_spent, visit_count, last_visit").eq("is_active", true).eq("branch_id", activeBranchId),
+          supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId),
+          supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100),
+          supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId),
+          supabase.from("salon_sales").select("total_amount").eq("branch_id", activeBranchId).gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`),
+          supabase.from("salon_sales").select("id, total_amount, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10),
+          supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true),
+          supabase.from("salon_sales").select("total_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00`).lte("created_at", `${today}T23:59:59`),
+        ]);
+
+        setClients((clientsRes || []).map((client: any) => ({
+          ...client,
+          name: `${client.first_name || ""} ${client.last_name || ""}`.trim(),
+        })));
+        setEmployees((employeesRes || []).map((employee: any) => ({
+          ...employee,
+          name: `${employee.first_name || ""} ${employee.last_name || ""}`.trim(),
+        })));
+        setAppointments((appointmentsRes || []).map((appointment: any) => ({
+          ...appointment,
+          date: appointment.appointment_date,
+          startHour: appointment.appointment_time ? Number(appointment.appointment_time.slice(0, 2)) + Number(appointment.appointment_time.slice(3, 5)) / 60 : 9,
+          duration: appointment.duration_minutes ? Number(appointment.duration_minutes) / 60 : 0.5,
+        })));
+        setServices(servicesRes || []);
+
+        if (salesToday) {
+          setTodayRevenue(salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0));
+        }
+        if (recent) setRecentSales(recent);
+        if (products) setLowStockCount(products.filter((product: any) => Number(product.quantity_in_stock || 0) <= Number(product.reorder_level || 0)).length);
+
+        if (weekSales) {
+          const dayMap = new Map<string, { revenue: number; appointments: number }>();
+          const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            dayMap.set(d.toISOString().split("T")[0], { revenue: 0, appointments: 0 });
+          }
+          weekSales.forEach((sale: any) => {
+            const day = sale.created_at.split("T")[0];
+            if (dayMap.has(day)) {
+              dayMap.get(day)!.revenue += Number(sale.total_amount || 0);
+            }
+          });
+          appointmentsRes?.forEach((appointment: any) => {
+            const day = appointment.appointment_date;
+            if (dayMap.has(day)) {
+              dayMap.get(day)!.appointments += 1;
+            }
+          });
+          setWeeklyData(Array.from(dayMap.entries()).map(([date, data], i) => ({
+            day: days[i] || date.slice(5),
+            ...data,
+          })));
+        }
+      } catch (err) {
+        console.error("Dashboard data error:", err);
+      } finally {
+        setDashboardLoading(false);
+      }
+    };
+
+    void loadDashboardData();
 
     const handleUpdate = () => {
       if (!isAuthenticated) setActiveBiz(glowupStore.getActiveBusiness());
     };
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
-  }, [isAuthenticated]);
-
-  const loadDashboardData = async () => {
-    setDashboardLoading(true);
-    try {
-      const today = new Date().toISOString().split("T")[0];
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const [{ data: salesToday }, { data: recent }, { data: products }, { data: weekSales }] = await Promise.all([
-        supabase.from("salon_sales")
-          .select("total_amount")
-          .gte("created_at", `${today}T00:00:00`)
-          .lte("created_at", `${today}T23:59:59`),
-        supabase.from("salon_sales")
-          .select("id, total_amount, payment_method, created_at")
-          .order("created_at", { ascending: false })
-          .limit(10),
-        supabase.from("salon_products")
-          .select("id, quantity_in_stock, reorder_level")
-          .eq("is_active", true),
-        supabase.from("salon_sales")
-          .select("total_amount, created_at")
-          .gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00`)
-          .lte("created_at", `${today}T23:59:59`),
-      ]);
-
-      if (salesToday) {
-        setTodayRevenue(salesToday.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0));
-      }
-      if (recent) setRecentSales(recent);
-      if (products) setLowStockCount(products.filter((p: any) => p.quantity_in_stock <= p.reorder_level).length);
-
-      if (weekSales) {
-        const dayMap = new Map<string, { revenue: number; appointments: number }>();
-        const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          dayMap.set(d.toISOString().split("T")[0], { revenue: 0, appointments: 0 });
-        }
-        weekSales.forEach((s: any) => {
-          const day = s.created_at.split("T")[0];
-          if (dayMap.has(day)) {
-            const entry = dayMap.get(day)!;
-            entry.revenue += Number(s.total_amount || 0);
-          }
-        });
-        const todayApts = appointments.filter((a: any) => {
-          const aptDate = a.date;
-          return dayMap.has(aptDate);
-        });
-        todayApts.forEach((a: any) => {
-          if (dayMap.has(a.date)) {
-            dayMap.get(a.date)!.appointments += 1;
-          }
-        });
-        const chartData = Array.from(dayMap.entries()).map(([date, data], i) => ({
-          day: days[i] || date.slice(5),
-          ...data,
-        }));
-        setWeeklyData(chartData);
-      }
-    } catch (err) {
-      console.error("Dashboard data error:", err);
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
+  }, [activeBranchId, isAuthenticated]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayApts = appointments.filter((a: any) => a.date === todayStr);
@@ -212,6 +229,24 @@ export default function SalonDashboard() {
       <DashboardLayout role="salon_admin" title="Dashboard" subtitle="Chargement...">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isBranchInitialising || (isAuthenticated && !activeBranchId)) {
+    return (
+      <DashboardLayout role="salon_admin" title="Dashboard" subtitle="Initialisation du salon...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">Votre branche principale est en cours de préparation</h2>
+            <p className="text-muted-foreground">
+              Nous créons automatiquement la branche par défaut de ce nouveau salon. Les clients, le stock, le POS et les rendez-vous seront disponibles dès que l’initialisation sera terminée.
+            </p>
+          </div>
         </div>
       </DashboardLayout>
     );

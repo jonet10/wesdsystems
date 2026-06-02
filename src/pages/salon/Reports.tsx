@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
 import {
   BarChart3, TrendingUp, TrendingDown, DollarSign, Calendar,
@@ -27,7 +30,14 @@ import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 const COLORS = ["#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#3b82f6", "#ec4899", "#14b8a6", "#f97316"];
 
 export default function ReportsPage() {
+  const { profile } = useAuth();
   const { format: fmt } = useCurrency();
+  const { data: branches = [] } = useBusinessBranches();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
   const [period, setPeriod] = useState("month");
   const [sales, setSales] = useState<any[]>([]);
   const [saleItems, setSaleItems] = useState<any[]>([]);
@@ -57,24 +67,33 @@ export default function ReportsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+      if (!activeBranchId) {
+        setSales([]);
+        setSaleItems([]);
+        setExpenses([]);
+        return;
+      }
       const [salesRes, itemsRes, productsRes, servicesRes, expensesRes] = await Promise.all([
         supabase
           .from("salon_sales")
           .select("id, total_amount, discount_amount, tax_amount, payment_method, created_at")
+          .eq("branch_id", activeBranchId)
           .gte("created_at", `${dateRange.start}T00:00:00`)
           .lte("created_at", `${dateRange.end}T23:59:59`)
           .order("created_at"),
         supabase
           .from("salon_sale_items")
           .select("id, sale_id, product_id, service_id, quantity, unit_price, total_price, created_at")
+          .eq("branch_id", activeBranchId)
           .gte("created_at", `${dateRange.start}T00:00:00`)
           .lte("created_at", `${dateRange.end}T23:59:59`)
           .order("created_at"),
-        supabase.from("salon_products").select("id, name"),
-        supabase.from("salon_services").select("id, name"),
+        supabase.from("salon_products").select("id, name").eq("branch_id", activeBranchId),
+        supabase.from("salon_services").select("id, name").eq("branch_id", activeBranchId),
         supabase
           .from("salon_expenses")
           .select("id, category, amount, created_at")
+          .eq("branch_id", activeBranchId)
           .gte("created_at", `${dateRange.start}T00:00:00`)
           .lte("created_at", `${dateRange.end}T23:59:59`)
           .order("created_at"),
@@ -102,7 +121,7 @@ export default function ReportsPage() {
     }
   };
 
-  useEffect(() => { loadData(); }, [dateRange]);
+  useEffect(() => { loadData(); }, [dateRange, activeBranchId]);
 
   const totalRevenue = sales.reduce((s, sale) => s + Number(sale.total_amount || 0), 0);
   const totalExpenses = expenses.reduce((s, exp) => s + Number(exp.amount || 0), 0);

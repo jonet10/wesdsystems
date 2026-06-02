@@ -21,13 +21,13 @@ import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PrintHeader } from "@/components/shared/PrintHeader";
-import { Printer } from "lucide-react";
+import { Printer, AlertCircle } from "lucide-react";
 
 export default function ClientsPage() {
   const { isAuthenticated, profile } = useAuth();
 
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
-  const { data: branches = [] } = useBusinessBranches();
+  const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   
   const activeBranchId = useMemo(() => {
     const validBranchId = branchId && branches.some((b) => b.id === branchId) ? branchId : null;
@@ -40,11 +40,16 @@ export default function ClientsPage() {
   const loadClients = async () => {
     try {
       setClientsLoading(true);
-      // Charger tous les clients accessibles (RLS Supabase filtre par les droits)
+      if (!activeBranchId) {
+        setClientsDb([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("salon_customers")
         .select("*")
         .eq("is_active", true)
+        .eq("branch_id", activeBranchId)
         .order("first_name");
       if (error) throw error;
       setClientsDb(data || []);
@@ -62,7 +67,7 @@ export default function ClientsPage() {
     } else {
       setClientsLoading(false);
     }
-  }, [isAuthenticated]); // ← PAS de activeBranchId ici pour éviter les re-chargements
+  }, [activeBranchId, isAuthenticated]);
 
   const { currency, format } = useCurrency();
   const [localClients, setLocalClients] = useState<Client[]>(glowupStore.getClients());
@@ -161,7 +166,7 @@ export default function ClientsPage() {
           last_name: lastName,
           email: email || null,
           phone: phone
-        }).eq("id", selectedClient.id);
+        }).eq("id", selectedClient.id).eq("branch_id", activeBranchId);
         
         if (error) throw error;
         toast.success(`Le profil de "${name}" a été mis à jour.`);
@@ -184,7 +189,7 @@ export default function ClientsPage() {
 
     if (isAuthenticated && selectedClient.id.includes('-')) {
       try {
-        const { error } = await supabase.from("salon_customers").update({ is_active: false }).eq("id", selectedClient.id);
+        const { error } = await supabase.from("salon_customers").update({ is_active: false }).eq("id", selectedClient.id).eq("branch_id", activeBranchId);
         if (error) throw error;
         toast.success(`Le client "${selectedClient.name}" a été supprimé.`);
         setIsDeleteOpen(false);
@@ -226,6 +231,29 @@ export default function ClientsPage() {
     client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.phone.includes(searchQuery)
   );
+
+  if ((isAuthenticated && branchesFetching) || (isAuthenticated && !activeBranchId)) {
+    return (
+      <DashboardLayout
+        role="salon_admin"
+        title="Clients"
+        subtitle="Initialisation du salon..."
+        userName="Marie Laurent"
+      >
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">La base clients se prépare</h2>
+            <p className="text-muted-foreground">
+              Nous finalisons la branche principale de ce nouveau salon. Les clients pourront être ajoutés dès que l’initialisation est terminée.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout

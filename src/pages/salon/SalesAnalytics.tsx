@@ -5,6 +5,9 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { BarChart3, Package, Receipt, TrendingUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { useActiveBranchId } from "@/lib/branch";
 
 interface Sale {
   id: string;
@@ -20,21 +23,34 @@ interface SaleItem {
 }
 
 export default function SalesAnalyticsPage() {
+  const { profile } = useAuth();
   const { format } = useCurrency();
+  const { data: branches = [] } = useBusinessBranches();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [items, setItems] = useState<SaleItem[]>([]);
 
   useEffect(() => {
     const load = async () => {
+      if (!activeBranchId) {
+        setSales([]);
+        setItems([]);
+        return;
+      }
+
       const [{ data: s }, { data: i }] = await Promise.all([
-        supabase.from("sales").select("id, total_amount, created_at").eq("status", "completed").order("created_at", { ascending: false }).limit(500),
-        supabase.from("sale_items").select("item_type, item_name, quantity, total_price").order("created_at", { ascending: false }).limit(2000),
+        supabase.from("salon_sales").select("id, total_amount, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(500),
+        supabase.from("salon_sale_items").select("item_type, item_name, quantity, total_price, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(2000),
       ]);
       setSales(((s || []).map((x: any) => ({ ...x, total_amount: Number(x.total_amount || 0) })) as Sale[]));
       setItems(((i || []).map((x: any) => ({ ...x, quantity: Number(x.quantity || 0), total_price: Number(x.total_price || 0) })) as SaleItem[]));
     };
     void load();
-  }, []);
+  }, [activeBranchId]);
 
   const now = new Date();
   const today = now.toISOString().split("T")[0];

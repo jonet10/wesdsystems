@@ -43,6 +43,24 @@ type PlatformModule = {
   label: string;
 };
 
+function normalizePlanKey(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function resolvePlanName(plans: Array<{ id: string; name: string }>, rawValue: string | null | undefined) {
+  if (!rawValue) return null;
+  const normalized = normalizePlanKey(rawValue);
+  const aliasMap: Record<string, string> = {
+    basic: "starter",
+    pro: "professional",
+    premium: "enterprise",
+  };
+  const alias = aliasMap[normalized];
+  const candidates = new Set([normalized, alias ? normalizePlanKey(alias) : ""]);
+  const plan = plans.find((entry) => candidates.has(normalizePlanKey(entry.id)) || candidates.has(normalizePlanKey(entry.name)));
+  return plan?.name ?? null;
+}
+
 const platformModules: PlatformModule[] = [
   {
     name: "Salon",
@@ -153,7 +171,10 @@ export default function SuperAdminDashboard() {
         status: business.status,
         created_at: business.created_at,
         plan_id: activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id,
-        planName: planById.get(activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id)?.name || "Sans plan",
+        planName:
+          resolvePlanName((plans || []) as Array<{ id: string; name: string }>, activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id) ||
+          planById.get(activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id)?.name ||
+          "Sans plan",
       }))
     );
 

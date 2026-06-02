@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
-  Gift, Percent, Tag, Barcode, UserCog, X, Star,
+  Gift, Percent, Tag, Barcode, UserCog, X, Star, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
@@ -138,7 +138,7 @@ export default function POSPage() {
   const { user, profile: authProfile, employeeSession } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
-  const { data: branches = [] } = useBusinessBranches();
+  const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   const employeeBranchId = employeeSession?.branch_id || null;
   const activeBranchId = useMemo(() => {
     if (employeeBranchId) return employeeBranchId;
@@ -264,6 +264,7 @@ export default function POSPage() {
         .from("salon_customers")
         .select("id, first_name, last_name, phone, visit_count")
         .eq("is_active", true)
+        .eq("branch_id", activeBranchId)
         .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,phone.ilike.%${q}%`)
         .limit(6);
       const results: ClientResult[] = (data || []).map((r: any) => ({
@@ -477,7 +478,7 @@ export default function POSPage() {
     }
     setPendingTabClientLoading(true);
     try {
-      const results = await findPendingTabClientOptions(q);
+      const results = await findPendingTabClientOptions(q, activeBranchId);
       setPendingTabClientResults(results);
     } catch {
       setPendingTabClientResults([]);
@@ -943,6 +944,24 @@ export default function POSPage() {
   );
 
   const hasActivePromotions = promotions.length > 0;
+
+  if ((authProfile && branchesFetching) || (authProfile && !activeBranchId)) {
+    return (
+      <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Initialisation du salon...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">Le point de vente se prépare</h2>
+            <p className="text-muted-foreground">
+              Nous finalisons la branche principale de votre salon. Dès qu’elle est prête, vous pourrez encaisser, créer des clients et utiliser vos services sans sélection manuelle.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Encaissement rapide avec promotions et commissions">

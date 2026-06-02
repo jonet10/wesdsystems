@@ -15,6 +15,7 @@ import { supabase } from "@/lib/supabase";
 import { useActiveBranchId } from "@/lib/branch";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { AlertCircle } from "lucide-react";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
@@ -24,7 +25,7 @@ export default function AppointmentsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
-  const { data: branches = [] } = useBusinessBranches();
+  const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
 
   const activeBranchId = useMemo(() => {
     const valid = branchId && branches.some(b => b.id === branchId) ? branchId : null;
@@ -353,6 +354,24 @@ export default function AppointmentsPage() {
     const minutesPart = Math.round((decHour - hoursPart) * 60);
     return `${hoursPart.toString().padStart(2, "0")}:${minutesPart.toString().padStart(2, "0")}`;
   };
+
+  if ((isAuthenticated && branchesFetching) || (isAuthenticated && !activeBranchId)) {
+    return (
+      <DashboardLayout role="salon_admin" title="Agenda" subtitle="Initialisation du salon...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">L’agenda se prépare</h2>
+            <p className="text-muted-foreground">
+              La branche principale est en cours de création. Dès qu’elle est disponible, vous pourrez enregistrer des rendez-vous et des clients sans sélection manuelle.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
+import { useEnsureDefaultBranch } from "@/hooks/useEnsureDefaultBranch";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -11,6 +12,8 @@ interface DashboardLayoutProps {
 }
 
 export const DashboardLayout = ({ children, role, title, subtitle, userName }: DashboardLayoutProps) => {
+  useEnsureDefaultBranch();
+
   return (
     <div className="flex h-screen relative overflow-hidden bg-background">
       <div className="absolute inset-0 z-0 pointer-events-none bg-[linear-gradient(135deg,hsl(224,71%,4%)_0%,hsl(258,63%,8%)_48%,hsl(224,71%,5%)_100%)]" />
