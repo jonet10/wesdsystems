@@ -78,9 +78,8 @@ export default async function handler(req: any, res: any) {
     if (plan.active === false) return json(res, 400, { error: "Plan inactif" });
 
     const normalizedCycle = durationMonths >= 12 ? "yearly" : durationMonths === 1 ? "monthly" : "custom";
-    const amount = normalizedCycle === "yearly"
-      ? toNumber(plan.yearly_price || toNumber(plan.monthly_price) * 12)
-      : toNumber(plan.monthly_price) * durationMonths;
+    const monthlyPrice = toNumber(plan.monthly_price);
+    const amount = monthlyPrice * durationMonths;
 
     if (amount <= 0) {
       return json(res, 400, { error: "Le montant de l'abonnement doit être supérieur à 0" });

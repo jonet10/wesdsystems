@@ -47,12 +47,9 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
   const plan = data?.plan;
   const subscription = data?.subscription;
   const duration = Number(durationMonths || 1);
-  const effectiveBillingCycle = duration >= 12 ? "yearly" : duration === 1 ? "monthly" : "custom";
-  const baseAmount = plan
-    ? duration >= 12
-      ? Number(plan.yearly_price || plan.monthly_price * 12)
-      : Number(plan.monthly_price || 0) * duration
-    : 0;
+  const effectiveBillingCycle = duration === 1 ? "monthly" : duration >= 12 ? "yearly" : "custom";
+  const monthlyPrice = plan ? Number(plan.monthly_price || 0) : 0;
+  const baseAmount = monthlyPrice * duration;
 
   const paymentUrl = useMemo(() => {
     if (!businessId || !plan?.id) return null;
@@ -95,7 +92,7 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
                   <>
                     Plan actuel: <span className="font-medium text-foreground">{plan.name}</span>
                     {" · "}
-                    {formatCompact(baseAmount)} {business?.currency_code || "HTG"}
+                    {formatCompact(monthlyPrice)} / mois · total {formatCompact(baseAmount)} {business?.currency_code || "HTG"}
                   </>
                 ) : (
                   "Aucun plan détecté pour cet établissement."
@@ -121,12 +118,24 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
               </Select>
             </div>
 
-            <Button asChild disabled={!paymentUrl || !plan}>
-              <Link to={paymentUrl || "#"}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Payer avec MonCash
-              </Link>
-            </Button>
+            <div className="flex flex-col gap-2 sm:items-end">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button variant="outline" asChild>
+                  <Link to="/#pricing">
+                    Changer de plan
+                  </Link>
+                </Button>
+                <Button asChild disabled={!paymentUrl || !plan}>
+                  <Link to={paymentUrl || "#"}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Payer avec MonCash
+                  </Link>
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Le montant est calculé à partir du prix mensuel multiplié par la durée sélectionnée.
+              </p>
+            </div>
           </div>
         </div>
 

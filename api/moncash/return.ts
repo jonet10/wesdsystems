@@ -5,13 +5,7 @@ import { retrieveMonCashTransaction } from "./_service";
 
 const addBillingCycle = (start: Date, billingCycle: string, durationMonths = 1) => {
   const next = new Date(start);
-  if (billingCycle === "yearly") {
-    next.setFullYear(next.getFullYear() + 1);
-  } else if (billingCycle === "custom") {
-    next.setMonth(next.getMonth() + Math.max(1, durationMonths));
-  } else {
-    next.setMonth(next.getMonth() + 1);
-  }
+  next.setMonth(next.getMonth() + Math.max(1, durationMonths));
   return next;
 };
 
