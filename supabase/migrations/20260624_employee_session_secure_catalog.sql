@@ -56,6 +56,12 @@ DECLARE
   v_hash TEXT;
   v_expires_at TIMESTAMPTZ;
 BEGIN
+  UPDATE public.employee_sessions
+  SET revoked_at = now()
+  WHERE employee_id = p_employee_id
+    AND revoked_at IS NULL
+    AND expires_at > now();
+
   SELECT
     e.id,
     e.branch_id,

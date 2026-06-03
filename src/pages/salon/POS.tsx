@@ -151,7 +151,7 @@ const describeRpcError = (err: unknown) => {
 };
 
 export default function POSPage() {
-  const { user, profile: authProfile, employeeSession } = useAuth();
+  const { user, profile: authProfile, employeeSession, logoutEmployee } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
@@ -308,6 +308,14 @@ export default function POSPage() {
       const message = describeRpcError(err);
       console.error("Erreur chargement POS:", err);
       console.error("Erreur chargement POS (détaillée):", message);
+      if (isEmployeeSession && /session employé invalide|expir/i.test(message)) {
+        logoutEmployee();
+        setProducts([]);
+        setServices([]);
+        setPromotions([]);
+        setEmployees([]);
+        return;
+      }
       toast.error(message || "Impossible de charger le catalogue");
     }
   };
@@ -1257,9 +1265,9 @@ export default function POSPage() {
           </Card>
         </StaggerItem>
 
-        <StaggerItem className="w-full lg:w-96 flex flex-col">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-3">
+        <StaggerItem className="w-full lg:w-96 flex flex-col min-h-0">
+          <Card className="h-full flex flex-col min-h-0">
+            <CardHeader className="pb-3 shrink-0">
               <CardTitle className="flex items-center gap-2 text-base">
                 <ShoppingCart className="h-4 w-4" /> Panier ({cart.length})
               </CardTitle>
@@ -1276,8 +1284,8 @@ export default function POSPage() {
                 </div>
               )}
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col overflow-hidden">
-              <ScrollArea className="flex-1 pr-2 -mr-2">
+            <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <ScrollArea className="flex-1 pr-2 -mr-2 min-h-0">
                 {cart.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -1524,7 +1532,7 @@ export default function POSPage() {
               </div>
 
               {activePendingTab ? (
-                <div className="mt-4 space-y-2">
+                <div className="mt-4 space-y-2 shrink-0 sticky bottom-0 bg-card/95 backdrop-blur-sm pt-3">
                   <div className="grid grid-cols-2 gap-2">
                     <Button variant="destructive" onClick={async () => {
                       if (!activePendingTab) return;

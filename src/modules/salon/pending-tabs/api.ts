@@ -420,159 +420,67 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
   })();
 };
 
-const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T | null> => {
-  try {
-    const response = await fetch(`${apiBase}${path}`, init);
-    if (response.status === 404) return null;
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      throw new Error(payload?.error || "Une erreur est survenue");
-    }
-    const payload = await response.json().catch(() => null);
-    return (payload?.data ?? payload ?? null) as T;
-  } catch {
-    return null;
+const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(`${apiBase}${path}`, init);
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "Une erreur est survenue");
   }
+
+  return (payload?.data ?? payload ?? null) as T;
 };
 
 export async function listPendingTabs(branchId: string, status: "open" | "closed" | "cancelled" = "open") {
-  const remote = await fetchJson<PendingTabSummary[]>(`?branch_id=${encodeURIComponent(branchId)}&status=${encodeURIComponent(status)}`);
-  if (remote) return remote;
-
-  const state = readLocalState();
-  const today = startOfTodayIso();
-  const tomorrow = endOfToday();
-  return state.tabs
-    .filter((tab) => tab.branch_id === branchId && tab.status === status && tab.opened_at >= today && tab.opened_at <= tomorrow)
-    .map(mapLocalSummary);
+  return fetchJson<PendingTabSummary[]>(`?branch_id=${encodeURIComponent(branchId)}&status=${encodeURIComponent(status)}`);
 }
 
 export async function createPendingTab(input: PendingTabCreateInput) {
-  const remote = await fetchJson<PendingTabDetail>("", {
+  return fetchJson<PendingTabDetail>("", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (remote) return remote;
-  return createLocalTab(input);
 }
 
 export async function getPendingTab(tabId: string) {
-  const remote = await fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}`);
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  return tab;
+  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}`);
 }
 
 export async function addPendingTabItem(tabId: string, input: PendingTabItemInput) {
-  const remote = await fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items`, {
+  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  if (input.item_type === "product") {
-    await adjustLocalProductStock(
-      tab,
-      input.item_id,
-      -Math.max(1, Number(input.quantity || 1)),
-      `Réservation fiche #${tab.tab_number}`,
-      tab.id,
-      input.added_by || null
-    );
-  }
-  return updateLocalTab(addLocalItem(tab, input));
 }
 
 export async function updatePendingTabItem(tabId: string, itemId: string, quantity: number) {
-  const remote = await fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
+  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ quantity }),
   });
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  const currentItem = tab.items.find((item) => item.id === itemId);
-  if (!currentItem) throw new Error("Article introuvable");
-  if (currentItem.item_type === "product") {
-    const delta = Math.max(1, Number(quantity || 1)) - Number(currentItem.quantity || 0);
-    if (delta !== 0) {
-      await adjustLocalProductStock(
-        tab,
-        currentItem.item_id,
-        -delta,
-        `Ajustement fiche #${tab.tab_number}`,
-        tab.id,
-        currentItem.added_by
-      );
-    }
-  }
-  const items = tab.items.map((item) =>
-    item.id === itemId
-      ? { ...item, quantity: Math.max(1, Number(quantity || 1)), subtotal: Number(item.unit_price || 0) * Math.max(1, Number(quantity || 1)) }
-      : item
-  );
-  return updateLocalTab({
-    ...tab,
-    items,
-    items_count: items.reduce((sum, entry) => sum + toNumber(entry.quantity), 0),
-    total_amount: items.reduce((sum, entry) => sum + toNumber(entry.subtotal), 0),
-  });
 }
 
 export async function deletePendingTabItem(tabId: string, itemId: string) {
-  const remote = await fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
+  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
     method: "DELETE",
   });
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  const currentItem = tab.items.find((item) => item.id === itemId);
-  if (!currentItem) throw new Error("Article introuvable");
-  if (currentItem.item_type === "product") {
-    await adjustLocalProductStock(
-      tab,
-      currentItem.item_id,
-      Number(currentItem.quantity || 0),
-      `Suppression fiche #${tab.tab_number}`,
-      tab.id,
-      currentItem.added_by
-    );
-  }
-  return updateLocalTab(deleteLocalItem(tab, itemId));
 }
 
 export async function cancelPendingTab(tabId: string) {
-  const remote = await fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/cancel`, {
+  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/cancel`, {
     method: "PATCH",
   });
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  await restoreLocalPendingTabStock(tab);
-  return updateLocalTab({ ...tab, status: "cancelled", closed_at: new Date().toISOString() });
 }
 
 export async function checkoutPendingTab(tabId: string, input: PendingTabCheckoutInput) {
-  const remote = await fetchJson<{ sale: any; items: any[]; tab: PendingTabDetail | null }>(`/${encodeURIComponent(tabId)}/checkout`, {
+  return fetchJson<{ sale: any; items: any[]; tab: PendingTabDetail | null }>(`/${encodeURIComponent(tabId)}/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  if (remote) return remote;
-  const state = readLocalState();
-  const tab = state.tabs.find((entry) => entry.id === tabId);
-  if (!tab) throw new Error("Fiche introuvable");
-  return checkoutLocalTab(tab, input);
 }
 
 export async function findClientOptions(query: string, branchId?: string | null) {
