@@ -1,13 +1,10 @@
 import type { CartItem, CatalogItem, SaleItemType } from "./types";
 import { applyPromotions } from "./promotion-engine";
 
-const isPrestigeProduct = (item: CatalogItem, type: SaleItemType) =>
-  type === "product" && item.name.toLowerCase().includes("prestige");
-
 export function createCartItem(item: CatalogItem, type: SaleItemType, customOptions?: { optionsText?: string, extraCost?: number }): CartItem {
   const optionsSuffix = customOptions?.optionsText ? ` (${customOptions.optionsText})` : "";
   const keyOptions = customOptions?.optionsText ? `-${customOptions.optionsText}` : "";
-  const basePrice = isPrestigeProduct(item, type) ? 175 : item.unit_price;
+  const basePrice = Number(item.unit_price || 0);
   
   return {
     key: `${type}-${item.id}${keyOptions}`,

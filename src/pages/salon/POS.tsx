@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -179,6 +179,11 @@ export default function POSPage() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [showDiscount, setShowDiscount] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [productSetupOpen, setProductSetupOpen] = useState(false);
+  const [productSetupItem, setProductSetupItem] = useState<CatalogItem | null>(null);
+  const [productSetupPrice, setProductSetupPrice] = useState("0");
+  const [productSetupStock, setProductSetupStock] = useState("0");
+  const [productSetupSaving, setProductSetupSaving] = useState(false);
 
   // Modal options
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
@@ -596,6 +601,19 @@ export default function POSPage() {
   };
 
   const handleItemClick = (item: CatalogItem, type: "product" | "service") => {
+    if (type === "product") {
+      const hasValidPrice = Number(item.unit_price || 0) > 0;
+      const hasValidStock = Number(item.stock || 0) > 0;
+
+      if (!hasValidPrice || !hasValidStock) {
+        setProductSetupItem(item);
+        setProductSetupPrice(hasValidPrice ? String(item.unit_price) : "0");
+        setProductSetupStock(hasValidStock ? String(item.stock) : "1");
+        setProductSetupOpen(true);
+        return;
+      }
+    }
+
     if (type === "service" && Array.isArray(item.metadata?.addon_options) && item.metadata.addon_options.length > 0) {
       setSelectedServiceForOptions(item);
       setSelectedServiceOptions([]);
@@ -656,6 +674,52 @@ export default function POSPage() {
 
       return addItemToCart(prev, item, type, promotions, customOptions);
     });
+  };
+
+  const saveProductSetupAndContinue = async () => {
+    if (!productSetupItem || !activeBranchId) return;
+
+    const nextPrice = Number(productSetupPrice || 0);
+    const nextStock = Number(productSetupStock || 0);
+
+    if (nextPrice <= 0) {
+      toast.error("Définissez un prix de vente valide.");
+      return;
+    }
+    if (nextStock <= 0) {
+      toast.error("Définissez un stock supérieur à 0.");
+      return;
+    }
+
+    setProductSetupSaving(true);
+    try {
+      const { error } = await supabase
+        .from("salon_products")
+        .update({
+          unit_price: nextPrice,
+          quantity_in_stock: nextStock,
+        })
+        .eq("id", productSetupItem.id)
+        .eq("branch_id", activeBranchId);
+
+      if (error) throw error;
+
+      const refreshedItem: CatalogItem = {
+        ...productSetupItem,
+        unit_price: nextPrice,
+        stock: nextStock,
+      };
+
+      await loadData(activeBranchId);
+      setProductSetupOpen(false);
+      setProductSetupItem(null);
+      addToCart(refreshedItem, "product");
+      toast.success("Prix et stock enregistrés, produit ajouté au panier.");
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible d'enregistrer ce produit");
+    } finally {
+      setProductSetupSaving(false);
+    }
   };
 
   const updateQuantity = (key: string, delta: number) => {
@@ -1080,7 +1144,12 @@ export default function POSPage() {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {item.stock !== undefined ? `Stock: ${item.stock}` : ""}
                         </p>
-                        <p className="text-primary font-semibold mt-1 text-sm">{format(item.unit_price)}</p>
+                        <p className={cn(
+                          "font-semibold mt-1 text-sm",
+                          Number(item.unit_price || 0) > 0 ? "text-primary" : "text-destructive"
+                        )}>
+                          {Number(item.unit_price || 0) > 0 ? format(item.unit_price) : "Prix à définir"}
+                        </p>
                       </CardContent>
                     </Card>
                   ))}
@@ -1635,6 +1704,57 @@ export default function POSPage() {
               {newClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={productSetupOpen} onOpenChange={setProductSetupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Définir le prix et le stock</DialogTitle>
+            <DialogDescription>
+              Ce produit n'a pas encore de prix ou de stock utilisable pour la vente. Définis-les avant de l'ajouter au panier.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Produit</Label>
+              <Input value={productSetupItem?.name || ""} disabled />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="product-setup-price">Prix de vente</Label>
+                <Input
+                  id="product-setup-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={productSetupPrice}
+                  onChange={(e) => setProductSetupPrice(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="product-setup-stock">Stock disponible</Label>
+                <Input
+                  id="product-setup-stock"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={productSetupStock}
+                  onChange={(e) => setProductSetupStock(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductSetupOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveProductSetupAndContinue} disabled={productSetupSaving}>
+              {productSetupSaving ? "Enregistrement..." : "Enregistrer et ajouter"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
