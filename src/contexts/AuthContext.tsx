@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { normalizeEmployeeRole } from '@/lib/employee-role';
+import {
+  loadEmployeeSession,
+  revokeEmployeeSession,
+  saveEmployeeSession,
+  type EmployeeSession,
+} from '@/modules/salon/auth';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -17,14 +23,7 @@ interface AuthState {
   profile: UserProfile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  employeeSession: {
-    id: string;
-    full_name: string;
-    role: string;
-    branch_id: string;
-    session_token?: string;
-    session_expires_at?: string;
-  } | null;
+  employeeSession: EmployeeSession | null;
   loginEmployee: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logoutEmployee: () => void;
 }
@@ -41,17 +40,6 @@ const AuthContext = createContext<AuthState>({
 });
 
 const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
-
-const revokeEmployeeSession = async (sessionToken?: string | null) => {
-  if (!sessionToken) return;
-  try {
-    await supabase.rpc("revoke_employee_session", {
-      p_session_token: sessionToken,
-    });
-  } catch {
-    // Best-effort cleanup only.
-  }
-};
 
 const profileFromUserMetadata = (user: User): UserProfile | null => {
   const metadata = user.user_metadata ?? {};
@@ -102,15 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [employeeSession, setEmployeeSession] = useState<AuthState['employeeSession']>(() => {
-    try {
-      const saved = localStorage.getItem('glowup_employee_session');
-      if (!saved) return null;
-      const parsed = JSON.parse(saved);
-      return parsed ? { ...parsed, role: normalizeEmployeeRole(parsed.role) || parsed.role } : null;
-    } catch {
-      return null;
-    }
+  const [employeeSession, setEmployeeSession] = useState<EmployeeSession | null>(() => {
+    const saved = loadEmployeeSession();
+    if (!saved) return null;
+    return {
+      ...saved,
+      role: normalizeEmployeeRole(saved.role) || saved.role,
+    };
   });
 
   const loginEmployee = async (username: string, pass: string) => {
@@ -120,8 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         p_password: pass
       });
       if (error) throw error;
-      
-      const result = data as { success: boolean; error?: string; employee?: any };
+
+      const result = data as { success: boolean; error?: string; employee?: EmployeeSession };
       if (!result.success) {
         return { success: false, error: result.error || 'Erreur inconnue' };
       }
@@ -129,9 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const normalizedEmployee = {
         ...result.employee,
         role: normalizeEmployeeRole(result.employee?.role) || result.employee?.role || "cashier",
-      };
+      } as EmployeeSession;
       setEmployeeSession(normalizedEmployee);
-      localStorage.setItem('glowup_employee_session', JSON.stringify(normalizedEmployee));
+      saveEmployeeSession(normalizedEmployee);
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message || 'Erreur lors de la connexion' };
@@ -141,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutEmployee = () => {
     const sessionToken = employeeSession?.session_token || null;
     setEmployeeSession(null);
-    localStorage.removeItem('glowup_employee_session');
+    saveEmployeeSession(null);
     void revokeEmployeeSession(sessionToken);
   };
 

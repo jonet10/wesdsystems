@@ -1,4 +1,5 @@
 export * from "./actions";
+export * from "./auth";
 export * from "./analytics";
 export * from "./appointments";
 export * from "./components";

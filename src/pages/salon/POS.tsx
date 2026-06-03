@@ -49,6 +49,7 @@ import { recordStockMovement } from "@/modules/salon/inventory";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
+import { fetchEmployeePosBundle, type EmployeePosBundle } from "@/modules/salon/auth";
 
 interface CatalogItem {
   id: string;
@@ -100,62 +101,6 @@ interface EmployeeInfo {
   id: string;
   name: string;
   role: string;
-}
-
-interface EmployeePosBundleResponse {
-  employee: {
-    id: string;
-    full_name: string;
-    role: string;
-    branch_id: string;
-  };
-  branch: {
-    id: string;
-    business_id: string;
-    name: string;
-    phone?: string | null;
-    email?: string | null;
-    address?: string | null;
-  };
-  business: {
-    id: string;
-    name: string;
-    logo_url?: string | null;
-  };
-  products: Array<{
-    id: string;
-    name: string;
-    unit_price: number;
-    category?: string | null;
-    quantity_in_stock?: number | null;
-    barcode?: string | null;
-  }>;
-  services: Array<{
-    id: string;
-    name: string;
-    price_htg: number;
-    category_id?: string | null;
-    metadata?: Record<string, any> | null;
-  }>;
-  promotions: Array<{
-    id: string;
-    name: string;
-    description?: string | null;
-    promotion_type: "percentage" | "fixed_amount" | "bundle" | "combo";
-    discount_value?: number | null;
-    discount_percentage?: number | null;
-    items_config?: { services?: string[]; products?: string[] } | null;
-    minimum_quantity?: number | null;
-  }>;
-  employees: Array<{
-    id: string;
-    first_name?: string | null;
-    last_name?: string | null;
-    role?: string | null;
-    commission_percentage?: number | null;
-    metadata?: Record<string, any> | null;
-    is_active?: boolean | null;
-  }>;
 }
 
 interface PendingTabClientResult {
@@ -274,7 +219,7 @@ export default function POSPage() {
     }
   }, [employeeSession?.role]);
 
-  const applyEmployeeBundle = (bundle: EmployeePosBundleResponse) => {
+  const applyEmployeeBundle = (bundle: EmployeePosBundle) => {
     setProducts((bundle.products || []).map((x) => ({
       id: x.id,
       name: x.name,
@@ -315,12 +260,8 @@ export default function POSPage() {
       }
 
       if (isEmployeeSession && employeeSession?.session_token) {
-        const { data, error } = await supabase.rpc("get_employee_pos_bundle", {
-          p_session_token: employeeSession.session_token,
-          p_branch_id: branchIdToUse,
-        });
-        if (error) throw error;
-        applyEmployeeBundle(data as EmployeePosBundleResponse);
+        const data = await fetchEmployeePosBundle(employeeSession.session_token, branchIdToUse);
+        applyEmployeeBundle(data);
         return;
       }
 
