@@ -148,7 +148,7 @@ BEGIN
     e.id,
     e.branch_id,
     b.business_id,
-    e.role,
+    e.role::text,
     TRIM(CONCAT_WS(' ', e.first_name, e.last_name)) AS employee_name
   FROM public.employee_sessions s
   JOIN public.salon_employees e ON e.id = s.employee_id
