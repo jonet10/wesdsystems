@@ -22,6 +22,8 @@ interface AuthState {
     full_name: string;
     role: string;
     branch_id: string;
+    session_token?: string;
+    session_expires_at?: string;
   } | null;
   loginEmployee: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logoutEmployee: () => void;
@@ -39,6 +41,17 @@ const AuthContext = createContext<AuthState>({
 });
 
 const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
+
+const revokeEmployeeSession = async (sessionToken?: string | null) => {
+  if (!sessionToken) return;
+  try {
+    await supabase.rpc("revoke_employee_session", {
+      p_session_token: sessionToken,
+    });
+  } catch {
+    // Best-effort cleanup only.
+  }
+};
 
 const profileFromUserMetadata = (user: User): UserProfile | null => {
   const metadata = user.user_metadata ?? {};
@@ -126,8 +139,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logoutEmployee = () => {
+    const sessionToken = employeeSession?.session_token || null;
     setEmployeeSession(null);
     localStorage.removeItem('glowup_employee_session');
+    void revokeEmployeeSession(sessionToken);
   };
 
   useEffect(() => {

@@ -102,6 +102,62 @@ interface EmployeeInfo {
   role: string;
 }
 
+interface EmployeePosBundleResponse {
+  employee: {
+    id: string;
+    full_name: string;
+    role: string;
+    branch_id: string;
+  };
+  branch: {
+    id: string;
+    business_id: string;
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+  };
+  business: {
+    id: string;
+    name: string;
+    logo_url?: string | null;
+  };
+  products: Array<{
+    id: string;
+    name: string;
+    unit_price: number;
+    category?: string | null;
+    quantity_in_stock?: number | null;
+    barcode?: string | null;
+  }>;
+  services: Array<{
+    id: string;
+    name: string;
+    price_htg: number;
+    category_id?: string | null;
+    metadata?: Record<string, any> | null;
+  }>;
+  promotions: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    promotion_type: "percentage" | "fixed_amount" | "bundle" | "combo";
+    discount_value?: number | null;
+    discount_percentage?: number | null;
+    items_config?: { services?: string[]; products?: string[] } | null;
+    minimum_quantity?: number | null;
+  }>;
+  employees: Array<{
+    id: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    role?: string | null;
+    commission_percentage?: number | null;
+    metadata?: Record<string, any> | null;
+    is_active?: boolean | null;
+  }>;
+}
+
 interface PendingTabClientResult {
   id: string;
   name: string;
@@ -141,7 +197,8 @@ export default function POSPage() {
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
-  const layoutRole = employeeSession ? "employee" : "salon_admin";
+  const isEmployeeSession = Boolean(employeeSession?.session_token && !authProfile);
+  const layoutRole = isEmployeeSession ? "employee" : "salon_admin";
   const employeeBranchId = employeeSession?.branch_id || null;
   const activeBranchId = useMemo(() => {
     if (employeeBranchId) return employeeBranchId;
@@ -217,6 +274,37 @@ export default function POSPage() {
     }
   }, [employeeSession?.role]);
 
+  const applyEmployeeBundle = (bundle: EmployeePosBundleResponse) => {
+    setProducts((bundle.products || []).map((x) => ({
+      id: x.id,
+      name: x.name,
+      unit_price: Number(x.unit_price || 0),
+      category: x.category || undefined,
+      stock: Number(x.quantity_in_stock || 0),
+      barcode: x.barcode || undefined,
+      type: "product" as const,
+    })));
+    setServices((bundle.services || []).map((x) => ({
+      id: x.id,
+      name: x.name,
+      unit_price: Number(x.price_htg || 0),
+      category: x.category_id || undefined,
+      type: "service" as const,
+    })));
+    setPromotions((bundle.promotions || []) as Promotion[]);
+    setEmployees((bundle.employees || []).map((row) => ({
+      id: row.id,
+      name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "Employé",
+      role: row.role || "cashier",
+    })));
+    setBusinessInfo({
+      name: bundle.business?.name || bundle.branch?.name || "Mon Salon",
+      address: bundle.branch?.address || "",
+      phone: bundle.branch?.phone || "",
+      logo_url: bundle.business?.logo_url || undefined,
+    });
+  };
+
   const loadData = async (branchIdToUse: string | null = activeBranchId) => {
     try {
       if (!branchIdToUse) {
@@ -225,6 +313,17 @@ export default function POSPage() {
         setPromotions([]);
         return;
       }
+
+      if (isEmployeeSession && employeeSession?.session_token) {
+        const { data, error } = await supabase.rpc("get_employee_pos_bundle", {
+          p_session_token: employeeSession.session_token,
+          p_branch_id: branchIdToUse,
+        });
+        if (error) throw error;
+        applyEmployeeBundle(data as EmployeePosBundleResponse);
+        return;
+      }
+
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
       let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, metadata").eq("is_active", true);
       const todayKey = getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE);
@@ -250,6 +349,10 @@ export default function POSPage() {
 
   const loadEmployees = async () => {
     try {
+      if (isEmployeeSession) {
+        return;
+      }
+
       if (!activeBranchId) {
         setEmployees([]);
         return;
@@ -367,6 +470,9 @@ export default function POSPage() {
   };
 
   const loadBusinessInfo = async () => {
+    if (isEmployeeSession) {
+      return;
+    }
     if (!user && !employeeBranchId) return;
     try {
       const { data: prof } = user
@@ -1018,8 +1124,8 @@ export default function POSPage() {
   );
 
   const hasActivePromotions = promotions.length > 0;
-  const posTitle = employeeSession ? "Caisse employé" : "POS / Caisse";
-  const posSubtitle = employeeSession
+  const posTitle = isEmployeeSession ? "Caisse employé" : "POS / Caisse";
+  const posSubtitle = isEmployeeSession
     ? "Vente rapide, produits et prestations de votre branche"
     : "Encaissement rapide avec promotions et commissions";
 
