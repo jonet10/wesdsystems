@@ -120,6 +120,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveEmployeeSession(normalizedEmployee);
       return { success: true };
     } catch (err: any) {
+      const isMissingRpc =
+        err?.status === 404 ||
+        err?.code === "PGRST202" ||
+        String(err?.message || "").includes("check_employee_login");
+
+      if (isMissingRpc) {
+        return {
+          success: false,
+          error:
+            "Le service de connexion employé n'est pas encore déployé sur la base Supabase. Applique la migration 20260624_employee_session_secure_catalog.sql sur le projet distant.",
+        };
+      }
+
       return { success: false, error: err.message || 'Erreur lors de la connexion' };
     }
   };
