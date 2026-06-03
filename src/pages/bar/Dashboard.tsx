@@ -16,6 +16,13 @@ import { motion } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDateKeyInTimeZone,
+  getDayRangeInTimeZone,
+  getWeekdayLabelInTimeZone,
+  shiftDateKey,
+} from "@/lib/timezone-date";
 
 interface DashboardStat {
   title: string;
@@ -42,9 +49,11 @@ export default function BarDashboard() {
   const loadDashboardData = async () => {
     setDashboardLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
+      const timeZone = DEFAULT_PLATFORM_TIME_ZONE;
+      const today = getDateKeyInTimeZone(new Date(), timeZone);
+      const weekStart = shiftDateKey(today, -6);
+      const todayRange = getDayRangeInTimeZone(today, timeZone);
+      const weekRange = getDayRangeInTimeZone(weekStart, timeZone);
 
       const [
         { data: salesToday }, 
@@ -53,15 +62,15 @@ export default function BarDashboard() {
       ] = await Promise.all([
         supabase.from("bar_sales")
           .select("id, total, payment_method, created_at")
-          .gte("created_at", `${today}T00:00:00`)
-          .lte("created_at", `${today}T23:59:59`),
+          .gte("created_at", todayRange.start)
+          .lte("created_at", todayRange.end),
         supabase.from("bar_products")
           .select("id, stock_cases, stock_units, critical_stock_level")
           .eq("is_active", true),
         supabase.from("bar_sales")
           .select("total, created_at")
-          .gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00`)
-          .lte("created_at", `${today}T23:59:59`),
+          .gte("created_at", weekRange.start)
+          .lte("created_at", todayRange.end),
       ]);
 
       if (salesToday) {
@@ -75,22 +84,20 @@ export default function BarDashboard() {
 
       if (weekSales) {
         const dayMap = new Map<string, { revenue: number }>();
-        const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          dayMap.set(d.toISOString().split("T")[0], { revenue: 0 });
+        const dateKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStart, index));
+        for (const dateKey of dateKeys) {
+          dayMap.set(dateKey, { revenue: 0 });
         }
         weekSales.forEach((s: any) => {
-          const day = s.created_at.split("T")[0];
+          const day = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
           if (dayMap.has(day)) {
             const entry = dayMap.get(day)!;
             entry.revenue += Number(s.total || 0);
           }
         });
         
-        const chartData = Array.from(dayMap.entries()).map(([date, data], i) => ({
-          day: days[i] || date.slice(5),
+        const chartData = Array.from(dayMap.entries()).map(([date, data]) => ({
+          day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
           ...data,
         }));
         setWeeklyData(chartData);
@@ -239,7 +246,7 @@ export default function BarDashboard() {
                           {sale.payment_method}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: DEFAULT_PLATFORM_TIME_ZONE })}
                         </span>
                       </div>
                       <span className="font-medium text-sm">{format(sale.total)}</span>

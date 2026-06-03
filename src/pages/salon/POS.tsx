@@ -47,6 +47,8 @@ import type { PaymentMethod } from "@/modules/salon/types";
 import type { PaymentSplit } from "@/modules/salon/pos";
 import { recordStockMovement } from "@/modules/salon/inventory";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
+import { normalizeEmployeeRole } from "@/lib/employee-role";
 
 interface CatalogItem {
   id: string;
@@ -139,6 +141,7 @@ export default function POSPage() {
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
+  const layoutRole = employeeSession ? "employee" : "salon_admin";
   const employeeBranchId = employeeSession?.branch_id || null;
   const activeBranchId = useMemo(() => {
     if (employeeBranchId) return employeeBranchId;
@@ -173,7 +176,7 @@ export default function POSPage() {
   const [newClientSaving, setNewClientSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<"products" | "services">("products");
+  const [activeTab, setActiveTab] = useState<"catalogue" | "products" | "services">("products");
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -208,6 +211,12 @@ export default function POSPage() {
   const [pendingTabSaving, setPendingTabSaving] = useState(false);
   const [pendingTabLoading, setPendingTabLoading] = useState(false);
 
+  useEffect(() => {
+    if (normalizeEmployeeRole(employeeSession?.role) === "cashier") {
+      setActiveTab("catalogue");
+    }
+  }, [employeeSession?.role]);
+
   const loadData = async (branchIdToUse: string | null = activeBranchId) => {
     try {
       if (!branchIdToUse) {
@@ -218,7 +227,8 @@ export default function POSPage() {
       }
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
       let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, metadata").eq("is_active", true);
-      let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", new Date().toISOString().split("T")[0]).gte("valid_until", new Date().toISOString().split("T")[0]);
+      const todayKey = getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE);
+      let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", todayKey).gte("valid_until", todayKey);
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);
       servicesQuery = servicesQuery.eq("branch_id", branchIdToUse);
@@ -1001,17 +1011,21 @@ export default function POSPage() {
     toast.success("Reçu PDF téléchargé !");
   };
 
-  const currentItems = activeTab === "products" ? products : services;
+  const currentItems = activeTab === "catalogue" ? [...products, ...services] : activeTab === "products" ? products : services;
   const filteredItems = currentItems.filter(i =>
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (i.barcode || "").includes(searchTerm)
   );
 
   const hasActivePromotions = promotions.length > 0;
+  const posTitle = employeeSession ? "Caisse employé" : "POS / Caisse";
+  const posSubtitle = employeeSession
+    ? "Vente rapide, produits et prestations de votre branche"
+    : "Encaissement rapide avec promotions et commissions";
 
   if ((authProfile && branchesFetching) || (authProfile && !activeBranchId)) {
     return (
-      <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Initialisation du salon...">
+      <DashboardLayout role={layoutRole} title={posTitle} subtitle="Initialisation de la branche...">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
@@ -1019,7 +1033,7 @@ export default function POSPage() {
             </div>
             <h2 className="text-2xl font-semibold mb-2">Le point de vente se prépare</h2>
             <p className="text-muted-foreground">
-              Nous finalisons la branche principale de votre salon. Dès qu’elle est prête, vous pourrez encaisser, créer des clients et utiliser vos services sans sélection manuelle.
+              Nous finalisons votre branche active. Dès qu’elle est prête, vous pourrez encaisser, créer des clients et utiliser vos produits et prestations sans sélection manuelle.
             </p>
           </div>
         </div>
@@ -1028,13 +1042,16 @@ export default function POSPage() {
   }
 
   return (
-    <DashboardLayout role="salon_admin" title="POS / Caisse" subtitle="Encaissement rapide avec promotions et commissions">
+    <DashboardLayout role={layoutRole} title={posTitle} subtitle={posSubtitle}>
       <StaggerContainer className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
         <StaggerItem className="flex-1 flex flex-col min-w-0">
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-3 space-y-3">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant={activeTab === "catalogue" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("catalogue")} className="gap-1">
+                    <ShoppingCart className="h-4 w-4" /> Catalogue
+                  </Button>
                   <Button variant={activeTab === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("products")} className="gap-1">
                     <Package className="h-4 w-4" /> Produits
                   </Button>
@@ -1111,6 +1128,7 @@ export default function POSPage() {
                               {new Date(tab.opened_at).toLocaleTimeString("fr-FR", {
                                 hour: "2-digit",
                                 minute: "2-digit",
+                                timeZone: DEFAULT_PLATFORM_TIME_ZONE,
                               })}
                             </span>
                           </div>
@@ -1125,6 +1143,9 @@ export default function POSPage() {
                   </div>
                 </ScrollArea>
               </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Le catalogue regroupe les produits définis par l’admin et les prestations/services actifs pour votre branche.
+              </p>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               <ScrollArea className="h-full pr-4">

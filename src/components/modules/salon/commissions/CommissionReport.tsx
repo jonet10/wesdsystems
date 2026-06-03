@@ -5,6 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDateKeyInTimeZone,
+  getDayRangeInTimeZone,
+  shiftDateKey,
+} from "@/lib/timezone-date";
 
 interface CommissionSummary {
   employee_id: string;
@@ -28,31 +34,29 @@ export function CommissionReport({ businessId }: Props) {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      let start: Date;
-      let end: Date;
+      const selectedDateKey = getDateKeyInTimeZone(date, DEFAULT_PLATFORM_TIME_ZONE);
+      let startKey: string;
+      let endKey: string;
 
       if (period === "daily") {
-        start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(end.getDate() + 1);
+        startKey = selectedDateKey;
+        endKey = selectedDateKey;
       } else if (period === "weekly") {
-        start = new Date(date);
-        start.setDate(start.getDate() - start.getDay());
-        start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(end.getDate() + 7);
+        startKey = shiftDateKey(selectedDateKey, -6);
+        endKey = selectedDateKey;
       } else {
-        start = new Date(date.getFullYear(), date.getMonth(), 1);
-        end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        startKey = `${selectedDateKey.slice(0, 7)}-01`;
+        endKey = selectedDateKey;
       }
+      const start = getDayRangeInTimeZone(startKey, DEFAULT_PLATFORM_TIME_ZONE).start;
+      const end = getDayRangeInTimeZone(endKey, DEFAULT_PLATFORM_TIME_ZONE).end;
 
       const { data: txns } = await supabase
         .from("commission_transactions")
         .select("employee_id, sale_amount, commission_amount")
         .eq("business_id", businessId)
-        .gte("calculated_at", start.toISOString())
-        .lt("calculated_at", end.toISOString())
+        .gte("calculated_at", start)
+        .lte("calculated_at", end)
         .neq("status", "cancelled");
 
       if (txns && txns.length > 0) {
@@ -110,6 +114,7 @@ export function CommissionReport({ businessId }: Props) {
     ...(period === "daily" && { day: "numeric", month: "long", year: "numeric" }),
     ...(period === "weekly" && { day: "numeric", month: "long" }),
     ...(period === "monthly" && { month: "long", year: "numeric" }),
+    timeZone: DEFAULT_PLATFORM_TIME_ZONE,
   });
 
   return (

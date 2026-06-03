@@ -25,7 +25,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart as RePieChart, Pie, Cell, Legend,
 } from "recharts";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDateKeyInTimeZone,
+  getDatePartsInTimeZone,
+  getDayRangeInTimeZone,
+  shiftDateKey,
+  shiftDateKeyByMonths,
+} from "@/lib/timezone-date";
 
 const COLORS = ["#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#3b82f6", "#ec4899", "#14b8a6", "#f97316"];
 
@@ -46,21 +53,19 @@ export default function ReportsPage() {
 
   const dateRange = useMemo(() => {
     const now = new Date();
+    const todayKey = getDateKeyInTimeZone(now, DEFAULT_PLATFORM_TIME_ZONE);
+    const { year, month } = getDatePartsInTimeZone(now, DEFAULT_PLATFORM_TIME_ZONE);
     switch (period) {
       case "week":
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return { start: format(weekAgo, "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+        return { start: shiftDateKey(todayKey, -6), end: todayKey };
       case "month":
-        return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(endOfMonth(now), "yyyy-MM-dd") };
+        return { start: `${year}-${String(month).padStart(2, "0")}-01`, end: todayKey };
       case "quarter":
-        const quarterAgo = new Date(now);
-        quarterAgo.setMonth(quarterAgo.getMonth() - 3);
-        return { start: format(quarterAgo, "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+        return { start: shiftDateKeyByMonths(todayKey, -3), end: todayKey };
       case "year":
-        return { start: format(new Date(now.getFullYear(), 0, 1), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+        return { start: `${year}-01-01`, end: todayKey };
       default:
-        return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(endOfMonth(now), "yyyy-MM-dd") };
+        return { start: `${year}-${String(month).padStart(2, "0")}-01`, end: todayKey };
     }
   }, [period]);
 
@@ -73,20 +78,22 @@ export default function ReportsPage() {
         setExpenses([]);
         return;
       }
+      const salesStart = getDayRangeInTimeZone(dateRange.start, DEFAULT_PLATFORM_TIME_ZONE).start;
+      const salesEnd = getDayRangeInTimeZone(dateRange.end, DEFAULT_PLATFORM_TIME_ZONE).end;
       const [salesRes, itemsRes, productsRes, servicesRes, expensesRes] = await Promise.all([
         supabase
           .from("salon_sales")
           .select("id, total_amount, discount_amount, tax_amount, payment_method, created_at")
           .eq("branch_id", activeBranchId)
-          .gte("created_at", `${dateRange.start}T00:00:00`)
-          .lte("created_at", `${dateRange.end}T23:59:59`)
+          .gte("created_at", salesStart)
+          .lte("created_at", salesEnd)
           .order("created_at"),
         supabase
           .from("salon_sale_items")
           .select("id, sale_id, product_id, service_id, quantity, unit_price, total_price, created_at")
           .eq("branch_id", activeBranchId)
-          .gte("created_at", `${dateRange.start}T00:00:00`)
-          .lte("created_at", `${dateRange.end}T23:59:59`)
+          .gte("created_at", salesStart)
+          .lte("created_at", salesEnd)
           .order("created_at"),
         supabase.from("salon_products").select("id, name").eq("branch_id", activeBranchId),
         supabase.from("salon_services").select("id, name").eq("branch_id", activeBranchId),
@@ -94,8 +101,8 @@ export default function ReportsPage() {
           .from("salon_expenses")
           .select("id, category, amount, created_at")
           .eq("branch_id", activeBranchId)
-          .gte("created_at", `${dateRange.start}T00:00:00`)
-          .lte("created_at", `${dateRange.end}T23:59:59`)
+          .gte("created_at", salesStart)
+          .lte("created_at", salesEnd)
           .order("created_at"),
       ]);
 
@@ -133,14 +140,14 @@ export default function ReportsPage() {
   const dailyData = useMemo(() => {
     const map = new Map<string, { revenue: number; expenses: number; count: number }>();
     sales.forEach(sale => {
-      const day = sale.created_at.split("T")[0];
+      const day = getDateKeyInTimeZone(new Date(sale.created_at), DEFAULT_PLATFORM_TIME_ZONE);
       const existing = map.get(day) || { revenue: 0, expenses: 0, count: 0 };
       existing.revenue += Number(sale.total_amount || 0);
       existing.count += 1;
       map.set(day, existing);
     });
     expenses.forEach(exp => {
-      const day = exp.created_at.split("T")[0];
+      const day = getDateKeyInTimeZone(new Date(exp.created_at), DEFAULT_PLATFORM_TIME_ZONE);
       const existing = map.get(day) || { revenue: 0, expenses: 0, count: 0 };
       existing.expenses += Number(exp.amount || 0);
       map.set(day, existing);

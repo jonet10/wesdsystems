@@ -24,6 +24,7 @@ import { UpgradePrompt } from "@/components/shared/UpgradePrompt";
 import { isUnlimited } from "@/lib/saas";
 import { useActiveBranchId } from "@/lib/branch";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
+import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
 
 // Types
 interface EmployeeForm {
@@ -331,8 +332,8 @@ export default function EmployeesPage() {
             employee_id: employeeRow.id,
             business_id: businessId,
             global_rate: Math.max(0, Math.min(100, formData.commissionRate)),
-            period_start: new Date().toISOString().split("T")[0],
-            period_end: new Date().toISOString().split("T")[0],
+            period_start: getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE),
+            period_end: getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE),
           }]);
         }
 

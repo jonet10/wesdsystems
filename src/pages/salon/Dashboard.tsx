@@ -21,6 +21,14 @@ import { motion } from "framer-motion";
 import { CreditCard } from "lucide-react";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDatePartsInTimeZone,
+  getDateKeyInTimeZone,
+  getDayRangeInTimeZone,
+  getWeekdayLabelInTimeZone,
+  shiftDateKey,
+} from "@/lib/timezone-date";
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line,
 } from "recharts";
@@ -39,6 +47,7 @@ export default function SalonDashboard() {
   const subscriptionReminder = useSubscriptionPaymentReminder();
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const [dashboardTimeZone, setDashboardTimeZone] = useState(DEFAULT_PLATFORM_TIME_ZONE);
   const activeBranchId = useMemo(() => {
     const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
     return validBranchId || branches[0]?.id || null;
@@ -83,9 +92,17 @@ export default function SalonDashboard() {
           return;
         }
 
-        const today = new Date().toISOString().split("T")[0];
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
+        const { data: branchMeta } = await supabase
+          .from("salon_branches")
+          .select("id, timezone")
+          .eq("id", activeBranchId)
+          .maybeSingle();
+        const timeZone = branchMeta?.timezone || DEFAULT_PLATFORM_TIME_ZONE;
+        setDashboardTimeZone(timeZone);
+        const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
+        const weekStartKey = shiftDateKey(todayKey, -6);
+        const todayRange = getDayRangeInTimeZone(todayKey, timeZone);
+        const weekStartRange = getDayRangeInTimeZone(weekStartKey, timeZone);
 
         const [
           { data: clientsRes },
@@ -101,10 +118,10 @@ export default function SalonDashboard() {
           supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId),
           supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100),
           supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId),
-          supabase.from("salon_sales").select("total_amount").eq("branch_id", activeBranchId).gte("created_at", `${today}T00:00:00`).lte("created_at", `${today}T23:59:59`),
+          supabase.from("salon_sales").select("total_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end),
           supabase.from("salon_sales").select("id, total_amount, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10),
           supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true),
-          supabase.from("salon_sales").select("total_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", `${weekAgo.toISOString().split("T")[0]}T00:00:00`).lte("created_at", `${today}T23:59:59`),
+          supabase.from("salon_sales").select("total_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end),
         ]);
 
         setClients((clientsRes || []).map((client: any) => ({
@@ -131,14 +148,12 @@ export default function SalonDashboard() {
 
         if (weekSales) {
           const dayMap = new Map<string, { revenue: number; appointments: number }>();
-          const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            dayMap.set(d.toISOString().split("T")[0], { revenue: 0, appointments: 0 });
+          const dateKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStartKey, index));
+          for (const dateKey of dateKeys) {
+            dayMap.set(dateKey, { revenue: 0, appointments: 0 });
           }
           weekSales.forEach((sale: any) => {
-            const day = sale.created_at.split("T")[0];
+            const day = getDateKeyInTimeZone(new Date(sale.created_at), timeZone);
             if (dayMap.has(day)) {
               dayMap.get(day)!.revenue += Number(sale.total_amount || 0);
             }
@@ -149,8 +164,8 @@ export default function SalonDashboard() {
               dayMap.get(day)!.appointments += 1;
             }
           });
-          setWeeklyData(Array.from(dayMap.entries()).map(([date, data], i) => ({
-            day: days[i] || date.slice(5),
+          setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
+            day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
             ...data,
           })));
         }
@@ -170,7 +185,7 @@ export default function SalonDashboard() {
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, [activeBranchId, isAuthenticated]);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getDateKeyInTimeZone(new Date(), dashboardTimeZone);
   const todayApts = appointments.filter((a: any) => a.date === todayStr);
   const totalSpent = clients.reduce((sum: number, c: any) => {
     const rawString = String(c.totalSpent || c.total_spent || '0').replace(/[^\d.-]/g, '');
@@ -208,7 +223,8 @@ export default function SalonDashboard() {
     .map((apt: any) => {
       const emp = employees.find((e: any) => e.id === (apt.employeeId || apt.employee_id));
       const startH = apt.startHour || 9;
-      const currentHour = new Date().getHours() + new Date().getMinutes() / 60;
+      const currentParts = getDatePartsInTimeZone(new Date(), dashboardTimeZone);
+      const currentHour = currentParts.hour + currentParts.minute / 60;
       let status = "upcoming";
       if (currentHour >= startH + (apt.duration || 1)) status = "done";
       else if (currentHour >= startH) status = "in_progress";
@@ -387,7 +403,7 @@ export default function SalonDashboard() {
                 <div>
                   <h3 className="font-semibold text-sm">Rendez-vous du jour</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: dashboardTimeZone })}
                   </p>
                 </div>
                 <Link to="/salon/appointments">
@@ -472,7 +488,7 @@ export default function SalonDashboard() {
                           <AlertCircle className="h-3.5 w-3.5 text-info" />
                         )}
                         <span className="text-xs text-muted-foreground">
-                          {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: dashboardTimeZone })}
                         </span>
                       </div>
                       <span className="font-medium text-sm">{format(sale.total_amount)}</span>

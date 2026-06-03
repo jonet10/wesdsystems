@@ -5,16 +5,19 @@ import {
   BadgeCheck,
   Building2,
   CalendarCheck2,
+  Beer,
   MessageCircleMore,
   Scissors,
-  Sparkles,
+  ShoppingBag,
+  ReceiptText,
+  Pill,
+  Utensils,
   Users2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  DEFAULT_COMMUNITY_ACTIVITIES,
   DEFAULT_COMMUNITY_STATS,
   type CommunityActivity,
   type CommunityActivityType,
@@ -35,17 +38,35 @@ const ACTIVITY_META: Record<CommunityActivityType, ActivityMeta> = {
     darkAccent: "from-cyan-400/25 to-cyan-300/10 border-cyan-300/20 text-cyan-100",
     lightAccent: "from-cyan-50 to-white border-cyan-200 text-cyan-800 shadow-cyan-900/5",
   },
-  ambassador_joined: {
-    label: "Ambassadeur",
-    icon: Sparkles,
-    darkAccent: "from-fuchsia-400/25 to-fuchsia-300/10 border-fuchsia-300/20 text-fuchsia-100",
-    lightAccent: "from-fuchsia-50 to-white border-fuchsia-200 text-fuchsia-800 shadow-fuchsia-900/5",
-  },
-  salon_joined: {
-    label: "Salon",
+  business_joined: {
+    label: "Établissement",
     icon: Building2,
     darkAccent: "from-emerald-400/25 to-emerald-300/10 border-emerald-300/20 text-emerald-100",
     lightAccent: "from-emerald-50 to-white border-emerald-200 text-emerald-800 shadow-emerald-900/5",
+  },
+  pharmacy_joined: {
+    label: "Pharmacie",
+    icon: Pill,
+    darkAccent: "from-violet-400/25 to-violet-300/10 border-violet-300/20 text-violet-100",
+    lightAccent: "from-violet-50 to-white border-violet-200 text-violet-800 shadow-violet-900/5",
+  },
+  restaurant_joined: {
+    label: "Restaurant",
+    icon: Utensils,
+    darkAccent: "from-rose-400/25 to-rose-300/10 border-rose-300/20 text-rose-100",
+    lightAccent: "from-rose-50 to-white border-rose-200 text-rose-800 shadow-rose-900/5",
+  },
+  market_joined: {
+    label: "Market",
+    icon: ShoppingBag,
+    darkAccent: "from-blue-400/25 to-blue-300/10 border-blue-300/20 text-blue-100",
+    lightAccent: "from-blue-50 to-white border-blue-200 text-blue-800 shadow-blue-900/5",
+  },
+  boutique_joined: {
+    label: "Boutique",
+    icon: ShoppingBag,
+    darkAccent: "from-pink-400/25 to-pink-300/10 border-pink-300/20 text-pink-100",
+    lightAccent: "from-pink-50 to-white border-pink-200 text-pink-800 shadow-pink-900/5",
   },
   service_published: {
     label: "Service",
@@ -58,6 +79,24 @@ const ACTIVITY_META: Record<CommunityActivityType, ActivityMeta> = {
     icon: CalendarCheck2,
     darkAccent: "from-sky-400/25 to-sky-300/10 border-sky-300/20 text-sky-100",
     lightAccent: "from-sky-50 to-white border-sky-200 text-sky-800 shadow-sky-900/5",
+  },
+  bar_product_added: {
+    label: "Bar produit",
+    icon: ShoppingBag,
+    darkAccent: "from-orange-400/25 to-orange-300/10 border-orange-300/20 text-orange-100",
+    lightAccent: "from-orange-50 to-white border-orange-200 text-orange-800 shadow-orange-900/5",
+  },
+  bar_cocktail_created: {
+    label: "Cocktail",
+    icon: Beer,
+    darkAccent: "from-amber-400/25 to-amber-300/10 border-amber-300/20 text-amber-100",
+    lightAccent: "from-amber-50 to-white border-amber-200 text-amber-800 shadow-amber-900/5",
+  },
+  bar_sale_created: {
+    label: "Vente bar",
+    icon: ReceiptText,
+    darkAccent: "from-lime-400/25 to-lime-300/10 border-lime-300/20 text-lime-100",
+    lightAccent: "from-lime-50 to-white border-lime-200 text-lime-800 shadow-lime-900/5",
   },
 };
 
@@ -207,7 +246,7 @@ export function CommunityActivitySection() {
   const [isPaused, setIsPaused] = useState(false);
   const isDarkMode = theme !== "light";
 
-  const activities = data.feed.length > 0 ? data.feed : DEFAULT_COMMUNITY_ACTIVITIES;
+  const activities = data.feed;
   const stats = data.stats ?? DEFAULT_COMMUNITY_STATS;
   const marqueeItems = useMemo(() => [...activities, ...activities], [activities]);
   const marqueeDuration = Math.max(26, Math.min(46, activities.length * 4.5));
@@ -252,7 +291,7 @@ export function CommunityActivitySection() {
                 🔥 Activité de la communauté
               </h2>
               <p className={cn("mt-3 max-w-2xl text-sm leading-7 sm:text-base", isDarkMode ? "text-white/60" : "text-slate-600")}>
-                Un bandeau public en temps réel pour montrer que la plateforme vit, que des salons avancent, que des partenaires rejoignent le réseau et que les réservations circulent.
+                Un bandeau public en temps réel pour montrer que la plateforme vit, que les établissements de tous les modules avancent, que les partenaires rejoignent le réseau et que le salon, le bar, la pharmacie, le market et la boutique publient aussi de l’activité.
               </p>
             </div>
 
@@ -274,32 +313,38 @@ export function CommunityActivitySection() {
             <div className={cn("pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r to-transparent", isDarkMode ? "from-[#070b18]" : "from-white")} />
             <div className={cn("pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l to-transparent", isDarkMode ? "from-[#070b18]" : "from-white")} />
 
-            <div
-              className="overflow-hidden py-4"
-              onMouseEnter={() => setIsPaused(true)}
-              onMouseLeave={() => setIsPaused(false)}
-            >
+            {activities.length > 0 ? (
               <div
-                className="flex w-max gap-3 px-4 animate-community-marquee"
-                style={{
-                  animationDuration: `${marqueeDuration}s`,
-                  animationPlayState: isPaused ? "paused" : "running",
-                }}
+                className="overflow-hidden py-4"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
               >
-                {marqueeItems.map((activity, index) => (
-                  <ActivityCard key={`${activity.id}-${index}`} activity={activity} isDarkMode={isDarkMode} />
-                ))}
+                <div
+                  className="flex w-max gap-3 px-4 animate-community-marquee"
+                  style={{
+                    animationDuration: `${marqueeDuration}s`,
+                    animationPlayState: isPaused ? "paused" : "running",
+                  }}
+                >
+                  {marqueeItems.map((activity, index) => (
+                    <ActivityCard key={`${activity.id}-${index}`} activity={activity} isDarkMode={isDarkMode} />
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className={cn("flex min-h-[160px] items-center justify-center px-6 py-10 text-center text-sm", isDarkMode ? "text-white/60" : "text-slate-600")}>
+                Aucune activité publique disponible pour le moment.
+              </div>
+            )}
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <StatCard icon={Building2} label="Salons inscrits" value={stats.salonCount} darkTone="border-emerald-400/20 bg-emerald-400/10 text-emerald-100" lightTone="border-emerald-200 bg-emerald-50 text-emerald-700" isDarkMode={isDarkMode} />
+            <StatCard icon={Building2} label="Établissements inscrits" value={stats.businessCount} darkTone="border-emerald-400/20 bg-emerald-400/10 text-emerald-100" lightTone="border-emerald-200 bg-emerald-50 text-emerald-700" isDarkMode={isDarkMode} />
             <StatCard icon={Users2} label="Partenaires approuvés" value={stats.partnerCount} darkTone="border-cyan-400/20 bg-cyan-400/10 text-cyan-100" lightTone="border-cyan-200 bg-cyan-50 text-cyan-700" isDarkMode={isDarkMode} />
-            <StatCard icon={Sparkles} label="Ambassadeurs approuvés" value={stats.ambassadorCount} darkTone="border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-100" lightTone="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" isDarkMode={isDarkMode} />
             <StatCard icon={BadgeCheck} label="Utilisateurs inscrits" value={stats.userCount} darkTone="border-violet-400/20 bg-violet-400/10 text-violet-100" lightTone="border-violet-200 bg-violet-50 text-violet-700" isDarkMode={isDarkMode} />
             <StatCard icon={CalendarCheck2} label="Réservations" value={stats.reservationCount} darkTone="border-sky-400/20 bg-sky-400/10 text-sky-100" lightTone="border-sky-200 bg-sky-50 text-sky-700" isDarkMode={isDarkMode} />
             <StatCard icon={Scissors} label="Services publiés" value={stats.serviceCount} darkTone="border-amber-400/20 bg-amber-400/10 text-amber-100" lightTone="border-amber-200 bg-amber-50 text-amber-700" isDarkMode={isDarkMode} />
+            <StatCard icon={ReceiptText} label="Événements publics" value={stats.publicEventCount} darkTone="border-fuchsia-400/20 bg-fuchsia-400/10 text-fuchsia-100" lightTone="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" isDarkMode={isDarkMode} />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -308,10 +353,9 @@ export function CommunityActivitySection() {
                 Notre communauté grandit chaque jour
               </p>
               <div className={cn("mt-4 space-y-3 text-sm leading-7", isDarkMode ? "text-white/72" : "text-slate-700")}>
-                <p>Plus de <span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.salonCount.toLocaleString("fr-FR")}</span> salons utilisent déjà la plateforme.</p>
+                <p>Plus de <span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.businessCount.toLocaleString("fr-FR")}</span> établissements utilisent déjà la plateforme.</p>
                 <p><span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.partnerCount.toLocaleString("fr-FR")}</span> partenaires nous font confiance.</p>
-                <p><span className={cn("font-semibold", isDarkMode ? "text-white" : "text-slate-950")}>{stats.ambassadorCount.toLocaleString("fr-FR")}</span> ambassadeurs représentent notre communauté.</p>
-                <p>Des centaines de clients utilisent déjà nos services.</p>
+                <p>Le flux public mélange déjà les ouvertures, les services, les réservations et les ventes bar.</p>
               </div>
             </div>
 

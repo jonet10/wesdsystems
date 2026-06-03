@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, ClipboardList, CheckCircle } from "lucide-react";
 import { glowupStore, Appointment, Employee } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
 
 export default function EmployeeSchedulePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -23,7 +24,7 @@ export default function EmployeeSchedulePage() {
     setActiveEmployee(emp);
 
     const allApts = glowupStore.getAppointments();
-    const formattedDateStr = currentDate.toISOString().split("T")[0];
+    const formattedDateStr = getDateKeyInTimeZone(currentDate, DEFAULT_PLATFORM_TIME_ZONE);
     
     // Filter by date and employee
     const filtered = allApts.filter(a => a.employeeId === selectedEmpId && a.date === formattedDateStr);
@@ -46,7 +47,8 @@ export default function EmployeeSchedulePage() {
     return date.toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
-      month: "long"
+      month: "long",
+      timeZone: DEFAULT_PLATFORM_TIME_ZONE,
     });
   };
 

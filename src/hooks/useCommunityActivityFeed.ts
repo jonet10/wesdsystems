@@ -4,10 +4,16 @@ import { supabase } from "@/lib/supabase";
 
 export type CommunityActivityType =
   | "partner_joined"
-  | "ambassador_joined"
-  | "salon_joined"
+  | "business_joined"
+  | "pharmacy_joined"
+  | "restaurant_joined"
+  | "market_joined"
+  | "boutique_joined"
   | "service_published"
-  | "reservation_created";
+  | "reservation_created"
+  | "bar_product_added"
+  | "bar_cocktail_created"
+  | "bar_sale_created";
 
 export interface CommunityActivity {
   id: string;
@@ -19,9 +25,8 @@ export interface CommunityActivity {
 }
 
 export interface CommunityStats {
-  salonCount: number;
+  businessCount: number;
   partnerCount: number;
-  ambassadorCount: number;
   userCount: number;
   reservationCount: number;
   serviceCount: number;
@@ -29,57 +34,13 @@ export interface CommunityStats {
 }
 
 export const DEFAULT_COMMUNITY_STATS: CommunityStats = {
-  salonCount: 0,
+  businessCount: 0,
   partnerCount: 0,
-  ambassadorCount: 0,
   userCount: 0,
   reservationCount: 0,
   serviceCount: 0,
   publicEventCount: 0,
 };
-
-export const DEFAULT_COMMUNITY_ACTIVITIES: CommunityActivity[] = [
-  {
-    id: "fallback-partner",
-    type: "partner_joined",
-    message: "Jean François depuis Jacmel vient de rejoindre notre réseau de partenaires",
-    city: "Jacmel",
-    created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
-    is_public: true,
-  },
-  {
-    id: "fallback-ambassador",
-    type: "ambassador_joined",
-    message: "Marie Pierre depuis Les Cayes est devenue Ambassadrice",
-    city: "Les Cayes",
-    created_at: new Date(Date.now() - 1000 * 60 * 16).toISOString(),
-    is_public: true,
-  },
-  {
-    id: "fallback-salon",
-    type: "salon_joined",
-    message: "Robert Louis depuis Cap-Haïtien a inscrit son salon",
-    city: "Cap-Haïtien",
-    created_at: new Date(Date.now() - 1000 * 60 * 24).toISOString(),
-    is_public: true,
-  },
-  {
-    id: "fallback-service",
-    type: "service_published",
-    message: "Beauty Style de Delmas vient de publier un nouveau service",
-    city: "Delmas",
-    created_at: new Date(Date.now() - 1000 * 60 * 33).toISOString(),
-    is_public: true,
-  },
-  {
-    id: "fallback-reservation",
-    type: "reservation_created",
-    message: "Une nouvelle réservation a été enregistrée chez Élégance Beauty de Pétion-Ville",
-    city: "Pétion-Ville",
-    created_at: new Date(Date.now() - 1000 * 60 * 41).toISOString(),
-    is_public: true,
-  },
-];
 
 interface CommunityFeedResponse {
   stats: CommunityStats;
@@ -87,14 +48,35 @@ interface CommunityFeedResponse {
 }
 
 const mapStats = (row: any): CommunityStats => ({
-  salonCount: Number(row?.salon_count ?? 0),
+  businessCount: Number(row?.business_count ?? 0),
   partnerCount: Number(row?.partner_count ?? 0),
-  ambassadorCount: Number(row?.ambassador_count ?? 0),
   userCount: Number(row?.user_count ?? 0),
   reservationCount: Number(row?.reservation_count ?? 0),
   serviceCount: Number(row?.service_count ?? 0),
   publicEventCount: Number(row?.public_event_count ?? 0),
 });
+
+const normalizeActivityType = (type: string): CommunityActivityType => {
+  if (type === "ambassador_joined") return "partner_joined";
+  if (type === "salon_joined") return "business_joined";
+  if (type === "business_joined") return "business_joined";
+  if (type === "pharmacy_joined") return "pharmacy_joined";
+  if (type === "restaurant_joined") return "restaurant_joined";
+  if (type === "market_joined") return "market_joined";
+  if (type === "boutique_joined") return "boutique_joined";
+  if (type === "bar_product_added") return "bar_product_added";
+  if (type === "bar_cocktail_created") return "bar_cocktail_created";
+  if (type === "bar_sale_created") return "bar_sale_created";
+  if (type === "service_published") return "service_published";
+  return "reservation_created";
+};
+
+const isBusinessJoinActivity = (type: CommunityActivityType) =>
+  type === "business_joined" ||
+  type === "pharmacy_joined" ||
+  type === "restaurant_joined" ||
+  type === "market_joined" ||
+  type === "boutique_joined";
 
 const fetchCommunityFeed = async (limit: number): Promise<CommunityFeedResponse> => {
   const [statsResult, feedResult] = await Promise.all([
@@ -112,7 +94,14 @@ const fetchCommunityFeed = async (limit: number): Promise<CommunityFeedResponse>
 
   return {
     stats: mapStats(statsResult.data),
-    feed: (feedResult.data || []) as CommunityActivity[],
+    feed: (feedResult.data || []).map((row: any) => ({
+      id: String(row.id),
+      type: normalizeActivityType(String(row.type || "")),
+      message: String(row.message || ""),
+      city: row.city == null ? null : String(row.city),
+      created_at: String(row.created_at || new Date().toISOString()),
+      is_public: Boolean(row.is_public),
+    })) as CommunityActivity[],
   };
 };
 
@@ -140,7 +129,15 @@ export function useCommunityActivityFeed(limit = 30) {
           filter: "is_public=eq.true",
         },
         (payload) => {
-          const next = payload.new as CommunityActivity;
+          const raw = payload.new as Record<string, unknown>;
+          const next: CommunityActivity = {
+            id: String(raw.id),
+            type: normalizeActivityType(String(raw.type || "")),
+            message: String(raw.message || ""),
+            city: raw.city == null ? null : String(raw.city),
+            created_at: String(raw.created_at || new Date().toISOString()),
+            is_public: Boolean(raw.is_public),
+          };
 
           queryClient.setQueryData<CommunityFeedResponse>(
             ["community-activity-feed", limit],
@@ -153,12 +150,8 @@ export function useCommunityActivityFeed(limit = 30) {
                 : {
                     ...base.stats,
                     publicEventCount: base.stats.publicEventCount + 1,
-                    salonCount: next.type === "salon_joined" ? base.stats.salonCount + 1 : base.stats.salonCount,
-                    partnerCount:
-                      next.type === "partner_joined" || next.type === "ambassador_joined"
-                        ? base.stats.partnerCount + 1
-                        : base.stats.partnerCount,
-                    ambassadorCount: next.type === "ambassador_joined" ? base.stats.ambassadorCount + 1 : base.stats.ambassadorCount,
+                    businessCount: isBusinessJoinActivity(next.type) ? base.stats.businessCount + 1 : base.stats.businessCount,
+                    partnerCount: next.type === "partner_joined" ? base.stats.partnerCount + 1 : base.stats.partnerCount,
                     serviceCount: next.type === "service_published" ? base.stats.serviceCount + 1 : base.stats.serviceCount,
                     reservationCount: next.type === "reservation_created" ? base.stats.reservationCount + 1 : base.stats.reservationCount,
                   };
@@ -180,7 +173,7 @@ export function useCommunityActivityFeed(limit = 30) {
 
   const data = query.data ?? {
     stats: DEFAULT_COMMUNITY_STATS,
-    feed: DEFAULT_COMMUNITY_ACTIVITIES.slice(0, limit),
+    feed: [],
   };
 
   return {

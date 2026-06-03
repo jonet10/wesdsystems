@@ -8,6 +8,11 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
+import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDateKeyInTimeZone,
+  shiftDateKey,
+} from "@/lib/timezone-date";
 
 interface Sale {
   id: string;
@@ -33,6 +38,7 @@ export default function SalesAnalyticsPage() {
   }, [branchId, branches]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [items, setItems] = useState<SaleItem[]>([]);
+  const timeZone = DEFAULT_PLATFORM_TIME_ZONE;
 
   useEffect(() => {
     const load = async () => {
@@ -52,23 +58,27 @@ export default function SalesAnalyticsPage() {
     void load();
   }, [activeBranchId]);
 
-  const now = new Date();
-  const today = now.toISOString().split("T")[0];
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const today = getDateKeyInTimeZone(new Date(), timeZone);
+  const weekStart = shiftDateKey(today, -6);
+  const monthStart = `${today.slice(0, 7)}-01`;
 
   const dailyRevenue = useMemo(
-    () => sales.filter((s) => s.created_at.slice(0, 10) === today).reduce((sum, s) => sum + s.total_amount, 0),
+    () => sales.filter((s) => getDateKeyInTimeZone(new Date(s.created_at), timeZone) === today).reduce((sum, s) => sum + s.total_amount, 0),
     [sales, today]
   );
   const weeklyRevenue = useMemo(
-    () => sales.filter((s) => new Date(s.created_at) >= weekStart).reduce((sum, s) => sum + s.total_amount, 0),
-    [sales, weekStart]
+    () => sales.filter((s) => {
+      const saleDate = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
+      return saleDate >= weekStart && saleDate <= today;
+    }).reduce((sum, s) => sum + s.total_amount, 0),
+    [sales, timeZone, today, weekStart]
   );
   const monthlyRevenue = useMemo(
-    () => sales.filter((s) => new Date(s.created_at) >= monthStart).reduce((sum, s) => sum + s.total_amount, 0),
-    [sales, monthStart]
+    () => sales.filter((s) => {
+      const saleDate = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
+      return saleDate >= monthStart && saleDate <= today;
+    }).reduce((sum, s) => sum + s.total_amount, 0),
+    [sales, timeZone, today, monthStart]
   );
 
   const productRevenue = useMemo(() => items.filter((i) => i.item_type === "product").reduce((s, i) => s + i.total_price, 0), [items]);

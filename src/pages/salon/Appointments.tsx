@@ -16,6 +16,7 @@ import { useActiveBranchId } from "@/lib/branch";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { AlertCircle } from "lucide-react";
+import { DEFAULT_PLATFORM_TIME_ZONE, dateFromDateKey, getDateKeyInTimeZone } from "@/lib/timezone-date";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
@@ -23,6 +24,7 @@ export default function AppointmentsPage() {
   const { isAuthenticated, profile } = useAuth();
   const { format, currency } = useCurrency();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const todayKey = getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE);
 
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
@@ -94,7 +96,7 @@ export default function AppointmentsPage() {
   }, [servicesDb, localServices, isAuthenticated]);
 
   const appointments = useMemo(() => {
-    const formattedDateStr = currentDate.toISOString().split("T")[0];
+    const formattedDateStr = getDateKeyInTimeZone(currentDate, DEFAULT_PLATFORM_TIME_ZONE);
     if (isAuthenticated && appointmentsDb.length > 0) {
       return appointmentsDb
         .filter((a: any) => a.appointment_date === formattedDateStr)
@@ -141,7 +143,7 @@ export default function AppointmentsPage() {
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [startTime, setStartTime] = useState("9"); // decimal hour as string
-  const [bookingDate, setBookingDate] = useState(new Date().toISOString().split("T")[0]);
+  const [bookingDate, setBookingDate] = useState(todayKey);
   const [selectedServiceOptions, setSelectedServiceOptions] = useState<string[]>([]);
 
   // ── Client search helpers
@@ -240,6 +242,7 @@ export default function AppointmentsPage() {
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: DEFAULT_PLATFORM_TIME_ZONE,
     });
   };
 
@@ -256,7 +259,7 @@ export default function AppointmentsPage() {
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    setCurrentDate(dateFromDateKey(todayKey));
   };
 
   const handleBooking = async (e: React.FormEvent) => {
@@ -314,7 +317,7 @@ export default function AppointmentsPage() {
         if (error) throw error;
         toast.success(`Le rendez-vous pour ${clientLabel} a été réservé !`);
         setIsOpen(false);
-        setCurrentDate(new Date(bookingDate));
+        setCurrentDate(dateFromDateKey(bookingDate));
         resetForm();
         const aptRes = await supabase.from("salon_appointments").select("*").eq("branch_id", activeBranchId).order("appointment_date");
         if (!aptRes.error) setAppointmentsDb(aptRes.data || []);
@@ -332,7 +335,7 @@ export default function AppointmentsPage() {
       });
       toast.success(`Le rendez-vous pour ${clientLabel} a été réservé (Local) !`);
       setIsOpen(false);
-      setCurrentDate(new Date(bookingDate));
+      setCurrentDate(dateFromDateKey(bookingDate));
       resetForm();
     }
   };
@@ -345,7 +348,7 @@ export default function AppointmentsPage() {
     setSelectedServiceId("");
     setSelectedEmpId("");
     setStartTime("9");
-    setBookingDate(new Date().toISOString().split("T")[0]);
+    setBookingDate(getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE));
     setSelectedServiceOptions([]);
   };
 

@@ -11,6 +11,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { normalizeEmployeeRole, canAccessEmployeePos } from "@/lib/employee-role";
+import {
+  DEFAULT_PLATFORM_TIME_ZONE,
+  getDateKeyInTimeZone,
+  getDayRangeInTimeZone,
+  shiftDateKey,
+} from "@/lib/timezone-date";
 
 interface EmployeeSale {
   id: string;
@@ -26,18 +32,6 @@ interface EmployeeCommission {
   commission_total: number;
   transaction_count: number;
 }
-
-const toIsoStart = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
-
-const toIsoEnd = (date: Date) => {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d.toISOString();
-};
 
 const paymentLabels: Record<string, string> = {
   cash: "Espèces",
@@ -71,12 +65,13 @@ export default function EmployeeDashboard() {
       setLoading(true);
       try {
         const now = new Date();
-        const todayStart = toIsoStart(now);
-        const todayEnd = toIsoEnd(now);
-
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const timeZone = DEFAULT_PLATFORM_TIME_ZONE;
+        const todayKey = getDateKeyInTimeZone(now, timeZone);
+        const weekStartKey = shiftDateKey(todayKey, -6);
+        const monthStartKey = `${todayKey.slice(0, 7)}-01`;
+        const todayRange = getDayRangeInTimeZone(todayKey, timeZone);
+        const weekStartRange = getDayRangeInTimeZone(weekStartKey, timeZone);
+        const monthStartRange = getDayRangeInTimeZone(monthStartKey, timeZone);
 
         if (role === "cashier") {
           const [{ data: todaySales }, { data: weekSales }, { data: monthSales }] = await Promise.all([
@@ -85,23 +80,23 @@ export default function EmployeeDashboard() {
               .select("id, sale_number, total_amount, payment_method, customer_name, created_at")
               .eq("branch_id", branchId)
               .eq("cashier_id", employeeId)
-              .gte("created_at", todayStart)
-              .lte("created_at", todayEnd)
+              .gte("created_at", todayRange.start)
+              .lte("created_at", todayRange.end)
               .order("created_at", { ascending: false }),
             supabase
               .from("salon_sales")
               .select("id, total_amount, created_at")
               .eq("branch_id", branchId)
               .eq("cashier_id", employeeId)
-              .gte("created_at", toIsoStart(weekStart))
-              .lte("created_at", todayEnd),
+              .gte("created_at", weekStartRange.start)
+              .lte("created_at", todayRange.end),
             supabase
               .from("salon_sales")
               .select("id, total_amount, created_at")
               .eq("branch_id", branchId)
               .eq("cashier_id", employeeId)
-              .gte("created_at", toIsoStart(monthStart))
-              .lte("created_at", todayEnd),
+              .gte("created_at", monthStartRange.start)
+              .lte("created_at", todayRange.end),
           ]);
 
           const totalRevenueToday = (todaySales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
@@ -119,24 +114,24 @@ export default function EmployeeDashboard() {
               .select("sale_amount, commission_amount")
               .eq("employee_id", employeeId)
               .eq("branch_id", branchId)
-              .gte("calculated_at", todayStart)
-              .lte("calculated_at", todayEnd)
+              .gte("calculated_at", todayRange.start)
+              .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
             supabase
               .from("commission_transactions")
               .select("sale_amount, commission_amount")
               .eq("employee_id", employeeId)
               .eq("branch_id", branchId)
-              .gte("calculated_at", toIsoStart(weekStart))
-              .lte("calculated_at", todayEnd)
+              .gte("calculated_at", weekStartRange.start)
+              .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
             supabase
               .from("commission_transactions")
               .select("sale_amount, commission_amount")
               .eq("employee_id", employeeId)
               .eq("branch_id", branchId)
-              .gte("calculated_at", toIsoStart(monthStart))
-              .lte("calculated_at", todayEnd)
+              .gte("calculated_at", monthStartRange.start)
+              .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
           ]);
 
@@ -257,7 +252,7 @@ export default function EmployeeDashboard() {
                         <div className="text-right">
                           <p className="text-sm font-semibold">{format(Number(sale.total_amount || 0))}</p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: DEFAULT_PLATFORM_TIME_ZONE })}
                           </p>
                         </div>
                       </div>
