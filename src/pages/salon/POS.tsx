@@ -506,7 +506,7 @@ export default function POSPage() {
     }
     try {
       const tabs = await listPendingTabs(activeBranchId, "open");
-      setPendingTabs(tabs as PendingTabSummary[]);
+      setPendingTabs(Array.isArray(tabs) ? (tabs as PendingTabSummary[]) : []);
     } catch (error) {
       console.warn("Impossible de charger les fiches en attente", error);
       setPendingTabs([]);

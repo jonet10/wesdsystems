@@ -422,65 +422,160 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
 
 const fetchJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${apiBase}${path}`, init);
-  const payload = await response.json().catch(() => null);
-
   if (!response.ok) {
-    throw new Error(payload?.error || "Une erreur est survenue");
+    throw new Error(`API pending-tabs ${response.status}`);
   }
+  const contentType = response.headers.get("content-type");
+  if (!contentType?.includes("application/json")) {
+    throw new Error("API pending-tabs indisponible (réponse non-JSON)");
+  }
+  const payload = await response.json();
+  return (payload?.data ?? payload) as T;
+};
 
-  return (payload?.data ?? payload ?? null) as T;
+const withLocalFallback = async <T>(
+  apiCall: () => Promise<T>,
+  localFallback: () => T
+): Promise<T> => {
+  try {
+    return await apiCall();
+  } catch {
+    console.warn("[pending-tabs] API indisponible, utilisation du stockage local");
+    return localFallback();
+  }
+};
+
+const tryLocalStorage = (): boolean => {
+  try {
+    localStorage.getItem(LOCAL_STORAGE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export async function listPendingTabs(branchId: string, status: "open" | "closed" | "cancelled" = "open") {
-  return fetchJson<PendingTabSummary[]>(`?branch_id=${encodeURIComponent(branchId)}&status=${encodeURIComponent(status)}`);
+  return withLocalFallback(
+    () => fetchJson<PendingTabSummary[]>(`?branch_id=${encodeURIComponent(branchId)}&status=${encodeURIComponent(status)}`),
+    () => {
+      if (!tryLocalStorage()) return [];
+      const state = readLocalState();
+      return state.tabs
+        .filter((tab) => tab.branch_id === branchId && tab.status === status)
+        .map(mapLocalSummary);
+    }
+  );
 }
 
 export async function createPendingTab(input: PendingTabCreateInput) {
-  return fetchJson<PendingTabDetail>("", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>("", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    () => createLocalTab(input)
+  );
 }
 
 export async function getPendingTab(tabId: string) {
-  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}`);
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}`),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      return tab;
+    }
+  );
 }
 
 export async function addPendingTabItem(tabId: string, input: PendingTabItemInput) {
-  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const updated = addLocalItem(tab, input);
+      updateLocalTab(updated);
+      return updated;
+    }
+  );
 }
 
 export async function updatePendingTabItem(tabId: string, itemId: string, quantity: number) {
-  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ quantity }),
-  });
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const items = tab.items.map((item) =>
+        item.id === itemId ? { ...item, quantity, subtotal: quantity * item.unit_price } : item
+      );
+      const updated = { ...tab, items, items_count: items.reduce((s, i) => s + i.quantity, 0), total_amount: items.reduce((s, i) => s + i.subtotal, 0) };
+      updateLocalTab(updated);
+      return updated;
+    }
+  );
 }
 
 export async function deletePendingTabItem(tabId: string, itemId: string) {
-  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
-    method: "DELETE",
-  });
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/items/${encodeURIComponent(itemId)}`, {
+      method: "DELETE",
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const updated = deleteLocalItem(tab, itemId);
+      updateLocalTab(updated);
+      return updated;
+    }
+  );
 }
 
 export async function cancelPendingTab(tabId: string) {
-  return fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/cancel`, {
-    method: "PATCH",
-  });
+  return withLocalFallback(
+    () => fetchJson<PendingTabDetail>(`/${encodeURIComponent(tabId)}/cancel`, {
+      method: "PATCH",
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const updated = { ...tab, status: "cancelled" as const, closed_at: new Date().toISOString() };
+      updateLocalTab(updated);
+      return updated;
+    }
+  );
 }
 
 export async function checkoutPendingTab(tabId: string, input: PendingTabCheckoutInput) {
-  return fetchJson<{ sale: any; items: any[]; tab: PendingTabDetail | null }>(`/${encodeURIComponent(tabId)}/checkout`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+  return withLocalFallback(
+    () => fetchJson<{ sale: any; items: any[]; tab: PendingTabDetail | null }>(`/${encodeURIComponent(tabId)}/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const result = checkoutLocalTab(tab, input) as unknown as { sale: any; items: any[]; tab: PendingTabDetail | null };
+      return result;
+    }
+  );
 }
 
 export async function findClientOptions(query: string, branchId?: string | null) {

@@ -252,7 +252,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {items.map((item) => (
-          <NavItem key={item.path} item={item} />
+          <NavItem key={`${item.path}-${item.label}`} item={item} />
         ))}
       </nav>
 
