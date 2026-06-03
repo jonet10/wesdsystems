@@ -232,6 +232,12 @@ export default function POSPage() {
     }
   }, [employeeSession?.role]);
 
+  useEffect(() => {
+    if (activePendingTab) {
+      setActiveTab("catalogue");
+    }
+  }, [activePendingTab?.id]);
+
   const applyEmployeeBundle = (bundle: EmployeePosBundle) => {
     setProducts((bundle.products || []).map((x) => ({
       id: x.id,
@@ -504,6 +510,7 @@ export default function POSPage() {
     try {
       const tab = await getPendingTab(tabId);
       setActivePendingTab(tab as PendingTabDetail);
+      setActiveTab("catalogue");
       const mappedItems = (tab?.items || []).map((item: any) => mapPendingItemToCart(item));
       setCart(mappedItems);
       setPendingTabDraftItems(mappedItems);
@@ -545,6 +552,7 @@ export default function POSPage() {
     setPendingTabClientQuery("");
     setPendingTabClientResults([]);
     setSelectedClient(null);
+    setActiveTab("catalogue");
     setDiscountPercent(0);
     setPaymentMethod("cash");
     setPaymentSplits(EMPTY_PAYMENT_SPLITS);
@@ -636,6 +644,7 @@ export default function POSPage() {
       setPendingTabClientQuery("");
       setPendingTabClientResults([]);
       setPendingTabSelectedClient(null);
+      setActiveTab("catalogue");
       toast.success(`Fiche ${tab.tab_number} ouverte`);
       await loadPendingTabDetail(tab.id);
     } catch (error: any) {
@@ -1209,7 +1218,7 @@ export default function POSPage() {
                 </ScrollArea>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                Le catalogue regroupe les produits définis par l’admin et les prestations/services actifs pour votre branche.
+                Le catalogue regroupe les produits et les prestations définis par l’admin et actifs pour votre branche.
               </p>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
