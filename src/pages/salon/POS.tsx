@@ -137,6 +137,19 @@ const mapPendingItemToCart = (item: {
   pending_item_id: item.id,
 });
 
+const describeRpcError = (err: unknown) => {
+  if (!err || typeof err !== "object") return String(err || "Erreur inconnue");
+  const typed = err as Record<string, any>;
+  const parts = [
+    typed.message,
+    typed.details,
+    typed.hint,
+    typed.code ? `code=${typed.code}` : null,
+    typed.status ? `status=${typed.status}` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" | ") : JSON.stringify(typed);
+};
+
 export default function POSPage() {
   const { user, profile: authProfile, employeeSession } = useAuth();
   const { currencyCode, format } = useCurrency();
@@ -262,6 +275,9 @@ export default function POSPage() {
       if (isEmployeeSession && employeeSession?.session_token) {
         const data = await fetchEmployeePosBundle(employeeSession.session_token, branchIdToUse);
         applyEmployeeBundle(data);
+        if ((data.products || []).length === 0 && (data.services || []).length === 0) {
+          toast.warning("La session employé est valide, mais aucun produit ni service n'a été trouvé pour cette branche.");
+        }
         return;
       }
 
@@ -283,8 +299,10 @@ export default function POSPage() {
       setServices((s || []).map(x => ({ ...x, unit_price: Number(x.price_htg || 0), type: "service" as const })));
       setPromotions((promos || []) as Promotion[]);
     } catch (err) {
+      const message = describeRpcError(err);
       console.error("Erreur chargement POS:", err);
-      toast.error("Impossible de charger le catalogue");
+      console.error("Erreur chargement POS (détaillée):", message);
+      toast.error(message || "Impossible de charger le catalogue");
     }
   };
 

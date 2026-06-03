@@ -171,6 +171,11 @@ DECLARE
   v_promotions JSONB;
   v_staff JSONB;
 BEGIN
+  v_products := '[]'::jsonb;
+  v_services := '[]'::jsonb;
+  v_promotions := '[]'::jsonb;
+  v_staff := '[]'::jsonb;
+
   SELECT *
   INTO v_session
   FROM public.resolve_employee_session(p_session_token);
@@ -183,26 +188,34 @@ BEGIN
     RAISE EXCEPTION 'Accès non autorisé à cette branche' USING ERRCODE = '42501';
   END IF;
 
-  SELECT
-    sb.id,
-    sb.business_id,
-    sb.name AS branch_name,
-    sb.phone,
-    sb.email,
-    sb.address
-  INTO v_branch
-  FROM public.salon_branches sb
-  WHERE sb.id = v_session.branch_id
-  LIMIT 1;
+  BEGIN
+    SELECT
+      sb.id,
+      sb.business_id,
+      sb.name AS branch_name,
+      sb.phone,
+      sb.email,
+      sb.address
+    INTO v_branch
+    FROM public.salon_branches sb
+    WHERE sb.id = v_session.branch_id
+    LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    v_branch := NULL;
+  END;
 
-  SELECT
-    b.id,
-    b.name,
-    b.logo_url
-  INTO v_business
-  FROM public.businesses b
-  WHERE b.id = v_session.business_id
-  LIMIT 1;
+  BEGIN
+    SELECT
+      b.id,
+      b.name,
+      b.logo_url
+    INTO v_business
+    FROM public.businesses b
+    WHERE b.id = v_session.business_id
+    LIMIT 1;
+  EXCEPTION WHEN OTHERS THEN
+    v_business := NULL;
+  END;
 
   v_employee := jsonb_build_object(
     'id', v_session.employee_id,
@@ -211,99 +224,115 @@ BEGIN
     'branch_id', v_session.branch_id
   );
 
-  SELECT COALESCE(
-    jsonb_agg(
-      jsonb_build_object(
-        'id', p.id,
-        'name', p.name,
-        'unit_price', COALESCE(p.unit_price, 0),
-        'category', p.category,
-        'quantity_in_stock', COALESCE(p.quantity_in_stock, 0),
-        'barcode', p.barcode
-      )
-      ORDER BY p.name
-    ),
-    '[]'::jsonb
-  )
-  INTO v_products
-  FROM public.salon_products p
-  WHERE p.branch_id = v_session.branch_id
-    AND p.is_active = true;
+  BEGIN
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', p.id,
+          'name', p.name,
+          'unit_price', COALESCE(p.unit_price, 0),
+          'category', p.category,
+          'quantity_in_stock', COALESCE(p.quantity_in_stock, 0),
+          'barcode', p.barcode
+        )
+        ORDER BY p.name
+      ),
+      '[]'::jsonb
+    )
+    INTO v_products
+    FROM public.salon_products p
+    WHERE p.branch_id = v_session.branch_id
+      AND p.is_active = true;
+  EXCEPTION WHEN OTHERS THEN
+    v_products := '[]'::jsonb;
+  END;
 
-  SELECT COALESCE(
-    jsonb_agg(
-      jsonb_build_object(
-        'id', s.id,
-        'name', s.name,
-        'price_htg', COALESCE(s.price_htg, 0),
-        'category_id', s.category_id,
-        'metadata', COALESCE(s.metadata, '{}'::jsonb)
-      )
-      ORDER BY s.name
-    ),
-    '[]'::jsonb
-  )
-  INTO v_services
-  FROM public.salon_services s
-  WHERE s.branch_id = v_session.branch_id
-    AND s.is_active = true;
+  BEGIN
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', s.id,
+          'name', s.name,
+          'price_htg', COALESCE(s.price_htg, 0),
+          'category_id', s.category_id,
+          'metadata', COALESCE(s.metadata, '{}'::jsonb)
+        )
+        ORDER BY s.name
+      ),
+      '[]'::jsonb
+    )
+    INTO v_services
+    FROM public.salon_services s
+    WHERE s.branch_id = v_session.branch_id
+      AND s.is_active = true;
+  EXCEPTION WHEN OTHERS THEN
+    v_services := '[]'::jsonb;
+  END;
 
-  SELECT COALESCE(
-    jsonb_agg(
-      jsonb_build_object(
-        'id', pr.id,
-        'name', pr.name,
-        'description', pr.description,
-        'promotion_type', pr.promotion_type,
-        'discount_value', pr.discount_value,
-        'discount_percentage', pr.discount_percentage,
-        'items_config', COALESCE(pr.items_config, '{}'::jsonb),
-        'minimum_quantity', pr.minimum_quantity
-      )
-      ORDER BY pr.name
-    ),
-    '[]'::jsonb
-  )
-  INTO v_promotions
-  FROM public.salon_promotions pr
-  WHERE pr.branch_id = v_session.branch_id
-    AND pr.is_active = true
-    AND pr.valid_from <= current_date
-    AND pr.valid_until >= current_date;
+  BEGIN
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', pr.id,
+          'name', pr.name,
+          'description', pr.description,
+          'promotion_type', pr.promotion_type,
+          'discount_value', pr.discount_value,
+          'discount_percentage', pr.discount_percentage,
+          'items_config', COALESCE(pr.items_config, '{}'::jsonb),
+          'minimum_quantity', pr.minimum_quantity
+        )
+        ORDER BY pr.name
+      ),
+      '[]'::jsonb
+    )
+    INTO v_promotions
+    FROM public.salon_promotions pr
+    WHERE pr.branch_id = v_session.branch_id
+      AND pr.is_active = true
+      AND pr.valid_from <= current_date
+      AND pr.valid_until >= current_date;
+  EXCEPTION WHEN OTHERS THEN
+    v_promotions := '[]'::jsonb;
+  END;
 
-  SELECT COALESCE(
-    jsonb_agg(
-      jsonb_build_object(
-        'id', e.id,
-        'first_name', e.first_name,
-        'last_name', e.last_name,
-        'role', e.role,
-        'commission_percentage', COALESCE(e.commission_percentage, 0),
-        'metadata', COALESCE(e.metadata, '{}'::jsonb),
-        'is_active', e.is_active
-      )
-      ORDER BY e.first_name, e.last_name
-    ),
-    '[]'::jsonb
-  )
-  INTO v_staff
-  FROM public.salon_employees e
-  WHERE e.branch_id = v_session.branch_id
-    AND e.is_active = true;
+  BEGIN
+    SELECT COALESCE(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', e.id,
+          'first_name', e.first_name,
+          'last_name', e.last_name,
+          'role', e.role,
+          'commission_percentage', COALESCE(e.commission_percentage, 0),
+          'metadata', COALESCE(e.metadata, '{}'::jsonb),
+          'is_active', e.is_active
+        )
+        ORDER BY e.first_name, e.last_name
+      ),
+      '[]'::jsonb
+    )
+    INTO v_staff
+    FROM public.salon_employees e
+    WHERE e.branch_id = v_session.branch_id
+      AND e.is_active = true;
+  EXCEPTION WHEN OTHERS THEN
+    v_staff := '[]'::jsonb;
+  END;
 
   RETURN jsonb_build_object(
     'employee', v_employee,
     'branch', jsonb_build_object(
-      'id', v_branch.id,
-      'business_id', v_branch.business_id,
-      'name', v_branch.branch_name,
+      'id', COALESCE(v_branch.id, v_session.branch_id),
+      'business_id', COALESCE(v_branch.business_id, v_session.business_id),
+      'name', COALESCE(v_branch.branch_name, 'Branche'),
       'phone', v_branch.phone,
       'email', v_branch.email,
       'address', v_branch.address
     ),
     'business', jsonb_build_object(
-      'id', v_business.id,
-      'name', v_business.name,
+      'id', COALESCE(v_business.id, v_session.business_id),
+      'name', COALESCE(v_business.name, 'Entreprise'),
       'logo_url', v_business.logo_url
     ),
     'products', v_products,
