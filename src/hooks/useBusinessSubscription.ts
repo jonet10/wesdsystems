@@ -64,7 +64,16 @@ export function useBusinessSubscription() {
         subscription = { ...subscription, status: "expired" as const };
       }
 
-      const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trialing" || subscription?.status === "past_due" || (subscription?.status === "expired" && subscription.end_date && !isEndDatePassed);
+      if (subscription && subscription.status === "expired" && !isEndDatePassed) {
+        await supabase
+          .from("business_subscriptions")
+          .update({ status: "active" })
+          .eq("id", subscription.id);
+
+        subscription = { ...subscription, status: "active" as const };
+      }
+
+      const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trialing" || subscription?.status === "past_due" || (subscription?.status === "expired" && !isEndDatePassed);
 
       subscription = subscription?.status && isSubscriptionActive ? subscription : null;
       const planId = subscription?.plan_id ?? null;
