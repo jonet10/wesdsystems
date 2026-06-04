@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Calendar, Users, Clock, Plus, TrendingUp, DollarSign,
   Scissors, Beer, Package, ShoppingBag, ArrowRight,
-  CheckCircle2, XCircle, AlertCircle
+  CheckCircle2, XCircle, AlertCircle, GraduationCap
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { glowupStore } from "@/lib/store";
@@ -21,6 +21,7 @@ import { motion } from "framer-motion";
 import { CreditCard } from "lucide-react";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
+import { toast } from "sonner";
 import {
   DEFAULT_PLATFORM_TIME_ZONE,
   getDatePartsInTimeZone,
@@ -62,6 +63,8 @@ export default function SalonDashboard() {
   const [lowStockCount, setLowStockCount] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; revenue: number; appointments: number }[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [onWaitlist, setOnWaitlist] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -185,6 +188,31 @@ export default function SalonDashboard() {
     window.addEventListener("glowup-store-update", handleUpdate);
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, [activeBranchId, isAuthenticated]);
+
+  useEffect(() => {
+    if (!profile?.business_id) return;
+    supabase.from("school_payments_waitlist").select("id").eq("business_id", profile.business_id).maybeSingle().then(({ data }) => setOnWaitlist(!!data));
+  }, [profile?.business_id]);
+
+  const joinWaitlist = async () => {
+    if (!profile?.business_id || !profile?.email) return toast.error("Profil introuvable");
+    setJoinLoading(true);
+    try {
+      const { error } = await supabase.from("school_payments_waitlist").insert({
+        business_id: profile.business_id,
+        business_name: profile.business_name || "Mon entreprise",
+        contact_email: profile.email,
+        contact_phone: profile.phone || null,
+      });
+      if (error) throw error;
+      setOnWaitlist(true);
+      toast.success("Vous êtes inscrit sur la liste d'attente !");
+    } catch (err: any) {
+      toast.error(err.message || "Erreur d'inscription");
+    } finally {
+      setJoinLoading(false);
+    }
+  };
 
   const todayStr = getDateKeyInTimeZone(new Date(), dashboardTimeZone);
   const todayApts = appointments.filter((a: any) => a.date === todayStr);
@@ -499,6 +527,30 @@ export default function SalonDashboard() {
                   {recentSales.length === 0 && (
                     <p className="text-xs text-muted-foreground text-center py-2">Aucune vente aujourd'hui</p>
                   )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                    <GraduationCap className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">Paiements Scolaires</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Gestion des élèves, professeurs, frais scolaires, écolage, réinscription, uniformes, transport, cantine, reçus, historique et rapports financiers.
+                    </p>
+                    <p className="text-[11px] text-amber-400/80 font-medium mt-2">🚧 Module en cours de développement</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 h-8 text-xs gap-1.5"
+                      disabled={onWaitlist || joinLoading}
+                      onClick={joinWaitlist}
+                    >
+                      {joinLoading ? "Inscription..." : onWaitlist ? "✅ Inscrit" : "Rejoindre la liste d'attente"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
