@@ -45,11 +45,20 @@ export function useBusinessSubscription() {
         .from("business_subscriptions")
         .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
         .eq("business_id", businessId)
-        .in("status", ["active", "trialing", "past_due", "expired"])
-        .order("created_at", { ascending: false })
-        .limit(1);
+        .order("created_at", { ascending: false });
 
-      let subscription = (rawSubscriptions?.[0] as BusinessSubscription | null) ?? null;
+      const statusPriority: Record<string, number> = { active: 0, trialing: 1, past_due: 2, expired: 3 };
+      const subscriptions = ((rawSubscriptions || []) as BusinessSubscription[]).filter(s => s.status in statusPriority);
+      const sorted = subscriptions.sort((a, b) => {
+        const pa = statusPriority[a.status] ?? 99;
+        const pb = statusPriority[b.status] ?? 99;
+        if (pa !== pb) return pa - pb;
+        if (a.end_date && !b.end_date) return -1;
+        if (!a.end_date && b.end_date) return 1;
+        return 0;
+      });
+
+      let subscription = sorted[0] ?? null;
 
       const isEndDatePassed = subscription?.end_date
         ? new Date(subscription.end_date + "T23:59:59") < new Date()
