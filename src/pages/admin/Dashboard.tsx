@@ -41,7 +41,7 @@ type BusinessRow = {
 
 type PlatformModule = {
   name: string;
-  phase: "complete" | "building";
+  phase: "complete" | "building" | "coming_soon";
   description: string;
   label: string;
 };
@@ -100,6 +100,12 @@ const platformModules: PlatformModule[] = [
     phase: "complete",
     label: "Complet",
     description: "Catalogue, stock, caisse, fournisseurs et compatibilité véhicules.",
+  },
+  {
+    name: "Paiements Scolaires",
+    phase: "coming_soon",
+    label: "À venir",
+    description: "Gestion des élèves, professeurs, frais scolaires, paiements et rapports financiers.",
   },
 ];
 
@@ -410,7 +416,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold font-display">{platformModules.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">Salon, Pharmacie, Bar & resto, Market, Boutique, Pièces Auto</p>
+                <p className="text-xs text-muted-foreground mt-1">Salon, Pharmacie, Bar & resto, Market, Boutique, Pièces Auto, Paiements Scolaires</p>
               </CardContent>
             </Card>
           </div>
@@ -423,11 +429,17 @@ export default function SuperAdminDashboard() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-3">
                     <CardTitle className="text-sm">{module.name}</CardTitle>
-                    <Badge variant={module.phase === "complete" ? "default" : "secondary"}>{module.label}</Badge>
+                    <Badge variant={module.phase === "complete" ? "default" : module.phase === "coming_soon" ? "outline" : "secondary"}>{module.label}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground leading-5">{module.description}</p>
+                  {module.phase === "coming_soon" && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] text-amber-400/80 font-medium">🚧 Module en cours de développement</p>
+                      <p className="text-[11px] text-muted-foreground">✅ Gestion des élèves · Professeurs · Frais scolaires · Écolage · Réinscription · Uniformes · Transport · Cantine · Reçus · Historique · Rapports</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

@@ -23,7 +23,7 @@ import {
   Workflow,
 } from "lucide-react";
 
-type ModuleStatus = "complete" | "building" | "suspended";
+type ModuleStatus = "complete" | "building" | "suspended" | "coming_soon";
 
 interface PlatformModuleRow {
   id: string;
@@ -99,6 +99,16 @@ const DEFAULT_MODULES: PlatformModuleRow[] = [
     owner: "Produit pièces auto",
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: "school-payments",
+    name: "Paiements Scolaires",
+    vertical: "education",
+    status: "coming_soon",
+    progress: 0,
+    description: "Gestion des élèves, professeurs, frais scolaires, paiements et rapports financiers.",
+    owner: "Produit éducation",
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 function statusMeta(status: ModuleStatus) {
@@ -109,6 +119,8 @@ function statusMeta(status: ModuleStatus) {
       return { label: "En construction", className: "bg-cyan-500/15 text-cyan-300 border-cyan-500/20" };
     case "suspended":
       return { label: "Suspendu", className: "bg-rose-500/15 text-rose-300 border-rose-500/20" };
+    case "coming_soon":
+      return { label: "À venir", className: "bg-amber-500/15 text-amber-300 border-amber-500/20" };
   }
 }
 
@@ -300,6 +312,7 @@ export default function ModulesPage() {
                     <SelectItem value="complete">Complet</SelectItem>
                     <SelectItem value="building">En construction</SelectItem>
                     <SelectItem value="suspended">Suspendu</SelectItem>
+                    <SelectItem value="coming_soon">À venir</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
