@@ -1,7 +1,8 @@
-import { apiSupabase } from "../supabase";
-import { json } from "../pending-tabs/shared";
-import { MONCASH_PUBLIC_URLS } from "../../src/lib/moncash";
-import { retrieveMonCashTransaction } from "./service";
+import { apiSupabase } from "../supabase.js";
+import { json } from "../pending-tabs/shared.js";
+import { retrieveMonCashTransaction } from "./service.js";
+
+const PUBLIC_URL = "https://wesdsystems.store";
 
 const addBillingCycle = (start: Date, billingCycle: string, durationMonths = 1) => {
   const next = new Date(start);
@@ -174,7 +175,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === "GET" && req.query?.redirect !== "0") {
-      const url = new URL(MONCASH_PUBLIC_URLS.alertUrl);
+      const url = new URL(`${PUBLIC_URL}/moncash/confirmation`);
       url.searchParams.set("status", isSuccessful ? "success" : "failed");
       if (resolvedTransactionId) url.searchParams.set("transaction_id", resolvedTransactionId);
       if (resolvedOrderId) url.searchParams.set("reference", resolvedOrderId);
@@ -187,7 +188,7 @@ export default async function handler(req: any, res: any) {
         status: isSuccessful ? "success" : "failed",
         transaction_id: resolvedTransactionId || null,
         reference: resolvedOrderId || null,
-        alert_url: MONCASH_PUBLIC_URLS.alertUrl,
+        alert_url: `${PUBLIC_URL}/moncash/confirmation`,
       },
     });
   } catch (error: any) {

@@ -1,4 +1,4 @@
-import { json, loadTabDetail } from "./shared";
+import { json, loadTabDetail } from "./shared.js";
 
 export default async function handler(req: any, res: any) {
   try {

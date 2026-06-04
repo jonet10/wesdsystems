@@ -1,6 +1,6 @@
-import { apiSupabase } from "../../supabase";
-import { json } from "../../pending-tabs/shared";
-import { createMonCashPayment } from "../service";
+import { apiSupabase } from "../../supabase.js";
+import { json } from "../../pending-tabs/shared.js";
+import { createMonCashPayment } from "../service.js";
 
 const toNumber = (value: unknown) => Number(value || 0);
 

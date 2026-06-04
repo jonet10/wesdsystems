@@ -1,5 +1,5 @@
 import type { PendingTabDetail, PendingTabSummary } from "../../src/modules/salon/pending-tabs";
-import { apiSupabase } from "../supabase";
+import { apiSupabase } from "../supabase.js";
 
 const json = (res: any, status: number, payload: any) => {
   res.status(status).json(payload);
