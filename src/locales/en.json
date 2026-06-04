@@ -35,6 +35,14 @@
     "boutique": {
       "name": "Boutique & Retail",
       "desc": "Product variants, loyalty CRM, promotions, custom receipts."
+    },
+    "auto_parts": {
+      "name": "Auto Parts",
+      "desc": "Catalog, inventory, POS, supplier orders, vehicle compatibility."
+    },
+    "school_payments": {
+      "name": "School Payments",
+      "desc": "Student & teacher management, tuition, uniforms, transport, meal plans, receipts."
     }
   },
   "pricing": {

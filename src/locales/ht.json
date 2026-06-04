@@ -35,6 +35,14 @@
     "boutique": {
       "name": "Boutik & Vann an detay",
       "desc": "Varyant pwodwi, CRM pou fidelize kliyan, pwomosyon, resi pèsonalize."
+    },
+    "auto_parts": {
+      "name": "Pyès Oto",
+      "desc": "Katalòg, envantè, kès, kòmand founisè, konpatibilite machin."
+    },
+    "school_payments": {
+      "name": "Peman Scolè",
+      "desc": "Jesyon elèv & pwofesè, frè lekòl, inifòm, transpò, kantine, resi."
     }
   },
   "pricing": {

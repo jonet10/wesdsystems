@@ -35,6 +35,14 @@
     "boutique": {
       "name": "Boutique & Retail",
       "desc": "Variantes de produits, CRM fidélité, promotions, reçus personnalisés."
+    },
+    "auto_parts": {
+      "name": "Pièces Auto",
+      "desc": "Catalogue, stock, caisse, commandes fournisseurs, compatibilité véhicules."
+    },
+    "school_payments": {
+      "name": "Paiements Scolaires",
+      "desc": "Gestion des élèves & professeurs, frais scolaires, uniformes, transport, cantine, reçus."
     }
   },
   "pricing": {

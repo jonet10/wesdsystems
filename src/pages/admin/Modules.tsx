@@ -131,7 +131,12 @@ function loadModules(): PlatformModuleRow[] {
   try {
     const parsed = JSON.parse(raw) as PlatformModuleRow[];
     if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_MODULES;
-    return parsed;
+    const savedMap = new Map(parsed.map((m) => [m.id, m]));
+    const merged = DEFAULT_MODULES.map((def) => {
+      const saved = savedMap.get(def.id);
+      return saved ? { ...def, ...saved, id: def.id } : def;
+    });
+    return merged;
   } catch {
     return DEFAULT_MODULES;
   }
@@ -181,6 +186,7 @@ export default function ModulesPage() {
       complete: modules.filter((module) => module.status === "complete").length,
       building: modules.filter((module) => module.status === "building").length,
       suspended: modules.filter((module) => module.status === "suspended").length,
+      comingSoon: modules.filter((module) => module.status === "coming_soon").length,
     };
   }, [modules]);
 

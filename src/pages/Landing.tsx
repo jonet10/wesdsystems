@@ -15,6 +15,7 @@ import {
   DollarSign,
   FileText,
   Globe,
+  GraduationCap,
   LayoutGrid,
   Layers,
   Menu,
@@ -50,6 +51,8 @@ const businessKeys = [
   { id: "restaurant", icon: Utensils },
   { id: "market", icon: ShoppingBag },
   { id: "boutique", icon: Building },
+  { id: "auto_parts", icon: Zap },
+  { id: "school_payments", icon: GraduationCap },
 ] as const;
 
 const LANGUAGE_CODES = ["en", "fr", "es", "ht"] as const;
@@ -451,7 +454,7 @@ export default function Landing() {
             </a>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {businessKeys.map((business) => {
               const Icon = business.icon;
               return (
