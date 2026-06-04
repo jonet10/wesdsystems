@@ -66,12 +66,19 @@ export default function MonCashSubscriptionPayPage() {
 
     setLoading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
       const response = await fetch("/api/moncash/subscription/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           business_id: businessId,
           plan_id: planId,
+          business_name: businessName,
           payment_id: paymentId || existingPaymentId || undefined,
           billing_cycle: billingCycle,
           duration_months: durationMonths,

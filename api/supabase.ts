@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||
@@ -16,4 +17,10 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const apiSupabase = createClient(supabaseUrl, supabaseKey);
+
+export function createClientWithAuth(authToken: string): SupabaseClient {
+  return createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: `Bearer ${authToken}` } },
+  });
+}
 
