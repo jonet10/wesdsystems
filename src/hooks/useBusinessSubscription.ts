@@ -45,13 +45,17 @@ export function useBusinessSubscription() {
         .from("business_subscriptions")
         .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
         .eq("business_id", businessId)
-        .in("status", ["active", "trialing", "past_due"])
+        .in("status", ["active", "trialing", "past_due", "expired"])
         .order("created_at", { ascending: false })
         .limit(1);
 
       let subscription = (rawSubscriptions?.[0] as BusinessSubscription | null) ?? null;
 
-      if (subscription && subscription.end_date && new Date(subscription.end_date) < new Date()) {
+      const isEndDatePassed = subscription?.end_date
+        ? new Date(subscription.end_date + "T23:59:59") < new Date()
+        : false;
+
+      if (subscription && isEndDatePassed) {
         await supabase
           .from("business_subscriptions")
           .update({ status: "expired" })
@@ -60,7 +64,9 @@ export function useBusinessSubscription() {
         subscription = { ...subscription, status: "expired" as const };
       }
 
-      subscription = subscription?.status && !["expired", "cancelled"].includes(subscription.status) ? subscription : null;
+      const isSubscriptionActive = subscription?.status === "active" || subscription?.status === "trialing" || subscription?.status === "past_due" || (subscription?.status === "expired" && subscription.end_date && !isEndDatePassed);
+
+      subscription = subscription?.status && isSubscriptionActive ? subscription : null;
       const planId = subscription?.plan_id ?? null;
 
       let plan: SubscriptionPlan | null = null;
@@ -137,7 +143,7 @@ export function useBusinessSubscription() {
         features,
         maxBranches: plan?.max_branches ?? defaultLimits.maxBranches,
         maxStaff: plan?.max_staff ?? defaultLimits.maxStaff,
-        isActive: Boolean(subscription && subscription.status && !["expired", "cancelled"].includes(subscription.status) && plan?.active !== false),
+        isActive: Boolean(subscription && isSubscriptionActive && plan?.active !== false),
       };
     },
   });
