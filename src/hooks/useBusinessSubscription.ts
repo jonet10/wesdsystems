@@ -45,7 +45,7 @@ export function useBusinessSubscription() {
         .from("business_subscriptions")
         .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
         .eq("business_id", businessId)
-        .in("status", ["active"])
+        .in("status", ["active", "trialing", "past_due"])
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -60,7 +60,7 @@ export function useBusinessSubscription() {
         subscription = { ...subscription, status: "expired" as const };
       }
 
-      subscription = subscription?.status === "active" ? subscription : null;
+      subscription = subscription?.status && !["expired", "cancelled"].includes(subscription.status) ? subscription : null;
       const planId = subscription?.plan_id ?? null;
 
       let plan: SubscriptionPlan | null = null;
@@ -137,7 +137,7 @@ export function useBusinessSubscription() {
         features,
         maxBranches: plan?.max_branches ?? defaultLimits.maxBranches,
         maxStaff: plan?.max_staff ?? defaultLimits.maxStaff,
-        isActive: Boolean(subscription && subscription.status === "active" && plan?.active !== false),
+        isActive: Boolean(subscription && subscription.status && !["expired", "cancelled"].includes(subscription.status) && plan?.active !== false),
       };
     },
   });
