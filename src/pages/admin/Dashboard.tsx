@@ -95,6 +95,12 @@ const platformModules: PlatformModule[] = [
     label: "En construction",
     description: "Stocks, produits et caisse sont préparés pour le prochain déploiement.",
   },
+  {
+    name: "Pièces Auto",
+    phase: "complete",
+    label: "Complet",
+    description: "Catalogue, stock, caisse, fournisseurs et compatibilité véhicules.",
+  },
 ];
 
 export default function SuperAdminDashboard() {
@@ -404,7 +410,7 @@ export default function SuperAdminDashboard() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold font-display">{platformModules.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">Salon, Pharmacie, Bar & resto, Market, Boutique</p>
+                <p className="text-xs text-muted-foreground mt-1">Salon, Pharmacie, Bar & resto, Market, Boutique, Pièces Auto</p>
               </CardContent>
             </Card>
           </div>

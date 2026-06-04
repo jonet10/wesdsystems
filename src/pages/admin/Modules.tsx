@@ -89,6 +89,16 @@ const DEFAULT_MODULES: PlatformModuleRow[] = [
     owner: "Produit boutique",
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: "auto-parts",
+    name: "Pièces Auto",
+    vertical: "automotive",
+    status: "complete",
+    progress: 100,
+    description: "Catalogue pièces, stock, caisse, fournisseurs et compatibilité véhicules.",
+    owner: "Produit pièces auto",
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 function statusMeta(status: ModuleStatus) {

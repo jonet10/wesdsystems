@@ -264,6 +264,7 @@ export default function Register() {
                         <option value="restaurant">🍔 Restaurant, Café & Bar</option>
                         <option value="market">🛒 Provision & Supermarché</option>
                         <option value="boutique">🛍️ Boutique Générale / Habillement</option>
+                        <option value="auto_parts">🔧 Pièces Auto & Mécanique</option>
                       </select>
                     </div>
                   </div>
