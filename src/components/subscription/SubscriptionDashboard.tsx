@@ -310,7 +310,8 @@ export function SubscriptionDashboard() {
           onOpenChange={(open) => { if (!open) setCheckoutPlan(null); }}
           planId={checkoutPlan.id}
           planName={checkoutPlan.name}
-          amount={checkoutPlan.price}
+          monthlyPrice={Number(checkoutPlan.monthly_price || checkoutPlan.price || 0)}
+          yearlyPrice={Number(checkoutPlan.yearly_price || 0)}
           currencyCode="HTG"
           businessId={businessId}
           businessName={profile?.business_name || undefined}

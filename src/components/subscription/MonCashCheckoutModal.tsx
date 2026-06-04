@@ -11,15 +11,28 @@ interface MonCashCheckoutModalProps {
   onOpenChange: (open: boolean) => void;
   planId: string;
   planName: string;
-  amount: number;
+  monthlyPrice: number;
+  yearlyPrice?: number;
   currencyCode: string;
   businessId: string;
   businessName?: string;
 }
 
-export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amount, currencyCode, businessId, businessName }: MonCashCheckoutModalProps) {
+const DURATIONS = [
+  { months: 1, label: "1 mois" },
+  { months: 3, label: "3 mois" },
+  { months: 6, label: "6 mois" },
+  { months: 12, label: "12 mois" },
+] as const;
+
+export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, monthlyPrice, yearlyPrice, currencyCode, businessId, businessName }: MonCashCheckoutModalProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [durationMonths, setDurationMonths] = useState(1);
+
+  const totalAmount = durationMonths === 12 && yearlyPrice && yearlyPrice > 0
+    ? yearlyPrice
+    : monthlyPrice * durationMonths;
 
   const handleContinue = async () => {
     setLoading(true);
@@ -27,7 +40,7 @@ export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amo
       const { data, error } = await supabase.from("subscription_payments").insert({
         business_id: businessId,
         plan_id: planId,
-        amount,
+        amount: totalAmount,
         currency_code: currencyCode,
         payment_method: "moncash",
         transaction_reference: "",
@@ -42,8 +55,10 @@ export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amo
       params.set("business_id", businessId);
       params.set("plan_id", planId);
       params.set("plan_name", planName);
-      params.set("amount", String(amount));
+      params.set("amount", String(totalAmount));
       params.set("currency_code", currencyCode);
+      params.set("duration_months", String(durationMonths));
+      params.set("billing_cycle", durationMonths === 12 ? "yearly" : "monthly");
       if (businessName) params.set("business_name", businessName);
 
       onOpenChange(false);
@@ -64,9 +79,41 @@ export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amo
             Paiement {planName}
           </DialogTitle>
           <DialogDescription>
-            Vérifiez les détails avant d'être redirigé vers MonCash.
+            Choisissez la durée puis vérifiez les détails avant d'être redirigé vers MonCash.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">Durée d'abonnement</p>
+          <div className="grid grid-cols-4 gap-2">
+            {DURATIONS.map((d) => {
+              const dTotal = d.months === 12 && yearlyPrice && yearlyPrice > 0
+                ? yearlyPrice
+                : monthlyPrice * d.months;
+              const isYearlyDeal = d.months === 12 && yearlyPrice && yearlyPrice > 0 && yearlyPrice < monthlyPrice * 12;
+              return (
+                <button
+                  key={d.months}
+                  type="button"
+                  onClick={() => setDurationMonths(d.months)}
+                  className={`relative flex flex-col items-center gap-1 rounded-xl border p-3 text-sm transition-all ${
+                    durationMonths === d.months
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                      : "border-border bg-muted/30 hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <span className="font-semibold">{d.label}</span>
+                  <span className="text-xs text-muted-foreground">{dTotal.toLocaleString()} HTG</span>
+                  {isYearlyDeal && (
+                    <span className="absolute -top-2 -right-2 bg-green-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-semibold">
+                      -{Math.round((1 - yearlyPrice / (monthlyPrice * 12)) * 100)}%
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="rounded-xl bg-muted/50 p-4 space-y-3">
           <div className="flex items-center justify-between text-sm">
@@ -74,8 +121,18 @@ export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amo
             <span className="font-medium">{planName}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Montant</span>
-            <span className="font-medium">{amount.toLocaleString()} {currencyCode}</span>
+            <span className="text-muted-foreground">Durée</span>
+            <span className="font-medium">{durationMonths} mois</span>
+          </div>
+          {durationMonths > 1 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Prix mensuel</span>
+              <span>{monthlyPrice.toLocaleString()} HTG</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-border pt-2">
+            <span className="font-semibold">Total à payer</span>
+            <span className="text-lg font-bold font-display">{totalAmount.toLocaleString()} {currencyCode}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Mode de paiement</span>
@@ -99,7 +156,7 @@ export function MonCashCheckoutModal({ open, onOpenChange, planId, planName, amo
             ) : (
               <>
                 <CreditCard className="mr-2 h-4 w-4" />
-                Continuer vers MonCash
+                Payer {totalAmount.toLocaleString()} {currencyCode}
               </>
             )}
           </Button>
