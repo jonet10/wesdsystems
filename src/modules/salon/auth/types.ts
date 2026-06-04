@@ -22,6 +22,7 @@ export interface EmployeeCatalogService {
   price_htg: number;
   category_id?: string | null;
   metadata?: Record<string, any> | null;
+  requires_employee?: boolean;
 }
 
 export interface EmployeeCatalogPromotion {

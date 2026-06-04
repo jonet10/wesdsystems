@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PrintHeader } from "@/components/shared/PrintHeader";
 import { Printer, AlertCircle } from "lucide-react";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 export default function ClientsPage() {
   const { isAuthenticated, profile } = useAuth();
@@ -262,10 +263,11 @@ export default function ClientsPage() {
       subtitle="Gérez votre base clients"
       userName="Marie Laurent"
     >
-      <div className="print-header-container">
-        <PrintHeader />
-      </div>
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <div className="print-header-container">
+          <PrintHeader />
+        </div>
+        <StaggerContainer className="space-y-6">
         {/* Actions Bar */}
         <StaggerItem>
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between no-print">
@@ -440,6 +442,7 @@ export default function ClientsPage() {
           </DialogContent>
         </Dialog>
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { CreditCard } from "lucide-react";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import {
   DEFAULT_PLATFORM_TIME_ZONE,
   getDatePartsInTimeZone,
@@ -277,7 +278,8 @@ export default function SalonDashboard() {
       title="Dashboard Salon"
       subtitle="Vue d'ensemble de votre activité"
     >
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         {subscriptionReminder.shouldPrompt && (
           <StaggerItem>
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
@@ -503,6 +505,7 @@ export default function SalonDashboard() {
           </div>
         </StaggerItem>
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

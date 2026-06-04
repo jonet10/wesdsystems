@@ -14,6 +14,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { Package, Search, Plus, Pencil, RotateCcw, ArrowDownLeft, ArrowUpRight, SlidersHorizontal, AlertCircle } from "lucide-react";
 import { calculatePackagingEconomics, normalizePackagingQuantity, type PackagingType, PACKAGING_TYPES, PACKAGING_LABELS, PACKAGING_DEFAULT_QUANTITIES } from "@/lib/packaging";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import { listLowStockProducts, listStockMovements, recordStockMovement } from "@/modules/salon/inventory";
 
 interface Product {
@@ -317,7 +318,8 @@ export default function InventoryPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Inventaire & Stock" subtitle="Le stock est géré ici, pas dans Produits">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card rounded-xl border border-border p-4">
@@ -639,6 +641,7 @@ export default function InventoryPage() {
           </div>
         </StaggerItem>
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

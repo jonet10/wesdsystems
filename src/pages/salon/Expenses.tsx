@@ -24,6 +24,7 @@ import {
   TrendingDown, Building, Lightbulb, ShoppingCart, Wrench
 } from "lucide-react";
 import { startOfMonth, endOfMonth, format as formatDate } from "date-fns";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 interface Expense {
   id: string;
@@ -170,7 +171,8 @@ export default function ExpensesPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Dépenses" subtitle="Gérez les dépenses de votre salon">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
@@ -325,6 +327,7 @@ export default function ExpensesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

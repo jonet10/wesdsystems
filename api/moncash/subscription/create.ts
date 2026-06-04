@@ -1,45 +1,8 @@
-import { apiSupabase } from "../../_supabase";
-import { json } from "../../pending-tabs/_shared";
-import { createMonCashPayment } from "../_service";
+import { apiSupabase } from "../../supabase";
+import { json } from "../../pending-tabs/shared";
+import { createMonCashPayment } from "../service";
 
 const toNumber = (value: unknown) => Number(value || 0);
-
-const addBillingCycle = (date: Date, billingCycle: string, durationMonths = 1) => {
-  const next = new Date(date);
-  if (billingCycle === "yearly") {
-    next.setFullYear(next.getFullYear() + 1);
-  } else if (billingCycle === "custom") {
-    next.setMonth(next.getMonth() + Math.max(1, durationMonths));
-  } else {
-    next.setMonth(next.getMonth() + 1);
-  }
-  return next;
-};
-
-const resolveBusinessSubscription = async (businessId: string, subscriptionId: string | null) => {
-  if (subscriptionId) {
-    const { data, error } = await apiSupabase
-      .from("business_subscriptions")
-      .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
-      .eq("id", subscriptionId)
-      .eq("business_id", businessId)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (data) return data;
-  }
-
-  const { data, error } = await apiSupabase
-    .from("business_subscriptions")
-    .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data || null;
-};
 
 export default async function handler(req: any, res: any) {
   try {
@@ -47,25 +10,22 @@ export default async function handler(req: any, res: any) {
 
     const body = req.body || {};
     const businessId = String(body.business_id || body.businessId || "");
-    const subscriptionId = body.subscription_id ? String(body.subscription_id) : null;
-    const requestedPlanId = body.plan_id ? String(body.plan_id) : "";
+    const planId = String(body.plan_id || body.planId || "");
+    const paymentId = body.payment_id ? String(body.payment_id) : null;
     const billingCycle = String(body.billing_cycle || "monthly");
     const durationMonths = Math.max(1, Math.min(12, Number(body.duration_months || 1)));
 
     if (!businessId) return json(res, 400, { error: "business_id requis" });
+    if (!planId) return json(res, 400, { error: "plan_id requis" });
 
     const { data: business, error: businessError } = await apiSupabase
       .from("businesses")
-      .select("id, name, plan_id, status")
+      .select("id, name")
       .eq("id", businessId)
       .maybeSingle();
 
     if (businessError) throw businessError;
     if (!business) return json(res, 404, { error: "Business introuvable" });
-
-    const currentSubscription = await resolveBusinessSubscription(businessId, subscriptionId);
-    const planId = requestedPlanId || currentSubscription?.plan_id || business.plan_id || "";
-    if (!planId) return json(res, 400, { error: "Plan introuvable" });
 
     const { data: plan, error: planError } = await apiSupabase
       .from("subscription_plans")
@@ -77,81 +37,71 @@ export default async function handler(req: any, res: any) {
     if (!plan) return json(res, 404, { error: "Plan introuvable" });
     if (plan.active === false) return json(res, 400, { error: "Plan inactif" });
 
-    const normalizedCycle = durationMonths >= 12 ? "yearly" : durationMonths === 1 ? "monthly" : "custom";
     const monthlyPrice = toNumber(plan.monthly_price);
     const amount = monthlyPrice * durationMonths;
 
     if (amount <= 0) {
-      return json(res, 400, { error: "Le montant de l'abonnement doit être supérieur à 0" });
+      return json(res, 400, { error: "Le montant doit être supérieur à 0" });
     }
 
     const orderId = `sub_${businessId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
-    const { data: paymentRow, error: insertError } = await apiSupabase
-      .from("moncash_subscription_payments")
-      .insert({
-        business_id: businessId,
-        subscription_id: currentSubscription?.id || subscriptionId || null,
-        plan_id: planId,
-        billing_cycle: normalizedCycle,
-        duration_months: durationMonths,
-        payment_provider: "moncash",
-        amount,
-        currency_code: "HTG",
-        order_id: orderId,
-        status: "pending",
-        gateway_payload: {
-          business_name: business.name,
-          plan_name: plan.name,
-          billing_cycle: normalizedCycle,
-          duration_months: durationMonths,
-        },
-      })
-      .select("id, order_id")
-      .single();
-
-    if (insertError) throw insertError;
 
     let payment;
     try {
       payment = await createMonCashPayment(orderId, amount);
     } catch (error: any) {
-      await apiSupabase
-        .from("moncash_subscription_payments")
-        .update({
-          status: "failed",
-          notes: error?.message || "Echec de création du paiement MonCash",
-        })
-        .eq("id", paymentRow.id);
+      if (paymentId) {
+        await apiSupabase
+          .from("subscription_payments")
+          .update({ status: "failed" })
+          .eq("id", paymentId);
+      }
       throw error;
     }
 
-    const { error: updateError } = await apiSupabase
-      .from("moncash_subscription_payments")
-      .update({
-        redirect_url: payment.redirectUrl,
-        status: "redirected",
-        gateway_payload: payment.raw,
-      })
-      .eq("id", paymentRow.id);
+    // Update the client-created subscription_payments record
+    if (paymentId) {
+      await apiSupabase
+        .from("subscription_payments")
+        .update({
+          transaction_reference: orderId,
+          status: "pending_verification",
+        })
+        .eq("id", paymentId);
+    }
 
-    if (updateError) throw updateError;
+    // Insert into moncash_subscription_payments for the return callback
+    const { error: insertError } = await apiSupabase
+      .from("moncash_subscription_payments")
+      .insert({
+        business_id: businessId,
+        plan_id: planId,
+        billing_cycle: billingCycle,
+        duration_months: durationMonths,
+        payment_provider: "moncash",
+        amount,
+        currency_code: "HTG",
+        order_id: orderId,
+        status: "redirected",
+        redirect_url: payment.redirectUrl,
+        gateway_payload: {
+          business_name: business.name,
+          plan_name: plan.name,
+          billing_cycle: billingCycle,
+          duration_months: durationMonths,
+        },
+      });
+
+    if (insertError) throw insertError;
 
     return json(res, 200, {
-        data: {
-          payment_id: paymentRow.id,
-          order_id: orderId,
-          redirect_url: payment.redirectUrl,
-          amount,
-          currency_code: "HTG",
-          duration_months: durationMonths,
-          business: {
-            id: business.id,
-            name: business.name,
-          },
-        plan: {
-          id: plan.id,
-          name: plan.name,
-        },
+      data: {
+        payment_id: paymentId || null,
+        order_id: orderId,
+        redirect_url: payment.redirectUrl,
+        amount,
+        currency_code: "HTG",
+        duration_months: durationMonths,
       },
     });
   } catch (error: any) {

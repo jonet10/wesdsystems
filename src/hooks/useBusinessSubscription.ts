@@ -41,16 +41,26 @@ export function useBusinessSubscription() {
         };
       }
 
-      const { data: activeSubscription } = await supabase
+      const { data: rawSubscriptions } = await supabase
         .from("business_subscriptions")
         .select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes")
         .eq("business_id", businessId)
-        .eq("status", "active")
+        .in("status", ["active"])
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
 
-      const subscription = (activeSubscription as BusinessSubscription | null) ?? null;
+      let subscription = (rawSubscriptions?.[0] as BusinessSubscription | null) ?? null;
+
+      if (subscription && subscription.end_date && new Date(subscription.end_date) < new Date()) {
+        await supabase
+          .from("business_subscriptions")
+          .update({ status: "expired" })
+          .eq("id", subscription.id);
+
+        subscription = { ...subscription, status: "expired" as const };
+      }
+
+      subscription = subscription?.status === "active" ? subscription : null;
       const planId = subscription?.plan_id ?? null;
 
       let plan: SubscriptionPlan | null = null;

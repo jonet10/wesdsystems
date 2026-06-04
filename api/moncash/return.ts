@@ -1,7 +1,7 @@
-import { apiSupabase } from "../_supabase";
-import { json } from "../pending-tabs/_shared";
+import { apiSupabase } from "../supabase";
+import { json } from "../pending-tabs/shared";
 import { MONCASH_PUBLIC_URLS } from "../../src/lib/moncash";
-import { retrieveMonCashTransaction } from "./_service";
+import { retrieveMonCashTransaction } from "./service";
 
 const addBillingCycle = (start: Date, billingCycle: string, durationMonths = 1) => {
   const next = new Date(start);
@@ -16,7 +16,7 @@ const extractString = (value: unknown) => {
 };
 
 const findPaymentRecord = async (transactionId: string, orderId: string) => {
-  let query = apiSupabase
+  const query = apiSupabase
     .from("moncash_subscription_payments")
     .select("id, business_id, subscription_id, plan_id, billing_cycle, amount, currency_code, order_id, transaction_id, status, redirect_url, gateway_payload, callback_payload, paid_at, confirmed_at, created_at, notes")
     .order("created_at", { ascending: false });

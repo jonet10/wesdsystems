@@ -1,6 +1,6 @@
 import type { PendingTabCreateInput } from "../../src/modules/salon/pending-tabs";
-import { apiSupabase } from "../_supabase";
-import { json, loadTabDetail, loadTabSummaryList } from "./_shared";
+import { apiSupabase } from "../supabase";
+import { json, loadTabDetail, loadTabSummaryList } from "./shared";
 
 export default async function handler(req: any, res: any) {
   try {

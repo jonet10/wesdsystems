@@ -8,6 +8,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import {
   DEFAULT_PLATFORM_TIME_ZONE,
   getDateKeyInTimeZone,
@@ -91,7 +92,8 @@ export default function SalesAnalyticsPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Analytics Ventes" subtitle="Produits, services, revenus et tendances" userName="Admin Studio">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Revenus jour" value={format(dailyRevenue)} icon={<Receipt className="h-6 w-6" />} />
@@ -129,6 +131,7 @@ export default function SalesAnalyticsPage() {
           </div>
         </StaggerItem>
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

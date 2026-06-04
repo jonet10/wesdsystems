@@ -17,6 +17,7 @@ import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { AlertCircle } from "lucide-react";
 import { DEFAULT_PLATFORM_TIME_ZONE, dateFromDateKey, getDateKeyInTimeZone } from "@/lib/timezone-date";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
@@ -383,7 +384,8 @@ export default function AppointmentsPage() {
       subtitle="Gérez vos rendez-vous"
       userName="Marie Laurent"
     >
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         {/* Header */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -782,6 +784,7 @@ export default function AppointmentsPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

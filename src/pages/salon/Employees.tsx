@@ -20,6 +20,7 @@ import { usePermissions, hasPermission, EmployeeRole } from "@/lib/permissions";
 import { CommissionRules } from "@/components/modules/salon/commissions/CommissionRules";
 import { CommissionHistory } from "@/components/modules/salon/commissions/CommissionHistory";
 import { useBusinessSubscription } from "@/hooks/useBusinessSubscription";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import { UpgradePrompt } from "@/components/shared/UpgradePrompt";
 import { isUnlimited } from "@/lib/saas";
 import { useActiveBranchId } from "@/lib/branch";
@@ -509,7 +510,8 @@ export default function EmployeesPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Gestion des employés" subtitle="Gérez votre équipe et leurs permissions">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         {!subscription.hasFeature("advanced_reports") && (
           <StaggerItem>
             <UpgradePrompt
@@ -1163,6 +1165,7 @@ export default function EmployeesPage() {
         </Dialog>
         
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

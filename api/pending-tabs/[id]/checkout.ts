@@ -1,5 +1,5 @@
-import { apiSupabase } from "../../_supabase";
-import { json, loadTabDetail } from "../_shared";
+import { apiSupabase } from "../../supabase";
+import { json, loadTabDetail } from "../shared";
 
 const groupItems = (items: any[]) => {
   const grouped = new Map<string, any>();

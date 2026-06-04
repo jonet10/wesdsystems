@@ -1,4 +1,4 @@
-import { apiSupabase } from "../_supabase";
+import { apiSupabase } from "../supabase";
 
 const json = (res: any, status: number, payload: any) => {
   res.status(status).json(payload);

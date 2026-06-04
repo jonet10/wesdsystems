@@ -1,5 +1,5 @@
-import { apiSupabase } from "../../_supabase";
-import { adjustProductStock, json, loadTabDetail } from "../_shared";
+import { apiSupabase } from "../../supabase";
+import { adjustProductStock, json, loadTabDetail } from "../shared";
 
 export default async function handler(req: any, res: any) {
   try {

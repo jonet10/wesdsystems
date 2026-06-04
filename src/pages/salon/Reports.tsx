@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
@@ -222,7 +223,8 @@ export default function ReportsPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Rapports" subtitle="Analyse des performances du salon">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
             <div className="flex gap-2">
@@ -455,6 +457,7 @@ export default function ReportsPage() {
           </div>
         </StaggerItem>
       </StaggerContainer>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

@@ -16,6 +16,7 @@ export function createCartItem(item: CatalogItem, type: SaleItemType, customOpti
     category: item.category,
     promotion_applied: false,
     discount: 0,
+    requires_employee: item.requires_employee,
   };
 }
 

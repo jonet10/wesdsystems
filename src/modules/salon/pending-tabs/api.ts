@@ -89,7 +89,7 @@ const getCommissionRate = async (employeeId: string, serviceId: string): Promise
     .maybeSingle();
 
   if (employeeError) throw new Error(employeeError.message);
-  if (employee?.role !== "barber") return null;
+  if (!employee) return null;
 
   const { data: rules, error: ruleError } = await supabase
     .from("commission_rules")

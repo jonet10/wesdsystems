@@ -48,6 +48,7 @@ import type { PaymentSplit } from "@/modules/salon/pos";
 import { recordStockMovement } from "@/modules/salon/inventory";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
 import { fetchEmployeePosBundle, type EmployeePosBundle } from "@/modules/salon/auth";
 
@@ -59,6 +60,7 @@ interface CatalogItem {
   type: "product" | "service";
   stock?: number;
   barcode?: string;
+  requires_employee?: boolean;
 }
 
 interface CartItem {
@@ -73,6 +75,7 @@ interface CartItem {
   promotion_name?: string;
   discount?: number;
   pending_item_id?: string | null;
+  requires_employee?: boolean;
 }
 
 interface Promotion {
@@ -97,10 +100,23 @@ interface BusinessInfo {
   tax_number?: string;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  barber: "Barbier / Coiffeur",
+  stylist: "Coiffeur(se)",
+  nail_technician: "Technicien(ne) d'ongles",
+  massage_therapist: "Massothérapeute",
+  esthetician: "Esthéticien(ne)",
+  makeup_artist: "Maquilleur(se)",
+  receptionist: "Réceptionniste",
+  cashier: "Caissier(ère)",
+  manager: "Responsable",
+};
+
 interface EmployeeInfo {
   id: string;
   name: string;
   role: string;
+  photo_url?: string;
 }
 
 interface PendingTabClientResult {
@@ -135,6 +151,7 @@ const mapPendingItemToCart = (item: {
   promotion_applied: false,
   discount: 0,
   pending_item_id: item.id,
+  requires_employee: item.item_type === "service",
 });
 
 const describeRpcError = (err: unknown) => {
@@ -166,6 +183,7 @@ export default function POSPage() {
   const [products, setProducts] = useState<CatalogItem[]>([]);
   const [services, setServices] = useState<CatalogItem[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [serviceRoleRequirements, setServiceRoleRequirements] = useState<Record<string, string[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([
@@ -254,12 +272,14 @@ export default function POSPage() {
       unit_price: Number(x.price_htg || 0),
       category: x.category_id || undefined,
       type: "service" as const,
+      requires_employee: x.requires_employee,
     })));
     setPromotions((bundle.promotions || []) as Promotion[]);
     setEmployees((bundle.employees || []).map((row) => ({
       id: row.id,
       name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "Employé",
       role: row.role || "cashier",
+      photo_url: row.metadata?.photo_url || undefined,
     })));
     setBusinessInfo({
       name: bundle.business?.name || bundle.branch?.name || "Mon Salon",
@@ -284,26 +304,48 @@ export default function POSPage() {
         if ((data.products || []).length === 0 && (data.services || []).length === 0) {
           toast.warning("La session employé est valide, mais aucun produit ni service n'a été trouvé pour cette branche.");
         }
+        const { data: roleReqs } = await supabase
+          .from("service_role_requirements")
+          .select("service_id, role");
+        const roleReqsMap: Record<string, string[]> = {};
+        for (const row of roleReqs || []) {
+          const sid = row.service_id as string;
+          const role = row.role as string;
+          if (!roleReqsMap[sid]) roleReqsMap[sid] = [];
+          if (!roleReqsMap[sid].includes(role)) roleReqsMap[sid].push(role);
+        }
+        setServiceRoleRequirements(roleReqsMap);
         return;
       }
 
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
-      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, metadata").eq("is_active", true);
+      let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, requires_employee, metadata").eq("is_active", true);
       const todayKey = getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE);
       let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", todayKey).gte("valid_until", todayKey);
+      const roleReqQuery = supabase.from("service_role_requirements").select("service_id, role");
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);
       servicesQuery = servicesQuery.eq("branch_id", branchIdToUse);
       promotionsQuery = promotionsQuery.eq("branch_id", branchIdToUse);
 
-      const [{ data: p }, { data: s }, { data: promos }] = await Promise.all([
+      const [{ data: p }, { data: s }, { data: promos }, { data: roleReqs }] = await Promise.all([
         productsQuery.order("name"),
         servicesQuery.order("name"),
         promotionsQuery,
+        roleReqQuery,
       ]);
       setProducts((p || []).map(x => ({ ...x, unit_price: Number(x.unit_price || 0), stock: x.quantity_in_stock, type: "product" as const })));
       setServices((s || []).map(x => ({ ...x, unit_price: Number(x.price_htg || 0), type: "service" as const })));
       setPromotions((promos || []) as Promotion[]);
+
+      const roleReqsMap: Record<string, string[]> = {};
+      for (const row of roleReqs || []) {
+        const sid = row.service_id as string;
+        const role = row.role as string;
+        if (!roleReqsMap[sid]) roleReqsMap[sid] = [];
+        if (!roleReqsMap[sid].includes(role)) roleReqsMap[sid].push(role);
+      }
+      setServiceRoleRequirements(roleReqsMap);
     } catch (err) {
       const message = describeRpcError(err);
       console.error("Erreur chargement POS:", err);
@@ -332,7 +374,7 @@ export default function POSPage() {
       }
       const { data: emp } = await supabase
         .from("salon_employees")
-        .select("id, first_name, last_name, role")
+        .select("id, first_name, last_name, role, metadata")
         .eq("is_active", true)
         .eq("branch_id", activeBranchId)
         .order("first_name");
@@ -341,6 +383,7 @@ export default function POSPage() {
           id: row.id,
           name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
           role: row.role || "cashier",
+          photo_url: row.metadata?.photo_url || undefined,
         })));
       }
     } catch {}
@@ -761,6 +804,7 @@ export default function POSPage() {
           promotion_name: undefined,
           discount: 0,
           pending_item_id: null,
+          requires_employee: type === "service",
         }];
       }
 
@@ -838,11 +882,23 @@ export default function POSPage() {
     });
   };
 
-  const hasServices = useMemo(() => cart.some(i => i.type === "service"), [cart]);
-  const barberEmployees = useMemo(
-    () => employees.filter((employee) => employee.role === "barber"),
-    [employees]
-  );
+  const requiresEmployee = useMemo(() => cart.some(i => i.type === "service" && i.requires_employee !== false), [cart]);
+  const cartServiceIds = useMemo(() => cart.filter(i => i.type === "service").map(i => i.item_id), [cart]);
+  const allowedRoles = useMemo(() => {
+    const roles = new Set<string>();
+    for (const sid of cartServiceIds) {
+      const svcRoles = serviceRoleRequirements[sid];
+      if (svcRoles && svcRoles.length > 0) {
+        for (const r of svcRoles) roles.add(r);
+      }
+    }
+    if (roles.size === 0 && cartServiceIds.length > 0) return null;
+    return roles.size > 0 ? roles : null;
+  }, [cartServiceIds, serviceRoleRequirements]);
+  const availableEmployees = useMemo(() => {
+    if (!allowedRoles) return employees;
+    return employees.filter(e => allowedRoles.has(e.role));
+  }, [employees, allowedRoles]);
 
   const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
   const { subtotal, totalDiscount, total } = totals;
@@ -868,7 +924,7 @@ export default function POSPage() {
       .eq("id", employeeId)
       .maybeSingle();
 
-    if (employee?.role !== "barber") return null;
+    if (!employee) return null;
 
     const { data: rules } = await supabase
       .from("commission_rules")
@@ -899,8 +955,8 @@ export default function POSPage() {
 
   const checkout = async () => {
     if (cart.length === 0) return toast.error("Panier vide");
-    if (hasServices && !selectedEmployee) {
-      return toast.error("Veuillez sélectionner le barbier qui a réalisé la prestation.");
+    if (requiresEmployee && !selectedEmployee) {
+      return toast.error("Veuillez sélectionner l'employé ayant réalisé la prestation.");
     }
     if (paymentMethod === "mixed" && !paymentValidation.isPaid) {
       return toast.error(`Paiement incomplet. Reste à payer: ${format(paymentValidation.remaining)}`);
@@ -1039,7 +1095,7 @@ export default function POSPage() {
       }
 
       // Calculate commissions
-      if (selectedEmployee && hasServices) {
+      if (selectedEmployee && requiresEmployee) {
         for (const item of cart) {
           if (item.type === "service" && businessId) {
             const rate = await getCommissionRate(selectedEmployee, item.item_id);
@@ -1125,7 +1181,8 @@ export default function POSPage() {
 
   return (
     <DashboardLayout role={layoutRole} title={posTitle} subtitle={posSubtitle}>
-      <StaggerContainer className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
+      <SubscriptionGuard>
+        <StaggerContainer className="h-[calc(100vh-8rem)] flex flex-col lg:flex-row gap-4">
         <StaggerItem className="flex-1 flex flex-col min-w-0">
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-3 space-y-3">
@@ -1329,26 +1386,54 @@ export default function POSPage() {
                 )}
               </ScrollArea>
 
-              {/* Barber Selector */}
-              {hasServices && (
+              {/* Employee Selector */}
+              {requiresEmployee && (
                 <div className="mt-2">
                   <Label className="text-xs flex items-center gap-1 mb-1">
-                    <UserCog className="h-3 w-3" /> Barbier en charge
+                    <UserCog className="h-3 w-3" /> Employé en charge
                   </Label>
-                  {barberEmployees.length > 0 ? (
-                    <select
-                      value={selectedEmployee}
-                      onChange={(e) => setSelectedEmployee(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">Sélectionner un barbier...</option>
-                      {barberEmployees.map((employee) => (
-                        <option key={employee.id} value={employee.id}>{employee.name}</option>
-                      ))}
-                    </select>
+                  {availableEmployees.length > 0 ? (
+                    <div className="space-y-1">
+                      {availableEmployees.map((employee) => {
+                        const isSelected = selectedEmployee === employee.id;
+                        const roleLabel = ROLE_LABELS[employee.role] || employee.role;
+                        return (
+                          <button
+                            key={employee.id}
+                            type="button"
+                            onClick={() => setSelectedEmployee(isSelected ? "" : employee.id)}
+                            className={cn(
+                              "w-full flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all",
+                              isSelected
+                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                : "border-border hover:border-primary/40 hover:bg-muted/40"
+                            )}
+                          >
+                            <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 overflow-hidden">
+                              {employee.photo_url ? (
+                                <img src={employee.photo_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                employee.name.charAt(0).toUpperCase()
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{employee.name}</p>
+                              <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
+                            </div>
+                            {isSelected && (
+                              <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   ) : (
                     <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                      Aucun barbier actif n'a été trouvé pour cette branche.
+                      Aucun employé disponible pour ces prestations.
                     </div>
                   )}
                 </div>
@@ -1860,6 +1945,7 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

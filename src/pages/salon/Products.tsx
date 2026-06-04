@@ -23,6 +23,7 @@ import {
   BookOpen, Pen,
 } from "lucide-react";
 import { type PackagingType, PACKAGING_TYPES, PACKAGING_LABELS } from "@/lib/packaging";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,8 @@ export default function ProductsPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Produits" subtitle="Gérez le catalogue commercial de vos produits">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         {/* Toolbar */}
         <StaggerItem>
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -716,6 +718,7 @@ export default function ProductsPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }

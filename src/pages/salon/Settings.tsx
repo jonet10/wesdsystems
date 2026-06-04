@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle } from "lucide-react";
+import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ImageUploader } from "@/components/shared/ImageUploader";
@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
+import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
 
 interface BusinessDay {
   day: string;
@@ -390,6 +391,9 @@ export default function SalonSettingsPage() {
               <TabsTrigger value="printing" className="gap-2">
                 <FileText className="h-4 w-4" /> Impression
               </TabsTrigger>
+              <TabsTrigger value="subscription" className="gap-2">
+                <CalendarDays className="h-4 w-4" /> Abonnement
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -565,6 +569,10 @@ export default function SalonSettingsPage() {
                   </div>
                 </div>
               </StaggerItem>
+            </TabsContent>
+
+            <TabsContent value="subscription" className="space-y-6">
+              <SubscriptionDashboard />
             </TabsContent>
           </Tabs>
 

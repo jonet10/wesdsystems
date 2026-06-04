@@ -11,6 +11,7 @@ export interface CatalogItem {
   stock?: number;
   barcode?: string;
   metadata?: any;
+  requires_employee?: boolean;
 }
 
 export interface CartItem {
@@ -24,6 +25,7 @@ export interface CartItem {
   promotion_applied?: boolean;
   promotion_name?: string;
   discount?: number;
+  requires_employee?: boolean;
 }
 
 export interface Promotion {

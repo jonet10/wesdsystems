@@ -10,6 +10,8 @@ import { Link } from "react-router-dom";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import type { SubscriptionPayment } from "@/lib/payment-providers";
+import { formatPaymentStatus, getPaymentProvider } from "@/lib/payment-providers";
 
 type DashboardStat = {
   title: string;
@@ -122,6 +124,8 @@ export default function SuperAdminDashboard() {
   const [partnerStats, setPartnerStats] = useState({ pending: 0, approved: 0, rejected: 0, suspended: 0 });
   const [missingPlansCount, setMissingPlansCount] = useState(0);
   const [repairingPlans, setRepairingPlans] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState<SubscriptionPayment[]>([]);
+  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
 
   const loadData = async () => {
     // Counts
@@ -137,6 +141,7 @@ export default function SuperAdminDashboard() {
       { count: loyaltyAccountsCount },
       { data: rewards },
       { data: debts },
+      { data: pendingPaymentsData },
     ] = await Promise.all([
       supabase.from("businesses").select("id, name, status, created_at, plan_id").order("created_at", { ascending: false }).limit(25),
       supabase.from("businesses").select("id, plan_id"),
@@ -149,7 +154,10 @@ export default function SuperAdminDashboard() {
       supabase.from("customer_loyalty_accounts").select("id", { count: "exact", head: true }),
       supabase.from("loyalty_rewards").select("active"),
       supabase.from("customer_debts").select("status, outstanding_balance"),
+      supabase.from("subscription_payments").select("*, businesses!inner(name)").in("status", ["pending", "pending_verification"]).order("created_at", { ascending: false }),
     ]);
+
+    setPendingPayments((pendingPaymentsData || []) as any[]);
 
     const planById = new Map((plans || []).map((plan: any) => [plan.id, plan]));
     const subscriptionRows = (subscriptions || []) as SubscriptionRow[];
@@ -258,6 +266,78 @@ export default function SuperAdminDashboard() {
       toast.error(error?.message || "Erreur lors de la correction des plans");
     } finally {
       setRepairingPlans(false);
+    }
+  };
+
+  const handleApprovePayment = async (payment: any) => {
+    setProcessingPayment(payment.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminId = sessionData.session?.user?.id;
+      if (!adminId) throw new Error("Non authentifié");
+
+      await supabase.from("subscription_payments").update({
+        status: "approved",
+        admin_id: adminId,
+        approved_at: new Date().toISOString(),
+      }).eq("id", payment.id);
+
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 30);
+
+      const { data: existingSub } = await supabase
+        .from("business_subscriptions")
+        .select("id")
+        .eq("business_id", payment.business_id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (existingSub) {
+        await supabase.from("business_subscriptions").update({
+          plan_id: payment.plan_id,
+          end_date: endDate.toISOString(),
+          status: "active",
+        }).eq("id", existingSub.id);
+      } else {
+        await supabase.from("business_subscriptions").insert({
+          business_id: payment.business_id,
+          plan_id: payment.plan_id,
+          start_date: new Date().toISOString(),
+          end_date: endDate.toISOString(),
+          status: "active",
+          billing_cycle: "monthly",
+          price_snapshot: payment.amount,
+          currency_code: payment.currency_code,
+        });
+      }
+
+      toast.success("Paiement approuvé. Abonnement activé.");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors de l'approbation.");
+    } finally {
+      setProcessingPayment(null);
+    }
+  };
+
+  const handleRejectPayment = async (payment: any) => {
+    setProcessingPayment(payment.id);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const adminId = sessionData.session?.user?.id;
+      if (!adminId) throw new Error("Non authentifié");
+
+      await supabase.from("subscription_payments").update({
+        status: "rejected",
+        admin_id: adminId,
+      }).eq("id", payment.id);
+
+      toast.success("Paiement rejeté.");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur lors du rejet.");
+    } finally {
+      setProcessingPayment(null);
     }
   };
 
@@ -391,6 +471,76 @@ export default function SuperAdminDashboard() {
             </CardContent>
           </Card>
         </StaggerItem>
+
+        {/* Pending Subscription Payments */}
+        {pendingPayments.length > 0 && (
+          <StaggerItem>
+            <Card className="border-warning/20 bg-warning/5">
+              <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+                <div>
+                  <CardTitle className="text-sm text-muted-foreground">Paiements d'abonnement</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">Transactions en attente de vérification</p>
+                </div>
+                <Badge variant="destructive" className="gap-1">
+                  {pendingPayments.length} en attente
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/20">
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Salon</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Montant</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Méthode</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Code</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
+                        <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingPayments.map((payment: any) => (
+                        <tr key={payment.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="p-3 text-sm font-medium">{payment.businesses?.name || "Inconnu"}</td>
+                          <td className="p-3 text-sm">{Number(payment.amount).toLocaleString()} {payment.currency_code}</td>
+                          <td className="p-3 text-sm">{getPaymentProvider(payment.payment_method)?.label || payment.payment_method}</td>
+                          <td className="p-3 text-sm text-muted-foreground">{payment.transaction_reference}</td>
+                          <td className="p-3 text-sm text-muted-foreground">{payment.phone_number || "-"}</td>
+                          <td className="p-3 text-sm text-muted-foreground">
+                            {new Date(payment.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-8"
+                                disabled={processingPayment === payment.id}
+                                onClick={() => handleApprovePayment(payment)}
+                              >
+                                Approuver
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-8"
+                                disabled={processingPayment === payment.id}
+                                onClick={() => handleRejectPayment(payment)}
+                              >
+                                Rejeter
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+        )}
 
         {/* Recent Salons */}
         <StaggerItem>

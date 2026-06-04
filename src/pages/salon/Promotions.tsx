@@ -23,6 +23,7 @@ import {
   Percent, Combine, ToggleLeft, Calendar
 } from "lucide-react";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
+import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 interface Promotion {
   id: string;
@@ -177,7 +178,8 @@ export default function PromotionsPage() {
 
   return (
     <DashboardLayout role="salon_admin" title="Promotions" subtitle="Créez des offres et bundles pour vos clients">
-      <StaggerContainer className="space-y-6">
+      <SubscriptionGuard>
+        <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card rounded-xl border border-border p-4">
@@ -350,6 +352,7 @@ export default function PromotionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </SubscriptionGuard>
     </DashboardLayout>
   );
 }
