@@ -33,6 +33,11 @@ import {
   Megaphone,
   Wallet,
   Workflow,
+  Truck,
+  Wrench,
+  Warehouse,
+  Tag,
+  Container,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -149,6 +154,23 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: TrendingUp, label: "Rapports", path: "/salon/reports", role: "salon_admin" },
           { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
           { icon: Settings, label: "Paramètres", path: "/salon/settings", role: "salon_admin" },
+        ];
+
+      case "auto_parts":
+        return [
+          { icon: LayoutDashboard, label: "Dashboard", path: "/salon/auto-parts", role: "all" },
+          { icon: Package, label: "Produits", path: "/salon/auto-parts/products", role: "all" },
+          { icon: Layers, label: "Catégories", path: "/salon/auto-parts/categories", role: "all" },
+          { icon: Truck, label: "Marques", path: "/salon/auto-parts/brands", role: "all" },
+          { icon: Wrench, label: "Modèles", path: "/salon/auto-parts/models", role: "all" },
+          { icon: Users, label: "Clients", path: "/salon/auto-parts/clients", role: "all" },
+          { icon: Truck, label: "Fournisseurs", path: "/salon/auto-parts/suppliers", role: "all" },
+          { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/auto-parts/pos", role: "all" },
+          { icon: Package, label: "Achats", path: "/salon/auto-parts/purchases", role: "all" },
+          { icon: Layers, label: "Stock", path: "/salon/auto-parts/stock-movements", role: "all" },
+          { icon: Workflow, label: "Compatibilités", path: "/salon/auto-parts/compatibilities", role: "all" },
+          { icon: TrendingUp, label: "Rapports", path: "/salon/auto-parts/reports", role: "salon_admin" },
+          { icon: Settings, label: "Paramètres", path: "/salon/auto-parts/settings", role: "salon_admin" },
         ];
     }
   };

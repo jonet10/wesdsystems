@@ -46,6 +46,19 @@ import BarDashboard from "./pages/bar/Dashboard";
 import BarPOS from "./pages/bar/POS";
 import BarInventory from "./pages/bar/Inventory";
 import BarCocktails from "./pages/bar/Cocktails";
+import AutoPartsDashboard from "./pages/auto-parts/Dashboard";
+import AutoPartsProducts from "./pages/auto-parts/Products";
+import AutoPartsCategories from "./pages/auto-parts/Categories";
+import AutoPartsBrands from "./pages/auto-parts/Brands";
+import AutoPartsModels from "./pages/auto-parts/Models";
+import AutoPartsCompatibilities from "./pages/auto-parts/Compatibilities";
+import AutoPartsSuppliers from "./pages/auto-parts/Suppliers";
+import AutoPartsClients from "./pages/auto-parts/Clients";
+import AutoPartsPOS from "./pages/auto-parts/POS";
+import AutoPartsPurchases from "./pages/auto-parts/Purchases";
+import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
+import AutoPartsReports from "./pages/auto-parts/Reports";
+import AutoPartsSettings from "./pages/auto-parts/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -378,6 +391,112 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["partner"]}>
                       <PartnerDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Auto Parts Routes */}
+                <Route
+                  path="/salon/auto-parts"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/products"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsProducts />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/categories"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsCategories />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/brands"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsBrands />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/models"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsModels />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/compatibilities"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsCompatibilities />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/suppliers"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsSuppliers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/clients"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsClients />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsPOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/purchases"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsPurchases />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/stock-movements"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsStockMovements />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsReports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/salon/auto-parts/settings"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                      <AutoPartsSettings />
                     </ProtectedRoute>
                   }
                 />
