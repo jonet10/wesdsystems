@@ -93,8 +93,7 @@ BEGIN
     billing_cycle,
     price_snapshot,
     start_date,
-    end_date,
-    trial_end_date
+    end_date
   ) VALUES (
     NEW.id,
     v_default_plan_id,
@@ -102,7 +101,6 @@ BEGIN
     'monthly',
     COALESCE((SELECT monthly_price FROM public.subscription_plans WHERE id = v_default_plan_id), 0),
     NOW(),
-    NOW() + (v_trial_days || ' days')::INTERVAL,
     NOW() + (v_trial_days || ' days')::INTERVAL
   );
 

@@ -70,11 +70,11 @@ BEGIN
     -- Create trial subscription
     INSERT INTO public.business_subscriptions (
       business_id, plan_id, status, billing_cycle, price_snapshot,
-      start_date, end_date, trial_end_date
+      start_date, end_date
     ) VALUES (
       v_business_id, v_plan_id, 'trialing', 'monthly',
       COALESCE((SELECT monthly_price FROM public.subscription_plans WHERE id = v_plan_id), 0),
-      NOW(), NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days'
+      NOW(), NOW() + INTERVAL '3 days'
     ) ON CONFLICT DO NOTHING;
 
     RAISE NOTICE 'REPAIRED: user=% business=% plan=%', rec.email, v_business_id, v_plan_id;
@@ -91,14 +91,14 @@ WHERE bs.id IS NULL;
 -- 4. Create missing subscriptions
 INSERT INTO public.business_subscriptions (
   business_id, plan_id, status, billing_cycle, price_snapshot,
-  start_date, end_date, trial_end_date
+  start_date, end_date
 )
 SELECT
   b.id,
   COALESCE(b.plan_id, (SELECT id FROM public.subscription_plans ORDER BY monthly_price ASC LIMIT 1)),
   'trialing', 'monthly',
   COALESCE((SELECT monthly_price FROM public.subscription_plans sp WHERE sp.id = COALESCE(b.plan_id, (SELECT id FROM public.subscription_plans ORDER BY monthly_price ASC LIMIT 1))), 0),
-  NOW(), NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days'
+  NOW(), NOW() + INTERVAL '3 days'
 FROM public.businesses b
 LEFT JOIN public.business_subscriptions bs ON bs.business_id = b.id
 WHERE bs.id IS NULL
