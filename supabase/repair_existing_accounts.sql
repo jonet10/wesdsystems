@@ -10,6 +10,36 @@ ALTER TABLE public.businesses DROP CONSTRAINT IF EXISTS businesses_type_check;
 ALTER TABLE public.businesses ADD CONSTRAINT businesses_type_check
   CHECK (type = ANY (ARRAY['salon'::text, 'pharmacie'::text, 'restaurant'::text, 'market'::text, 'boutique'::text, 'auto_parts'::text]));
 
+-- 0c. Recreate auto_create_trial_subscription function with trial_end_date removed
+CREATE OR REPLACE FUNCTION public.auto_create_trial_subscription()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_trial_days INTEGER := 3;
+  v_default_plan_id UUID;
+BEGIN
+  v_default_plan_id := NEW.plan_id;
+  IF v_default_plan_id IS NULL THEN
+    SELECT id INTO v_default_plan_id
+    FROM public.subscription_plans
+    ORDER BY monthly_price ASC
+    LIMIT 1;
+  END IF;
+  INSERT INTO public.business_subscriptions (
+    business_id, plan_id, status, billing_cycle, price_snapshot,
+    start_date, end_date
+  ) VALUES (
+    NEW.id, v_default_plan_id, 'trialing', 'monthly',
+    COALESCE((SELECT monthly_price FROM public.subscription_plans WHERE id = v_default_plan_id), 0),
+    NOW(), NOW() + (v_trial_days || ' days')::INTERVAL
+  );
+  RETURN NEW;
+END;
+$$;
+
 -- 1. Find auth users that have a profile but no business row
 WITH users_without_business AS (
   SELECT
