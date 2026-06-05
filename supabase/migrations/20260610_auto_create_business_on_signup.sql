@@ -58,8 +58,8 @@ BEGIN
     role = 'salon_admin';
 
   -- Create a default branch
-  INSERT INTO public.salon_branches (business_id, name, is_active, is_main_branch)
-  VALUES (v_business_id, 'Branche principale', true, true)
+  INSERT INTO public.salon_branches (business_id, name, is_active)
+  VALUES (v_business_id, 'Branche principale', true)
   ON CONFLICT DO NOTHING;
 
   RETURN NEW;
