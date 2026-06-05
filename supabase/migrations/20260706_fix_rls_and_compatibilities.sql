@@ -406,9 +406,7 @@ ALTER TABLE public.auto_parts_staff ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "auto_parts_staff_select" ON public.auto_parts_staff
   FOR SELECT USING (
-    business_id = auth.uid()::UUID
-    OR business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM public.auto_parts_staff s WHERE s.id = auth.uid()::UUID AND s.business_id = auto_parts_staff.business_id)
+    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
   );
 
 CREATE POLICY "auto_parts_staff_insert" ON public.auto_parts_staff
