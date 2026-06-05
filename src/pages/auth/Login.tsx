@@ -43,7 +43,7 @@ export default function Login() {
       restaurant: "/bar",
       market: "/salon",
       boutique: "/salon",
-      auto_parts: "/salon/auto-parts",
+      auto_parts: "/auto-parts",
       school_payments: "/salon",
     };
     return (businessType && routes[businessType]) || "/salon";

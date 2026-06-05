@@ -17,7 +17,7 @@ function moduleRoute(businessType: string): string {
     restaurant: "/bar",
     market: "/salon",
     boutique: "/salon",
-    auto_parts: "/salon/auto-parts",
+    auto_parts: "/auto-parts",
     school_payments: "/salon",
   };
   return routes[businessType] || "/salon";

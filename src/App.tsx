@@ -397,7 +397,7 @@ const App = () => (
 
                 {/* Auto Parts Routes */}
                 <Route
-                  path="/salon/auto-parts"
+                  path="/auto-parts"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsDashboard />
@@ -405,7 +405,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/products"
+                  path="/auto-parts/products"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsProducts />
@@ -413,7 +413,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/categories"
+                  path="/auto-parts/categories"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsCategories />
@@ -421,7 +421,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/brands"
+                  path="/auto-parts/brands"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsBrands />
@@ -429,7 +429,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/models"
+                  path="/auto-parts/models"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsModels />
@@ -437,7 +437,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/compatibilities"
+                  path="/auto-parts/compatibilities"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsCompatibilities />
@@ -445,7 +445,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/suppliers"
+                  path="/auto-parts/suppliers"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsSuppliers />
@@ -453,7 +453,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/clients"
+                  path="/auto-parts/clients"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsClients />
@@ -461,7 +461,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/pos"
+                  path="/auto-parts/pos"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsPOS />
@@ -469,7 +469,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/purchases"
+                  path="/auto-parts/purchases"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsPurchases />
@@ -477,7 +477,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/stock-movements"
+                  path="/auto-parts/stock-movements"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsStockMovements />
@@ -485,7 +485,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/reports"
+                  path="/auto-parts/reports"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsReports />
@@ -493,7 +493,7 @@ const App = () => (
                   }
                 />
                 <Route
-                  path="/salon/auto-parts/settings"
+                  path="/auto-parts/settings"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <AutoPartsSettings />

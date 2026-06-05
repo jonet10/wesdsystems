@@ -158,19 +158,19 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
 
       case "auto_parts":
         return [
-          { icon: LayoutDashboard, label: "Dashboard", path: "/salon/auto-parts", role: "all" },
-          { icon: Package, label: "Produits", path: "/salon/auto-parts/products", role: "all" },
-          { icon: Layers, label: "Catégories", path: "/salon/auto-parts/categories", role: "all" },
-          { icon: Truck, label: "Marques", path: "/salon/auto-parts/brands", role: "all" },
-          { icon: Wrench, label: "Modèles", path: "/salon/auto-parts/models", role: "all" },
-          { icon: Users, label: "Clients", path: "/salon/auto-parts/clients", role: "all" },
-          { icon: Truck, label: "Fournisseurs", path: "/salon/auto-parts/suppliers", role: "all" },
-          { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/auto-parts/pos", role: "all" },
-          { icon: Package, label: "Achats", path: "/salon/auto-parts/purchases", role: "all" },
-          { icon: Layers, label: "Stock", path: "/salon/auto-parts/stock-movements", role: "all" },
-          { icon: Workflow, label: "Compatibilités", path: "/salon/auto-parts/compatibilities", role: "all" },
-          { icon: TrendingUp, label: "Rapports", path: "/salon/auto-parts/reports", role: "salon_admin" },
-          { icon: Settings, label: "Paramètres", path: "/salon/auto-parts/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Dashboard", path: "/auto-parts", role: "all" },
+          { icon: Package, label: "Produits", path: "/auto-parts/products", role: "all" },
+          { icon: Layers, label: "Catégories", path: "/auto-parts/categories", role: "all" },
+          { icon: Truck, label: "Marques", path: "/auto-parts/brands", role: "all" },
+          { icon: Wrench, label: "Modèles", path: "/auto-parts/models", role: "all" },
+          { icon: Users, label: "Clients", path: "/auto-parts/clients", role: "all" },
+          { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all" },
+          { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all" },
+          { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all" },
+          { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all" },
+          { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all" },
+          { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin" },
+          { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin" },
         ];
     }
   };
