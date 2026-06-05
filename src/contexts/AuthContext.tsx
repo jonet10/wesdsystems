@@ -7,6 +7,11 @@ import {
   saveEmployeeSession,
   type EmployeeSession,
 } from '@/modules/salon/auth';
+import {
+  loadStaffSession,
+  saveStaffSession,
+  type AutoPartsStaffSession,
+} from '@/modules/auto-parts/staff-session';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface UserProfile {
@@ -25,8 +30,11 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   employeeSession: EmployeeSession | null;
+  autoPartsStaffSession: AutoPartsStaffSession | null;
   loginEmployee: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logoutEmployee: () => void;
+  loginAutoPartsStaff: (username: string, pin: string) => Promise<{ success: boolean; error?: string }>;
+  logoutAutoPartsStaff: () => void;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -36,8 +44,11 @@ const AuthContext = createContext<AuthState>({
   isLoading: true,
   isAuthenticated: false,
   employeeSession: null,
+  autoPartsStaffSession: null,
   loginEmployee: async () => ({ success: false, error: 'Not initialized' }),
   logoutEmployee: () => {},
+  loginAutoPartsStaff: async () => ({ success: false, error: 'Not initialized' }),
+  logoutAutoPartsStaff: () => {},
 });
 
 const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
@@ -100,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: normalizeEmployeeRole(saved.role) || saved.role,
     };
   });
+  const [autoPartsStaffSession, setAutoPartsStaffSession] = useState<AutoPartsStaffSession | null>(() => loadStaffSession());
 
   const loginEmployee = async (username: string, pass: string) => {
     try {
@@ -144,6 +156,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmployeeSession(null);
     saveEmployeeSession(null);
     void revokeEmployeeSession(sessionToken);
+  };
+
+  const loginAutoPartsStaff = async (username: string, pin: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_auto_parts_staff_login', {
+        p_username: username,
+        p_pin: pin,
+      });
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string; staff?: AutoPartsStaffSession };
+      if (!result.success) {
+        return { success: false, error: result.error || 'Erreur inconnue' };
+      }
+
+      setAutoPartsStaffSession(result.staff!);
+      saveStaffSession(result.staff!);
+      return { success: true };
+    } catch (err: any) {
+      const isMissingRpc =
+        err?.status === 404 ||
+        err?.code === 'PGRST202' ||
+        String(err?.message || '').includes('check_auto_parts_staff_login');
+
+      if (isMissingRpc) {
+        return {
+          success: false,
+          error:
+            'Le service de connexion employé auto-parts n\'est pas encore déployé. Applique la migration 20260706_fix_rls_and_compatibilities.sql.',
+        };
+      }
+
+      return { success: false, error: err.message || 'Erreur lors de la connexion' };
+    }
+  };
+
+  const logoutAutoPartsStaff = () => {
+    const sessionToken = autoPartsStaffSession?.session_token || null;
+    setAutoPartsStaffSession(null);
+    saveStaffSession(null);
+    if (sessionToken) {
+      supabase.rpc('revoke_auto_parts_staff_session', { p_session_token: sessionToken }).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -226,8 +281,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!session,
         employeeSession,
+        autoPartsStaffSession,
         loginEmployee,
         logoutEmployee,
+        loginAutoPartsStaff,
+        logoutAutoPartsStaff,
       }}
     >
       {children}

@@ -11,6 +11,7 @@ export async function listStaff(businessId: string | null) {
 
 export async function createStaff(businessId: string, staff: {
   name: string;
+  username?: string;
   email?: string;
   phone?: string;
   role: string;
@@ -19,6 +20,7 @@ export async function createStaff(businessId: string, staff: {
   const { data, error } = await supabase.rpc("create_auto_parts_staff", {
     p_business_id: businessId,
     p_name: staff.name,
+    p_username: staff.username || null,
     p_email: staff.email || null,
     p_phone: staff.phone || null,
     p_role: staff.role,
@@ -30,6 +32,7 @@ export async function createStaff(businessId: string, staff: {
 
 export async function updateStaff(id: string, staff: {
   name?: string;
+  username?: string;
   email?: string;
   phone?: string;
   role?: string;
@@ -39,6 +42,7 @@ export async function updateStaff(id: string, staff: {
   const { data, error } = await supabase.rpc("update_auto_parts_staff", {
     p_id: id,
     p_name: staff.name ?? null,
+    p_username: staff.username ?? null,
     p_email: staff.email ?? null,
     p_phone: staff.phone ?? null,
     p_role: staff.role ?? null,

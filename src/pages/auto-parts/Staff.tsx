@@ -32,7 +32,7 @@ export default function AutoPartsStaffPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AutoPartsStaff | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", role: "cashier", pin_code: "" });
+  const [form, setForm] = useState({ name: "", username: "", email: "", phone: "", role: "cashier", pin_code: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<AutoPartsStaff | null>(null);
 
   const load = async () => {
@@ -45,13 +45,13 @@ export default function AutoPartsStaffPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", email: "", phone: "", role: "cashier", pin_code: "" });
+    setForm({ name: "", username: "", email: "", phone: "", role: "cashier", pin_code: "" });
     setOpen(true);
   };
 
   const openEdit = (staff: AutoPartsStaff) => {
     setEditing(staff);
-    setForm({ name: staff.name, email: staff.email || "", phone: staff.phone || "", role: staff.role, pin_code: "" });
+    setForm({ name: staff.name, username: (staff as any).username || "", email: staff.email || "", phone: staff.phone || "", role: staff.role, pin_code: "" });
     setOpen(true);
   };
 
@@ -69,7 +69,7 @@ export default function AutoPartsStaffPage() {
         });
         toast.success("Employé modifié");
       } else {
-        await createStaff(businessId, form);
+        await createStaff(businessId, { ...form, username: form.username || undefined });
         toast.success("Employé créé");
       }
       setOpen(false);
@@ -100,6 +100,7 @@ export default function AutoPartsStaffPage() {
             rows={data}
             columns={[
               { key: "name", label: "Nom", render: (r) => r.name },
+              { key: "username", label: "Identifiant", render: (r) => (r as any).username || "-" },
               { key: "email", label: "Email", render: (r) => r.email || "-" },
               { key: "phone", label: "Téléphone", render: (r) => r.phone || "-" },
               {
@@ -131,6 +132,10 @@ export default function AutoPartsStaffPage() {
             <div>
               <Label>Nom *</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Identifiant (pour connexion)</Label>
+              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

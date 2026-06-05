@@ -444,6 +444,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.create_auto_parts_staff(
   p_business_id UUID,
   p_name TEXT,
+  p_username TEXT DEFAULT NULL,
   p_email TEXT DEFAULT NULL,
   p_phone TEXT DEFAULT NULL,
   p_role TEXT DEFAULT 'cashier',
@@ -453,8 +454,8 @@ AS $$
 DECLARE
   v_id UUID;
 BEGIN
-  INSERT INTO public.auto_parts_staff (business_id, name, email, phone, role, pin_code)
-  VALUES (p_business_id, p_name, p_email, p_phone, p_role, p_pin_code)
+  INSERT INTO public.auto_parts_staff (business_id, name, username, email, phone, role, pin_code)
+  VALUES (p_business_id, p_name, p_username, p_email, p_phone, p_role, p_pin_code)
   RETURNING id INTO v_id;
   RETURN (
     SELECT jsonb_build_object('id', id, 'name', name, 'role', role)
@@ -466,6 +467,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.update_auto_parts_staff(
   p_id UUID,
   p_name TEXT DEFAULT NULL,
+  p_username TEXT DEFAULT NULL,
   p_email TEXT DEFAULT NULL,
   p_phone TEXT DEFAULT NULL,
   p_role TEXT DEFAULT NULL,
@@ -476,6 +478,7 @@ AS $$
 BEGIN
   UPDATE public.auto_parts_staff SET
     name       = p_name,
+    username   = NULLIF(p_username, ''),
     email      = NULLIF(p_email, ''),
     phone      = NULLIF(p_phone, ''),
     role       = COALESCE(p_role, role),
@@ -497,3 +500,126 @@ END;
 $$;
 
 DO $$ BEGIN RAISE NOTICE 'Migration 20260706 complete: +purchase CRUD RPCs, +auto_parts_staff table, +staff RPCs'; END $$;
+
+-- ─── 15. AUTO PARTS STAFF AUTH (sessions, login) ───
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'auto_parts_staff' AND column_name = 'username'
+  ) THEN
+    ALTER TABLE public.auto_parts_staff ADD COLUMN username TEXT;
+    ALTER TABLE public.auto_parts_staff ADD CONSTRAINT auto_parts_staff_username_key UNIQUE (username);
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.auto_parts_staff_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  staff_id UUID NOT NULL REFERENCES public.auto_parts_staff(id) ON DELETE CASCADE,
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  session_token_hash TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.auto_parts_staff_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS auto_parts_staff_sessions_no_direct_access ON public.auto_parts_staff_sessions;
+CREATE POLICY auto_parts_staff_sessions_no_direct_access ON public.auto_parts_staff_sessions
+  FOR ALL USING (false) WITH CHECK (false);
+
+CREATE OR REPLACE FUNCTION public.issue_auto_parts_staff_session(
+  p_staff_id UUID,
+  p_business_id UUID
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_token TEXT;
+  v_hash TEXT;
+BEGIN
+  UPDATE public.auto_parts_staff_sessions SET revoked_at = now()
+  WHERE staff_id = p_staff_id AND revoked_at IS NULL;
+
+  v_token := encode(gen_random_bytes(32), 'hex');
+  v_hash := encode(sha256(v_token::bytea), 'hex');
+
+  INSERT INTO public.auto_parts_staff_sessions (staff_id, business_id, session_token_hash, expires_at)
+  VALUES (p_staff_id, p_business_id, v_hash, now() + INTERVAL '12 hours');
+
+  RETURN jsonb_build_object(
+    'session_token', v_token,
+    'expires_at', to_char(now() + INTERVAL '12 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.check_auto_parts_staff_login(
+  p_username TEXT,
+  p_pin TEXT
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_staff public.auto_parts_staff;
+  v_session JSONB;
+BEGIN
+  SELECT * INTO v_staff FROM public.auto_parts_staff
+  WHERE username = p_username AND is_active = true LIMIT 1;
+
+  IF v_staff.id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Identifiants incorrects');
+  END IF;
+
+  IF v_staff.pin_code IS NULL OR v_staff.pin_code <> p_pin THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Code PIN incorrect');
+  END IF;
+
+  v_session := public.issue_auto_parts_staff_session(v_staff.id, v_staff.business_id);
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'staff', jsonb_build_object(
+      'id', v_staff.id,
+      'name', v_staff.name,
+      'role', v_staff.role,
+      'business_id', v_staff.business_id,
+      'session_token', (v_session->>'session_token'),
+      'expires_at', (v_session->>'expires_at')
+    )
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.revoke_auto_parts_staff_session(p_session_token TEXT)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_hash TEXT;
+BEGIN
+  IF p_session_token IS NULL OR p_session_token = '' THEN RETURN; END IF;
+  v_hash := encode(sha256(p_session_token::bytea), 'hex');
+  UPDATE public.auto_parts_staff_sessions SET revoked_at = now()
+  WHERE session_token_hash = v_hash AND revoked_at IS NULL;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.resolve_auto_parts_staff_session(p_session_token TEXT)
+RETURNS TABLE(staff_id UUID, name TEXT, role TEXT, business_id UUID)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_hash TEXT;
+BEGIN
+  IF p_session_token IS NULL OR p_session_token = '' THEN RETURN; END IF;
+  v_hash := encode(sha256(p_session_token::bytea), 'hex');
+  RETURN QUERY
+  SELECT s.staff_id, st.name, st.role, s.business_id
+  FROM public.auto_parts_staff_sessions s
+  JOIN public.auto_parts_staff st ON st.id = s.staff_id
+  WHERE s.session_token_hash = v_hash
+    AND s.revoked_at IS NULL
+    AND s.expires_at > now()
+    AND st.is_active = true;
+END;
+$$;
+
+DO $$ BEGIN RAISE NOTICE 'Staff auth RPCs created: login, session, revoke, resolve'; END $$;

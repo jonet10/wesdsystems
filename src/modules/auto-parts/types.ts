@@ -161,6 +161,7 @@ export interface AutoPartsStaff {
   id: string;
   business_id: string;
   name: string;
+  username?: string;
   email?: string;
   phone?: string;
   role: 'admin' | 'manager' | 'cashier';

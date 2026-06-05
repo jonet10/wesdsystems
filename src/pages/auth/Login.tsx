@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "react-i18next";
@@ -18,11 +18,13 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMode, setLoginMode] = useState<"admin" | "employee">("admin");
+  const [loginMode, setLoginMode] = useState<"admin" | "employee" | "auto_parts">("admin");
   const [employeeUsername, setEmployeeUsername] = useState("");
   const [employeePassword, setEmployeePassword] = useState("");
+  const [staffUsername, setStaffUsername] = useState("");
+  const [staffPin, setStaffPin] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { loginEmployee } = useAuth();
+  const { loginEmployee, loginAutoPartsStaff } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -151,6 +153,40 @@ export default function Login() {
     }
   };
 
+  const handleAutoPartsStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
+
+    try {
+      const res = await loginAutoPartsStaff(staffUsername, staffPin);
+      if (!res.success) {
+        toast({
+          title: "Erreur de connexion",
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur la caisse auto-parts !",
+      });
+      navigate("/auto-parts/pos");
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Identifiants incorrects.",
+        variant: "destructive",
+      });
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex text-foreground">
       {/* Left side - Form */}
@@ -173,9 +209,10 @@ export default function Login() {
             </div>
 
             <Tabs value={loginMode} onValueChange={(v: any) => setLoginMode(v)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="admin">Administrateur</TabsTrigger>
-                <TabsTrigger value="employee">Employé (Caisse)</TabsTrigger>
+                <TabsTrigger value="employee">Employé (Salon)</TabsTrigger>
+                <TabsTrigger value="auto_parts">Pièces Auto</TabsTrigger>
               </TabsList>
 
               <TabsContent value="admin">
@@ -301,6 +338,56 @@ export default function Login() {
                     ) : (
                       <>
                         Accéder à la caisse
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="auto_parts">
+                <form onSubmit={handleAutoPartsStaffSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="staff-username">Nom d'utilisateur</Label>
+                    <div className="relative">
+                      <Wrench className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                         id="staff-username"
+                         type="text"
+                         placeholder="Ex: marie_caissiere"
+                         value={staffUsername}
+                         onChange={(e) => setStaffUsername(e.target.value)}
+                         className="pl-10"
+                         required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="staff-pin">Code PIN</Label>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="staff-pin"
+                        type="password"
+                        maxLength={6}
+                        placeholder="••••••"
+                        value={staffPin}
+                        onChange={(e) => setStaffPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <Button type="submit" variant="default" className="w-full shadow-md bg-orange-600 hover:bg-orange-700" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        Accéder à la caisse auto-parts
                         <ArrowRight className="h-5 w-5 ml-2" />
                       </>
                     )}

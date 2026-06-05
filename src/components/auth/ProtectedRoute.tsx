@@ -47,7 +47,7 @@ export function ProtectedRoute({
   allowedRoles,
   allowAuthenticatedWithoutRole = false,
 }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated, profile, employeeSession } = useAuth();
+  const { isLoading, isAuthenticated, profile, employeeSession, autoPartsStaffSession } = useAuth();
   const location = useLocation();
   const employeeRole = normalizeEmployeeRole(employeeSession?.role);
   const hasEmployeeSession = !!employeeSession && !profile && !isAuthenticated;
@@ -59,6 +59,15 @@ export function ProtectedRoute({
         Vérification de votre session...
       </div>
     );
+  }
+
+  // Auto-parts staff session
+  if (!!autoPartsStaffSession && !profile && !isAuthenticated) {
+    const path = location.pathname;
+    if (path.startsWith("/auto-parts")) {
+      return <>{children}</>;
+    }
+    return <Navigate to="/auto-parts/pos" replace />;
   }
 
   // Employee sessions are handled separately from Supabase auth.
