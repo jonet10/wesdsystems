@@ -430,24 +430,6 @@ CREATE POLICY "auto_parts_staff_delete" ON public.auto_parts_staff
     public.is_super_admin() OR business_id = public.current_user_business_id()
   );
 
-DROP POLICY IF EXISTS "auto_parts_staff_insert" ON public.auto_parts_staff;
-CREATE POLICY "auto_parts_staff_insert" ON public.auto_parts_staff
-  FOR INSERT WITH CHECK (
-    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
-  );
-
-DROP POLICY IF EXISTS "auto_parts_staff_update" ON public.auto_parts_staff;
-CREATE POLICY "auto_parts_staff_update" ON public.auto_parts_staff
-  FOR UPDATE USING (
-    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
-  );
-
-DROP POLICY IF EXISTS "auto_parts_staff_delete" ON public.auto_parts_staff;
-CREATE POLICY "auto_parts_staff_delete" ON public.auto_parts_staff
-  FOR DELETE USING (
-    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
-  );
-
 -- Add created_by FK to auto_parts_sales if not exists
 DO $$ BEGIN
   IF NOT EXISTS (
@@ -458,4 +440,60 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-DO $$ BEGIN RAISE NOTICE 'Migration 20260706 complete: +purchase CRUD RPCs, +auto_parts_staff table'; END $$;
+-- ─── 14. AUTO PARTS STAFF RPCs (bypass RLS via SECURITY DEFINER) ───
+CREATE OR REPLACE FUNCTION public.create_auto_parts_staff(
+  p_business_id UUID,
+  p_name TEXT,
+  p_email TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_role TEXT DEFAULT 'cashier',
+  p_pin_code TEXT DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  INSERT INTO public.auto_parts_staff (business_id, name, email, phone, role, pin_code)
+  VALUES (p_business_id, p_name, p_email, p_phone, p_role, p_pin_code)
+  RETURNING id INTO v_id;
+  RETURN (
+    SELECT jsonb_build_object('id', id, 'name', name, 'role', role)
+    FROM public.auto_parts_staff WHERE id = v_id
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.update_auto_parts_staff(
+  p_id UUID,
+  p_name TEXT DEFAULT NULL,
+  p_email TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_role TEXT DEFAULT NULL,
+  p_pin_code TEXT DEFAULT NULL,
+  p_is_active BOOLEAN DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.auto_parts_staff SET
+    name       = p_name,
+    email      = NULLIF(p_email, ''),
+    phone      = NULLIF(p_phone, ''),
+    role       = COALESCE(p_role, role),
+    pin_code   = NULLIF(p_pin_code, ''),
+    is_active  = COALESCE(p_is_active, is_active),
+    updated_at = now()
+  WHERE id = p_id;
+  RETURN jsonb_build_object('id', p_id, 'status', 'updated');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.delete_auto_parts_staff(p_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.auto_parts_staff WHERE id = p_id;
+  RETURN jsonb_build_object('id', p_id, 'status', 'deleted');
+END;
+$$;
+
+DO $$ BEGIN RAISE NOTICE 'Migration 20260706 complete: +purchase CRUD RPCs, +auto_parts_staff table, +staff RPCs'; END $$;

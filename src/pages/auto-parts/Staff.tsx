@@ -63,9 +63,9 @@ export default function AutoPartsStaffPage() {
         await updateStaff(editing.id, {
           name: form.name,
           email: form.email || undefined,
-          phone: form.phone || undefined,
+          phone: form.phone,
           role: form.role,
-          pin_code: form.pin_code || undefined,
+          pin_code: form.pin_code,
         });
         toast.success("Employé modifié");
       } else {

@@ -16,16 +16,16 @@ export async function createStaff(businessId: string, staff: {
   role: string;
   pin_code?: string;
 }) {
-  const { data, error } = await supabase.from("auto_parts_staff").insert({
-    business_id: businessId,
-    name: staff.name,
-    email: staff.email || null,
-    phone: staff.phone || null,
-    role: staff.role,
-    pin_code: staff.pin_code || null,
-  }).select().single();
+  const { data, error } = await supabase.rpc("create_auto_parts_staff", {
+    p_business_id: businessId,
+    p_name: staff.name,
+    p_email: staff.email || null,
+    p_phone: staff.phone || null,
+    p_role: staff.role,
+    p_pin_code: staff.pin_code || null,
+  });
   if (error) throw error;
-  return data as AutoPartsStaff;
+  return data;
 }
 
 export async function updateStaff(id: string, staff: {
@@ -36,11 +36,21 @@ export async function updateStaff(id: string, staff: {
   pin_code?: string;
   is_active?: boolean;
 }) {
-  const { error } = await supabase.from("auto_parts_staff").update(staff).eq("id", id);
+  const { data, error } = await supabase.rpc("update_auto_parts_staff", {
+    p_id: id,
+    p_name: staff.name ?? null,
+    p_email: staff.email ?? null,
+    p_phone: staff.phone ?? null,
+    p_role: staff.role ?? null,
+    p_pin_code: staff.pin_code ?? null,
+    p_is_active: staff.is_active ?? null,
+  });
   if (error) throw error;
+  return data;
 }
 
 export async function deleteStaff(id: string) {
-  const { error } = await supabase.from("auto_parts_staff").delete().eq("id", id);
+  const { data, error } = await supabase.rpc("delete_auto_parts_staff", { p_id: id });
   if (error) throw error;
+  return data;
 }
