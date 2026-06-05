@@ -30,7 +30,6 @@ export default function AutoPartsStockMovementsPage() {
   const [form, setForm] = useState({ product_id: "", type: "in" as "in" | "out" | "adjustment", quantity: 1, unit_price: "", reference: "", notes: "" });
 
   const load = async () => {
-    if (!businessId) return;
     setLoading(true);
     try { setData(await listStockMovements(businessId)); } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
@@ -38,7 +37,7 @@ export default function AutoPartsStockMovementsPage() {
 
   const searchProd = async (q: string) => {
     setProductSearch(q);
-    if (!businessId || q.length < 1) { setProducts([]); return; }
+    if (q.length < 1) { setProducts([]); return; }
     try { setProducts(await searchProducts(businessId, q)); } catch { }
   };
 

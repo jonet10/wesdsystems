@@ -27,7 +27,7 @@ export default function AutoPartsReportsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!businessId) return;
+    const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
     (async () => {
       try {
         setAlerts(await listAlerts(businessId));
@@ -35,30 +35,23 @@ export default function AutoPartsReportsPage() {
         // Monthly sales
         const now = new Date();
         const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
-        const { data: yearSales } = await supabase
-          .from("auto_parts_sales")
-          .select("total, created_at")
-          .eq("business_id", businessId)
-          .gte("created_at", yearStart);
+        const { data: yearSales } = await bFilter(
+          supabase.from("auto_parts_sales").select("total, created_at")
+        ).gte("created_at", yearStart);
         const byMonth = Array(12).fill(0);
         (yearSales || []).forEach((s: any) => { byMonth[new Date(s.created_at).getMonth()] += Number(s.total); });
         setMonthlySales(byMonth);
 
         // Top products
-        const { data: topItems } = await supabase
-          .from("auto_parts_sale_items")
-          .select("product_name, sum:quantity")
-          .eq("business_id", businessId)
-          .order("sum", { ascending: false, nullsFirst: false })
-          .limit(10);
+        const { data: topItems } = await bFilter(
+          supabase.from("auto_parts_sale_items").select("product_name, sum:quantity")
+        ).order("sum", { ascending: false, nullsFirst: false }).limit(10);
         if (topItems) setTopProducts(topItems.map((t: any) => ({ name: t.product_name, qty: Number(t.sum) })));
 
         // Category sales via products
-        const { data: catSales } = await supabase
-          .from("auto_parts_sale_items")
-          .select("product_name, total_price, product:product_id(category:category_id(name))")
-          .eq("business_id", businessId)
-          .limit(1000);
+        const { data: catSales } = await bFilter(
+          supabase.from("auto_parts_sale_items").select("product_name, total_price, product:product_id(category:category_id(name))")
+        ).limit(1000);
         if (catSales) {
           const catMap = new Map<string, number>();
           catSales.forEach((s: any) => {

@@ -1,13 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsStockMovement } from "../types";
 
-export async function listStockMovements(businessId: string) {
-  const { data, error } = await supabase
-    .from("auto_parts_stock_movements")
-    .select("*, product:product_id(name)")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(200);
+export async function listStockMovements(businessId: string | null) {
+  let query = supabase.from("auto_parts_stock_movements").select("*, product:product_id(name)");
+  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
   if (error) throw error;
   return data as (AutoPartsStockMovement & { product: { name: string } })[];
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,9 @@ import { listCategories } from "@/modules/auto-parts/services/categories";
 import { searchClients } from "@/modules/auto-parts/services/clients";
 import { createSale } from "@/modules/auto-parts/services/sales";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { printReceipt } from "@/lib/print-utils";
 import { toast } from "sonner";
-import { ShoppingCart, Plus, Minus, Trash2, Search, User, CreditCard, Banknote, X, Percent } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Search, User, CreditCard, Banknote, X, Percent, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/types";
 
@@ -44,9 +45,16 @@ export default function AutoPartsPOSPage() {
   const [discountValue, setDiscountValue] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [lastSale, setLastSale] = useState<{ id: string; invoice_number: string } | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [receiptSnapshot, setReceiptSnapshot] = useState<{
+    cart: CartItem[]; subtotal: number; discountAmount: number;
+    taxRate: number; taxAmount: number; total: number;
+    paymentMethod: string; selectedClient: { id: string; name: string } | null;
+  } | null>(null);
 
   useEffect(() => {
-    if (!businessId) return;
     (async () => {
       try {
         setProducts(await listProducts(businessId) as any);
@@ -100,7 +108,7 @@ export default function AutoPartsPOSPage() {
   const handlePayment = async () => {
     if (!businessId || cart.length === 0) return;
     try {
-      await createSale(businessId, {
+      const sale = await createSale(businessId, {
         subtotal,
         tax_rate: taxRate,
         tax_amount: taxAmount,
@@ -114,13 +122,24 @@ export default function AutoPartsPOSPage() {
         client_name: selectedClient?.name ?? undefined,
         items: cart,
       });
-      toast.success("Vente enregistrée !");
+      setReceiptSnapshot({
+        cart: [...cart],
+        subtotal,
+        discountAmount,
+        taxRate,
+        taxAmount,
+        total,
+        paymentMethod,
+        selectedClient: selectedClient ? { ...selectedClient } : null,
+      });
+      setLastSale({ id: sale.id, invoice_number: sale.invoice_number });
       setCart([]);
       setSelectedClient(null);
       setDiscountType("none");
       setDiscountValue(0);
       setTaxRate(0);
       setShowPayment(false);
+      setShowReceipt(true);
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -270,6 +289,81 @@ export default function AutoPartsPOSPage() {
             <Button variant="outline" onClick={() => setShowPayment(false)}>Annuler</Button>
             <Button onClick={handlePayment}>Confirmer le paiement</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceipt} onOpenChange={(open) => { if (!open) setReceiptSnapshot(null); setShowReceipt(open); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Vente enregistrée</DialogTitle></DialogHeader>
+          {lastSale && receiptSnapshot && (
+            <>
+              <div ref={receiptRef} className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight bg-white">
+                <div className="text-center mb-3 pb-3" style={{ borderBottom: "1px dashed #ccc" }}>
+                  <h3 className="font-bold text-sm uppercase">Pièces Auto</h3>
+                  <p className="text-[10px] text-gray-600">Facture #{lastSale.invoice_number}</p>
+                  <p className="text-[9px] text-gray-500">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  {receiptSnapshot.selectedClient && <p className="text-[10px] text-gray-600 mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
+                </div>
+                <div className="flex justify-between text-[9px] text-gray-500 font-bold uppercase mb-1 pb-1" style={{ borderBottom: "1px solid #ccc" }}>
+                  <span className="flex-[2]">Article</span>
+                  <span className="w-12 text-right">Qté</span>
+                  <span className="w-16 text-right">Prix</span>
+                  <span className="w-16 text-right">Total</span>
+                </div>
+                <div className="space-y-1 mb-2">
+                  {receiptSnapshot.cart.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-[10px]">
+                      <span className="flex-[2] truncate pr-1">{item.product_name}</span>
+                      <span className="w-12 text-right text-gray-500">×{item.quantity}</span>
+                      <span className="w-16 text-right text-gray-500">{format(item.unit_price)}</span>
+                      <span className="w-16 text-right font-medium">{format(item.quantity * item.unit_price)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="my-2" style={{ borderTop: "1px dashed #ccc" }} />
+                <div className="space-y-0.5">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-500">Sous-total</span>
+                    <span>{format(receiptSnapshot.subtotal)}</span>
+                  </div>
+                  {receiptSnapshot.discountAmount > 0 && (
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-500">Remise</span>
+                      <span className="text-red-500">-{format(receiptSnapshot.discountAmount)}</span>
+                    </div>
+                  )}
+                  {receiptSnapshot.taxAmount > 0 && (
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-gray-500">TVA ({receiptSnapshot.taxRate}%)</span>
+                      <span>{format(receiptSnapshot.taxAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-[12px] pt-1" style={{ borderTop: "1px solid #ccc" }}>
+                    <span>TOTAL</span>
+                    <span>{format(receiptSnapshot.total)}</span>
+                  </div>
+                  <p className="text-center text-[10px] text-gray-500 uppercase pt-1">
+                    Paiement: {receiptSnapshot.paymentMethod === "cash" ? "Espèces" :
+                               receiptSnapshot.paymentMethod === "card" ? "Carte" :
+                               receiptSnapshot.paymentMethod === "transfer" ? "Virement" :
+                               receiptSnapshot.paymentMethod === "moncash" ? "MonCash" :
+                               receiptSnapshot.paymentMethod === "natcash" ? "NatCash" : receiptSnapshot.paymentMethod}
+                  </p>
+                </div>
+                <div className="text-center mt-3 pt-2" style={{ borderTop: "1px dashed #ccc" }}>
+                  <p className="text-[9px] text-gray-400">Merci de votre visite !</p>
+                  <p className="text-[8px] text-gray-400 mt-1">Document généré électroniquement</p>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); }}>Fermer</Button>
+                <Button onClick={() => receiptRef.current && printReceipt(receiptRef.current, `facture-${lastSale.invoice_number}`)}>
+                  <Printer className="h-4 w-4 mr-2" /> Imprimer
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>

@@ -1,13 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsPurchase, AutoPartsPurchaseItem } from "../types";
 
-export async function listPurchases(businessId: string) {
-  const { data, error } = await supabase
-    .from("auto_parts_purchases")
-    .select("*, items:auto_parts_purchase_items(*)")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+export async function listPurchases(businessId: string | null) {
+  let query = supabase.from("auto_parts_purchases").select("*, items:auto_parts_purchase_items(*)");
+  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(100);
   if (error) throw error;
   return data as (AutoPartsPurchase & { items: AutoPartsPurchaseItem[] })[];
 }
@@ -33,7 +30,7 @@ export async function createPurchase(businessId: string, purchase: {
     p_tax_amount: purchase.tax_amount,
     p_total: purchase.total,
     p_notes: purchase.notes ?? null,
-    p_items: JSON.stringify(purchase.items),
+    p_items: purchase.items as any,
   });
   if (error) throw error;
   return data;

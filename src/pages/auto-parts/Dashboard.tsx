@@ -38,13 +38,13 @@ export default function AutoPartsDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!businessId) return;
+    const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
     const load = async () => {
       const [{ count: totalProducts }, { data: products }, { count: outOfStock }, { count: lowStock }] = await Promise.all([
-        supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("business_id", businessId),
-        supabase.from("auto_parts_products").select("unit_price, cost_price, stock_quantity, category:category_id(name)").eq("business_id", businessId),
-        supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("business_id", businessId).eq("active", true).lte("stock_quantity", 0),
-        supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("business_id", businessId).eq("active", true).gt("stock_quantity", 0).lte("stock_quantity", "min_stock"),
+        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true })),
+        bFilter(supabase.from("auto_parts_products").select("unit_price, cost_price, stock_quantity, category:category_id(name)")),
+        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).lte("stock_quantity", 0)),
+        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).gt("stock_quantity", 0).lte("stock_quantity", "min_stock")),
       ]);
 
       const totalStockValue = (products || []).reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity || 0), 0);
@@ -54,18 +54,18 @@ export default function AutoPartsDashboardPage() {
       const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
       const [{ count: todaySales }, { data: monthSalesData }] = await Promise.all([
-        supabase.from("auto_parts_sales").select("*", { count: "exact", head: true }).eq("business_id", businessId).gte("created_at", dayStart),
-        supabase.from("auto_parts_sales").select("total, created_at").eq("business_id", businessId).gte("created_at", monthStart),
+        bFilter(supabase.from("auto_parts_sales").select("*", { count: "exact", head: true })).gte("created_at", dayStart),
+        bFilter(supabase.from("auto_parts_sales").select("total, created_at")).gte("created_at", monthStart),
       ]);
 
       const monthSales = (monthSalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
 
       const [{ count: monthPurchases }] = await Promise.all([
-        supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true }).eq("business_id", businessId).gte("created_at", monthStart).eq("status", "delivered"),
+        bFilter(supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true })).gte("created_at", monthStart).eq("status", "delivered"),
       ]);
 
       const [{ count: pendingOrders }] = await Promise.all([
-        supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true }).eq("business_id", businessId).in("status", ["pending", "confirmed"]),
+        bFilter(supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true })).in("status", ["pending", "confirmed"]),
       ]);
 
       setStats({
@@ -81,11 +81,9 @@ export default function AutoPartsDashboardPage() {
 
       // Monthly sales for chart
       const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
-      const { data: yearSales } = await supabase
-        .from("auto_parts_sales")
-        .select("total, created_at")
-        .eq("business_id", businessId)
-        .gte("created_at", yearStart);
+      const { data: yearSales } = await bFilter(
+        supabase.from("auto_parts_sales").select("total, created_at")
+      ).gte("created_at", yearStart);
 
       const byMonth = Array(12).fill(0);
       (yearSales || []).forEach((s) => {

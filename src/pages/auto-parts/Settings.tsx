@@ -44,6 +44,16 @@ export default function AutoPartsSettingsPage() {
     }
   };
 
+  if (!businessId) {
+    return (
+      <DashboardLayout role="salon_admin" title="Paramètres" subtitle="Configuration du module auto-parts">
+        <p className="text-muted-foreground p-8">
+          Connectez-vous avec un établissement pour configurer les paramètres.
+        </p>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout role="salon_admin" title="Paramètres" subtitle="Configuration du module auto-parts">
       <StaggerContainer>

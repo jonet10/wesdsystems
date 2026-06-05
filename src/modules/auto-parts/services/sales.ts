@@ -1,13 +1,10 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsSale, AutoPartsSaleItem } from "../types";
 
-export async function listSales(businessId: string) {
-  const { data, error } = await supabase
-    .from("auto_parts_sales")
-    .select("*, items:auto_parts_sale_items(*)")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+export async function listSales(businessId: string | null) {
+  let query = supabase.from("auto_parts_sales").select("*, items:auto_parts_sale_items(*)");
+  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(100);
   if (error) throw error;
   return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];
 }
@@ -51,7 +48,7 @@ export async function createSale(businessId: string, sale: {
     p_payment_method: sale.payment_method,
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,
-    p_items: JSON.stringify(sale.items),
+    p_items: sale.items as any,
   });
   if (error) throw error;
   return data;

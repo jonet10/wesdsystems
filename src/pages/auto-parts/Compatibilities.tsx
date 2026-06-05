@@ -29,7 +29,6 @@ export default function AutoPartsCompatibilitiesPage() {
   const [form, setForm] = useState({ product_id: "", brand_id: "", model_id: "", year_start: "", year_end: "", engine: "", notes: "" });
 
   const load = async () => {
-    if (!businessId) return;
     setLoading(true);
     try {
       setData(await listCompatibilities());

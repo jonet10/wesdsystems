@@ -24,7 +24,6 @@ export default function AutoPartsCategoriesPage() {
   const [form, setForm] = useState({ name: "", description: "", sort_order: 0 });
 
   const load = async () => {
-    if (!businessId) return;
     setLoading(true);
     try {
       const res = await listCategories(businessId);

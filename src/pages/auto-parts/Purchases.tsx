@@ -35,7 +35,6 @@ export default function AutoPartsPurchasesPage() {
   const [prodResults, setProdResults] = useState<{ id: string; name: string; sku: string | null }[]>([]);
 
   const load = async () => {
-    if (!businessId) return;
     setLoading(true);
     try {
       setData(await listPurchases(businessId));
@@ -46,7 +45,7 @@ export default function AutoPartsPurchasesPage() {
 
   const searchProd = async (q: string) => {
     setProdSearch(q);
-    if (!businessId || q.length < 1) { setProdResults([]); return; }
+    if (q.length < 1) { setProdResults([]); return; }
     try { setProdResults(await searchProducts(businessId, q)); } catch { }
   };
 

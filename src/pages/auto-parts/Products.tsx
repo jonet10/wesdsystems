@@ -36,7 +36,6 @@ export default function AutoPartsProductsPage() {
   });
 
   const load = async () => {
-    if (!businessId) return;
     setLoading(true);
     try {
       setData(await listProducts(businessId));
