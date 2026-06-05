@@ -101,12 +101,12 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     switch (activeBiz) {
       case "pharmacie":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
-          { icon: FileText, label: "Ordonnances", path: "/salon/appointments", role: "all" },
-          { icon: Users, label: "Patients", path: "/salon/clients", role: "all" },
-          { icon: Users, label: "Pharmaciens", path: "/salon/employees", role: "salon_admin" },
-          { icon: Pill, label: "Stock Médicaments", path: "/salon/services", role: "all" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/pharmacie", role: "all" },
+          { icon: FileText, label: "Ordonnances", path: "/pharmacie/appointments", role: "all" },
+          { icon: Users, label: "Patients", path: "/pharmacie/clients", role: "all" },
+          { icon: Users, label: "Pharmaciens", path: "/pharmacie/employees", role: "salon_admin" },
+          { icon: Pill, label: "Stock Médicaments", path: "/pharmacie/services", role: "all" },
+          { icon: Settings, label: "Configuration", path: "/pharmacie/settings", role: "salon_admin" },
         ];
       case "restaurant":
         return [
@@ -127,17 +127,6 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
           { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
         ];
-      case "market":
-      case "boutique":
-        return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/salon", role: "all" },
-          { icon: ShoppingBag, label: "Caisse POS", path: "/salon/pos", role: "all" },
-          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
-          { icon: Users, label: "Équipe", path: "/salon/employees", role: "salon_admin" },
-          { icon: Layers, label: "Inventaire", path: "/salon/inventory", role: "all" },
-          { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
-        ];
       case "salon":
       default:
         return [
@@ -155,7 +144,26 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
           { icon: Settings, label: "Paramètres", path: "/salon/settings", role: "salon_admin" },
         ];
-
+      case "market":
+        return [
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/market", role: "all" },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/market/pos", role: "all" },
+          { icon: Users, label: "Clients", path: "/market/clients", role: "all" },
+          { icon: Users, label: "Équipe", path: "/market/employees", role: "salon_admin" },
+          { icon: Layers, label: "Inventaire", path: "/market/inventory", role: "all" },
+          { icon: BarChart3, label: "Analytics", path: "/market/sales-analytics", role: "salon_admin" },
+          { icon: Settings, label: "Configuration", path: "/market/settings", role: "salon_admin" },
+        ];
+      case "boutique":
+        return [
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/boutique", role: "all" },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/boutique/pos", role: "all" },
+          { icon: Users, label: "Clients", path: "/boutique/clients", role: "all" },
+          { icon: Users, label: "Équipe", path: "/boutique/employees", role: "salon_admin" },
+          { icon: Layers, label: "Inventaire", path: "/boutique/inventory", role: "all" },
+          { icon: BarChart3, label: "Analytics", path: "/boutique/sales-analytics", role: "salon_admin" },
+          { icon: Settings, label: "Configuration", path: "/boutique/settings", role: "salon_admin" },
+        ];
       case "auto_parts":
         return [
           { icon: LayoutDashboard, label: "Dashboard", path: "/auto-parts", role: "all" },

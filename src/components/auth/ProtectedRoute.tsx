@@ -14,12 +14,12 @@ interface ProtectedRouteProps {
 function moduleRoute(businessType?: string | null): string {
   const routes: Record<string, string> = {
     salon: "/salon",
-    pharmacie: "/salon",
+    pharmacie: "/pharmacie",
     restaurant: "/bar",
-    market: "/salon",
-    boutique: "/salon",
+    market: "/market",
+    boutique: "/boutique",
     auto_parts: "/auto-parts",
-    school_payments: "/salon",
+    school_payments: "/school-payments",
   };
   return (businessType && routes[businessType]) || "/salon";
 }

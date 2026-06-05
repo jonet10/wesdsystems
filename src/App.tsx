@@ -61,6 +61,22 @@ import AutoPartsReports from "./pages/auto-parts/Reports";
 import AutoPartsSettings from "./pages/auto-parts/Settings";
 import NotFound from "./pages/NotFound";
 
+const salonAdminRoutes: { path: string; element: JSX.Element }[] = [
+  { path: "", element: <SalonDashboard /> },
+  { path: "/clients", element: <ClientsPage /> },
+  { path: "/services", element: <ServicesPage /> },
+  { path: "/appointments", element: <AppointmentsPage /> },
+  { path: "/employees", element: <SalonEmployees /> },
+  { path: "/settings", element: <SalonSettings /> },
+  { path: "/inventory", element: <InventoryPage /> },
+  { path: "/pos", element: <POSPage /> },
+  { path: "/sales-analytics", element: <SalesAnalyticsPage /> },
+  { path: "/products", element: <ProductsPage /> },
+  { path: "/expenses", element: <ExpensesPage /> },
+  { path: "/reports", element: <ReportsPage /> },
+  { path: "/promotions", element: <PromotionsPage /> },
+];
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -147,124 +163,35 @@ const App = () => (
                   }
                 />
 
-                {/* Salon Admin Routes */}
-                <Route
-                  path="/salon"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <SalonDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/clients"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <ClientsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/services"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <ServicesPage />
-                    </ProtectedRoute>
-                  }
-                />
+                {/* Salon / Pharmacie / Market / Boutique Routes */}
+                {(["salon", "pharmacie", "market", "boutique"] as const).flatMap(prefix =>
+                  salonAdminRoutes.map(route => (
+                    <Route
+                      key={`${prefix}/${route.path}`}
+                      path={`/${prefix}${route.path}`}
+                      element={
+                        <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                          {route.element}
+                        </ProtectedRoute>
+                      }
+                    />
+                  )).concat(
+                    <Route
+                      key={`${prefix}/beverages`}
+                      path={`/${prefix}/beverages`}
+                      element={
+                        <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
+                          <Navigate to={`/${prefix}/products`} replace />
+                        </ProtectedRoute>
+                      }
+                    />
+                  )
+                )}
                 <Route
                   path="/services"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
                       <ServicesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/appointments"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <AppointmentsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/employees"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <SalonEmployees />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/settings"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <SalonSettings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/inventory"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <InventoryPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/pos"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <POSPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/sales-analytics"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <SalesAnalyticsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/products"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <ProductsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/beverages"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <Navigate to="/salon/products" replace />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/expenses"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <ExpensesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/reports"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <ReportsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/promotions"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <PromotionsPage />
                     </ProtectedRoute>
                   }
                 />
