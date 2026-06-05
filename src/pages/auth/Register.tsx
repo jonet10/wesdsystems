@@ -63,6 +63,29 @@ export default function Register() {
     setIsLoading(true);
 
     try {
+      // Vérifier si l'email est déjà inscrit
+      const email = formData.email.trim().toLowerCase();
+      if (!email) {
+        toast({ title: "Email requis", description: "Veuillez entrer une adresse email.", variant: "destructive" });
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: existingEmails, error: checkError } = await supabase
+        .rpc('check_email_exists', { p_email: email });
+
+      if (checkError) {
+        console.warn('[REGISTER] check_email_exists RPC indisponible, tentative directe:', checkError.message);
+      } else if (existingEmails === true) {
+        setIsLoading(false);
+        toast({
+          title: "Email déjà inscrit",
+          description: "Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -132,15 +155,22 @@ export default function Register() {
         });
       }
     } catch (error: any) {
+      const msg = String(error?.message || "").toLowerCase();
       const isRateLimited =
         error?.status === 429 ||
         error?.code === 429 ||
-        String(error?.message || "").toLowerCase().includes("rate limit") ||
-        String(error?.message || "").toLowerCase().includes("too many");
+        msg.includes("rate limit") ||
+        msg.includes("too many");
+      const isAlreadyRegistered =
+        msg.includes("already registered") ||
+        msg.includes("already exist") ||
+        msg.includes("utilisateur existe");
 
       toast({
-        title: "Erreur lors de l'inscription",
-        description: isRateLimited
+        title: isAlreadyRegistered ? "Email déjà inscrit" : "Erreur lors de l'inscription",
+        description: isAlreadyRegistered
+          ? "Cet email est déjà utilisé. Connectez-vous avec votre mot de passe."
+          : isRateLimited
           ? "Trop de tentatives d'inscription en peu de temps. Attendez quelques minutes, puis réessayez avec le même email."
           : error.message || "Une erreur est survenue.",
         variant: "destructive",
