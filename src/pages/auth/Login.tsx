@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { glowupStore } from "@/lib/store";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -93,6 +94,7 @@ export default function Login() {
             targetRoute = "/employee";
           } else {
             targetRoute = moduleRoute(businessType);
+            if (businessType) glowupStore.setActiveBusiness(businessType as any);
           }
         }
       }

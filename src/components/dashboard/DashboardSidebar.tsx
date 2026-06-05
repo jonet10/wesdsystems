@@ -89,7 +89,14 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
-  const { user, employeeSession } = useAuth();
+  const { user, profile, employeeSession } = useAuth();
+
+  useEffect(() => {
+    const biz = glowupStore.getActiveBusiness();
+    if (profile?.business_type && profile.business_type !== biz) {
+      glowupStore.setActiveBusiness(profile.business_type as any);
+    }
+  }, [profile?.business_type]);
 
   useEffect(() => {
     const handleUpdate = () => setActiveBiz(glowupStore.getActiveBusiness());
