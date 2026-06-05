@@ -2,6 +2,9 @@
 -- Auto-create business row + trial subscription on user signup
 -- ============================================================================
 
+-- 0. Add business_type column to businesses table (missing from original schema)
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS business_type TEXT;
+
 -- 1. Function to create a business when a new user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER

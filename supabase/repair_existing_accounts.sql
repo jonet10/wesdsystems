@@ -2,6 +2,9 @@
 -- REPAIR: Find and fix existing accounts with missing business/subscription
 -- ============================================================================
 
+-- 0. Ensure business_type column exists on businesses
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS business_type TEXT;
+
 -- 1. Find auth users that have a profile but no business row
 WITH users_without_business AS (
   SELECT
