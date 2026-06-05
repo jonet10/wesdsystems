@@ -58,7 +58,6 @@ import AutoPartsPOS from "./pages/auto-parts/POS";
 import AutoPartsPurchases from "./pages/auto-parts/Purchases";
 import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
 import AutoPartsReports from "./pages/auto-parts/Reports";
-import AutoPartsSettings from "./pages/auto-parts/Settings";
 import NotFound from "./pages/NotFound";
 
 const salonAdminRoutes: { path: string; element: JSX.Element }[] = [
@@ -423,7 +422,7 @@ const App = () => (
                   path="/auto-parts/settings"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                      <AutoPartsSettings />
+                      <SalonSettings />
                     </ProtectedRoute>
                   }
                 />

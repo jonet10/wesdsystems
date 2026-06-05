@@ -345,7 +345,7 @@ export default function SalonSettingsPage() {
   return (
     <DashboardLayout
       role="salon_admin"
-      title="Paramètres Salon"
+      title="Paramètres"
       subtitle="Configurez l'identité, les horaires et la fiscalité de votre établissement"
       userName={owner || "Administrateur"}
     >
@@ -433,8 +433,8 @@ export default function SalonSettingsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="salon-name">Nom du salon *</Label>
-                      <Input id="salon-name" placeholder="Ex: Barber Studio Delmas" value={salonName} onChange={(e) => setSalonName(e.target.value)} required />
+                      <Label htmlFor="salon-name">Nom de l'établissement *</Label>
+                      <Input id="salon-name" placeholder="Nom de votre établissement" value={salonName} onChange={(e) => setSalonName(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="owner-name">Propriétaire / Gérant *</Label>
@@ -481,7 +481,7 @@ export default function SalonSettingsPage() {
                       <Input id="website" placeholder="Ex: https://monstudio.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="salon-currency">Devise du salon</Label>
+                      <Label htmlFor="salon-currency">Devise</Label>
                       <select
                         id="salon-currency"
                         value={activeCurrencyCode}
