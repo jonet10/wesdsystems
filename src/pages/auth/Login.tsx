@@ -32,9 +32,21 @@ export default function Login() {
     if (role === 'super_admin') return 'super_admin';
     if (role === 'employee') return 'employee';
     if (role === 'partner' || role?.startsWith('partner')) return 'partner';
-    // studio_admin, salon_admin, owner → all go to /salon
     if (['studio_admin', 'salon_admin', 'owner'].includes(role)) return 'studio_admin';
     return null;
+  };
+
+  const moduleRoute = (businessType?: string | null): string => {
+    const routes: Record<string, string> = {
+      salon: "/salon",
+      pharmacie: "/salon",
+      restaurant: "/bar",
+      market: "/salon",
+      boutique: "/salon",
+      auto_parts: "/salon/auto-parts",
+      school_payments: "/salon",
+    };
+    return (businessType && routes[businessType]) || "/salon";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,7 +70,7 @@ export default function Login() {
       if (data.user) {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, role_normalized')
+          .select('role, role_normalized, business_type')
           .eq('id', data.user.id)
           .maybeSingle();
 
@@ -71,6 +83,7 @@ export default function Login() {
           const metadata = data.user.user_metadata ?? {};
           const rawRole = profile?.role_normalized || profile?.role || metadata.role_normalized || metadata.role;
           const normalized = normalizeRole(rawRole);
+          const businessType = profile?.business_type || metadata.business_type || null;
 
           if (normalized === 'super_admin') {
             targetRoute = "/admin";
@@ -79,7 +92,7 @@ export default function Login() {
           } else if (normalized === 'employee') {
             targetRoute = "/employee";
           } else {
-            targetRoute = "/salon";
+            targetRoute = moduleRoute(businessType);
           }
         }
       }
