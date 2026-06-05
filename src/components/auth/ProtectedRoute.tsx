@@ -11,11 +11,24 @@ interface ProtectedRouteProps {
   allowAuthenticatedWithoutRole?: boolean;
 }
 
-const getDefaultRouteForRole = (role?: string | null): string => {
+function moduleRoute(businessType?: string | null): string {
+  const routes: Record<string, string> = {
+    salon: "/salon",
+    pharmacie: "/salon",
+    restaurant: "/bar",
+    market: "/salon",
+    boutique: "/salon",
+    auto_parts: "/salon/auto-parts",
+    school_payments: "/salon",
+  };
+  return (businessType && routes[businessType]) || "/salon";
+}
+
+const getDefaultRouteForRole = (role?: string | null, businessType?: string | null): string => {
   if (role === "super_admin") return "/admin";
   if (role === "partner") return "/partner";
   if (role === "employee") return "/employee";
-  return "/salon";
+  return moduleRoute(businessType);
 };
 
 /**
@@ -103,7 +116,7 @@ export function ProtectedRoute({
   }
 
   if (!normalizedAllowedRoles.includes(role)) {
-    return <Navigate to={getDefaultRouteForRole(role)} replace />;
+    return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
   }
 
   return <>{children}</>;

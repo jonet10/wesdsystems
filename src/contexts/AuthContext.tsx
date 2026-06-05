@@ -15,6 +15,7 @@ interface UserProfile {
   role: string;
   role_normalized: string | null;
   business_id: string | null;
+  business_type: string | null;
 }
 
 interface AuthState {
@@ -58,6 +59,7 @@ const profileFromUserMetadata = (user: User): UserProfile | null => {
     role,
     role_normalized: role,
     business_id: typeof metadata.business_id === 'string' ? metadata.business_id : null,
+    business_type: typeof metadata.business_type === 'string' ? metadata.business_type : null,
   };
 };
 
@@ -71,7 +73,7 @@ const fetchProfileWithTimeout = async (
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, role, role_normalized, business_id')
+      .select('id, full_name, role, role_normalized, business_id, business_type')
       .eq('id', user.id)
       .abortSignal(controller.signal)
       .maybeSingle();

@@ -10,6 +10,19 @@ import { useToast } from "@/hooks/use-toast";
 import { glowupStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
+function moduleRoute(businessType: string): string {
+  const routes: Record<string, string> = {
+    salon: "/salon",
+    pharmacie: "/salon",
+    restaurant: "/bar",
+    market: "/salon",
+    boutique: "/salon",
+    auto_parts: "/salon/auto-parts",
+    school_payments: "/salon",
+  };
+  return routes[businessType] || "/salon";
+}
+
 const planFeatures = {
   basic: ["1 business actif", "Jusqu'à 3 employés", "Caisse POS standard", "Support client standard"],
   pro: ["2 business actifs", "Jusqu'à 10 employés", "Statistiques avancées", "SMS alertes automatique"],
@@ -110,7 +123,9 @@ export default function Register() {
 
         // Save their chosen business type in the global store!
         glowupStore.setActiveBusiness(formData.businessType as any);
-        navigate("/salon");
+        const dest = moduleRoute(formData.businessType);
+        console.log("[REGISTER] module=%s plan=%s redirect=%s", formData.businessType, formData.plan, dest);
+        navigate(dest);
         toast({
           title: "Compte créé avec succès !",
           description: "Bienvenue sur Wesd Systems. Votre essai de 7 jours commence maintenant.",
