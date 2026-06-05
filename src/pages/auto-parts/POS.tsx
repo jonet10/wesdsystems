@@ -13,13 +13,14 @@ import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsB
 import { listProducts, searchProducts } from "@/modules/auto-parts/services/products";
 import { listCategories } from "@/modules/auto-parts/services/categories";
 import { searchClients } from "@/modules/auto-parts/services/clients";
+import { listStaff } from "@/modules/auto-parts/services/staff";
 import { createSale } from "@/modules/auto-parts/services/sales";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { printReceipt } from "@/lib/print-utils";
 import { toast } from "sonner";
 import { ShoppingCart, Plus, Minus, Trash2, Search, User, CreditCard, Banknote, X, Percent, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/types";
+import type { AutoPartsProduct, AutoPartsCategory, AutoPartsStaff } from "@/modules/auto-parts/types";
 
 interface CartItem {
   product_id?: string;
@@ -48,10 +49,13 @@ export default function AutoPartsPOSPage() {
   const [lastSale, setLastSale] = useState<{ id: string; invoice_number: string } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [staff, setStaff] = useState<AutoPartsStaff[]>([]);
+  const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [receiptSnapshot, setReceiptSnapshot] = useState<{
     cart: CartItem[]; subtotal: number; discountAmount: number;
     taxRate: number; taxAmount: number; total: number;
     paymentMethod: string; selectedClient: { id: string; name: string } | null;
+    staffName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -59,6 +63,7 @@ export default function AutoPartsPOSPage() {
       try {
         setProducts(await listProducts(businessId) as any);
         setCategories(await listCategories(businessId));
+        setStaff(await listStaff(businessId));
       } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
     })();
   }, [businessId]);
@@ -107,6 +112,7 @@ export default function AutoPartsPOSPage() {
 
   const handlePayment = async () => {
     if (!businessId || cart.length === 0) return;
+    const staffMember = staff.find(s => s.id === selectedStaff);
     try {
       const sale = await createSale(businessId, {
         subtotal,
@@ -120,6 +126,7 @@ export default function AutoPartsPOSPage() {
         payment_status: "paid",
         client_id: selectedClient?.id ?? null,
         client_name: selectedClient?.name ?? undefined,
+        staff_id: selectedStaff || null,
         items: cart,
       });
       setReceiptSnapshot({
@@ -131,10 +138,12 @@ export default function AutoPartsPOSPage() {
         total,
         paymentMethod,
         selectedClient: selectedClient ? { ...selectedClient } : null,
+        staffName: staffMember?.name || "",
       });
       setLastSale({ id: sale.id, invoice_number: sale.invoice_number });
       setCart([]);
       setSelectedClient(null);
+      setSelectedStaff("");
       setDiscountType("none");
       setDiscountValue(0);
       setTaxRate(0);
@@ -265,6 +274,19 @@ export default function AutoPartsPOSPage() {
               <Label>TVA (%)</Label>
               <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
             </div>
+            {staff.length > 0 && (
+              <div>
+                <Label>Caissier(ère)</Label>
+                <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    {staff.filter(s => s.role === "cashier" || s.role === "admin" || s.role === "manager").map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label>Moyen de paiement</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -303,6 +325,7 @@ export default function AutoPartsPOSPage() {
                   <h3 className="font-bold text-sm uppercase">Pièces Auto</h3>
                   <p className="text-[10px] text-gray-600">Facture #{lastSale.invoice_number}</p>
                   <p className="text-[9px] text-gray-500">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  {receiptSnapshot.staffName && <p className="text-[10px] text-gray-600 mt-1">Caissier: {receiptSnapshot.staffName}</p>}
                   {receiptSnapshot.selectedClient && <p className="text-[10px] text-gray-600 mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
                 </div>
                 <div className="flex justify-between text-[9px] text-gray-500 font-bold uppercase mb-1 pb-1" style={{ borderBottom: "1px solid #ccc" }}>

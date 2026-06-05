@@ -174,6 +174,7 @@ CREATE OR REPLACE FUNCTION public.create_auto_parts_sale(
   p_payment_method TEXT DEFAULT 'cash',
   p_payment_status TEXT DEFAULT 'paid',
   p_notes TEXT DEFAULT NULL,
+  p_staff_id UUID DEFAULT NULL,
   p_items JSONB DEFAULT '[]'
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -185,17 +186,19 @@ DECLARE
   v_product_name TEXT;
   v_quantity NUMERIC;
   v_unit_price NUMERIC;
+  v_staff_name TEXT;
 BEGIN
   v_invoice := generate_auto_parts_invoice_number();
+  v_staff_name := (SELECT name FROM public.auto_parts_staff WHERE id = p_staff_id);
 
   INSERT INTO public.auto_parts_sales (
     invoice_number, business_id, client_id, client_name,
     subtotal, tax_rate, tax_amount, discount_type, discount_value, discount_amount,
-    total, payment_method, payment_status, notes
+    total, payment_method, payment_status, notes, staff_id, staff_name
   ) VALUES (
     v_invoice, p_business_id, p_client_id, p_client_name,
     p_subtotal, p_tax_rate, p_tax_amount, p_discount_type, p_discount_value, p_discount_amount,
-    p_total, p_payment_method, p_payment_status, p_notes
+    p_total, p_payment_method, p_payment_status, p_notes, p_staff_id, v_staff_name
   ) RETURNING id INTO v_sale_id;
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
@@ -327,3 +330,110 @@ BEGIN
   RAISE NOTICE 'Compat:      %', v_compatibilities;
   RAISE NOTICE '══════════════════════════════════════════';
 END $$;
+
+-- ─── 12. PURCHASE UPDATE/DELETE RPCS ───
+CREATE OR REPLACE FUNCTION public.update_auto_parts_purchase(
+  p_id UUID,
+  p_supplier_id UUID DEFAULT NULL,
+  p_supplier_name TEXT DEFAULT NULL,
+  p_reference_number TEXT DEFAULT NULL,
+  p_status TEXT DEFAULT NULL,
+  p_subtotal NUMERIC DEFAULT NULL,
+  p_tax_amount NUMERIC DEFAULT NULL,
+  p_total NUMERIC DEFAULT NULL,
+  p_notes TEXT DEFAULT NULL,
+  p_items JSONB DEFAULT '[]'
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_item JSONB;
+BEGIN
+  DELETE FROM public.auto_parts_purchase_items WHERE purchase_id = p_id;
+
+  UPDATE public.auto_parts_purchases SET
+    supplier_id      = COALESCE(p_supplier_id, supplier_id),
+    supplier_name    = COALESCE(p_supplier_name, supplier_name),
+    reference_number = COALESCE(p_reference_number, reference_number),
+    status           = COALESCE(p_status, status),
+    subtotal         = COALESCE(p_subtotal, subtotal),
+    tax_amount       = COALESCE(p_tax_amount, tax_amount),
+    total            = COALESCE(p_total, total),
+    notes            = COALESCE(p_notes, notes)
+  WHERE id = p_id;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    INSERT INTO public.auto_parts_purchase_items (purchase_id, product_id, product_name, quantity, unit_price, total_price)
+    VALUES (
+      p_id,
+      (v_item->>'product_id')::UUID,
+      v_item->>'product_name',
+      (v_item->>'quantity')::NUMERIC,
+      (v_item->>'unit_price')::NUMERIC,
+      (v_item->>'quantity')::NUMERIC * (v_item->>'unit_price')::NUMERIC
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object('id', p_id, 'status', 'updated');
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.delete_auto_parts_purchase(p_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.auto_parts_purchase_items WHERE purchase_id = p_id;
+  DELETE FROM public.auto_parts_purchases WHERE id = p_id;
+  RETURN jsonb_build_object('id', p_id, 'status', 'deleted');
+END;
+$$;
+
+-- ─── 13. AUTO PARTS STAFF TABLE ───
+CREATE TABLE IF NOT EXISTS public.auto_parts_staff (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  email       TEXT,
+  phone       TEXT,
+  role        TEXT NOT NULL DEFAULT 'cashier' CHECK (role IN ('admin', 'manager', 'cashier')),
+  pin_code    TEXT,
+  is_active   BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.auto_parts_staff ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "auto_parts_staff_select" ON public.auto_parts_staff
+  FOR SELECT USING (
+    business_id = auth.uid()::UUID
+    OR business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM public.auto_parts_staff s WHERE s.id = auth.uid()::UUID AND s.business_id = auto_parts_staff.business_id)
+  );
+
+CREATE POLICY "auto_parts_staff_insert" ON public.auto_parts_staff
+  FOR INSERT WITH CHECK (
+    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "auto_parts_staff_update" ON public.auto_parts_staff
+  FOR UPDATE USING (
+    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
+  );
+
+CREATE POLICY "auto_parts_staff_delete" ON public.auto_parts_staff
+  FOR DELETE USING (
+    business_id IN (SELECT id FROM public.businesses WHERE owner_id = auth.uid())
+  );
+
+-- Add created_by FK to auto_parts_sales if not exists
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'auto_parts_sales' AND column_name = 'staff_id'
+  ) THEN
+    ALTER TABLE public.auto_parts_sales ADD COLUMN staff_id UUID REFERENCES public.auto_parts_staff(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+DO $$ BEGIN RAISE NOTICE 'Migration 20260706 complete: +purchase CRUD RPCs, +auto_parts_staff table'; END $$;

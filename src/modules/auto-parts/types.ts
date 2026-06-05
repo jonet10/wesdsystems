@@ -114,6 +114,8 @@ export interface AutoPartsSale {
   total: number;
   payment_method: 'cash' | 'card' | 'transfer' | 'moncash' | 'natcash';
   payment_status: 'paid' | 'partial' | 'unpaid';
+  staff_id?: string;
+  staff_name?: string;
   notes?: string;
   items?: AutoPartsSaleItem[];
   created_by?: string;
@@ -153,6 +155,19 @@ export interface AutoPartsPurchaseItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+}
+
+export interface AutoPartsStaff {
+  id: string;
+  business_id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: 'admin' | 'manager' | 'cashier';
+  pin_code?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AutoPartsAlert {

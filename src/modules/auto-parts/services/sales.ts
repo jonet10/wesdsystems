@@ -31,6 +31,7 @@ export async function createSale(businessId: string, sale: {
   payment_status: string;
   client_id?: string | null;
   client_name?: string;
+  staff_id?: string | null;
   notes?: string;
   items: { product_id?: string | null; product_name: string; quantity: number; unit_price: number }[];
 }) {
@@ -48,6 +49,7 @@ export async function createSale(businessId: string, sale: {
     p_payment_method: sale.payment_method,
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,
+    p_staff_id: sale.staff_id ?? null,
     p_items: sale.items as any,
   });
   if (error) throw error;

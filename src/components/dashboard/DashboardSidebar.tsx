@@ -182,6 +182,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all" },
           { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all" },
           { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all" },
+          { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin" },
           { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all" },
           { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all" },
           { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin" },

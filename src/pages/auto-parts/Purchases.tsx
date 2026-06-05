@@ -11,13 +11,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
-import { listPurchases, createPurchase, updatePurchaseStatus } from "@/modules/auto-parts/services/purchases";
+import { listPurchases, createPurchase, updatePurchase, updatePurchaseStatus, deletePurchase } from "@/modules/auto-parts/services/purchases";
 import { listSuppliers } from "@/modules/auto-parts/services/suppliers";
 import { searchProducts } from "@/modules/auto-parts/services/products";
 import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
-import { Plus, Trash2, Truck } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsPurchase, AutoPartsPurchaseItem, AutoPartsSupplier } from "@/modules/auto-parts/types";
 
 const STATUS_LABELS: Record<string, string> = { draft: "Brouillon", pending: "En attente", confirmed: "Confirmée", preparing: "Préparation", shipped: "Expédiée", delivered: "Livrée", cancelled: "Annulée" };
@@ -30,9 +30,11 @@ export default function AutoPartsPurchasesPage() {
   const [suppliers, setSuppliers] = useState<AutoPartsSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<AutoPartsPurchase | null>(null);
   const [form, setForm] = useState({ supplier_id: "", supplier_name: "", reference_number: "", notes: "", items: [] as { product_id?: string; product_name: string; quantity: number; unit_price: number }[] });
   const [prodSearch, setProdSearch] = useState("");
   const [prodResults, setProdResults] = useState<{ id: string; name: string; sku: string | null }[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<AutoPartsPurchase | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -63,22 +65,59 @@ export default function AutoPartsPurchasesPage() {
     setForm({ ...form, items: form.items.filter((_, idx) => idx !== i) });
   };
 
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ supplier_id: "", supplier_name: "", reference_number: "", notes: "", items: [] });
+    setOpen(true);
+  };
+
+  const openEdit = (purchase: AutoPartsPurchase & { items: AutoPartsPurchaseItem[] }) => {
+    setEditing(purchase);
+    setForm({
+      supplier_id: purchase.supplier_id || "",
+      supplier_name: purchase.supplier_name || "",
+      reference_number: purchase.reference_number || "",
+      notes: purchase.notes || "",
+      items: (purchase.items || []).map(i => ({
+        product_id: i.product_id,
+        product_name: i.product_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+      })),
+    });
+    setOpen(true);
+  };
+
   const handleSave = async () => {
     if (!businessId) return;
     try {
       const subtotal = form.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
-      await createPurchase(businessId, {
-        supplier_id: form.supplier_id || null,
-        supplier_name: form.supplier_name || null,
-        reference_number: form.reference_number || undefined,
-        status: "draft",
-        subtotal,
-        tax_amount: 0,
-        total: subtotal,
-        notes: form.notes || undefined,
-        items: form.items,
-      });
-      toast.success("Achat créé");
+      if (editing) {
+        await updatePurchase(editing.id, {
+          supplier_id: form.supplier_id || null,
+          supplier_name: form.supplier_name || null,
+          reference_number: form.reference_number || undefined,
+          subtotal,
+          tax_amount: 0,
+          total: subtotal,
+          notes: form.notes || undefined,
+          items: form.items,
+        });
+        toast.success("Achat modifié");
+      } else {
+        await createPurchase(businessId, {
+          supplier_id: form.supplier_id || null,
+          supplier_name: form.supplier_name || null,
+          reference_number: form.reference_number || undefined,
+          status: "draft",
+          subtotal,
+          tax_amount: 0,
+          total: subtotal,
+          notes: form.notes || undefined,
+          items: form.items,
+        });
+        toast.success("Achat créé");
+      }
       setOpen(false);
       load();
     } catch (e: any) { toast.error(e.message); }
@@ -92,11 +131,21 @@ export default function AutoPartsPurchasesPage() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await deletePurchase(deleteConfirm.id);
+      toast.success("Achat supprimé");
+      setDeleteConfirm(null);
+      load();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   return (
     <DashboardLayout role="salon_admin" title="Achats" subtitle="Gestion des bons de commande fournisseurs">
       <StaggerContainer>
         <StaggerItem>
-          <AutoPartsPageHeader title="Achats" description={`${data.length} commande(s)`} action={{ label: "Nouvel achat", onClick: () => { setForm({ supplier_id: "", supplier_name: "", reference_number: "", notes: "", items: [] }); setOpen(true); } }} />
+          <AutoPartsPageHeader title="Achats" description={`${data.length} commande(s)`} action={{ label: "Nouvel achat", onClick: openCreate }} />
           <AutoPartsDataTable
             rows={data}
             columns={[
@@ -112,13 +161,24 @@ export default function AutoPartsPurchasesPage() {
                 </Select>
               )},
               { key: "created_at", label: "Date", render: (r) => new Date(r.created_at).toLocaleDateString("fr-FR") },
+              { key: "actions", label: "Actions", render: (r) => (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setDeleteConfirm(r)}>
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              )},
             ]}
           />
         </StaggerItem>
       </StaggerContainer>
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Nouvel achat</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Modifier l'achat" : "Nouvel achat"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -168,7 +228,18 @@ export default function AutoPartsPurchasesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Créer la commande</Button>
+            <Button onClick={handleSave}>{editing ? "Enregistrer" : "Créer la commande"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmer la suppression</DialogTitle></DialogHeader>
+          <p>Supprimer la commande <strong>{deleteConfirm?.reference_number || deleteConfirm?.id}</strong> ? Cette action est irréversible.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
