@@ -5,6 +5,11 @@
 -- 0. Add business_type column to businesses table (missing from original schema)
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS business_type TEXT;
 
+-- 0b. Extend type check constraint to include auto_parts
+ALTER TABLE public.businesses DROP CONSTRAINT IF EXISTS businesses_type_check;
+ALTER TABLE public.businesses ADD CONSTRAINT businesses_type_check
+  CHECK (type = ANY (ARRAY['salon'::text, 'pharmacie'::text, 'restaurant'::text, 'market'::text, 'boutique'::text, 'auto_parts'::text]));
+
 -- 1. Function to create a business when a new user signs up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -28,9 +33,10 @@ BEGIN
   v_plan_id := public.resolve_subscription_plan_id(v_plan_key);
 
   -- Create the business row
-  INSERT INTO public.businesses (name, business_type, plan_id)
+  INSERT INTO public.businesses (name, business_type, type, plan_id)
   VALUES (
     COALESCE(NULLIF(BTRIM(COALESCE(NEW.raw_user_meta_data->>'business_name', '')), ''), 'Mon entreprise'),
+    COALESCE(v_business_type, 'salon'),
     COALESCE(v_business_type, 'salon'),
     v_plan_id
   )

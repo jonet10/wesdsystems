@@ -5,6 +5,11 @@
 -- 0. Ensure business_type column exists on businesses
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS business_type TEXT;
 
+-- 0b. Extend type check constraint to include auto_parts
+ALTER TABLE public.businesses DROP CONSTRAINT IF EXISTS businesses_type_check;
+ALTER TABLE public.businesses ADD CONSTRAINT businesses_type_check
+  CHECK (type = ANY (ARRAY['salon'::text, 'pharmacie'::text, 'restaurant'::text, 'market'::text, 'boutique'::text, 'auto_parts'::text]));
+
 -- 1. Find auth users that have a profile but no business row
 WITH users_without_business AS (
   SELECT
@@ -42,9 +47,10 @@ BEGIN
     v_plan_id := public.resolve_subscription_plan_id(COALESCE(rec.plan_from_meta, 'pro'));
 
     -- Create business
-    INSERT INTO public.businesses (name, business_type, plan_id)
+    INSERT INTO public.businesses (name, business_type, type, plan_id)
     VALUES (
       COALESCE(rec.business_name, rec.full_name, rec.email, 'Mon entreprise'),
+      COALESCE(rec.business_type, 'salon'),
       COALESCE(rec.business_type, 'salon'),
       v_plan_id
     )
