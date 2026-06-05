@@ -302,8 +302,8 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
       saleItems.map((item) => ({
         sale_id: sale.id,
         branch_id: tab.branch_id,
-        ...(item.item_type === "product" ? { product_id: item.item_id } : {}),
-        ...(item.item_type === "service" ? { service_id: item.item_id } : {}),
+        product_id: item.item_type === "product" ? item.item_id : null,
+        service_id: item.item_type === "service" ? item.item_id : null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: item.subtotal,

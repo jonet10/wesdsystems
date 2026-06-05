@@ -1037,8 +1037,8 @@ export default function POSPage() {
       const items = cart.map(i => ({
         sale_id: sale.id,
         branch_id: activeBranchId,
-        ...(i.type === "product" ? { product_id: i.item_id } : {}),
-        ...(i.type === "service" ? { service_id: i.item_id } : {}),
+        product_id: i.type === "product" ? i.item_id : null,
+        service_id: i.type === "service" ? i.item_id : null,
         quantity: i.quantity,
         unit_price: i.unit_price,
         total_price: i.quantity * i.unit_price - (i.discount || 0),
