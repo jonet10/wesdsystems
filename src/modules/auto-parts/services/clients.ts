@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsClient } from "../types";
 
-export async function listClients() {
+export async function listClients(businessId?: string | null) {
   const { data, error } = await supabase.from("auto_parts_clients").select("*").order("name");
   if (error) throw error;
   return data as AutoPartsClient[];

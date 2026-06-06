@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsSupplier } from "../types";
 
-export async function listSuppliers() {
+export async function listSuppliers(businessId?: string | null) {
   const { data, error } = await supabase.from("auto_parts_suppliers").select("*").order("name");
   if (error) throw error;
   return data as AutoPartsSupplier[];

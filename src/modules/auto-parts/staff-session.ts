@@ -1,10 +1,18 @@
+import type { Permission, AutoPartsRole } from "@/config/permissions";
+import { getAutoPartsPermissions } from "@/config/permissions";
+
 export interface AutoPartsStaffSession {
   id: string;
   name: string;
-  role: string;
+  role: AutoPartsRole;
   business_id: string;
+  permissions: Permission[];
   session_token?: string;
   expires_at?: string;
+}
+
+export function computeStaffPermissions(role: AutoPartsRole): Permission[] {
+  return getAutoPartsPermissions(role);
 }
 
 const STAFF_SESSION_KEY = "auto_parts_staff_session";

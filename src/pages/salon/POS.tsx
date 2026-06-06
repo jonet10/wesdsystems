@@ -1107,7 +1107,6 @@ export default function POSPage() {
 
               await supabase.from("commission_transactions").insert({
                 business_id: businessId,
-                branch_id: activeBranchId,
                 employee_id: selectedEmployee,
                 sale_id: sale.id,
                 service_id: item.item_id,
@@ -1291,7 +1290,7 @@ export default function POSPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                   {filteredItems.map((item: any) => (
                     <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-soft active:scale-[0.98]"
-                      onClick={() => handleItemClick(item, activeTab === "products" ? "product" : "service")}>
+                      onClick={() => handleItemClick(item, item.type)}>
                       <CardContent className="p-3">
                         <div className={cn(
                           "w-full h-14 rounded-lg flex items-center justify-center mb-2",

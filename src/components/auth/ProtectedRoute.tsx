@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { canAccessEmployeePos, normalizeEmployeeRole } from "@/lib/employee-role";
+import { hasPermission, type Permission } from "@/config/permissions";
 
 type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner";
 
@@ -9,6 +10,7 @@ interface ProtectedRouteProps {
   children: ReactNode;
   allowedRoles: AppRole[];
   allowAuthenticatedWithoutRole?: boolean;
+  requiredPermissions?: Permission | Permission[];
 }
 
 function moduleRoute(businessType?: string | null): string {
@@ -46,6 +48,7 @@ export function ProtectedRoute({
   children,
   allowedRoles,
   allowAuthenticatedWithoutRole = false,
+  requiredPermissions,
 }: ProtectedRouteProps) {
   const { isLoading, isAuthenticated, profile, employeeSession, autoPartsStaffSession } = useAuth();
   const location = useLocation();
@@ -61,13 +64,16 @@ export function ProtectedRoute({
     );
   }
 
-  // Auto-parts staff session
-  if (!!autoPartsStaffSession && !profile && !isAuthenticated) {
+  // Auto-parts staff session — check permissions (takes precedence over Supabase auth)
+  if (!!autoPartsStaffSession) {
     const path = location.pathname;
-    if (path.startsWith("/auto-parts")) {
-      return <>{children}</>;
+    if (!path.startsWith("/auto-parts")) {
+      return <Navigate to="/auto-parts/pos" replace />;
     }
-    return <Navigate to="/auto-parts/pos" replace />;
+    if (requiredPermissions && !hasPermission(autoPartsStaffSession.permissions, requiredPermissions)) {
+      return <Navigate to="/auto-parts/pos" replace />;
+    }
+    return <>{children}</>;
   }
 
   // Employee sessions are handled separately from Supabase auth.

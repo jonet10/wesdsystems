@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { hasPermission as checkPermission, type Permission, type AutoPartsRole } from '@/config/permissions';
 import { supabase } from '@/lib/supabase';
 import { normalizeEmployeeRole } from '@/lib/employee-role';
 import {
@@ -10,6 +11,7 @@ import {
 import {
   loadStaffSession,
   saveStaffSession,
+  computeStaffPermissions,
   type AutoPartsStaffSession,
 } from '@/modules/auto-parts/staff-session';
 import type { User, Session } from '@supabase/supabase-js';
@@ -31,10 +33,13 @@ interface AuthState {
   isAuthenticated: boolean;
   employeeSession: EmployeeSession | null;
   autoPartsStaffSession: AutoPartsStaffSession | null;
+  autoPartsPermissions: Permission[];
+  hasAutoPartsPermission: (permission: Permission | Permission[]) => boolean;
   loginEmployee: (username: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logoutEmployee: () => void;
   loginAutoPartsStaff: (username: string, pin: string) => Promise<{ success: boolean; error?: string }>;
   logoutAutoPartsStaff: () => void;
+  loginStaff: (username: string, secret: string) => Promise<{ success: boolean; error?: string; staff_type?: string }>;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -45,10 +50,13 @@ const AuthContext = createContext<AuthState>({
   isAuthenticated: false,
   employeeSession: null,
   autoPartsStaffSession: null,
+  autoPartsPermissions: [],
+  hasAutoPartsPermission: () => false,
   loginEmployee: async () => ({ success: false, error: 'Not initialized' }),
   logoutEmployee: () => {},
   loginAutoPartsStaff: async () => ({ success: false, error: 'Not initialized' }),
   logoutAutoPartsStaff: () => {},
+  loginStaff: async () => ({ success: false, error: 'Not initialized' }),
 });
 
 const LOCAL_SUPER_ADMIN_EMAILS = new Set(['admin@wesdsystems.store']);
@@ -111,7 +119,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: normalizeEmployeeRole(saved.role) || saved.role,
     };
   });
-  const [autoPartsStaffSession, setAutoPartsStaffSession] = useState<AutoPartsStaffSession | null>(() => loadStaffSession());
+
+  const initStaffSession = (): AutoPartsStaffSession | null => {
+    const saved = loadStaffSession();
+    if (!saved) return null;
+    return {
+      ...saved,
+      role: saved.role as AutoPartsRole,
+      permissions: computeStaffPermissions(saved.role as AutoPartsRole),
+    };
+  };
+
+  const [autoPartsStaffSession, setAutoPartsStaffSession] = useState<AutoPartsStaffSession | null>(() => initStaffSession());
+  const autoPartsPermissions = autoPartsStaffSession?.permissions ?? [];
+  const hasAutoPartsPermissionFn = useCallback(
+    (permission: Permission | Permission[]): boolean => {
+      return checkPermission(autoPartsPermissions, permission);
+    },
+    [autoPartsPermissions]
+  );
 
   const loginEmployee = async (username: string, pass: string) => {
     try {
@@ -171,8 +197,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: result.error || 'Erreur inconnue' };
       }
 
-      setAutoPartsStaffSession(result.staff!);
-      saveStaffSession(result.staff!);
+      const staffWithPermissions: AutoPartsStaffSession = {
+        ...result.staff!,
+        role: result.staff!.role as AutoPartsRole,
+        permissions: computeStaffPermissions(result.staff!.role as AutoPartsRole),
+      };
+      setAutoPartsStaffSession(staffWithPermissions);
+      saveStaffSession(staffWithPermissions);
       return { success: true };
     } catch (err: any) {
       const isMissingRpc =
@@ -198,6 +229,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveStaffSession(null);
     if (sessionToken) {
       supabase.rpc('revoke_auto_parts_staff_session', { p_session_token: sessionToken }).catch(() => {});
+    }
+  };
+
+  const loginStaff = async (username: string, secret: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_staff_login', {
+        p_username: username,
+        p_pin: secret,
+      });
+      if (error) throw error;
+
+      const result = data as {
+        success: boolean;
+        error?: string;
+        staff_type?: string;
+        id?: string;
+        name?: string;
+        role?: string;
+        business_id?: string;
+        branch_id?: string;
+        session_token?: string;
+        session_expires_at?: string;
+      };
+
+      if (!result.success) {
+        return { success: false, error: result.error || 'Identifiants incorrects' };
+      }
+
+      if (result.staff_type === 'salon') {
+        const empSession: EmployeeSession = {
+          id: result.id!,
+          branch_id: result.branch_id!,
+          name: result.name!,
+          role: normalizeEmployeeRole(result.role) || result.role || 'cashier',
+          session_token: result.session_token,
+        };
+        setEmployeeSession(empSession);
+        saveEmployeeSession(empSession);
+        return { success: true, staff_type: 'salon' };
+      }
+
+      if (result.staff_type === 'auto_parts') {
+        const apSession: AutoPartsStaffSession = {
+          id: result.id!,
+          name: result.name!,
+          role: result.role! as AutoPartsRole,
+          business_id: result.business_id!,
+          permissions: computeStaffPermissions(result.role as AutoPartsRole),
+          session_token: result.session_token,
+          expires_at: result.session_expires_at,
+        };
+        setAutoPartsStaffSession(apSession);
+        saveStaffSession(apSession);
+        return { success: true, staff_type: 'auto_parts' };
+      }
+
+      return { success: false, error: 'Type de personnel inconnu' };
+    } catch (err: any) {
+      const isMissing = err?.status === 404 || err?.code === 'PGRST202';
+      return {
+        success: false,
+        error: isMissing
+          ? 'Le service de connexion unifiée n\'est pas encore déployé. Applique la migration.'
+          : err.message || 'Erreur lors de la connexion',
+      };
     }
   };
 
@@ -282,10 +378,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!session,
         employeeSession,
         autoPartsStaffSession,
+        autoPartsPermissions,
+        hasAutoPartsPermission: hasAutoPartsPermissionFn,
         loginEmployee,
         logoutEmployee,
         loginAutoPartsStaff,
         logoutAutoPartsStaff,
+        loginStaff,
       }}
     >
       {children}

@@ -298,12 +298,26 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
 
     if (saleError || !sale?.id) throw new Error(saleError?.message || "Impossible de créer la transaction");
 
+    const serviceIds = saleItems
+      .filter((item) => item.item_type === "service" && item.item_id)
+      .map((item) => item.item_id);
+    const existingServiceIds = new Set<string>();
+    if (serviceIds.length > 0) {
+      const { data: services } = await supabase
+        .from("salon_services")
+        .select("id")
+        .in("id", serviceIds);
+      if (services) {
+        for (const s of services) existingServiceIds.add(s.id);
+      }
+    }
+
     const { error: saleItemError } = await supabase.from("salon_sale_items").insert(
       saleItems.map((item) => ({
         sale_id: sale.id,
         branch_id: tab.branch_id,
         product_id: item.item_type === "product" ? item.item_id : null,
-        service_id: item.item_type === "service" ? item.item_id : null,
+        service_id: item.item_type === "service" && existingServiceIds.has(item.item_id) ? item.item_id : null,
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: item.subtotal,
@@ -380,7 +394,6 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
 
         const { error: commissionError } = await supabase.from("commission_transactions").insert({
           business_id: businessId,
-          branch_id: tab.branch_id,
           employee_id: input.employee_id,
           sale_id: sale.id,
           service_id: item.item_id,

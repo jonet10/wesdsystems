@@ -35,6 +35,14 @@ export async function createSale(businessId: string, sale: {
   notes?: string;
   items: { product_id?: string | null; product_name: string; quantity: number; unit_price: number }[];
 }) {
+  const items = sale.items.map((item) => ({
+    product_id: item.product_id ?? null,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    total_price: item.quantity * item.unit_price,
+  }));
+
   const { data, error } = await supabase.rpc("create_auto_parts_sale", {
     p_business_id: businessId,
     p_client_id: sale.client_id ?? null,
@@ -50,8 +58,8 @@ export async function createSale(businessId: string, sale: {
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,
     p_staff_id: sale.staff_id ?? null,
-    p_items: sale.items as any,
+    p_items: JSON.parse(JSON.stringify(items)),
   });
   if (error) throw error;
-  return data;
+  return data as { id: string; invoice_number: string };
 }

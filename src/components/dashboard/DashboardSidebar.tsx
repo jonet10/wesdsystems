@@ -47,6 +47,7 @@ import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
+import { PERMISSIONS, filterMenuByPermissions, getSalonEmployeePermissions, type Permission } from "@/config/permissions";
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -54,6 +55,7 @@ interface SidebarItem {
   path: string;
   badge?: number;
   role?: "all" | "salon_admin" | "employee" | "partner";
+  permission?: Permission;
 }
 
 interface DashboardSidebarProps {
@@ -90,7 +92,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
-  const { user, profile, employeeSession } = useAuth();
+  const { user, profile, employeeSession, autoPartsStaffSession } = useAuth();
 
   useEffect(() => {
     const biz = glowupStore.getActiveBusiness();
@@ -109,85 +111,85 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     switch (activeBiz) {
       case "pharmacie":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/pharmacie", role: "all" },
-          { icon: FileText, label: "Ordonnances", path: "/pharmacie/appointments", role: "all" },
-          { icon: Users, label: "Patients", path: "/pharmacie/clients", role: "all" },
-          { icon: Users, label: "Pharmaciens", path: "/pharmacie/employees", role: "salon_admin" },
-          { icon: Pill, label: "Stock Médicaments", path: "/pharmacie/services", role: "all" },
-          { icon: Settings, label: "Configuration", path: "/pharmacie/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/pharmacie", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: FileText, label: "Ordonnances", path: "/pharmacie/appointments", permission: PERMISSIONS.APPOINTMENTS_VIEW },
+          { icon: Users, label: "Patients", path: "/pharmacie/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Pharmaciens", path: "/pharmacie/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Pill, label: "Stock Médicaments", path: "/pharmacie/services", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Settings, label: "Configuration", path: "/pharmacie/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "restaurant":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", role: "all" },
-          { icon: Utensils, label: "POS Commandes", path: "/bar/pos", role: "all" },
-          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
-          { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
-          { icon: Layers, label: "Carte & Cuisine", path: "/salon/services", role: "all" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Utensils, label: "POS Commandes", path: "/bar/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Users, label: "Clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Personnel", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Layers, label: "Carte & Cuisine", path: "/salon/services", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "bar":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", role: "all" },
-          { icon: Beer, label: "POS Bar", path: "/bar/pos", role: "all" },
-          { icon: Package, label: "Double Inventaire", path: "/bar/inventory", role: "all" },
-          { icon: Utensils, label: "Recettes Cocktails", path: "/bar/cocktails", role: "all" },
-          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
-          { icon: Users, label: "Personnel", path: "/salon/employees", role: "salon_admin" },
-          { icon: Settings, label: "Configuration", path: "/salon/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Beer, label: "POS Bar", path: "/bar/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Package, label: "Double Inventaire", path: "/bar/inventory", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Utensils, label: "Recettes Cocktails", path: "/bar/cocktails", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Users, label: "Clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Personnel", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Settings, label: "Configuration", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "salon":
       default:
         return [
-          { icon: LayoutDashboard, label: "Dashboard", path: "/salon", role: "all" },
-          { icon: Calendar, label: "Rendez-vous", path: "/salon/appointments", role: "all" },
-          { icon: Scissors, label: "Services", path: "/salon/services", role: "all" },
-          { icon: Users, label: "Clients", path: "/salon/clients", role: "all" },
-          { icon: Users, label: "Employés", path: "/salon/employees", role: "salon_admin" },
-          { icon: Package, label: "Inventaire", path: "/salon/inventory", role: "all" },
-          { icon: ShoppingBag, label: "Produits", path: "/salon/products", role: "all" },
-          { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/pos", role: "all" },
-          { icon: Gift, label: "Promotions", path: "/salon/promotions", role: "salon_admin" },
-          { icon: Receipt, label: "Dépenses", path: "/salon/expenses", role: "all" },
-          { icon: TrendingUp, label: "Rapports", path: "/salon/reports", role: "salon_admin" },
-          { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", role: "salon_admin" },
-          { icon: Settings, label: "Paramètres", path: "/salon/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Dashboard", path: "/salon", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Calendar, label: "Rendez-vous", path: "/salon/appointments", permission: PERMISSIONS.APPOINTMENTS_VIEW },
+          { icon: Scissors, label: "Services", path: "/salon/services", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Users, label: "Clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Employés", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Package, label: "Inventaire", path: "/salon/inventory", permission: PERMISSIONS.STOCK_MANAGE },
+          { icon: ShoppingBag, label: "Produits", path: "/salon/products", permission: PERMISSIONS.PRODUCTS_MANAGE },
+          { icon: ShoppingBag, label: "POS / Caisse", path: "/salon/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Gift, label: "Promotions", path: "/salon/promotions", permission: PERMISSIONS.PROMOTIONS_MANAGE },
+          { icon: Receipt, label: "Dépenses", path: "/salon/expenses", permission: PERMISSIONS.EXPENSES_MANAGE },
+          { icon: TrendingUp, label: "Rapports", path: "/salon/reports", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
+          { icon: Settings, label: "Paramètres", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "market":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/market", role: "all" },
-          { icon: ShoppingBag, label: "Caisse POS", path: "/market/pos", role: "all" },
-          { icon: Users, label: "Clients", path: "/market/clients", role: "all" },
-          { icon: Users, label: "Équipe", path: "/market/employees", role: "salon_admin" },
-          { icon: Layers, label: "Inventaire", path: "/market/inventory", role: "all" },
-          { icon: BarChart3, label: "Analytics", path: "/market/sales-analytics", role: "salon_admin" },
-          { icon: Settings, label: "Configuration", path: "/market/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/market", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/market/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Users, label: "Clients", path: "/market/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Équipe", path: "/market/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Layers, label: "Inventaire", path: "/market/inventory", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: BarChart3, label: "Analytics", path: "/market/sales-analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
+          { icon: Settings, label: "Configuration", path: "/market/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "boutique":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/boutique", role: "all" },
-          { icon: ShoppingBag, label: "Caisse POS", path: "/boutique/pos", role: "all" },
-          { icon: Users, label: "Clients", path: "/boutique/clients", role: "all" },
-          { icon: Users, label: "Équipe", path: "/boutique/employees", role: "salon_admin" },
-          { icon: Layers, label: "Inventaire", path: "/boutique/inventory", role: "all" },
-          { icon: BarChart3, label: "Analytics", path: "/boutique/sales-analytics", role: "salon_admin" },
-          { icon: Settings, label: "Configuration", path: "/boutique/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/boutique", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/boutique/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Users, label: "Clients", path: "/boutique/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, label: "Équipe", path: "/boutique/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Layers, label: "Inventaire", path: "/boutique/inventory", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: BarChart3, label: "Analytics", path: "/boutique/sales-analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
+          { icon: Settings, label: "Configuration", path: "/boutique/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "auto_parts":
         return [
-          { icon: LayoutDashboard, label: "Dashboard", path: "/auto-parts", role: "all" },
-          { icon: Package, label: "Produits", path: "/auto-parts/products", role: "all" },
-          { icon: Layers, label: "Catégories", path: "/auto-parts/categories", role: "all" },
-          { icon: Truck, label: "Marques", path: "/auto-parts/brands", role: "all" },
-          { icon: Wrench, label: "Modèles", path: "/auto-parts/models", role: "all" },
-          { icon: Users, label: "Clients", path: "/auto-parts/clients", role: "all" },
-          { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all" },
-          { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all" },
-          { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all" },
-          { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin" },
-          { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all" },
-          { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all" },
-          { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin" },
-          { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin" },
+          { icon: LayoutDashboard, label: "Dashboard", path: "/auto-parts", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Package, label: "Produits", path: "/auto-parts/products", role: "all", permission: PERMISSIONS.PRODUCTS_READ },
+          { icon: Layers, label: "Catégories", path: "/auto-parts/categories", role: "all", permission: PERMISSIONS.CATEGORIES_MANAGE },
+          { icon: Truck, label: "Marques", path: "/auto-parts/brands", role: "all", permission: PERMISSIONS.BRANDS_MANAGE },
+          { icon: Wrench, label: "Modèles", path: "/auto-parts/models", role: "all", permission: PERMISSIONS.MODELS_MANAGE },
+          { icon: Users, label: "Clients", path: "/auto-parts/clients", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all", permission: PERMISSIONS.SUPPLIERS_MANAGE },
+          { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all", permission: PERMISSIONS.PURCHASES_MANAGE },
+          { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },
+          { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
     }
   };
@@ -209,13 +211,29 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
       ]
     : employeeItems;
 
-  const items = role === "super_admin"
+  const rawItems = role === "super_admin"
     ? superAdminItems
     : role === "partner"
     ? partnerItems
     : role === "salon_admin"
     ? getBusinessAdminItems()
     : employeeSpecificItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
+
+  // When a staff session is active AND no Supabase profile exists,
+  // override menu with permission-based filtering (pure staff login, not admin)
+  const items = (() => {
+    if (autoPartsStaffSession && !profile) {
+      return filterMenuByPermissions(getBusinessAdminItems(), autoPartsStaffSession.permissions);
+    }
+    if (employeeSession && !profile && role === "salon_admin") {
+      const empRole = normalizeEmployeeRole(employeeSession.role);
+      const empPerms = empRole ? getSalonEmployeePermissions(empRole) : null;
+      if (empPerms) {
+        return filterMenuByPermissions(getBusinessAdminItems(), empPerms);
+      }
+    }
+    return rawItems;
+  })();
 
   const NavItem = ({ item }: { item: SidebarItem }) => {
     const Icon = item.icon;

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, User, Wrench } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "react-i18next";
@@ -18,13 +18,11 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMode, setLoginMode] = useState<"admin" | "employee" | "auto_parts">("admin");
-  const [employeeUsername, setEmployeeUsername] = useState("");
-  const [employeePassword, setEmployeePassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"admin" | "staff">("admin");
   const [staffUsername, setStaffUsername] = useState("");
-  const [staffPin, setStaffPin] = useState("");
+  const [staffSecret, setStaffSecret] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { loginEmployee, loginAutoPartsStaff } = useAuth();
+  const { loginStaff } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -56,7 +54,6 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Safety timeout: unblock the button after 12s no matter what
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     try {
@@ -67,8 +64,7 @@ export default function Login() {
 
       if (error) throw error;
 
-      // Fetch user role from DB for secure routing
-      let targetRoute = "/salon"; // Default fallback
+      let targetRoute = "/salon";
 
       if (data.user) {
         const { data: profile, error: profileError } = await supabase
@@ -119,14 +115,14 @@ export default function Login() {
     }
   };
 
-  const handleEmployeeSubmit = async (e: React.FormEvent) => {
+  const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     try {
-      const res = await loginEmployee(employeeUsername, employeePassword);
+      const res = await loginStaff(staffUsername, staffSecret);
       if (!res.success) {
         toast({
           title: "Erreur de connexion",
@@ -135,46 +131,14 @@ export default function Login() {
         });
         return;
       }
+
+      const route = res.staff_type === "auto_parts" ? "/auto-parts/pos" : "/employee";
+      navigate(route);
 
       toast({
         title: "Connexion réussie",
         description: "Bienvenue sur l'espace caisse !",
       });
-      navigate("/employee");
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Identifiants incorrects.",
-        variant: "destructive",
-      });
-    } finally {
-      clearTimeout(safetyTimer);
-      setIsLoading(false);
-    }
-  };
-
-  const handleAutoPartsStaffSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
-
-    try {
-      const res = await loginAutoPartsStaff(staffUsername, staffPin);
-      if (!res.success) {
-        toast({
-          title: "Erreur de connexion",
-          description: res.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Connexion réussie",
-        description: "Bienvenue sur la caisse auto-parts !",
-      });
-      navigate("/auto-parts/pos");
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -209,10 +173,9 @@ export default function Login() {
             </div>
 
             <Tabs value={loginMode} onValueChange={(v: any) => setLoginMode(v)} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="admin">Administrateur</TabsTrigger>
-                <TabsTrigger value="employee">Employé (Salon)</TabsTrigger>
-                <TabsTrigger value="auto_parts">Pièces Auto</TabsTrigger>
+                <TabsTrigger value="staff">Caisse / Employé</TabsTrigger>
               </TabsList>
 
               <TabsContent value="admin">
@@ -289,18 +252,18 @@ export default function Login() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="employee">
-                <form onSubmit={handleEmployeeSubmit} className="space-y-5">
+              <TabsContent value="staff">
+                <form onSubmit={handleStaffSubmit} className="space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="username">Nom d'utilisateur</Label>
+                    <Label htmlFor="staff-username">Nom d'utilisateur</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
-                         id="username"
+                         id="staff-username"
                          type="text"
-                         placeholder="Ex: marie_caissiere"
-                         value={employeeUsername}
-                         onChange={(e) => setEmployeeUsername(e.target.value)}
+                         placeholder="Votre identifiant"
+                         value={staffUsername}
+                         onChange={(e) => setStaffUsername(e.target.value)}
                          className="pl-10"
                          required
                       />
@@ -308,17 +271,15 @@ export default function Login() {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="emp-password">{t("auth.login.password")}</Label>
-                    </div>
+                    <Label htmlFor="staff-secret">Mot de passe / Code PIN</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
-                        id="emp-password"
+                        id="staff-secret"
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        value={employeePassword}
-                        onChange={(e) => setEmployeePassword(e.target.value)}
+                        value={staffSecret}
+                        onChange={(e) => setStaffSecret(e.target.value)}
                         className="pl-10 pr-10"
                         required
                       />
@@ -338,56 +299,6 @@ export default function Login() {
                     ) : (
                       <>
                         Accéder à la caisse
-                        <ArrowRight className="h-5 w-5 ml-2" />
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="auto_parts">
-                <form onSubmit={handleAutoPartsStaffSubmit} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="staff-username">Nom d'utilisateur</Label>
-                    <div className="relative">
-                      <Wrench className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                         id="staff-username"
-                         type="text"
-                         placeholder="Ex: marie_caissiere"
-                         value={staffUsername}
-                         onChange={(e) => setStaffUsername(e.target.value)}
-                         className="pl-10"
-                         required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="staff-pin">Code PIN</Label>
-                    </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="staff-pin"
-                        type="password"
-                        maxLength={6}
-                        placeholder="••••••"
-                        value={staffPin}
-                        onChange={(e) => setStaffPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="pl-10 pr-10"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <Button type="submit" variant="default" className="w-full shadow-md bg-orange-600 hover:bg-orange-700" size="lg" disabled={isLoading}>
-                    {isLoading ? (
-                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        Accéder à la caisse auto-parts
                         <ArrowRight className="h-5 w-5 ml-2" />
                       </>
                     )}

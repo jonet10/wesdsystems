@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/config/permissions";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +25,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 
 export default function AutoPartsDashboardPage() {
   const businessId = useAutoPartsBusinessId();
+  const { hasAutoPartsPermission } = useAuth();
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalStockValue: 0,
@@ -40,12 +43,13 @@ export default function AutoPartsDashboardPage() {
   useEffect(() => {
     const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
     const load = async () => {
-      const [{ count: totalProducts }, { data: products }, { count: outOfStock }, { count: lowStock }] = await Promise.all([
+      const [{ count: totalProducts }, { data: products }, { count: outOfStock }, { data: activeProducts }] = await Promise.all([
         bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true })),
         bFilter(supabase.from("auto_parts_products").select("unit_price, cost_price, stock_quantity, category:category_id(name)")),
         bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).lte("stock_quantity", 0)),
-        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).gt("stock_quantity", 0).lte("stock_quantity", "min_stock")),
+        bFilter(supabase.from("auto_parts_products").select("stock_quantity, min_stock").eq("active", true).gt("stock_quantity", 0)),
       ]);
+      const lowStock = (activeProducts || []).filter(p => Number(p.stock_quantity) <= Number(p.min_stock)).length;
 
       const totalStockValue = (products || []).reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity || 0), 0);
 
@@ -107,7 +111,12 @@ export default function AutoPartsDashboardPage() {
 
   if (loading) return <DashboardLayout role="salon_admin" title="Auto Parts"><p className="text-muted-foreground p-8">Chargement...</p></DashboardLayout>;
 
-  const metrics = [
+  const canViewStockValue = hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
+  const canViewPurchases = hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
+  const hiddenLabels = new Set<string>();
+  if (!canViewStockValue) hiddenLabels.add("Valeur stock");
+  if (!canViewPurchases) { hiddenLabels.add("Achats du mois"); hiddenLabels.add("Commandes en attente"); }
+  const allMetrics = [
     { icon: Package, label: "Total pièces", value: stats.totalProducts, color: "text-blue-500" },
     { icon: DollarSign, label: "Valeur stock", value: `${stats.totalStockValue.toLocaleString()} HTG`, color: "text-green-500" },
     { icon: AlertTriangle, label: "En rupture", value: stats.outOfStock, color: "text-red-500" },
@@ -117,6 +126,7 @@ export default function AutoPartsDashboardPage() {
     { icon: Truck, label: "Achats du mois", value: `${stats.monthPurchases}`, color: "text-purple-500" },
     { icon: Receipt, label: "Commandes en attente", value: stats.pendingOrders, color: "text-orange-500" },
   ];
+  const metrics = allMetrics.filter(m => !hiddenLabels.has(m.label));
 
   return (
     <DashboardLayout role="salon_admin" title="Auto Parts" subtitle="Tableau de bord">

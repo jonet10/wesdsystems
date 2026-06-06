@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,21 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "out
   cashier: "secondary",
 };
 
+function generateUsername(name: string): string {
+  const normalized = name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.|\.$/g, "")
+    .slice(0, 20);
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `${normalized}.${suffix}`;
+}
+
+function generatePin(): string {
+  return String(100000 + Math.floor(Math.random() * 900000));
+}
+
 export default function AutoPartsStaffPage() {
   const businessId = useAutoPartsBusinessId();
   const [data, setData] = useState<AutoPartsStaff[]>([]);
@@ -34,6 +49,8 @@ export default function AutoPartsStaffPage() {
   const [editing, setEditing] = useState<AutoPartsStaff | null>(null);
   const [form, setForm] = useState({ name: "", username: "", email: "", phone: "", role: "cashier", pin_code: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<AutoPartsStaff | null>(null);
+  const [usernameTouched, setUsernameTouched] = useState(false);
+  const [createdResult, setCreatedResult] = useState<{ username: string; pin: string } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -45,14 +62,27 @@ export default function AutoPartsStaffPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", username: "", email: "", phone: "", role: "cashier", pin_code: "" });
+    const pin = generatePin();
+    setForm({ name: "", username: "", email: "", phone: "", role: "cashier", pin_code: pin });
+    setUsernameTouched(false);
+    setCreatedResult(null);
     setOpen(true);
   };
 
   const openEdit = (staff: AutoPartsStaff) => {
     setEditing(staff);
     setForm({ name: staff.name, username: (staff as any).username || "", email: staff.email || "", phone: staff.phone || "", role: staff.role, pin_code: "" });
+    setUsernameTouched(true);
+    setCreatedResult(null);
     setOpen(true);
+  };
+
+  const handleNameChange = (name: string) => {
+    setForm((prev) => ({
+      ...prev,
+      name,
+      username: usernameTouched ? prev.username : generateUsername(name),
+    }));
   };
 
   const handleSave = async () => {
@@ -68,11 +98,12 @@ export default function AutoPartsStaffPage() {
           pin_code: form.pin_code,
         });
         toast.success("Employé modifié");
+        setOpen(false);
       } else {
         await createStaff(businessId, { ...form, username: form.username || undefined });
+        setCreatedResult({ username: form.username, pin: form.pin_code });
         toast.success("Employé créé");
       }
-      setOpen(false);
       load();
     } catch (e: any) { toast.error(e.message); }
   };
@@ -125,53 +156,76 @@ export default function AutoPartsStaffPage() {
         </StaggerItem>
       </StaggerContainer>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => { if (!v) setCreatedResult(null); setOpen(v); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvel"} employé</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nom *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <Label>Identifiant (pour connexion)</Label>
-              <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Email</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          {createdResult ? (
+            <div className="space-y-4 py-4">
+              <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center">
+                <p className="font-semibold text-green-800 mb-2">Employé créé avec succès !</p>
+                <div className="text-sm space-y-1">
+                  <p><strong>Identifiant :</strong> <code className="bg-green-100 px-2 py-0.5 rounded">{createdResult.username}</code></p>
+                  <p><strong>Code PIN :</strong> <code className="bg-green-100 px-2 py-0.5 rounded">{createdResult.pin}</code></p>
+                </div>
+                <p className="text-xs text-green-600 mt-3">Transmettez ces informations à l'employé.</p>
               </div>
-              <div>
-                <Label>Téléphone</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Button className="w-full" variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>Fermer</Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label>Nom *</Label>
+                  <Input value={form.name} onChange={(e) => handleNameChange(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Identifiant (pour connexion)</Label>
+                  <Input
+                    value={form.username}
+                    onChange={(e) => { setForm({ ...form, username: e.target.value }); setUsernameTouched(true); }}
+                  />
+                  {!usernameTouched && form.name && (
+                    <p className="text-xs text-muted-foreground mt-1">Généré automatiquement depuis le nom</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Email</Label>
+                    <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label>Téléphone</Label>
+                    <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Rôle</Label>
+                  <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cashier">Caissier(ère)</SelectItem>
+                      <SelectItem value="manager">Gérant</SelectItem>
+                      <SelectItem value="admin">Administrateur</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Code PIN</Label>
+                  <Input
+                    type="password" maxLength={6}
+                    placeholder="Code à 6 chiffres"
+                    value={form.pin_code}
+                    onChange={(e) => setForm({ ...form, pin_code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Généré automatiquement si vide</p>
+                </div>
               </div>
-            </div>
-            <div>
-              <Label>Rôle</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cashier">Caissier(ère)</SelectItem>
-                  <SelectItem value="manager">Gérant</SelectItem>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Code PIN (optionnel)</Label>
-              <Input
-                type="password" maxLength={6}
-                placeholder="Code à 4-6 chiffres"
-                value={form.pin_code}
-                onChange={(e) => setForm({ ...form, pin_code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>{editing ? "Enregistrer" : "Créer"}</Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>Annuler</Button>
+                <Button onClick={handleSave}>{editing ? "Enregistrer" : "Créer"}</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
