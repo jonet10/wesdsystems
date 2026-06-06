@@ -64,13 +64,14 @@ export function ProtectedRoute({
     );
   }
 
-  // Auto-parts staff session — check permissions (takes precedence over Supabase auth)
-  if (!!autoPartsStaffSession) {
+  // Auto-parts staff session (no Supabase Auth) — check permissions
+  if (!!autoPartsStaffSession && !profile && !isAuthenticated) {
     const path = location.pathname;
     if (!path.startsWith("/auto-parts")) {
       return <Navigate to="/auto-parts/pos" replace />;
     }
-    if (requiredPermissions && !hasPermission(autoPartsStaffSession.permissions, requiredPermissions)) {
+    const hasPerm = requiredPermissions ? hasPermission(autoPartsStaffSession.permissions, requiredPermissions) : true;
+    if (requiredPermissions && !hasPerm) {
       return <Navigate to="/auto-parts/pos" replace />;
     }
     return <>{children}</>;

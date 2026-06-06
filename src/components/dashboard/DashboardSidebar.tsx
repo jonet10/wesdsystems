@@ -92,7 +92,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
-  const { user, profile, employeeSession, autoPartsStaffSession } = useAuth();
+  const { user, profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
 
   useEffect(() => {
     const biz = glowupStore.getActiveBusiness();
@@ -219,17 +219,38 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     ? getBusinessAdminItems()
     : employeeSpecificItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
 
-  // When a staff session is active AND no Supabase profile exists,
-  // override menu with permission-based filtering (pure staff login, not admin)
+  // Staff/employee session takes precedence over Supabase profile for menu filtering
+  const autoPartsAdminItems: SidebarItem[] = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/auto-parts", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
+    { icon: Package, label: "Produits", path: "/auto-parts/products", role: "all", permission: PERMISSIONS.PRODUCTS_READ },
+    { icon: Layers, label: "Catégories", path: "/auto-parts/categories", role: "all", permission: PERMISSIONS.CATEGORIES_MANAGE },
+    { icon: Truck, label: "Marques", path: "/auto-parts/brands", role: "all", permission: PERMISSIONS.BRANDS_MANAGE },
+    { icon: Wrench, label: "Modèles", path: "/auto-parts/models", role: "all", permission: PERMISSIONS.MODELS_MANAGE },
+    { icon: Users, label: "Clients", path: "/auto-parts/clients", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+    { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all", permission: PERMISSIONS.SUPPLIERS_MANAGE },
+    { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
+    { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all", permission: PERMISSIONS.PURCHASES_MANAGE },
+    { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
+    { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
+    { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },
+    { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+    { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
+  ];
   const items = (() => {
-    if (autoPartsStaffSession && !profile) {
-      return filterMenuByPermissions(getBusinessAdminItems(), autoPartsStaffSession.permissions);
+    // Staff session without Supabase Auth → show filtered menu for cashier
+    if (autoPartsStaffSession && !profile && !isAuthenticated) {
+      const filtered = filterMenuByPermissions(autoPartsAdminItems, autoPartsStaffSession.permissions);
+      console.log("[Sidebar] autoPartsStaffSession permissions:", autoPartsStaffSession.permissions, "filtered items:", filtered.map(i => i.label));
+      return filtered;
     }
-    if (employeeSession && !profile && role === "salon_admin") {
+    // Employee session without Supabase Auth → show filtered menu
+    if (employeeSession && !profile && !isAuthenticated && role === "salon_admin") {
       const empRole = normalizeEmployeeRole(employeeSession.role);
       const empPerms = empRole ? getSalonEmployeePermissions(empRole) : null;
       if (empPerms) {
-        return filterMenuByPermissions(getBusinessAdminItems(), empPerms);
+        const filtered = filterMenuByPermissions(getBusinessAdminItems(), empPerms);
+        console.log("[Sidebar] employeeSession permissions:", empPerms, "filtered items:", filtered.map(i => i.label));
+        return filtered;
       }
     }
     return rawItems;

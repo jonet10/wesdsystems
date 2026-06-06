@@ -132,11 +132,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [autoPartsStaffSession, setAutoPartsStaffSession] = useState<AutoPartsStaffSession | null>(() => initStaffSession());
   const autoPartsPermissions = autoPartsStaffSession?.permissions ?? [];
+  const isAuthenticated = !!session;
   const hasAutoPartsPermissionFn = useCallback(
     (permission: Permission | Permission[]): boolean => {
+      // Admins with Supabase Auth have all permissions
+      if (!!profile && isAuthenticated) {
+        return true;
+      }
       return checkPermission(autoPartsPermissions, permission);
     },
-    [autoPartsPermissions]
+    [autoPartsPermissions, profile, isAuthenticated]
   );
 
   const loginEmployee = async (username: string, pass: string) => {

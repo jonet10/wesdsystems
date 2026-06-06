@@ -2,15 +2,18 @@ import { supabase } from "@/lib/supabase";
 import type { AutoPartsProduct } from "../types";
 
 export async function listProducts(businessId: string | null) {
-  let query = supabase.from("auto_parts_products").select("*, category:category_id(name)");
-  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
-  const { data, error } = await query.order("name");
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_list_products", { p_business_id: businessId });
+    if (error) throw error;
+    return data as (AutoPartsProduct & { category: { name: string } | null })[];
+  }
+  const { data, error } = await supabase.from("auto_parts_products").select("*, category:category_id(name)").order("name");
   if (error) throw error;
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
 export async function getProduct(id: string) {
-  const { data, error } = await supabase.from("auto_parts_products").select("*, category:category_id(name)").eq("id", id).single();
+  const { data, error } = await supabase.rpc("auto_parts_get_product", { p_id: id });
   if (error) throw error;
   return data as AutoPartsProduct & { category: { name: string } | null };
 }
@@ -36,10 +39,14 @@ export async function deleteProduct(id: string) {
 }
 
 export async function searchProducts(businessId: string | null, searchQuery: string) {
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_search_products", { p_business_id: businessId, p_query: searchQuery });
+    if (error) throw error;
+    return data;
+  }
   let query = supabase
     .from("auto_parts_products")
     .select("id, name, sku, unit_price, stock_quantity, active");
-  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
   const { data, error } = await query
     .or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`)
     .order("name")

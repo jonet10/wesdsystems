@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
 import { listProducts, createProduct, updateProduct, deleteProduct } from "@/modules/auto-parts/services/products";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/config/permissions";
 import { listCategories } from "@/modules/auto-parts/services/categories";
 import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -23,6 +25,8 @@ import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/t
 export default function AutoPartsProductsPage() {
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
+  const { hasAutoPartsPermission } = useAuth();
+  const canManage = hasAutoPartsPermission(PERMISSIONS.PRODUCTS_MANAGE);
   const [data, setData] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
   const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +94,7 @@ export default function AutoPartsProductsPage() {
     <DashboardLayout role="salon_admin" title="Produits" subtitle="Gestion des pièces automobiles">
       <StaggerContainer>
         <StaggerItem>
-          <AutoPartsPageHeader title="Produits" description={`${data.length} produit(s)`} action={{ label: "Nouveau produit", onClick: openCreate }} />
+          <AutoPartsPageHeader title="Produits" description={`${data.length} produit(s)`} action={canManage ? { label: "Nouveau produit", onClick: openCreate } : undefined} />
           
           <div className="flex gap-4 mb-4">
             <div className="relative flex-1">
@@ -120,12 +124,12 @@ export default function AutoPartsProductsPage() {
                 </Badge>
               )},
               { key: "active", label: "Actif", render: (r) => r.active ? "Oui" : "Non" },
-              { key: "actions", label: "Actions", render: (r) => (
+              ...(canManage ? [{ key: "actions", label: "Actions", render: (r: AutoPartsProduct) => (
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
-              )},
+              )}] : []),
             ]}
           />
         </StaggerItem>

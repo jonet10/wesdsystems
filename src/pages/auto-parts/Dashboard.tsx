@@ -41,69 +41,82 @@ export default function AutoPartsDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
     const load = async () => {
-      const [{ count: totalProducts }, { data: products }, { count: outOfStock }, { data: activeProducts }] = await Promise.all([
-        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true })),
-        bFilter(supabase.from("auto_parts_products").select("unit_price, cost_price, stock_quantity, category:category_id(name)")),
-        bFilter(supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).lte("stock_quantity", 0)),
-        bFilter(supabase.from("auto_parts_products").select("stock_quantity, min_stock").eq("active", true).gt("stock_quantity", 0)),
-      ]);
-      const lowStock = (activeProducts || []).filter(p => Number(p.stock_quantity) <= Number(p.min_stock)).length;
+      if (businessId) {
+        // Use SECURITY DEFINER RPCs for staff sessions (bypass RLS)
+        const [{ data: counts }, { data: monthSalesData }, { data: catData }] = await Promise.all([
+          supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }),
+          supabase.rpc("auto_parts_monthly_sales", { p_business_id: businessId }),
+          supabase.rpc("auto_parts_category_repartition", { p_business_id: businessId }),
+        ]);
+        if (counts) setStats(counts);
 
-      const totalStockValue = (products || []).reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity || 0), 0);
+        const byMonth = Array(12).fill(0);
+        (monthSalesData || []).forEach((s: any) => {
+          byMonth[s.month] = Number(s.total);
+        });
+        setMonthlySales(byMonth);
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        if (catData) setCategoryRepartition(catData);
+      } else {
+        const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
+        const [{ count: totalProducts }, { data: products }, { count: outOfStock }, { data: activeProducts }] = await Promise.all([
+          supabase.from("auto_parts_products").select("*", { count: "exact", head: true }),
+          supabase.from("auto_parts_products").select("unit_price, cost_price, stock_quantity, category:category_id(name)"),
+          supabase.from("auto_parts_products").select("*", { count: "exact", head: true }).eq("active", true).lte("stock_quantity", 0),
+          supabase.from("auto_parts_products").select("stock_quantity, min_stock").eq("active", true).gt("stock_quantity", 0),
+        ]);
+        const lowStock = (activeProducts || []).filter(p => Number(p.stock_quantity) <= Number(p.min_stock)).length;
+        const totalStockValue = (products || []).reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity || 0), 0);
 
-      const [{ count: todaySales }, { data: monthSalesData }] = await Promise.all([
-        bFilter(supabase.from("auto_parts_sales").select("*", { count: "exact", head: true })).gte("created_at", dayStart),
-        bFilter(supabase.from("auto_parts_sales").select("total, created_at")).gte("created_at", monthStart),
-      ]);
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
-      const monthSales = (monthSalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
+        const [{ count: todaySales }, { data: monthSalesData }] = await Promise.all([
+          supabase.from("auto_parts_sales").select("*", { count: "exact", head: true }).gte("created_at", dayStart),
+          supabase.from("auto_parts_sales").select("total, created_at").gte("created_at", monthStart),
+        ]);
+        const monthSales = (monthSalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
 
-      const [{ count: monthPurchases }] = await Promise.all([
-        bFilter(supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true })).gte("created_at", monthStart).eq("status", "delivered"),
-      ]);
+        const [{ count: monthPurchases }] = await Promise.all([
+          supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true }).gte("created_at", monthStart).eq("status", "delivered"),
+        ]);
+        const [{ count: pendingOrders }] = await Promise.all([
+          supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true }).in("status", ["pending", "confirmed"]),
+        ]);
 
-      const [{ count: pendingOrders }] = await Promise.all([
-        bFilter(supabase.from("auto_parts_purchases").select("*", { count: "exact", head: true })).in("status", ["pending", "confirmed"]),
-      ]);
+        setStats({
+          totalProducts: totalProducts || 0,
+          totalStockValue,
+          outOfStock: outOfStock || 0,
+          lowStock: lowStock || 0,
+          todaySales: todaySales || 0,
+          monthSales,
+          monthPurchases: monthPurchases || 0,
+          pendingOrders: pendingOrders || 0,
+        });
 
-      setStats({
-        totalProducts: totalProducts || 0,
-        totalStockValue,
-        outOfStock: outOfStock || 0,
-        lowStock: lowStock || 0,
-        todaySales: todaySales || 0,
-        monthSales,
-        monthPurchases: monthPurchases || 0,
-        pendingOrders: pendingOrders || 0,
-      });
+        // Monthly sales for chart
+        const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
+        const { data: yearSales } = await supabase
+          .from("auto_parts_sales").select("total, created_at").gte("created_at", yearStart);
 
-      // Monthly sales for chart
-      const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
-      const { data: yearSales } = await bFilter(
-        supabase.from("auto_parts_sales").select("total, created_at")
-      ).gte("created_at", yearStart);
+        const byMonth = Array(12).fill(0);
+        (yearSales || []).forEach((s) => {
+          const m = new Date(s.created_at).getMonth();
+          byMonth[m] += Number(s.total);
+        });
+        setMonthlySales(byMonth);
 
-      const byMonth = Array(12).fill(0);
-      (yearSales || []).forEach((s) => {
-        const m = new Date(s.created_at).getMonth();
-        byMonth[m] += Number(s.total);
-      });
-      setMonthlySales(byMonth);
-
-      // Category repartition
-      const catMap = new Map<string, number>();
-      (products || []).forEach((p: any) => {
-        const catName = p.category?.name || "Sans catégorie";
-        catMap.set(catName, (catMap.get(catName) || 0) + 1);
-      });
-      setCategoryRepartition(Array.from(catMap.entries()).map(([name, count]) => ({ name, count })));
-
+        // Category repartition
+        const catMap = new Map<string, number>();
+        (products || []).forEach((p: any) => {
+          const catName = p.category?.name || "Sans catégorie";
+          catMap.set(catName, (catMap.get(catName) || 0) + 1);
+        });
+        setCategoryRepartition(Array.from(catMap.entries()).map(([name, count]) => ({ name, count })));
+      }
       setLoading(false);
     };
     load();

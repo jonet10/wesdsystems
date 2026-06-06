@@ -40,7 +40,7 @@ export default function AutoPartsPurchasesPage() {
     setLoading(true);
     try {
       setData(await listPurchases(businessId));
-      setSuppliers(await listSuppliers());
+      setSuppliers(await listSuppliers(businessId));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, [businessId]);

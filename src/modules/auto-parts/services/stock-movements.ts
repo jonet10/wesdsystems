@@ -2,8 +2,12 @@ import { supabase } from "@/lib/supabase";
 import type { AutoPartsStockMovement } from "../types";
 
 export async function listStockMovements(businessId: string | null) {
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_list_stock_movements", { p_business_id: businessId });
+    if (error) throw error;
+    return data as (AutoPartsStockMovement & { product: { name: string } })[];
+  }
   let query = supabase.from("auto_parts_stock_movements").select("*, product:product_id(name)");
-  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
   const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
   if (error) throw error;
   return data as (AutoPartsStockMovement & { product: { name: string } })[];

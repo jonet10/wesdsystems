@@ -13,8 +13,14 @@ import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/co
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsClient } from "@/modules/auto-parts/types";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/config/permissions";
+import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
 
 export default function AutoPartsClientsPage() {
+  const { hasAutoPartsPermission } = useAuth();
+  const businessId = useAutoPartsBusinessId();
+  const canManage = hasAutoPartsPermission(PERMISSIONS.CLIENTS_MANAGE);
   const [data, setData] = useState<AutoPartsClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -23,9 +29,9 @@ export default function AutoPartsClientsPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setData(await listClients()); } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
+    try { setData(await listClients(businessId)); } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [businessId]);
 
   const openCreate = () => { setEditing(null); setForm({ name: "", phone: "", whatsapp: "", email: "", address: "", company: "", notes: "" }); setOpen(true); };
   const openEdit = (c: AutoPartsClient) => { setEditing(c); setForm({ name: c.name, phone: c.phone ?? "", whatsapp: c.whatsapp ?? "", email: c.email ?? "", address: c.address ?? "", company: c.company ?? "", notes: c.notes ?? "" }); setOpen(true); };
@@ -47,7 +53,7 @@ export default function AutoPartsClientsPage() {
     <DashboardLayout role="salon_admin" title="Clients" subtitle="Gestion des clients auto-parts">
       <StaggerContainer>
         <StaggerItem>
-          <AutoPartsPageHeader title="Clients" description={`${data.length} client(s)`} action={{ label: "Nouveau client", onClick: openCreate }} />
+          <AutoPartsPageHeader title="Clients" description={`${data.length} client(s)`} action={canManage ? { label: "Nouveau client", onClick: openCreate } : undefined} />
           <AutoPartsDataTable
             rows={data}
             columns={[
@@ -55,12 +61,12 @@ export default function AutoPartsClientsPage() {
               { key: "phone", label: "Téléphone", render: (r) => r.phone || "-" },
               { key: "email", label: "Email", render: (r) => r.email || "-" },
               { key: "company", label: "Compagnie", render: (r) => r.company || "-" },
-              { key: "actions", label: "Actions", render: (r) => (
+              ...(canManage ? [{ key: "actions", label: "Actions", render: (r: AutoPartsClient) => (
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
                   <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
-              )},
+              )}] : []),
             ]}
           />
         </StaggerItem>

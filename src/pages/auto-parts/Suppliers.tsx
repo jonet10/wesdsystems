@@ -14,8 +14,10 @@ import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/co
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsSupplier } from "@/modules/auto-parts/types";
+import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
 
 export default function AutoPartsSuppliersPage() {
+  const businessId = useAutoPartsBusinessId();
   const [data, setData] = useState<AutoPartsSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -24,9 +26,9 @@ export default function AutoPartsSuppliersPage() {
 
   const load = async () => {
     setLoading(true);
-    try { setData(await listSuppliers()); } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
+    try { setData(await listSuppliers(businessId)); } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [businessId]);
 
   const openCreate = () => { setEditing(null); setForm({ name: "", phone: "", whatsapp: "", email: "", address: "", country: "Haïti", currency: "HTG", notes: "", active: true }); setOpen(true); };
   const openEdit = (s: AutoPartsSupplier) => { setEditing(s); setForm({ name: s.name, phone: s.phone ?? "", whatsapp: s.whatsapp ?? "", email: s.email ?? "", address: s.address ?? "", country: s.country, currency: s.currency, notes: s.notes ?? "", active: s.active }); setOpen(true); };

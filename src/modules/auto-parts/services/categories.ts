@@ -2,9 +2,12 @@ import { supabase } from "@/lib/supabase";
 import type { AutoPartsCategory } from "../types";
 
 export async function listCategories(businessId: string | null) {
-  let query = supabase.from("auto_parts_categories").select("*");
-  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
-  const { data, error } = await query.order("sort_order", { ascending: true });
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_list_categories", { p_business_id: businessId });
+    if (error) throw error;
+    return data as AutoPartsCategory[];
+  }
+  const { data, error } = await supabase.from("auto_parts_categories").select("*").order("sort_order", { ascending: true });
   if (error) throw error;
   return data as AutoPartsCategory[];
 }

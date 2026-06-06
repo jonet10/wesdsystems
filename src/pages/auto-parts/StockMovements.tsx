@@ -16,12 +16,16 @@ import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/co
 import { toast } from "sonner";
 import { Package } from "lucide-react";
 import type { AutoPartsStockMovement } from "@/modules/auto-parts/types";
+import { useAuth } from "@/hooks/useAuth";
+import { PERMISSIONS } from "@/config/permissions";
 
 const TYPE_LABELS: Record<string, string> = { in: "Entrée", out: "Sortie", adjustment: "Ajustement", sale: "Vente", return: "Retour" };
 const TYPE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = { in: "default", out: "destructive", adjustment: "secondary", sale: "destructive", return: "outline" };
 
 export default function AutoPartsStockMovementsPage() {
   const businessId = useAutoPartsBusinessId();
+  const { hasAutoPartsPermission } = useAuth();
+  const canManage = hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
   const [data, setData] = useState<(AutoPartsStockMovement & { product: { name: string } })[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -62,7 +66,7 @@ export default function AutoPartsStockMovementsPage() {
     <DashboardLayout role="salon_admin" title="Mouvements de stock" subtitle="Historique des entrées/sorties">
       <StaggerContainer>
         <StaggerItem>
-          <AutoPartsPageHeader title="Mouvements" description={`${data.length} mouvement(s)`} action={{ label: "Nouveau mouvement", onClick: () => { setForm({ product_id: "", type: "in", quantity: 1, unit_price: "", reference: "", notes: "" }); setOpen(true); } }} />
+          <AutoPartsPageHeader title="Mouvements" description={`${data.length} mouvement(s)`} action={canManage ? { label: "Nouveau mouvement", onClick: () => { setForm({ product_id: "", type: "in", quantity: 1, unit_price: "", reference: "", notes: "" }); setOpen(true); } } : undefined} />
           <AutoPartsDataTable
             rows={data}
             columns={[

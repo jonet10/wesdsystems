@@ -2,8 +2,12 @@ import { supabase } from "@/lib/supabase";
 import type { AutoPartsStaff } from "../types";
 
 export async function listStaff(businessId: string | null) {
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_list_staff", { p_business_id: businessId });
+    if (error) throw error;
+    return data as AutoPartsStaff[];
+  }
   let query = supabase.from("auto_parts_staff").select("*").eq("is_active", true);
-  if (businessId) query = query.eq("business_id", businessId);
   const { data, error } = await query.order("name");
   if (error) throw error;
   return data as AutoPartsStaff[];

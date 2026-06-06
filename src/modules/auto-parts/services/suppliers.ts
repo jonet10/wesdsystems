@@ -2,6 +2,11 @@ import { supabase } from "@/lib/supabase";
 import type { AutoPartsSupplier } from "../types";
 
 export async function listSuppliers(businessId?: string | null) {
+  if (businessId) {
+    const { data, error } = await supabase.rpc("auto_parts_list_suppliers", { p_business_id: businessId });
+    if (error) throw error;
+    return data as AutoPartsSupplier[];
+  }
   const { data, error } = await supabase.from("auto_parts_suppliers").select("*").order("name");
   if (error) throw error;
   return data as AutoPartsSupplier[];

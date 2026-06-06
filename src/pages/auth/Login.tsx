@@ -132,6 +132,8 @@ export default function Login() {
         return;
       }
 
+      console.log("[Login] staff login result:", res);
+      if (res.staff_type === "auto_parts") glowupStore.setActiveBusiness("auto_parts");
       const route = res.staff_type === "auto_parts" ? "/auto-parts/pos" : "/employee";
       navigate(route);
 
