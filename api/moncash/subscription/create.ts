@@ -1,4 +1,4 @@
-import { createClientWithAuth } from "../../supabase.js";
+import { apiSupabase, createClientWithAuth } from "../../supabase.js";
 import { json } from "../../pending-tabs/shared.js";
 import { createMonCashPayment } from "../service.js";
 
@@ -48,10 +48,11 @@ export default async function handler(req: any, res: any) {
       payment = await createMonCashPayment(orderId, amount);
     } catch (error: any) {
       if (paymentId) {
-        await supabase
+        await apiSupabase
           .from("subscription_payments")
           .update({ status: "failed" })
-          .eq("id", paymentId);
+          .eq("id", paymentId)
+          .maybeSingle();
       }
       throw error;
     }

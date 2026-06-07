@@ -12,7 +12,7 @@ const MONCASH_CLIENT_ID = process.env.MONCASH_CLIENT_ID || "";
 const MONCASH_CLIENT_SECRET = process.env.MONCASH_CLIENT_SECRET || "";
 const MONCASH_BUSINESS_KEY = process.env.MONCASH_BUSINESS_KEY || "";
 
-const MONCASH_FETCH_TIMEOUT = 15000;
+const MONCASH_FETCH_TIMEOUT = 30000;
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
