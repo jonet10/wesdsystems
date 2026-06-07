@@ -162,6 +162,36 @@ export default async function handler(req: any, res: any) {
           status_after: "active",
           notes: `MonCash order ${paymentRecord.order_id}`,
         });
+
+        const { data: businessName } = await apiSupabase
+          .from("businesses")
+          .select("name")
+          .eq("id", paymentRecord.business_id)
+          .maybeSingle();
+
+        await apiSupabase.from("notifications").insert({
+          recipient_role: "super_admin",
+          type: "subscription_paid",
+          title: "Paiement d'abonnement reçu",
+          message: `${businessName?.name || "Un établissement"} a effectué son paiement d'abonnement et est en attente de validation.`,
+          metadata: {
+            business_id: paymentRecord.business_id,
+            plan_id: paymentRecord.plan_id,
+            amount: paymentRecord.amount,
+            transaction_id: resolvedTransactionId,
+            order_id: paymentRecord.order_id,
+          },
+        });
+
+        await apiSupabase
+          .from("subscription_payments")
+          .update({
+            status: "completed",
+            transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("business_id", paymentRecord.business_id)
+          .in("status", ["pending", "pending_verification"]);
       }
     } else {
       await apiSupabase

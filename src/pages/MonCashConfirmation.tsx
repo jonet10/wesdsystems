@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Home, Loader2, Wallet, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
 
 type ConfirmationState = "verifying" | "success" | "error";
 
@@ -30,57 +29,13 @@ export default function MonCashConfirmationPage() {
       }
 
       try {
-        const { data: payments, error: findError } = await supabase
-          .from("subscription_payments")
-          .select("id, business_id, plan_id, amount, currency_code")
-          .or(`transaction_id.eq.${transactionId},moncash_payment_id.eq.${moncashPaymentId}`)
-          .in("status", ["pending"])
-          .limit(1);
-
-        if (findError) throw findError;
-
-        const payment = payments?.[0];
-
-        if (!payment) {
+        if (transactionId || moncashPaymentId) {
+          setState("success");
+          setMessage("Paiement confirmé ! Votre abonnement sera activé sous quelques instants.");
+        } else {
           setState("error");
-          setMessage("Aucun paiement en attente trouvé pour cette transaction.");
-          return;
+          setMessage("Aucune référence de transaction trouvée.");
         }
-
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30);
-
-        const { error: subError } = await supabase
-          .from("business_subscriptions")
-          .upsert({
-            business_id: payment.business_id,
-            plan_id: payment.plan_id,
-            start_date: new Date().toISOString(),
-            end_date: endDate.toISOString(),
-            status: "active",
-            billing_cycle: "monthly",
-            price_snapshot: Number(payment.amount),
-            currency_code: payment.currency_code || "HTG",
-          }, {
-            onConflict: "business_id",
-            ignoreDuplicates: false,
-          });
-
-        if (subError) throw subError;
-
-        const { error: updateError } = await supabase
-          .from("subscription_payments")
-          .update({
-            status: "completed",
-            transaction_id: transactionId || null,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", payment.id);
-
-        if (updateError) throw updateError;
-
-        setState("success");
-        setMessage("Abonnement activé avec succès !");
       } catch (err: any) {
         console.error("Erreur confirmation:", err);
         setState("error");

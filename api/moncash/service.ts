@@ -12,11 +12,23 @@ const MONCASH_CLIENT_ID = process.env.MONCASH_CLIENT_ID || "";
 const MONCASH_CLIENT_SECRET = process.env.MONCASH_CLIENT_SECRET || "";
 const MONCASH_BUSINESS_KEY = process.env.MONCASH_BUSINESS_KEY || "";
 
+const MONCASH_FETCH_TIMEOUT = 15000;
+
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 const requireCredentials = () => {
   if (!MONCASH_CLIENT_ID || !MONCASH_CLIENT_SECRET || !MONCASH_BUSINESS_KEY) {
     throw new Error("Les identifiants MonCash ne sont pas configurés.");
+  }
+};
+
+const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = MONCASH_FETCH_TIMEOUT) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
   }
 };
 
@@ -38,7 +50,7 @@ export async function getMonCashAccessToken() {
   }
 
   const auth = Buffer.from(`${MONCASH_CLIENT_ID}:${MONCASH_CLIENT_SECRET}`).toString("base64");
-  const response = await fetch(`${MONCASH_HOST_REST_API}/oauth/token`, {
+  const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}/oauth/token`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -73,7 +85,7 @@ export async function getMonCashAccessToken() {
 export async function createMonCashPayment(orderId: string, amount: number) {
   const accessToken = await getMonCashAccessToken();
 
-  const response = await fetch(`${MONCASH_HOST_REST_API}/v1/CreatePayment`, {
+  const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}/v1/CreatePayment`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -109,7 +121,7 @@ export async function retrieveMonCashTransaction(input: { transactionId?: string
   const endpoint = hasTransactionId ? "/v1/RetrieveTransactionPayment" : "/v1/RetrieveOrderPayment";
   const body = hasTransactionId ? { transactionId: input.transactionId } : { orderId: input.orderId };
 
-  const response = await fetch(`${MONCASH_HOST_REST_API}${endpoint}`, {
+  const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}${endpoint}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
