@@ -380,33 +380,25 @@ export default function SuperAdminSubscriptionsPage() {
         description: values.description?.trim() || null,
       };
 
-      let planId = editingPlan?.id ?? null;
-      if (editingPlan) {
-        const { error } = await supabase.from("subscription_plans").update(payload).eq("id", editingPlan.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("subscription_plans").insert([payload]).select("id").single();
-        if (error) throw error;
-        planId = data?.id ?? null;
-      }
+      const parsedFeatures = parseFeatureLines(values.features_text || "").map((f, i) => ({
+        ...f,
+        sort_order: i + 1,
+      }));
 
+      const { data: planId, error: saveError } = await supabase.rpc("manage_subscription_plan", {
+        p_id: editingPlan?.id ?? null,
+        p_name: payload.name,
+        p_monthly_price: payload.monthly_price,
+        p_yearly_price: payload.yearly_price,
+        p_max_businesses: payload.max_businesses ?? null,
+        p_max_branches: payload.max_branches ?? null,
+        p_max_staff: payload.max_staff ?? null,
+        p_active: payload.active,
+        p_description: payload.description,
+        p_features: parsedFeatures,
+      });
+      if (saveError) throw saveError;
       if (!planId) throw new Error("Impossible de déterminer le plan sauvegardé.");
-
-      const parsedFeatures = parseFeatureLines(values.features_text || "");
-      await supabase.from("subscription_features").delete().eq("plan_id", planId);
-      if (parsedFeatures.length) {
-        const { error: featureError } = await supabase
-          .from("subscription_features")
-          .insert(parsedFeatures.map((feature, index) => ({
-            plan_id: planId,
-            feature_key: feature.feature_key,
-            enabled: feature.enabled,
-            feature_label: feature.feature_label,
-            feature_group: feature.feature_group,
-            sort_order: index + 1,
-          })));
-        if (featureError) throw featureError;
-      }
 
       toast.success(editingPlan ? "Plan mis à jour." : "Plan créé.");
       setIsPlanOpen(false);
@@ -417,14 +409,14 @@ export default function SuperAdminSubscriptionsPage() {
   });
 
   const deletePlan = async (plan: SubscriptionPlan) => {
-    const { error } = await supabase.from("subscription_plans").delete().eq("id", plan.id);
+    const { error } = await supabase.rpc("delete_subscription_plan", { p_id: plan.id });
     if (error) return toast.error(error.message);
     toast.success("Plan supprimé.");
     await loadAll();
   };
 
   const togglePlanActive = async (plan: SubscriptionPlan) => {
-    const { error } = await supabase.from("subscription_plans").update({ active: !plan.active }).eq("id", plan.id);
+    const { error } = await supabase.rpc("toggle_subscription_plan_active", { p_id: plan.id });
     if (error) return toast.error(error.message);
     toast.success(plan.active ? "Plan désactivé." : "Plan activé.");
     await loadAll();
