@@ -84,16 +84,6 @@ export async function getMonCashAccessToken() {
 }
 
 export async function createMonCashPayment(orderId: string, amount: number) {
-  // Sandbox shortcut: l'API sandbox est très lente (30s+) depuis Vercel,
-  // on mocke le retour pour permettre les tests du flux complet.
-  if (MONCASH_MODE === "sandbox") {
-    console.log(`[MonCash] Sandbox mode — création d'un ordre mock: ${orderId}`);
-    return {
-      raw: { mock: true, payment_token: { token: `mock_${orderId}` } },
-      redirectUrl: `${MONCASH_GATEWAY_BASE}/Payment/Redirect?token=${encodeURIComponent(`mock_${orderId}`)}`,
-    };
-  }
-
   const accessToken = await getMonCashAccessToken();
 
   const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}/v1/CreatePayment`, {
