@@ -1,4 +1,5 @@
-const MONCASH_MODE = (process.env.MONCASH_MODE || process.env.MONCASH_ENVIRONMENT || "live").toLowerCase();
+const MONCASH_MODE_RAW = (process.env.MONCASH_MODE || process.env.MONCASH_ENVIRONMENT || "live").toLowerCase();
+const MONCASH_MODE = MONCASH_MODE_RAW.startsWith("san") ? "sandbox" : MONCASH_MODE_RAW;
 
 const MONCASH_HOST_REST_API = MONCASH_MODE === "sandbox"
   ? "https://sandbox.moncashbutton.digicelgroup.com/Api"
