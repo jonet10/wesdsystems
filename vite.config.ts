@@ -29,10 +29,10 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("react") && (id.includes("react-dom") || id.includes("react-router") || id.includes("react-hook-form") || id.includes("@hookform") || id.includes("zod"))) {
+            if (/(react|react-dom|scheduler|react-router|react-hook-form|@hookform|zod|react-is)/.test(id)) {
               return "vendor-react";
             }
-            if (id.includes("@radix-ui") || id.includes("cmdk")) {
+            if (id.includes("@radix-ui")) {
               return "vendor-ui";
             }
             if (id.includes("@tanstack")) {
