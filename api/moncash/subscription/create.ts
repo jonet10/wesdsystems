@@ -68,7 +68,11 @@ export default async function handler(req: any, res: any) {
           p_status: "failed",
         });
       }
-      throw error;
+      const isTimeout = error?.name === "AbortError";
+      throw new Error(isTimeout
+        ? "Le service MonCash ne répond pas (délai d'attente dépassé). Veuillez réessayer."
+        : error?.message || "Impossible de créer le paiement MonCash."
+      );
     }
 
     // Mark as pending verification after MonCash redirect URL obtained
