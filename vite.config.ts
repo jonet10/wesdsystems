@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (/(react|react-dom|scheduler|react-router|react-hook-form|@hookform|zod|react-is)/.test(id)) {
-              return "vendor-react";
+              return "vendor-core";
             }
             if (id.includes("@radix-ui")) {
               return "vendor-ui";
@@ -42,12 +42,12 @@ export default defineConfig(({ mode }) => ({
               return "vendor-supabase";
             }
             if (id.includes("lucide-react") || id.includes("recharts") || id.includes("date-fns") || id.includes("i18next")) {
-              return "vendor-large";
+              return "vendor-core";
             }
             if (id.includes("jspdf") || id.includes("html2canvas") || id.includes("dompurify")) {
               return "vendor-print";
             }
-            return "vendor-other";
+            return "vendor-core";
           }
         },
       },
