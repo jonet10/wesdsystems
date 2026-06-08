@@ -120,6 +120,11 @@ type PlanFormValues = z.infer<typeof planSchema>;
 type BranchFormValues = z.infer<typeof branchSchema>;
 type PaymentFormValues = z.infer<typeof paymentSchema>;
 
+const activationSchema = z.object({
+  months: z.coerce.number().min(1, "Minimum 1 mois").max(60, "Maximum 60 mois"),
+});
+type ActivationFormValues = z.infer<typeof activationSchema>;
+
 function parseFeatureLines(text: string): Omit<SubscriptionFeature, "id" | "plan_id">[] {
   return text
     .split("\n")
@@ -204,9 +209,11 @@ export default function SuperAdminSubscriptionsPage() {
   const [isPlanOpen, setIsPlanOpen] = useState(false);
   const [isBranchOpen, setIsBranchOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isActivationOpen, setIsActivationOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [editingBranch, setEditingBranch] = useState<BusinessBranch | null>(null);
   const [selectedDebt, setSelectedDebt] = useState<DebtRow | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<BusinessSubscription & { business?: BusinessRow, plan?: SubscriptionPlan } | null>(null);
   const [subscriptionSearch, setSubscriptionSearch] = useState("");
   const [subscriptionStatusFilter, setSubscriptionStatusFilter] = useState<string>("all");
   const [subscriptionBillingFilter, setSubscriptionBillingFilter] = useState<string>("all");
@@ -246,6 +253,13 @@ export default function SuperAdminSubscriptionsPage() {
       amount: 0,
       payment_method: "cash",
       note: "",
+    },
+  });
+
+  const activationForm = useForm<ActivationFormValues>({
+    resolver: zodResolver(activationSchema),
+    defaultValues: {
+      months: 1,
     },
   });
 
@@ -509,6 +523,64 @@ export default function SuperAdminSubscriptionsPage() {
       await loadAll();
     } catch (error: any) {
       toast.error(error.message || "Impossible d'enregistrer le paiement.");
+    }
+  });
+
+  const saveManualActivation = activationForm.handleSubmit(async (values) => {
+    if (!selectedSubscription) return;
+    try {
+      const today = new Date();
+      const duration = Math.max(1, Math.min(60, values.months));
+      
+      // Determine the start date: if it's currently active and in the future, add to the end date.
+      // Otherwise, start from today.
+      let currentEndDate = selectedSubscription.end_date ? new Date(selectedSubscription.end_date) : new Date();
+      if (isNaN(currentEndDate.getTime()) || selectedSubscription.status !== "active" || currentEndDate < today) {
+        currentEndDate = new Date();
+      }
+      
+      const newEndDate = new Date(currentEndDate);
+      newEndDate.setMonth(newEndDate.getMonth() + duration);
+
+      const formattedStartDate = today.toISOString().slice(0, 10);
+      const formattedEndDate = newEndDate.toISOString().slice(0, 10);
+
+      const { error: subErr } = await supabase
+        .from("business_subscriptions")
+        .update({
+          status: "active",
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+          notes: `Activé manuellement pour ${duration} mois le ${today.toLocaleDateString()}`,
+        })
+        .eq("id", selectedSubscription.id);
+      if (subErr) throw subErr;
+
+      const { error: bizErr } = await supabase
+        .from("businesses")
+        .update({
+          status: "active",
+          plan_id: selectedSubscription.plan_id,
+        })
+        .eq("id", selectedSubscription.business_id);
+      if (bizErr) throw bizErr;
+
+      await supabase.from("business_subscription_history").insert({
+        business_id: selectedSubscription.business_id,
+        plan_id: selectedSubscription.plan_id,
+        previous_plan_id: selectedSubscription.plan_id,
+        action: "manual_activation",
+        status_before: selectedSubscription.status,
+        status_after: "active",
+        notes: `Activation manuelle de ${duration} mois par superadmin.`,
+      });
+
+      toast.success(`Abonnement activé jusqu'au ${newEndDate.toLocaleDateString()}`);
+      setIsActivationOpen(false);
+      setSelectedSubscription(null);
+      await loadAll();
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'activation.");
     }
   });
 
@@ -895,6 +967,7 @@ export default function SuperAdminSubscriptionsPage() {
                       <TableHead>Billing</TableHead>
                       <TableHead>Auto renew</TableHead>
                       <TableHead>Ends</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -920,11 +993,24 @@ export default function SuperAdminSubscriptionsPage() {
                         <TableCell className="capitalize">{subscription.billing_cycle || "monthly"}</TableCell>
                         <TableCell>{subscription.auto_renew ? "Yes" : "No"}</TableCell>
                         <TableCell>{subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSubscription(subscription);
+                              setIsActivationOpen(true);
+                              activationForm.reset({ months: 1 });
+                            }}
+                          >
+                            Activer
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {filteredSubscriptionRows.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
                           No subscriptions match your filters
                         </TableCell>
                       </TableRow>
@@ -1275,6 +1361,48 @@ export default function SuperAdminSubscriptionsPage() {
               </Button>
               <Button type="submit">
                 <DollarSign className="mr-2 h-4 w-4" /> Save payment
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isActivationOpen} onOpenChange={setIsActivationOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Activation Manuelle</DialogTitle>
+            <DialogDescription>
+              Activer ou prolonger cet abonnement manuellement pour l'établissement sélectionné.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={saveManualActivation}>
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Entreprise</span>
+                <span className="font-medium">{selectedSubscription?.business?.name || selectedSubscription?.business_id}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Plan</span>
+                <span className="font-medium">{selectedSubscription?.plan?.name || "Aucun plan"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Statut actuel</span>
+                <Badge variant="outline">{selectedSubscription?.status}</Badge>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Nombre de mois à ajouter</Label>
+              <Input type="number" min={1} max={60} {...activationForm.register("months")} />
+              <p className="text-xs text-muted-foreground">
+                La date de fin sera calculée automatiquement. Si le compte est déjà actif, ces mois seront ajoutés à la date de fin actuelle.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsActivationOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit">
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Activer maintenant
               </Button>
             </DialogFooter>
           </form>

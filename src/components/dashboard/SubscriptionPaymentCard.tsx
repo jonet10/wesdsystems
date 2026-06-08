@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, CalendarRange, CreditCard, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useBusinessSubscription } from "@/hooks/useBusinessSubscription";
@@ -24,8 +24,9 @@ type BusinessMeta = {
 export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean }) {
   const { profile } = useAuth();
   const { data } = useBusinessSubscription();
-  const { formatCompact } = useCurrency();
+  const { formatCompact, format } = useCurrency();
   const [durationMonths, setDurationMonths] = useState("1");
+  const [isManualPaymentOpen, setIsManualPaymentOpen] = useState(false);
 
   const businessId = profile?.business_id ?? null;
   const isBusinessOwner = profile?.role === "salon_admin" || profile?.role === "bar_admin";
@@ -119,11 +120,18 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
             </div>
 
             <div className="flex flex-col gap-2 sm:items-end">
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex flex-col gap-2 sm:flex-row flex-wrap justify-end">
                 <Button variant="outline" asChild>
                   <Link to="/#pricing">
                     Changer de plan
                   </Link>
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  onClick={() => setIsManualPaymentOpen(true)}
+                  disabled={!plan}
+                >
+                  Option 2: Paiement Manuel
                 </Button>
                 <Button asChild disabled={!paymentUrl || !plan}>
                   <Link to={paymentUrl || "#"}>
@@ -132,7 +140,7 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
                   </Link>
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground text-right mt-1">
                 Le montant est calculé à partir du prix mensuel multiplié par la durée sélectionnée.
               </p>
             </div>
@@ -146,6 +154,64 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
           </div>
         )}
       </CardContent>
+
+      <Dialog open={isManualPaymentOpen} onOpenChange={setIsManualPaymentOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Paiement Manuel</DialogTitle>
+            <DialogDescription>
+              Instructions pour régler votre abonnement en espèces, virement ou transfert.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-4 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Plan choisi :</span>
+                <span className="font-medium">{plan?.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Durée :</span>
+                <span className="font-medium">{duration} mois</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                <span className="font-medium">Total à payer :</span>
+                <span className="text-lg font-bold text-primary">{format(baseAmount)}</span>
+              </div>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <p>
+                Pour activer ou prolonger votre compte pour la durée spécifiée, veuillez envoyer ce montant via :
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                <li>MonCash (transfert direct)</li>
+                <li>NatCash</li>
+                <li>Virement bancaire</li>
+                <li>Dépôt en espèces</li>
+              </ul>
+              
+              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
+                <p className="font-medium text-foreground mb-2">Contactez-nous sur WhatsApp pour le paiement :</p>
+                <a 
+                  href={`https://wa.me/50931966855?text=Bonjour, je souhaite payer manuellement ${format(baseAmount)} pour ${duration} mois d'abonnement au plan ${plan?.name} (Entreprise: ${business?.name}).`} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-md bg-[#25D366] px-4 py-2 text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
+                >
+                  +509 3196 6855
+                </a>
+              </div>
+              
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Une fois le reçu de paiement envoyé, un administrateur activera votre compte manuellement en quelques minutes.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsManualPaymentOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
