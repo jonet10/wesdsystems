@@ -25,7 +25,8 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 
 export default function AutoPartsDashboardPage() {
   const businessId = useAutoPartsBusinessId();
-  const { hasAutoPartsPermission } = useAuth();
+  const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
+  const staffId = autoPartsStaffSession?.role === "cashier" ? autoPartsStaffSession.id : undefined;
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalStockValue: 0,
@@ -44,9 +45,10 @@ export default function AutoPartsDashboardPage() {
     const load = async () => {
       if (businessId) {
         // Use SECURITY DEFINER RPCs for staff sessions (bypass RLS)
+        const rpcParams = staffId ? { p_business_id: businessId, p_staff_id: staffId } : { p_business_id: businessId };
         const [{ data: counts }, { data: monthSalesData }, { data: catData }] = await Promise.all([
-          supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }),
-          supabase.rpc("auto_parts_monthly_sales", { p_business_id: businessId }),
+          supabase.rpc("auto_parts_dashboard_counts", rpcParams),
+          supabase.rpc("auto_parts_monthly_sales", rpcParams),
           supabase.rpc("auto_parts_category_repartition", { p_business_id: businessId }),
         ]);
         if (counts) setStats(counts);
@@ -73,10 +75,11 @@ export default function AutoPartsDashboardPage() {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
-        const [{ count: todaySales }, { data: monthSalesData }] = await Promise.all([
-          supabase.from("auto_parts_sales").select("*", { count: "exact", head: true }).gte("created_at", dayStart).not("refund_status", "eq", "full"),
+        const [{ data: todaySalesData }, { data: monthSalesData }] = await Promise.all([
+          supabase.from("auto_parts_sales").select("total").gte("created_at", dayStart).not("refund_status", "eq", "full"),
           supabase.from("auto_parts_sales").select("total, created_at").gte("created_at", monthStart).not("refund_status", "eq", "full"),
         ]);
+        const todaySales = (todaySalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
         const monthSales = (monthSalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
 
         const [{ count: monthPurchases }] = await Promise.all([
@@ -91,7 +94,7 @@ export default function AutoPartsDashboardPage() {
           totalStockValue,
           outOfStock: outOfStock || 0,
           lowStock: lowStock || 0,
-          todaySales: todaySales || 0,
+          todaySales,
           monthSales,
           monthPurchases: monthPurchases || 0,
           pendingOrders: pendingOrders || 0,
@@ -120,7 +123,7 @@ export default function AutoPartsDashboardPage() {
       setLoading(false);
     };
     load();
-  }, [businessId]);
+  }, [businessId, staffId]);
 
   if (loading) return <DashboardLayout role="salon_admin" title="Auto Parts"><p className="text-muted-foreground p-8">Chargement...</p></DashboardLayout>;
 
@@ -134,7 +137,7 @@ export default function AutoPartsDashboardPage() {
     { icon: DollarSign, label: "Valeur stock", value: `${stats.totalStockValue.toLocaleString()} HTG`, color: "text-green-500" },
     { icon: AlertTriangle, label: "En rupture", value: stats.outOfStock, color: "text-red-500" },
     { icon: AlertTriangle, label: "Stock faible", value: stats.lowStock, color: "text-amber-500" },
-    { icon: TrendingUp, label: "Ventes aujourd'hui", value: `${stats.todaySales}`, color: "text-indigo-500" },
+    { icon: TrendingUp, label: "Ventes aujourd'hui", value: `${stats.todaySales.toLocaleString()} HTG`, color: "text-indigo-500" },
     { icon: ShoppingCart, label: "Ventes du mois", value: `${stats.monthSales.toLocaleString()} HTG`, color: "text-emerald-500" },
     { icon: Truck, label: "Achats du mois", value: `${stats.monthPurchases}`, color: "text-purple-500" },
     { icon: Receipt, label: "Commandes en attente", value: stats.pendingOrders, color: "text-orange-500" },
