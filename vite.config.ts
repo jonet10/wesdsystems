@@ -24,4 +24,33 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: [
+            "react",
+            "react-dom",
+            "react-router-dom",
+            "react-hook-form",
+            "@hookform/resolvers",
+            "zod",
+          ],
+          ui: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-select",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-switch",
+            "@radix-ui/react-toast",
+            "@radix-ui/react-tooltip",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-dropdown-menu",
+            "cmdk",
+          ],
+          tables: ["@tanstack/react-table"],
+          supabase: ["@supabase/supabase-js"],
+        },
+      },
+    },
+  },
 }));
