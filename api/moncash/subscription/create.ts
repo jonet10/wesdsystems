@@ -13,6 +13,7 @@ export default async function handler(req: any, res: any) {
     const planId = String(body.plan_id || body.planId || "");
     const businessName = String(body.business_name || body.businessName || "");
     const paymentId = body.payment_id ? String(body.payment_id) : null;
+// Preserve payment_id from client to avoid duplicate records
     const billingCycle = String(body.billing_cycle || "monthly");
     const durationMonths = Math.max(1, Math.min(12, Number(body.duration_months || 1)));
 
@@ -30,7 +31,12 @@ export default async function handler(req: any, res: any) {
     if (plan.active === false) return json(res, 400, { error: "Plan inactif" });
 
     const monthlyPrice = toNumber(plan.monthly_price);
-    const amount = monthlyPrice * durationMonths;
+    let amount;
+if (billingCycle === "yearly" && Number(plan.yearly_price) > 0) {
+  amount = Number(plan.yearly_price);
+} else {
+  amount = monthlyPrice * durationMonths;
+}
 
     if (amount <= 0) {
       return json(res, 400, { error: "Le montant doit être supérieur à 0" });
@@ -68,7 +74,7 @@ export default async function handler(req: any, res: any) {
       const isTimeout = error?.name === "AbortError";
 
       if (isSandbox) {
-        // Sandbox fallback: CreatePayment est lent (>30s), on mocke le redirect
+        // Sandbox fallback: CreatePayment est lent (>30s), on mocke le redirect et on active l'abonnement directement
         console.log(`[MonCash] Sandbox fallback pour ${orderId}`);
         await apiSupabase.rpc("update_subscription_payment", {
           p_id: subscriptionPaymentId,
@@ -94,6 +100,59 @@ export default async function handler(req: any, res: any) {
             sandbox: true,
           },
         });
+        // Activate subscription (same logic as return handler)
+        const { data: business, error: bizErr } = await apiSupabase
+          .from("businesses")
+          .select("plan_id, status")
+          .eq("id", businessId)
+          .maybeSingle();
+        if (bizErr) throw bizErr;
+        const previousPlanId = business?.plan_id || null;
+        // Upsert subscription activation (duplicate minimal logic)
+        const today = new Date();
+        const duration = Math.max(1, Math.min(12, Number(durationMonths)));
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + duration);
+        const subscriptionPayload = {
+          business_id: businessId,
+          plan_id: planId,
+          start_date: today.toISOString().slice(0, 10),
+          end_date: endDate.toISOString().slice(0, 10),
+          status: "active",
+          billing_cycle: billingCycle,
+          auto_renew: true,
+          price_snapshot: Number(amount),
+          currency_code: "HTG",
+          notes: `MonCash ${orderId} sandbox activation for ${duration} months`,
+        };
+        const { data: subInsert, error: subErr } = await apiSupabase
+          .from("business_subscriptions")
+          .insert(subscriptionPayload)
+          .select("id")
+          .single();
+        if (subErr) throw subErr;
+        const subscriptionId = subInsert.id;
+        // Update moncash record with subscription_id
+        await apiSupabase
+          .from("moncash_subscription_payments")
+          .update({ subscription_id: subscriptionId })
+          .eq("id", subscriptionPaymentId);
+        // Update business plan and status
+        await apiSupabase
+          .from("businesses")
+          .update({ plan_id: planId, status: "active" })
+          .eq("id", businessId);
+        // Insert history
+        await apiSupabase.from("business_subscription_history").insert({
+          business_id: businessId,
+          plan_id: planId,
+          previous_plan_id: previousPlanId,
+          action: "created",
+          status_before: business?.status || "pending",
+          status_after: "active",
+          notes: `MonCash sandbox activation order ${orderId}`,
+        });
+
         const confirmationUrl = `/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
         return json(res, 200, {
           data: {

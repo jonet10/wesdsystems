@@ -117,46 +117,37 @@ export default async function handler(req: any, res: any) {
 
     if (isSuccessful) {
       if (paymentRecord.status !== "successful") {
-        const { error: paymentUpdateError } = await apiSupabase
-          .from("moncash_subscription_payments")
-          .update({
-            transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
-            status: "successful",
-            paid_at: new Date().toISOString(),
-            confirmed_at: new Date().toISOString(),
-            callback_payload: paymentDetails,
-          })
-          .eq("id", paymentRecord.id);
+          const { error: paymentUpdateError } = await apiSupabase
+            .from("moncash_subscription_payments")
+            .update({
+              transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
+              status: "successful",
+              paid_at: new Date().toISOString(),
+              confirmed_at: new Date().toISOString(),
+              callback_payload: paymentDetails,
+              subscription_id: subscriptionId,
+            })
+            .eq("id", paymentRecord.id);
+          if (paymentUpdateError) throw paymentUpdateError;
 
-        if (paymentUpdateError) throw paymentUpdateError;
-
-        const subscriptionId = await upsertSubscriptionActivation(paymentRecord, paymentDetails);
-
-        const { error: recordUpdateError } = await apiSupabase
-          .from("moncash_subscription_payments")
-          .update({
-            subscription_id: subscriptionId,
-            transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
-            status: "successful",
-            paid_at: new Date().toISOString(),
-            confirmed_at: new Date().toISOString(),
-            callback_payload: paymentDetails,
-          })
-          .eq("id", paymentRecord.id);
-
-        if (recordUpdateError) throw recordUpdateError;
+        const { data: businessBefore, error: bizBeforeErr } = await apiSupabase
+          .from("businesses")
+          .select("plan_id")
+          .eq("id", paymentRecord.business_id)
+          .maybeSingle();
+        if (bizBeforeErr) throw bizBeforeErr;
+        const previousPlanId = businessBefore?.plan_id || null;
 
         const { error: businessUpdateError } = await apiSupabase
           .from("businesses")
           .update({ plan_id: paymentRecord.plan_id, status: "active" })
           .eq("id", paymentRecord.business_id);
-
         if (businessUpdateError) throw businessUpdateError;
 
         await apiSupabase.from("business_subscription_history").insert({
           business_id: paymentRecord.business_id,
           plan_id: paymentRecord.plan_id,
-          previous_plan_id: paymentRecord.plan_id,
+          previous_plan_id: previousPlanId,
           action: paymentRecord.subscription_id ? "renewed" : "created",
           status_before: paymentRecord.status || "pending",
           status_after: "active",
