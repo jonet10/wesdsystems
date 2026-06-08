@@ -88,7 +88,7 @@ export default async function handler(req: any, res: any) {
         },
       });
 
-      const confirmationUrl = `/billing/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
+      const confirmationUrl = `/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
 
       return json(res, 200, {
         data: {
