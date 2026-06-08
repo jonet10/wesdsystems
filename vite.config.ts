@@ -27,28 +27,28 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: [
-            "react",
-            "react-dom",
-            "react-router-dom",
-            "react-hook-form",
-            "@hookform/resolvers",
-            "zod",
-          ],
-          ui: [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-switch",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-tooltip",
-            "@radix-ui/react-popover",
-            "@radix-ui/react-dropdown-menu",
-            "cmdk",
-          ],
-          tables: ["@tanstack/react-table"],
-          supabase: ["@supabase/supabase-js"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") && (id.includes("react-dom") || id.includes("react-router") || id.includes("react-hook-form") || id.includes("@hookform") || id.includes("zod"))) {
+              return "vendor-react";
+            }
+            if (id.includes("@radix-ui") || id.includes("cmdk")) {
+              return "vendor-ui";
+            }
+            if (id.includes("@tanstack")) {
+              return "vendor-tables";
+            }
+            if (id.includes("@supabase")) {
+              return "vendor-supabase";
+            }
+            if (id.includes("lucide-react") || id.includes("recharts") || id.includes("date-fns") || id.includes("i18next")) {
+              return "vendor-large";
+            }
+            if (id.includes("jspdf") || id.includes("html2canvas") || id.includes("dompurify")) {
+              return "vendor-print";
+            }
+            return "vendor-other";
+          }
         },
       },
     },
