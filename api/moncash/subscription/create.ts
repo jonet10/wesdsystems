@@ -38,25 +38,24 @@ export default async function handler(req: any, res: any) {
 
     const orderId = `sub_${businessId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
 
-    // Create/update subscription_payments record (service-role bypasses RLS)
+    // Create subscription_payments record via RPC (bypasses RLS)
     let subscriptionPaymentId = paymentId;
     if (!subscriptionPaymentId) {
-      const { data: sp, error: spError } = await apiSupabase
-        .from("subscription_payments")
-        .insert({
-          business_id: businessId,
-          plan_id: planId,
-          amount,
-          currency_code: "HTG",
-          payment_method: "moncash",
-          transaction_reference: orderId,
-          status: "pending",
-        })
-        .select("id")
-        .maybeSingle();
+      const { data: spId, error: spError } = await apiSupabase.rpc(
+        "create_subscription_payment",
+        {
+          p_business_id: businessId,
+          p_plan_id: planId,
+          p_amount: amount,
+          p_currency_code: "HTG",
+          p_payment_method: "moncash",
+          p_transaction_reference: orderId,
+          p_status: "pending",
+        }
+      );
 
       if (spError) throw spError;
-      subscriptionPaymentId = sp?.id || null;
+      subscriptionPaymentId = spId;
     }
 
     let payment;
@@ -64,47 +63,45 @@ export default async function handler(req: any, res: any) {
       payment = await createMonCashPayment(orderId, amount);
     } catch (error: any) {
       if (subscriptionPaymentId) {
-        await apiSupabase
-          .from("subscription_payments")
-          .update({ status: "failed" })
-          .eq("id", subscriptionPaymentId)
-          .maybeSingle();
+        await apiSupabase.rpc("update_subscription_payment", {
+          p_id: subscriptionPaymentId,
+          p_status: "failed",
+        });
       }
       throw error;
     }
 
     // Mark as pending verification after MonCash redirect URL obtained
     if (subscriptionPaymentId) {
-      await apiSupabase
-        .from("subscription_payments")
-        .update({
-          transaction_reference: orderId,
-          status: "pending_verification",
-        })
-        .eq("id", subscriptionPaymentId);
+      await apiSupabase.rpc("update_subscription_payment", {
+        p_id: subscriptionPaymentId,
+        p_transaction_reference: orderId,
+        p_status: "pending_verification",
+      });
     }
 
-    // Insert into moncash_subscription_payments for the return callback
-    const { error: insertError } = await apiSupabase
-      .from("moncash_subscription_payments")
-      .insert({
-        business_id: businessId,
-        plan_id: planId,
-        billing_cycle: billingCycle,
-        duration_months: durationMonths,
-        payment_provider: "moncash",
-        amount,
-        currency_code: "HTG",
-        order_id: orderId,
-        status: "redirected",
-        redirect_url: payment.redirectUrl,
-        gateway_payload: {
+    // Insert into moncash_subscription_payments via RPC (bypasses RLS)
+    const { error: insertError } = await apiSupabase.rpc(
+      "create_moncash_subscription_payment",
+      {
+        p_business_id: businessId,
+        p_plan_id: planId,
+        p_billing_cycle: billingCycle,
+        p_duration_months: durationMonths,
+        p_payment_provider: "moncash",
+        p_amount: amount,
+        p_currency_code: "HTG",
+        p_order_id: orderId,
+        p_status: "redirected",
+        p_redirect_url: payment.redirectUrl,
+        p_gateway_payload: {
           business_name: businessName,
           plan_name: plan.name,
           billing_cycle: billingCycle,
           duration_months: durationMonths,
         },
-      });
+      }
+    );
 
     if (insertError) throw insertError;
 
