@@ -84,13 +84,14 @@ if (billingCycle === "yearly" && Number(plan.yearly_price) > 0) {
         await apiSupabase.rpc("create_moncash_subscription_payment", {
           p_business_id: businessId,
           p_plan_id: planId,
+          p_subscription_payment_id: subscriptionPaymentId,
           p_billing_cycle: billingCycle,
           p_duration_months: durationMonths,
           p_payment_provider: "moncash",
           p_amount: amount,
           p_currency_code: "HTG",
           p_order_id: orderId,
-          p_status: "completed",
+          p_status: "successful",
           p_redirect_url: null,
           p_gateway_payload: {
             business_name: businessName,

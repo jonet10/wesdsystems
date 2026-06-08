@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { AlertCircle, ArrowRight, CheckCircle2, CreditCard, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ export default function MonCashSubscriptionPayPage() {
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [loading, setLoading] = useState(false);
+  const pendingRef = useRef(false); // guard contre les doubles-clics
 
   const businessId = toText(params.get("business_id"));
   const planId = toText(params.get("plan_id"));
@@ -30,7 +31,8 @@ export default function MonCashSubscriptionPayPage() {
       toast.error("Lien de paiement incomplet.");
       return;
     }
-
+    if (pendingRef.current) return; // déjà en cours, ignore
+    pendingRef.current = true;
     setLoading(true);
     try {
       const response = await fetch("/api/moncash/subscription/create", {
@@ -58,6 +60,7 @@ export default function MonCashSubscriptionPayPage() {
     } catch (error: any) {
       toast.error(error?.message || "Erreur lors du lancement MonCash.");
     } finally {
+      pendingRef.current = false;
       setLoading(false);
     }
   };
