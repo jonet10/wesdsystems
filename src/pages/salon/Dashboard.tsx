@@ -122,10 +122,10 @@ export default function SalonDashboard() {
           supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId),
           supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100),
           supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId),
-          supabase.from("salon_sales").select("total_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end),
-          supabase.from("salon_sales").select("id, total_amount, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10),
+          supabase.from("salon_sales").select("total_amount, return_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end),
+          supabase.from("salon_sales").select("id, total_amount, return_amount, refund_status, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10),
           supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true),
-          supabase.from("salon_sales").select("total_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end),
+          supabase.from("salon_sales").select("total_amount, return_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end),
         ]);
 
         setClients((clientsRes || []).map((client: any) => ({
@@ -145,7 +145,7 @@ export default function SalonDashboard() {
         setServices(servicesRes || []);
 
         if (salesToday) {
-          setTodayRevenue(salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0), 0));
+          setTodayRevenue(salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0) - Number(sale.return_amount || 0), 0));
         }
         if (recent) setRecentSales(recent);
         if (products) setLowStockCount(products.filter((product: any) => Number(product.quantity_in_stock || 0) <= Number(product.reorder_level || 0)).length);
@@ -159,7 +159,7 @@ export default function SalonDashboard() {
           weekSales.forEach((sale: any) => {
             const day = getDateKeyInTimeZone(new Date(sale.created_at), timeZone);
             if (dayMap.has(day)) {
-              dayMap.get(day)!.revenue += Number(sale.total_amount || 0);
+              dayMap.get(day)!.revenue += Number(sale.total_amount || 0) - Number(sale.return_amount || 0);
             }
           });
           appointmentsRes?.forEach((appointment: any) => {
@@ -521,7 +521,7 @@ export default function SalonDashboard() {
                         {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: dashboardTimeZone })}
                         </span>
                       </div>
-                      <span className="font-medium text-sm">{format(sale.total_amount)}</span>
+                      <span className="font-medium text-sm">{format(Number(sale.total_amount || 0) - Number(sale.return_amount || 0))}</span>
                     </div>
                   ))}
                   {recentSales.length === 0 && (

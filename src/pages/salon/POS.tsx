@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +18,7 @@ import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
-  Gift, Percent, Tag, Barcode, UserCog, X, Star, AlertCircle,
+  Gift, Percent, Tag, Barcode, UserCog, X, Star, AlertCircle, ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
@@ -46,6 +47,7 @@ import {
 import type { PaymentMethod } from "@/modules/salon/types";
 import type { PaymentSplit } from "@/modules/salon/pos";
 import { recordStockMovement } from "@/modules/salon/inventory";
+import { processReturn, listSales as listSalonSales } from "@/services/return-service";
 import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { DEFAULT_PLATFORM_TIME_ZONE, getDateKeyInTimeZone } from "@/lib/timezone-date";
 import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
@@ -220,6 +222,17 @@ export default function POSPage() {
   const [productSetupPrice, setProductSetupPrice] = useState("0");
   const [productSetupStock, setProductSetupStock] = useState("0");
   const [productSetupSaving, setProductSetupSaving] = useState(false);
+
+  // Return / refund state
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnSaleSearch, setReturnSaleSearch] = useState("");
+  const [returnFoundSale, setReturnFoundSale] = useState<any | null>(null);
+  const [returnSearching, setReturnSearching] = useState(false);
+  const [returnLoading, setReturnLoading] = useState(false);
+  interface ReturnItemState { product_id: string; product_name: string; quantity: number; unit_price: number; max_quantity: number; item_id: string }
+  const [returnItems, setReturnItems] = useState<ReturnItemState[]>([]);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnProcessing, setReturnProcessing] = useState(false);
 
   // Modal options
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
@@ -1644,13 +1657,18 @@ export default function POSPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
-                    Annuler
-                  </Button>
-                  <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary h-11 text-base font-semibold">
-                    Encaisser • {format(total)}
-                  </Button>
+                <div className="mt-4 space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
+                      Annuler
+                    </Button>
+                    <Button variant="outline" onClick={() => setReturnOpen(true)} className="gap-1">
+                      <ArrowLeftRight className="h-4 w-4" /> Retour
+                    </Button>
+                    <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary h-11 text-base font-semibold">
+                      Encaisser • {format(total)}
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -1891,6 +1909,235 @@ export default function POSPage() {
               {newClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Retour / Remboursement ──────────────────────────── */}
+      <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Retour produit</DialogTitle>
+            <DialogDescription>
+              Recherchez une vente par son numéro pour retourner des articles.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher par numéro de vente..."
+                  value={returnSaleSearch}
+                  onChange={(e) => setReturnSaleSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !returnSearching) {
+                      setReturnSearching(true);
+                      setReturnFoundSale(null);
+                      (async () => {
+                        try {
+                          if (!activeBranchId) { toast.error("Aucune branche sélectionnée"); return; }
+                          const businessId = authProfile?.business_id ?? null;
+                          if (!businessId) { toast.error("Aucune entreprise trouvée"); return; }
+                          const sales = await listSalonSales("salon", businessId);
+                          const found = sales.find(
+                            (s: any) => s.sale_number?.toLowerCase() === returnSaleSearch.trim().toLowerCase()
+                          );
+                          if (!found) {
+                            toast.error("Vente introuvable");
+                            return;
+                          }
+                          setReturnFoundSale(found);
+                          if (found.refund_status === "full") {
+                            toast.warning("Cette vente a déjà été entièrement retournée");
+                          }
+                          setReturnItems(
+                            (found.items || []).map((item: any) => ({
+                              product_id: item.product_id ?? "",
+                              product_name: item.product_name || item.name || "Article",
+                              quantity: 0,
+                              unit_price: Number(item.unit_price || 0),
+                              max_quantity: Number(item.quantity || 0) - Number(item.returned_quantity || 0),
+                              item_id: item.id ?? "",
+                            })).filter((i: ReturnItemState) => i.max_quantity > 0)
+                          );
+                        } catch (e: any) { toast.error(e.message); }
+                        finally { setReturnSearching(false); }
+                      })();
+                    }
+                  }}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  setReturnSearching(true);
+                  setReturnFoundSale(null);
+                  (async () => {
+                    try {
+                      if (!activeBranchId) { toast.error("Aucune branche sélectionnée"); return; }
+                      const businessId = authProfile?.business_id ?? null;
+                      if (!businessId) { toast.error("Aucune entreprise trouvée"); return; }
+                      const sales = await listSalonSales("salon", businessId);
+                      const found = sales.find(
+                        (s: any) => s.sale_number?.toLowerCase() === returnSaleSearch.trim().toLowerCase()
+                      );
+                      if (!found) { toast.error("Vente introuvable"); return; }
+                      setReturnFoundSale(found);
+                      if (found.refund_status === "full") {
+                        toast.warning("Cette vente a déjà été entièrement retournée");
+                      }
+                      setReturnItems(
+                        (found.items || []).map((item: any) => ({
+                          product_id: item.product_id ?? "",
+                          product_name: item.product_name || item.name || "Article",
+                          quantity: 0,
+                          unit_price: Number(item.unit_price || 0),
+                          max_quantity: Math.max(0, Number(item.quantity || 0) - Number(item.returned_quantity || 0)),
+                          item_id: item.id ?? "",
+                        })).filter((i: ReturnItemState) => i.max_quantity > 0)
+                      );
+                    } catch (e: any) { toast.error(e.message); }
+                    finally { setReturnSearching(false); }
+                  })();
+                }}
+                disabled={returnSearching}
+              >
+                {returnSearching ? "..." : "Chercher"}
+              </Button>
+            </div>
+
+            {returnFoundSale && (
+              <>
+                <div className="border rounded-lg p-4 bg-muted/30 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-semibold">{returnFoundSale.sale_number}</span>
+                      {returnFoundSale.customer_name && (
+                        <span className="text-muted-foreground ml-4">Client: {returnFoundSale.customer_name}</span>
+                      )}
+                    </div>
+                    <Badge variant={returnFoundSale.refund_status === "full" ? "destructive" : returnFoundSale.refund_status === "partial" ? "secondary" : "outline"}>
+                      {returnFoundSale.refund_status === "full" ? "Retourné" : returnFoundSale.refund_status === "partial" ? "Partiel" : "Aucun retour"}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total: {format(returnFoundSale.total_amount)} | {new Date(returnFoundSale.created_at).toLocaleDateString("fr-FR")}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Articles à retourner</Label>
+                  <div className="border rounded-md mt-1">
+                    {returnItems.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        Tous les articles ont déjà été retournés
+                      </div>
+                    ) : (
+                      returnItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 hover:bg-muted/20">
+                          <input
+                            type="checkbox"
+                            checked={item.quantity > 0}
+                            onChange={() => {
+                              setReturnItems((prev) =>
+                                prev.map((i, n) =>
+                                  n === idx ? { ...i, quantity: i.quantity > 0 ? 0 : i.max_quantity } : i
+                                )
+                              );
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{item.product_name}</p>
+                            <p className="text-xs text-muted-foreground">{format(item.unit_price)}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            Max: {item.max_quantity}
+                          </span>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={item.max_quantity}
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const qty = Math.min(Math.max(0, Number(e.target.value)), item.max_quantity);
+                              setReturnItems((prev) =>
+                                prev.map((i, n) => (n === idx ? { ...i, quantity: qty } : i))
+                              );
+                            }}
+                            className="w-20 h-8 text-center"
+                          />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Motif du retour (optionnel)</Label>
+                  <Textarea
+                    value={returnReason}
+                    onChange={(e) => setReturnReason(e.target.value)}
+                    placeholder="Raison du retour..."
+                    rows={2}
+                  />
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span>Articles sélectionnés: {returnItems.filter(i => i.quantity > 0).length}</span>
+                    <span>Quantité totale: {returnItems.reduce((s, i) => s + i.quantity, 0)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReturnOpen(false); setReturnFoundSale(null); setReturnItems([]); setReturnReason(""); }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={async () => {
+                const items = returnItems.filter((i) => i.quantity > 0);
+                if (items.length === 0) { toast.error("Sélectionnez au moins un article"); return; }
+                if (!activeBranchId) { toast.error("Aucune branche"); return; }
+                const businessId = authProfile?.business_id ?? null;
+                if (!businessId) { toast.error("Aucune entreprise"); return; }
+                setReturnProcessing(true);
+                try {
+                  const result = await processReturn("salon", {
+                    business_id: businessId,
+                    branch_id: activeBranchId,
+                    sale_id: returnFoundSale.id,
+                    items: items.map((i) => ({
+                      product_id: i.product_id,
+                      product_name: i.product_name,
+                      quantity: i.quantity,
+                      unit_price: i.unit_price,
+                    })),
+                    reason: returnReason || undefined,
+                    cashier_id: employeeSession?.id ?? null,
+                  });
+                  if (!result.success) {
+                    toast.error(result.error || "Erreur lors du retour");
+                  } else {
+                    toast.success(`Retour ${result.refund_status === "full" ? "total" : "partiel"} enregistré`);
+                    setReturnOpen(false);
+                    setReturnFoundSale(null);
+                    setReturnItems([]);
+                    setReturnReason("");
+                    await loadData(activeBranchId);
+                  }
+                } catch (e: any) { toast.error(e.message); }
+                finally { setReturnProcessing(false); }
+              }}
+              disabled={!returnFoundSale || returnProcessing || returnItems.filter(i => i.quantity > 0).length === 0}
+            >
+              {returnProcessing ? "Traitement..." : "Valider le retour"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -144,7 +144,7 @@ BEGIN
       WHERE id = NEW.product_id;
     ELSIF NEW.type IN ('out', 'sale') THEN
       UPDATE public.auto_parts_products
-      SET stock_quantity = stock_quantity + NEW.quantity,
+      SET stock_quantity = stock_quantity - NEW.quantity,
           updated_at = now()
       WHERE id = NEW.product_id;
     ELSIF NEW.type = 'adjustment' THEN

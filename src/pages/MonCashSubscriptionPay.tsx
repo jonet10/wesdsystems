@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { AlertCircle, ArrowRight, CheckCircle2, CreditCard, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
 import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
 
 const toText = (value: string | null) => (value && value.trim() ? value.trim() : "");
@@ -14,12 +13,9 @@ export default function MonCashSubscriptionPayPage() {
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [loading, setLoading] = useState(false);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [created, setCreated] = useState(false);
 
   const businessId = toText(params.get("business_id"));
   const planId = toText(params.get("plan_id"));
-  const existingPaymentId = toText(params.get("payment_id"));
   const businessName = toText(params.get("business_name")) || "Votre établissement";
   const planName = toText(params.get("plan_name")) || "Abonnement";
   const billingCycle = toText(params.get("billing_cycle")) || "monthly";
@@ -29,35 +25,6 @@ export default function MonCashSubscriptionPayPage() {
 
   const canPay = Boolean(businessId && planId);
 
-  useEffect(() => {
-    if (!canPay || existingPaymentId || created) return;
-
-    const createPaymentRecord = async () => {
-      try {
-        const { data, error } = await supabase.from("subscription_payments").insert({
-          business_id: businessId,
-          plan_id: planId,
-          amount,
-          currency_code: currencyCode,
-          payment_method: "moncash",
-          transaction_reference: "",
-          status: "pending",
-        }).select("id").maybeSingle();
-
-        if (error) throw error;
-        if (data) {
-          setPaymentId(data.id);
-          setCreated(true);
-        }
-      } catch (err: any) {
-        console.error("Erreur création paiement:", err);
-        toast.error("Impossible d'initialiser le paiement.");
-      }
-    };
-
-    createPaymentRecord();
-  }, [canPay, businessId, planId, amount, currencyCode, existingPaymentId, created]);
-
   const startPayment = async () => {
     if (!canPay) {
       toast.error("Lien de paiement incomplet.");
@@ -66,20 +33,13 @@ export default function MonCashSubscriptionPayPage() {
 
     setLoading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
       const response = await fetch("/api/moncash/subscription/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           business_id: businessId,
           plan_id: planId,
           business_name: businessName,
-          payment_id: paymentId || existingPaymentId || undefined,
           billing_cycle: billingCycle,
           duration_months: durationMonths,
         }),
@@ -92,16 +52,6 @@ export default function MonCashSubscriptionPayPage() {
 
       if (!payload?.data?.redirect_url) {
         throw new Error("MonCash n'a pas renvoyé d'URL de paiement.");
-      }
-
-      if (paymentId || existingPaymentId) {
-        await supabase
-          .from("subscription_payments")
-          .update({
-            transaction_reference: payload.data.order_id || "",
-            moncash_payment_id: payload.data.payment_id || "",
-          })
-          .eq("id", paymentId || existingPaymentId);
       }
 
       window.location.assign(payload.data.redirect_url);

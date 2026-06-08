@@ -74,8 +74,8 @@ export default function AutoPartsDashboardPage() {
         const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
         const [{ count: todaySales }, { data: monthSalesData }] = await Promise.all([
-          supabase.from("auto_parts_sales").select("*", { count: "exact", head: true }).gte("created_at", dayStart),
-          supabase.from("auto_parts_sales").select("total, created_at").gte("created_at", monthStart),
+          supabase.from("auto_parts_sales").select("*", { count: "exact", head: true }).gte("created_at", dayStart).not("refund_status", "eq", "full"),
+          supabase.from("auto_parts_sales").select("total, created_at").gte("created_at", monthStart).not("refund_status", "eq", "full"),
         ]);
         const monthSales = (monthSalesData || []).reduce((sum, s) => sum + Number(s.total), 0);
 
@@ -100,7 +100,7 @@ export default function AutoPartsDashboardPage() {
         // Monthly sales for chart
         const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
         const { data: yearSales } = await supabase
-          .from("auto_parts_sales").select("total, created_at").gte("created_at", yearStart);
+          .from("auto_parts_sales").select("total, created_at").gte("created_at", yearStart).not("refund_status", "eq", "full");
 
         const byMonth = Array(12).fill(0);
         (yearSales || []).forEach((s) => {

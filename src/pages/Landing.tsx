@@ -62,7 +62,7 @@ const HERO_SLIDES = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images
 export default function Landing() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
-  const { detectedRegionName, detectedCountry, availableCountries, setCountryPreference, priceForPlan, formatPrice, isLoading } =
+  const { detectedRegionName, detectedCountry, availableCountries, setCountryPreference, priceForPlan, formatPrice, isLoading, availablePlans, planFeatures } =
     usePricing();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -516,82 +516,101 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-3">
-            {[
-              {
-                key: "starter",
-                label: "STARTER",
-                price: "1 500 G/mois",
-                features: ["1 business", "Up to 5 staff", "Standard POS", "Email support"],
-                featured: false,
-              },
-              {
-                key: "pro",
-                label: "PROFESSIONNEL",
-                price: "2 500 G/mois",
-                features: ["2 businesses", "Up to 15 staff", "Advanced analytics", "Priority support"],
-                featured: true,
-              },
-              {
-                key: "enterprise",
-                label: "ENTREPRISE",
-                price: "5 000 G/mois",
-                features: ["Unlimited businesses", "Unlimited staff", "Advanced analytics", "Priority support + dedicated manager"],
-                featured: false,
-              },
-            ].map((plan) => (
-              <div
-                key={plan.key}
-                className={`relative overflow-hidden rounded-[1.85rem] border p-7 shadow-[0_20px_60px_rgba(0,0,0,0.18)] ${
-                  plan.featured
-                    ? isDarkMode
-                      ? "border-cyan-400/30 bg-gradient-to-b from-[#17172f] to-[#12112a]"
-                      : "border-cyan-500/20 bg-gradient-to-b from-white to-slate-50"
-                    : isDarkMode
-                      ? "border-white/8 bg-[#12112a]"
-                      : "border-slate-900/10 bg-white"
-                }`}
-              >
-                {plan.featured && (
-                  <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-cyan-400 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-950">
-                    <Star className="h-3.5 w-3.5" />
-                    Most popular
-                  </div>
-                )}
+          <div className="grid gap-6 md:grid-cols-3 items-start">
+            {availablePlans.map((plan, index) => {
+              const planPrice = priceForPlan(plan.name);
+              const monthlyPrice = planPrice?.monthly_price ?? plan.monthly_price;
+              const currencyCode = planPrice?.currency_code ?? "HTG";
+              const featureList = planFeatures.get(plan.id) || [];
+              const enabledFeatures = featureList.filter((f) => f.enabled);
+              const isPopular = availablePlans.length > 1 && index === Math.floor(availablePlans.length / 2);
+              const formattedAmount = new Intl.NumberFormat("fr-FR").format(monthlyPrice);
 
-                <p className={`text-[0.75rem] font-semibold uppercase tracking-[0.15em] ${isDarkMode ? "text-white/45" : "text-slate-500"}`}>
-                  {plan.label}
-                </p>
+              const displayFeatures: { label: string }[] = [];
+              if (plan.max_businesses !== null) {
+                displayFeatures.push({ label: `${plan.max_businesses} entreprise${plan.max_businesses !== 1 ? "s" : ""}` });
+              } else {
+                displayFeatures.push({ label: "Entreprises illimitées" });
+              }
+              if (plan.max_branches !== null) {
+                displayFeatures.push({ label: `${plan.max_branches} succursale${plan.max_branches !== 1 ? "s" : ""}` });
+              } else {
+                displayFeatures.push({ label: "Succursales illimitées" });
+              }
+              if (plan.max_staff !== null) {
+                displayFeatures.push({ label: `${plan.max_staff} employé${plan.max_staff !== 1 ? "s" : ""}` });
+              } else {
+                displayFeatures.push({ label: "Employés illimités" });
+              }
+              displayFeatures.push(
+                ...enabledFeatures.slice(0, 2).map((f) => ({ label: f.feature_label || f.feature_key.replace(/_/g, " ") }))
+              );
 
-                <div className={`mt-4 text-[3rem] font-black leading-none ${isDarkMode ? "text-white" : "text-slate-950"}`}>
-                  {plan.price}
-                </div>
-
-                <div className="mt-7 space-y-3">
-                  {plan.features.map((feature) => (
-                    <div key={feature} className={`flex items-start gap-3 text-sm leading-6 ${isDarkMode ? "text-white/80" : "text-slate-700"}`}>
-                      <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isDarkMode ? "text-white/85" : "text-slate-700"}`} />
-                      <span>{feature}</span>
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative flex flex-col rounded-[1.85rem] border p-8 transition-all duration-300 ${
+                    isPopular
+                      ? isDarkMode
+                        ? "border-cyan-400/40 bg-gradient-to-b from-[#1a1a35] to-[#12112a] shadow-[0_0_50px_rgba(34,211,238,0.15)] scale-[1.02] md:scale-[1.05]"
+                        : "border-cyan-500/30 bg-gradient-to-b from-white to-slate-50 shadow-[0_0_50px_rgba(34,211,238,0.2)] scale-[1.02] md:scale-[1.05]"
+                      : isDarkMode
+                        ? "border-white/8 bg-[#12112a] hover:border-white/15"
+                        : "border-slate-900/10 bg-white hover:border-slate-900/20"
+                  }`}
+                >
+                  {isPopular && (
+                    <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-300 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-950 shadow-lg shadow-cyan-400/30">
+                      <Star className="h-3.5 w-3.5" />
+                      Le plus populaire
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                <Link to="/auth/register" className="mt-8 block">
-                  <Button
-                    className={`h-12 w-full rounded-full font-semibold ${
-                      plan.featured
-                        ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:from-violet-500 hover:to-cyan-400"
-                        : isDarkMode
-                          ? "border border-white/12 bg-transparent text-white hover:bg-white/5"
-                          : "border border-slate-900/10 bg-white text-slate-950 hover:bg-slate-950/5"
-                    }`}
-                    variant={plan.featured ? "default" : "outline"}
-                  >
-                    Commencer
-                  </Button>
-                </Link>
-              </div>
-            ))}
+                  <p className={`text-[0.7rem] font-semibold uppercase tracking-[0.18em] ${isDarkMode ? "text-white/50" : "text-slate-500"}`}>
+                    {plan.name}
+                  </p>
+
+                  {plan.description && (
+                    <p className={`mt-2 text-xs leading-5 ${isDarkMode ? "text-white/50" : "text-slate-500"}`}>
+                      {plan.description}
+                    </p>
+                  )}
+
+                  <div className="mt-6 mb-6">
+                    <div className={`font-extrabold leading-none tracking-tight ${isDarkMode ? "text-white" : "text-slate-950"} text-[3.5rem] sm:text-[4rem] lg:text-[4.5rem]`}>
+                      {formattedAmount}
+                    </div>
+                    <div className={`mt-1 text-sm font-semibold ${isDarkMode ? "text-white/70" : "text-slate-600"}`}>
+                      {currencyCode} / {t("pricing.monthly")}
+                    </div>
+                  </div>
+
+                  <div className={`flex-1 space-y-3.5 ${isPopular ? "mb-8" : "mb-6"}`}>
+                    {displayFeatures.map((feature) => (
+                      <div key={feature.label} className="flex items-start gap-3 text-sm leading-6">
+                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${isDarkMode ? "text-cyan-400" : "text-cyan-600"}`} />
+                        <span className={isDarkMode ? "text-white/80" : "text-slate-700"}>{feature.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Link to="/auth/register" className="block">
+                    <Button
+                      className={`h-12 w-full rounded-xl font-semibold text-sm transition-all duration-200 ${
+                        isPopular
+                          ? "bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg shadow-cyan-500/25 hover:from-violet-500 hover:to-cyan-400 hover:shadow-cyan-500/40"
+                          : isDarkMode
+                            ? "border border-white/12 bg-white/5 text-white hover:bg-white/10"
+                            : "border border-slate-900/10 bg-white text-slate-950 hover:bg-slate-950/5"
+                      }`}
+                      variant={isPopular ? "default" : "outline"}
+                    >
+                      Commencer
+                    </Button>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </section>
 

@@ -232,11 +232,15 @@ BEGIN
 
   SELECT COUNT(*) INTO v_today_sales
   FROM public.auto_parts_sales
-  WHERE business_id = p_business_id AND created_at >= v_day_start;
+  WHERE business_id = p_business_id
+    AND created_at >= v_day_start
+    AND refund_status IS DISTINCT FROM 'full';
 
   SELECT COALESCE(SUM(total), 0) INTO v_month_sales
   FROM public.auto_parts_sales
-  WHERE business_id = p_business_id AND created_at >= v_month_start;
+  WHERE business_id = p_business_id
+    AND created_at >= v_month_start
+    AND refund_status IS DISTINCT FROM 'full';
 
   SELECT COUNT(*) INTO v_month_purchases
   FROM public.auto_parts_purchases
@@ -272,7 +276,9 @@ BEGIN
   FROM (
     SELECT EXTRACT(MONTH FROM created_at)::INT - 1 AS month, COALESCE(SUM(total), 0) AS total
     FROM public.auto_parts_sales
-    WHERE business_id = p_business_id AND created_at >= v_year_start
+    WHERE business_id = p_business_id
+      AND created_at >= v_year_start
+      AND refund_status IS DISTINCT FROM 'full'
     GROUP BY month
     ORDER BY month
   ) v;

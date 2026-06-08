@@ -9,6 +9,7 @@ import {
   detectCountryFromTimezone,
   formatCurrency,
 } from "@/lib/pricing";
+import type { SubscriptionPlan, SubscriptionFeature } from "@/lib/saas";
 
 const STORAGE_REGION_KEY = "wesd_region_preference";
 const PLAN_ALIASES: Record<string, string[]> = {
@@ -54,6 +55,8 @@ interface PricingContextValue {
   setCountryPreference: (countryCode: string) => void;
   priceForPlan: (planName: string) => PlanPrice | null;
   formatPrice: (amount: number, currencyCode: string) => string;
+  availablePlans: SubscriptionPlan[];
+  planFeatures: Map<string, SubscriptionFeature[]>;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -62,6 +65,8 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
   const { profile } = useAuth();
   const [countries, setCountries] = useState<CountryRegion[]>([]);
   const [prices, setPrices] = useState<PlanPrice[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [features, setFeatures] = useState<SubscriptionFeature[]>([]);
   const [detectedCountry, setDetectedCountry] = useState("US");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -72,9 +77,11 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const loadPricing = async () => {
-      const [countryResp, priceResp] = await Promise.all([
+      const [countryResp, priceResp, planResp, featureResp] = await Promise.all([
         supabase.from("countries").select("country_code, country_name, currency_code, timezone, locale, enabled"),
         supabase.from("subscription_plan_prices").select("country_code, currency_code, monthly_price, yearly_price, promotion_label, promotion_percent, enabled, subscription_plans(name)"),
+        supabase.from("subscription_plans").select("*").eq("active", true).order("monthly_price", { ascending: true }),
+        supabase.from("subscription_features").select("*").order("sort_order", { ascending: true }),
       ]);
 
       if (countryResp.data) {
@@ -93,6 +100,21 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
           plan_name: row.subscription_plans?.name || "Starter",
         }));
         setPrices(normalized);
+      }
+
+      if (planResp.data) {
+        setPlans((planResp.data as any[]).map((p: any) => ({
+          ...p,
+          monthly_price: Number(p.monthly_price || 0),
+          yearly_price: Number(p.yearly_price || 0),
+          max_businesses: p.max_businesses === null ? null : Number(p.max_businesses),
+          max_branches: p.max_branches === null ? null : Number(p.max_branches),
+          max_staff: p.max_staff === null ? null : Number(p.max_staff),
+        })) as SubscriptionPlan[]);
+      }
+
+      if (featureResp.data) {
+        setFeatures(featureResp.data as SubscriptionFeature[]);
       }
 
       const userCountry = (profile as any)?.country_code as string | undefined;
@@ -135,6 +157,19 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
     );
     if (crossCountry) return crossCountry;
 
+    const matchedPlan = plans.find((p) => aliases.includes(p.name.toLowerCase()));
+    if (matchedPlan) {
+      const country = countries.find((c) => c.country_code === detectedCountry);
+      return {
+        plan_name: planName,
+        monthly_price: matchedPlan.monthly_price,
+        yearly_price: matchedPlan.yearly_price,
+        currency_code: country?.currency_code || "HTG",
+        country_code: detectedCountry,
+        enabled: true,
+      };
+    }
+
     const fallbackCountry = FALLBACK_PRICING[detectedCountry] || FALLBACK_PRICING.US;
     const fallbackKey = Object.keys(PLAN_ALIASES).find((k) => PLAN_ALIASES[k].includes(normalizedPlan)) || "starter";
     const fallbackValue = fallbackCountry[fallbackKey];
@@ -155,6 +190,16 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
     return formatCurrency(amount, currencyCode, locale);
   };
 
+  const planFeaturesMap = useMemo(() => {
+    const map = new Map<string, SubscriptionFeature[]>();
+    for (const feature of features) {
+      const existing = map.get(feature.plan_id) || [];
+      existing.push(feature);
+      map.set(feature.plan_id, existing);
+    }
+    return map;
+  }, [features]);
+
   return (
     <PricingContext.Provider
       value={{
@@ -166,6 +211,8 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
         setCountryPreference,
         priceForPlan,
         formatPrice,
+        availablePlans: plans,
+        planFeatures: planFeaturesMap,
       }}
     >
       {children}

@@ -39,6 +39,7 @@ import {
   Tag,
   Container,
   UserCog,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
           { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all", permission: PERMISSIONS.SUPPLIERS_MANAGE },
           { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
           { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all", permission: PERMISSIONS.PURCHASES_MANAGE },
+          { icon: ArrowLeftRight, label: "Retours", path: "/auto-parts/returns", role: "all", permission: PERMISSIONS.RETURNS_MANAGE },
           { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
           { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },
@@ -230,6 +232,7 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
     { icon: Truck, label: "Fournisseurs", path: "/auto-parts/suppliers", role: "all", permission: PERMISSIONS.SUPPLIERS_MANAGE },
     { icon: ShoppingBag, label: "POS / Caisse", path: "/auto-parts/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
     { icon: Package, label: "Achats", path: "/auto-parts/purchases", role: "all", permission: PERMISSIONS.PURCHASES_MANAGE },
+    { icon: ArrowLeftRight, label: "Retours", path: "/auto-parts/returns", role: "all", permission: PERMISSIONS.RETURNS_MANAGE },
     { icon: UserCog, label: "Employés", path: "/auto-parts/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
     { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
     { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },

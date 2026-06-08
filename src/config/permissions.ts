@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   REPORTS_VIEW: "reports.view",
   SETTINGS_VIEW: "settings.view",
   SETTINGS_MANAGE: "settings.manage",
+  RETURNS_MANAGE: "returns.manage",
   APPOINTMENTS_VIEW: "appointments.view",
   SERVICES_MANAGE: "services.manage",
   PROMOTIONS_MANAGE: "promotions.manage",
@@ -63,6 +64,7 @@ export const AUTO_PARTS_ROLE_PERMISSIONS: Record<AutoPartsRole, Permission[]> = 
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.SETTINGS_VIEW,
     PERMISSIONS.SETTINGS_MANAGE,
+    PERMISSIONS.RETURNS_MANAGE,
   ],
   manager: [
     PERMISSIONS.POS_VIEW,
@@ -85,6 +87,7 @@ export const AUTO_PARTS_ROLE_PERMISSIONS: Record<AutoPartsRole, Permission[]> = 
     PERMISSIONS.STAFF_READ,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.SETTINGS_VIEW,
+    PERMISSIONS.RETURNS_MANAGE,
   ],
   cashier: [
     PERMISSIONS.POS_VIEW,
@@ -95,6 +98,7 @@ export const AUTO_PARTS_ROLE_PERMISSIONS: Record<AutoPartsRole, Permission[]> = 
     PERMISSIONS.CLIENTS_READ,
     PERMISSIONS.CLIENTS_MANAGE,
     PERMISSIONS.STOCK_VIEW,
+    PERMISSIONS.RETURNS_MANAGE,
   ],
 };
 

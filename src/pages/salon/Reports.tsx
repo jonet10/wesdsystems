@@ -84,7 +84,7 @@ export default function ReportsPage() {
       const [salesRes, itemsRes, productsRes, servicesRes, expensesRes] = await Promise.all([
         supabase
           .from("salon_sales")
-          .select("id, total_amount, discount_amount, tax_amount, payment_method, created_at")
+          .select("id, total_amount, return_amount, discount_amount, tax_amount, payment_method, created_at")
           .eq("branch_id", activeBranchId)
           .gte("created_at", salesStart)
           .lte("created_at", salesEnd)
@@ -131,7 +131,7 @@ export default function ReportsPage() {
 
   useEffect(() => { loadData(); }, [dateRange, activeBranchId]);
 
-  const totalRevenue = sales.reduce((s, sale) => s + Number(sale.total_amount || 0), 0);
+  const totalRevenue = sales.reduce((s, sale) => s + Number(sale.total_amount || 0) - Number(sale.return_amount || 0), 0);
   const totalExpenses = expenses.reduce((s, exp) => s + Number(exp.amount || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
   const totalTransactions = sales.length;
@@ -143,7 +143,7 @@ export default function ReportsPage() {
     sales.forEach(sale => {
       const day = getDateKeyInTimeZone(new Date(sale.created_at), DEFAULT_PLATFORM_TIME_ZONE);
       const existing = map.get(day) || { revenue: 0, expenses: 0, count: 0 };
-      existing.revenue += Number(sale.total_amount || 0);
+      existing.revenue += Number(sale.total_amount || 0) - Number(sale.return_amount || 0);
       existing.count += 1;
       map.set(day, existing);
     });
@@ -162,7 +162,7 @@ export default function ReportsPage() {
     const map = new Map<string, number>();
     sales.forEach(sale => {
       const method = sale.payment_method || "cash";
-      map.set(method, (map.get(method) || 0) + Number(sale.total_amount || 0));
+      map.set(method, (map.get(method) || 0) + Number(sale.total_amount || 0) - Number(sale.return_amount || 0));
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [sales]);

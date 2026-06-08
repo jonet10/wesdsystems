@@ -44,10 +44,44 @@ const paymentLabels: Record<string, string> = {
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const { format } = useCurrency();
-  const { employeeSession } = useAuth();
+  const { employeeSession, user, profile, isAuthenticated } = useAuth();
   const role = normalizeEmployeeRole(employeeSession?.role) || "cashier";
   const employeeId = employeeSession?.id || null;
   const branchId = employeeSession?.branch_id || null;
+
+  const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(employeeId);
+  const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(branchId);
+  const [employeeLookupDone, setEmployeeLookupDone] = useState(!!employeeId);
+
+  useEffect(() => {
+    if (employeeId && branchId) {
+      setResolvedEmployeeId(employeeId);
+      setResolvedBranchId(branchId);
+      setEmployeeLookupDone(true);
+      return;
+    }
+
+    if (!employeeId && isAuthenticated && profile?.role === "employee" && user?.id) {
+      supabase
+        .from("salon_employees")
+        .select("id, branch_id")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setResolvedEmployeeId(data.id);
+            setResolvedBranchId(data.branch_id);
+          } else {
+            setLoading(false);
+          }
+          setEmployeeLookupDone(true);
+        });
+    } else if (!employeeId) {
+      setLoading(false);
+      setEmployeeLookupDone(true);
+    }
+  }, [employeeId, branchId, isAuthenticated, profile?.role, user?.id]);
 
   const [loading, setLoading] = useState(true);
   const [salesToday, setSalesToday] = useState<EmployeeSale[]>([]);
@@ -60,7 +94,7 @@ export default function EmployeeDashboard() {
 
   useEffect(() => {
     const loadEmployeeData = async () => {
-      if (!employeeId || !branchId) return;
+      if (!resolvedEmployeeId || !resolvedBranchId) return;
 
       setLoading(true);
       try {
@@ -74,62 +108,77 @@ export default function EmployeeDashboard() {
         const monthStartRange = getDayRangeInTimeZone(monthStartKey, timeZone);
 
         if (role === "cashier") {
-          const [{ data: todaySales }, { data: weekSales }, { data: monthSales }] = await Promise.all([
-            supabase
-              .from("salon_sales")
-              .select("id, sale_number, total_amount, payment_method, customer_name, created_at")
-              .eq("branch_id", branchId)
-              .eq("cashier_id", employeeId)
-              .gte("created_at", todayRange.start)
-              .lte("created_at", todayRange.end)
-              .order("created_at", { ascending: false }),
-            supabase
-              .from("salon_sales")
-              .select("id, total_amount, created_at")
-              .eq("branch_id", branchId)
-              .eq("cashier_id", employeeId)
-              .gte("created_at", weekStartRange.start)
-              .lte("created_at", todayRange.end),
-            supabase
-              .from("salon_sales")
-              .select("id, total_amount, created_at")
-              .eq("branch_id", branchId)
-              .eq("cashier_id", employeeId)
-              .gte("created_at", monthStartRange.start)
-              .lte("created_at", todayRange.end),
-          ]);
+          // Use RPC for PIN login sessions (bypasses RLS for anon key)
+          if (employeeSession?.session_token) {
+            const { data, error } = await supabase.rpc("get_employee_dashboard_stats", {
+              p_session_token: employeeSession.session_token,
+              p_branch_id: resolvedBranchId,
+            });
 
-          const totalRevenueToday = (todaySales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
-          const totalRevenueWeek = (weekSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
-          const totalRevenueMonth = (monthSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+            if (error) throw error;
 
-          setSalesToday((todaySales || []) as EmployeeSale[]);
-          setDaySummary({ revenue: totalRevenueToday, tickets: (todaySales || []).length });
-          setWeekSummary({ revenue: totalRevenueWeek, tickets: (weekSales || []).length });
-          setMonthSummary({ revenue: totalRevenueMonth, tickets: (monthSales || []).length });
+            setSalesToday((data?.today_sales || []) as EmployeeSale[]);
+            setDaySummary({ revenue: Number(data?.day?.revenue || 0), tickets: Number(data?.day?.tickets || 0) });
+            setWeekSummary({ revenue: Number(data?.week?.revenue || 0), tickets: Number(data?.week?.tickets || 0) });
+            setMonthSummary({ revenue: Number(data?.month?.revenue || 0), tickets: Number(data?.month?.tickets || 0) });
+          } else {
+            const [{ data: todaySales }, { data: weekSales }, { data: monthSales }] = await Promise.all([
+              supabase
+                .from("salon_sales")
+                .select("id, sale_number, total_amount, payment_method, customer_name, created_at")
+                .eq("branch_id", resolvedBranchId)
+                .eq("cashier_id", resolvedEmployeeId)
+                .gte("created_at", todayRange.start)
+                .lte("created_at", todayRange.end)
+                .order("created_at", { ascending: false }),
+              supabase
+                .from("salon_sales")
+                .select("id, total_amount, created_at")
+                .eq("branch_id", resolvedBranchId)
+                .eq("cashier_id", resolvedEmployeeId)
+                .gte("created_at", weekStartRange.start)
+                .lte("created_at", todayRange.end),
+              supabase
+                .from("salon_sales")
+                .select("id, total_amount, created_at")
+                .eq("branch_id", resolvedBranchId)
+                .eq("cashier_id", resolvedEmployeeId)
+                .gte("created_at", monthStartRange.start)
+                .lte("created_at", todayRange.end),
+            ]);
+
+            const totalRevenueToday = (todaySales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+            const totalRevenueWeek = (weekSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+            const totalRevenueMonth = (monthSales || []).reduce((sum, sale: any) => sum + Number(sale.total_amount || 0), 0);
+
+            setSalesToday((todaySales || []) as EmployeeSale[]);
+            setDaySummary({ revenue: totalRevenueToday, tickets: (todaySales || []).length });
+            setWeekSummary({ revenue: totalRevenueWeek, tickets: (weekSales || []).length });
+            setMonthSummary({ revenue: totalRevenueMonth, tickets: (monthSales || []).length });
+          }
         } else {
           const [{ data: dayRows }, { data: weekRows }, { data: monthRows }] = await Promise.all([
             supabase
               .from("commission_transactions")
               .select("sale_amount, commission_amount")
-              .eq("employee_id", employeeId)
-              .eq("branch_id", branchId)
+              .eq("employee_id", resolvedEmployeeId)
+              .eq("branch_id", resolvedBranchId)
               .gte("calculated_at", todayRange.start)
               .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
             supabase
               .from("commission_transactions")
               .select("sale_amount, commission_amount")
-              .eq("employee_id", employeeId)
-              .eq("branch_id", branchId)
+              .eq("employee_id", resolvedEmployeeId)
+              .eq("branch_id", resolvedBranchId)
               .gte("calculated_at", weekStartRange.start)
               .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
             supabase
               .from("commission_transactions")
               .select("sale_amount, commission_amount")
-              .eq("employee_id", employeeId)
-              .eq("branch_id", branchId)
+              .eq("employee_id", resolvedEmployeeId)
+              .eq("branch_id", resolvedBranchId)
               .gte("calculated_at", monthStartRange.start)
               .lte("calculated_at", todayRange.end)
               .neq("status", "cancelled"),
@@ -151,7 +200,7 @@ export default function EmployeeDashboard() {
     };
 
     void loadEmployeeData();
-  }, [branchId, employeeId, role]);
+  }, [resolvedBranchId, resolvedEmployeeId, role, employeeSession?.session_token]);
 
   const stats = useMemo(() => {
     if (role === "cashier") {
@@ -171,7 +220,17 @@ export default function EmployeeDashboard() {
     ];
   }, [commissionDay.commission_total, commissionMonth.commission_total, commissionMonth.transaction_count, commissionWeek.commission_total, daySummary.revenue, daySummary.tickets, format, monthSummary.revenue, role, weekSummary.revenue]);
 
-  if (loading) {
+  if (!employeeLookupDone) {
+    return (
+      <DashboardLayout role="employee" title="Mon Dashboard" subtitle="Chargement..." userName={employeeSession?.full_name || "Employé"}>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (loading && resolvedEmployeeId && resolvedBranchId) {
     return (
       <DashboardLayout role="employee" title="Mon Dashboard" subtitle="Chargement..." userName={employeeSession?.full_name || "Employé"}>
         <div className="flex items-center justify-center h-64">

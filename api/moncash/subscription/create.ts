@@ -1,4 +1,4 @@
-import { apiSupabase, createClientWithAuth } from "../../supabase.js";
+import { apiSupabase } from "../../supabase.js";
 import { json } from "../../pending-tabs/shared.js";
 import { createMonCashPayment } from "../service.js";
 
@@ -7,10 +7,6 @@ const toNumber = (value: unknown) => Number(value || 0);
 export default async function handler(req: any, res: any) {
   try {
     if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
-
-    const authHeader = req.headers?.authorization || req.headers?.Authorization || "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    const supabase = token ? createClientWithAuth(token) : undefined;
 
     const body = req.body || {};
     const businessId = String(body.business_id || body.businessId || "");
@@ -22,9 +18,8 @@ export default async function handler(req: any, res: any) {
 
     if (!businessId) return json(res, 400, { error: "business_id requis" });
     if (!planId) return json(res, 400, { error: "plan_id requis" });
-    if (!supabase) return json(res, 401, { error: "Authentification requise" });
 
-    const { data: plan, error: planError } = await supabase
+    const { data: plan, error: planError } = await apiSupabase
       .from("subscription_plans")
       .select("id, name, monthly_price, yearly_price, active")
       .eq("id", planId)
@@ -43,33 +38,54 @@ export default async function handler(req: any, res: any) {
 
     const orderId = `sub_${businessId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
 
+    // Create/update subscription_payments record (service-role bypasses RLS)
+    let subscriptionPaymentId = paymentId;
+    if (!subscriptionPaymentId) {
+      const { data: sp, error: spError } = await apiSupabase
+        .from("subscription_payments")
+        .insert({
+          business_id: businessId,
+          plan_id: planId,
+          amount,
+          currency_code: "HTG",
+          payment_method: "moncash",
+          transaction_reference: orderId,
+          status: "pending",
+        })
+        .select("id")
+        .maybeSingle();
+
+      if (spError) throw spError;
+      subscriptionPaymentId = sp?.id || null;
+    }
+
     let payment;
     try {
       payment = await createMonCashPayment(orderId, amount);
     } catch (error: any) {
-      if (paymentId) {
+      if (subscriptionPaymentId) {
         await apiSupabase
           .from("subscription_payments")
           .update({ status: "failed" })
-          .eq("id", paymentId)
+          .eq("id", subscriptionPaymentId)
           .maybeSingle();
       }
       throw error;
     }
 
-    // Update the client-created subscription_payments record
-    if (paymentId) {
-      await supabase
+    // Mark as pending verification after MonCash redirect URL obtained
+    if (subscriptionPaymentId) {
+      await apiSupabase
         .from("subscription_payments")
         .update({
           transaction_reference: orderId,
           status: "pending_verification",
         })
-        .eq("id", paymentId);
+        .eq("id", subscriptionPaymentId);
     }
 
     // Insert into moncash_subscription_payments for the return callback
-    const { error: insertError } = await supabase
+    const { error: insertError } = await apiSupabase
       .from("moncash_subscription_payments")
       .insert({
         business_id: businessId,
@@ -94,7 +110,7 @@ export default async function handler(req: any, res: any) {
 
     return json(res, 200, {
       data: {
-        payment_id: paymentId || null,
+        payment_id: subscriptionPaymentId,
         order_id: orderId,
         redirect_url: payment.redirectUrl,
         amount,

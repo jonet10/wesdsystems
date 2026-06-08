@@ -1,4 +1,4 @@
-export type StockMovementType = "purchase" | "sale" | "adjustment" | "loss" | "audit";
+export type StockMovementType = "purchase" | "sale" | "adjustment" | "loss" | "audit" | "return";
 
 export interface StockMovementInput {
   business_id: string;

@@ -37,7 +37,7 @@ export default function AutoPartsReportsPage() {
         const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
         const { data: yearSales } = await bFilter(
           supabase.from("auto_parts_sales").select("total, created_at")
-        ).gte("created_at", yearStart);
+        ).gte("created_at", yearStart).not("refund_status", "eq", "full");
         const byMonth = Array(12).fill(0);
         (yearSales || []).forEach((s: any) => { byMonth[new Date(s.created_at).getMonth()] += Number(s.total); });
         setMonthlySales(byMonth);

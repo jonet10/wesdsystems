@@ -8,4 +8,5 @@ export * from "./clients";
 export * from "./sales";
 export * from "./purchases";
 export * from "./stock-movements";
+export * from "./returns";
 export * from "./alerts";

@@ -18,6 +18,7 @@ import {
 interface Sale {
   id: string;
   total_amount: number;
+  return_amount?: number;
   created_at: string;
 }
 
@@ -50,10 +51,10 @@ export default function SalesAnalyticsPage() {
       }
 
       const [{ data: s }, { data: i }] = await Promise.all([
-        supabase.from("salon_sales").select("id, total_amount, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(500),
+        supabase.from("salon_sales").select("id, total_amount, return_amount, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(500),
         supabase.from("salon_sale_items").select("item_type, item_name, quantity, total_price, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(2000),
       ]);
-      setSales(((s || []).map((x: any) => ({ ...x, total_amount: Number(x.total_amount || 0) })) as Sale[]));
+      setSales(((s || []).map((x: any) => ({ ...x, total_amount: Number(x.total_amount || 0), return_amount: Number(x.return_amount || 0) })) as Sale[]));
       setItems(((i || []).map((x: any) => ({ ...x, quantity: Number(x.quantity || 0), total_price: Number(x.total_price || 0) })) as SaleItem[]));
     };
     void load();
@@ -63,22 +64,24 @@ export default function SalesAnalyticsPage() {
   const weekStart = shiftDateKey(today, -6);
   const monthStart = `${today.slice(0, 7)}-01`;
 
+  const netAmount = (s: Sale) => s.total_amount - (s.return_amount ?? 0);
+
   const dailyRevenue = useMemo(
-    () => sales.filter((s) => getDateKeyInTimeZone(new Date(s.created_at), timeZone) === today).reduce((sum, s) => sum + s.total_amount, 0),
+    () => sales.filter((s) => getDateKeyInTimeZone(new Date(s.created_at), timeZone) === today).reduce((sum, s) => sum + netAmount(s), 0),
     [sales, today]
   );
   const weeklyRevenue = useMemo(
     () => sales.filter((s) => {
       const saleDate = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
       return saleDate >= weekStart && saleDate <= today;
-    }).reduce((sum, s) => sum + s.total_amount, 0),
+    }).reduce((sum, s) => sum + netAmount(s), 0),
     [sales, timeZone, today, weekStart]
   );
   const monthlyRevenue = useMemo(
     () => sales.filter((s) => {
       const saleDate = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
       return saleDate >= monthStart && saleDate <= today;
-    }).reduce((sum, s) => sum + s.total_amount, 0),
+    }).reduce((sum, s) => sum + netAmount(s), 0),
     [sales, timeZone, today, monthStart]
   );
 

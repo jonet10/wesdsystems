@@ -116,6 +116,8 @@ export interface AutoPartsSale {
   payment_status: 'paid' | 'partial' | 'unpaid';
   staff_id?: string;
   staff_name?: string;
+  refund_status?: 'none' | 'partial' | 'full';
+  refunded_at?: string;
   notes?: string;
   items?: AutoPartsSaleItem[];
   created_by?: string;

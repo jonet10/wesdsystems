@@ -61,21 +61,21 @@ export default function BarDashboard() {
         { data: weekSales }
       ] = await Promise.all([
         supabase.from("bar_sales")
-          .select("id, total, payment_method, created_at")
+          .select("id, total, return_amount, refund_status, payment_method, created_at")
           .gte("created_at", todayRange.start)
           .lte("created_at", todayRange.end),
         supabase.from("bar_products")
           .select("id, stock_cases, stock_units, critical_stock_level")
           .eq("is_active", true),
         supabase.from("bar_sales")
-          .select("total, created_at")
+          .select("total, return_amount, created_at")
           .gte("created_at", weekRange.start)
           .lte("created_at", todayRange.end),
       ]);
 
       if (salesToday) {
         setTodaySales(salesToday);
-        setTodayRevenue(salesToday.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0));
+        setTodayRevenue(salesToday.reduce((sum: number, s: any) => sum + Number(s.total || 0) - Number(s.return_amount || 0), 0));
       }
 
       if (products) {
@@ -92,7 +92,7 @@ export default function BarDashboard() {
           const day = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
           if (dayMap.has(day)) {
             const entry = dayMap.get(day)!;
-            entry.revenue += Number(s.total || 0);
+            entry.revenue += Number(s.total || 0) - Number(s.return_amount || 0);
           }
         });
         
@@ -249,7 +249,7 @@ export default function BarDashboard() {
                           {new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: DEFAULT_PLATFORM_TIME_ZONE })}
                         </span>
                       </div>
-                      <span className="font-medium text-sm">{format(sale.total)}</span>
+                      <span className="font-medium text-sm">{format(Number(sale.total || 0) - Number(sale.return_amount || 0))}</span>
                     </div>
                   ))}
                   {todaySales.length === 0 && (
