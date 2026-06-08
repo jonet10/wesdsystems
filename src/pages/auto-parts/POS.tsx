@@ -14,6 +14,7 @@ import { listProducts, searchProducts } from "@/modules/auto-parts/services/prod
 import { listCategories } from "@/modules/auto-parts/services/categories";
 import { searchClients } from "@/modules/auto-parts/services/clients";
 import { createSale } from "@/modules/auto-parts/services/sales";
+import { listStaff } from "@/modules/auto-parts/services/staff";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { printReceipt } from "@/lib/print-utils";
