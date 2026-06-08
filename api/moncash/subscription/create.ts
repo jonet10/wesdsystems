@@ -1,6 +1,6 @@
 import { apiSupabase } from "../../supabase.js";
 import { json } from "../../pending-tabs/shared.js";
-import { createMonCashPayment } from "../service.js";
+import { createMonCashPayment, getMonCashEnvironment } from "../service.js";
 
 const toNumber = (value: unknown) => Number(value || 0);
 
@@ -58,6 +58,52 @@ export default async function handler(req: any, res: any) {
       subscriptionPaymentId = spId;
     }
 
+    // ── Sandbox shortcut: bypass MonCash, complete immediately ──────────
+    const isSandbox = getMonCashEnvironment() === "sandbox";
+
+    if (isSandbox) {
+      await apiSupabase.rpc("update_subscription_payment", {
+        p_id: subscriptionPaymentId,
+        p_transaction_reference: orderId,
+        p_status: "completed",
+      });
+
+      await apiSupabase.rpc("create_moncash_subscription_payment", {
+        p_business_id: businessId,
+        p_plan_id: planId,
+        p_billing_cycle: billingCycle,
+        p_duration_months: durationMonths,
+        p_payment_provider: "moncash",
+        p_amount: amount,
+        p_currency_code: "HTG",
+        p_order_id: orderId,
+        p_status: "completed",
+        p_redirect_url: null,
+        p_gateway_payload: {
+          business_name: businessName,
+          plan_name: plan.name,
+          billing_cycle: billingCycle,
+          duration_months: durationMonths,
+          sandbox: true,
+        },
+      });
+
+      const confirmationUrl = `/billing/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
+
+      return json(res, 200, {
+        data: {
+          payment_id: subscriptionPaymentId,
+          order_id: orderId,
+          redirect_url: confirmationUrl,
+          amount,
+          currency_code: "HTG",
+          duration_months: durationMonths,
+          sandbox: true,
+        },
+      });
+    }
+
+    // ── Live flow: real MonCash CreatePayment ───────────────────────────
     let payment;
     try {
       payment = await createMonCashPayment(orderId, amount);
