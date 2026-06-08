@@ -10,8 +10,10 @@ interface SubscriptionGuardProps {
 
 export function SubscriptionGuard({ children, fallback }: SubscriptionGuardProps) {
   const { profile } = useAuth();
-  const { data, isLoading } = useBusinessSubscription();
+  const { data, isLoading, isFetching } = useBusinessSubscription();
   const isOwner = profile?.role === "salon_admin" || profile?.role === "bar_admin";
+
+  console.log(`[SubscriptionGuard] isLoading=${isLoading} isFetching=${isFetching} isActive=${data?.isActive} hasSubscription=${!!data?.subscription} status=${data?.subscription?.status} end_date=${data?.subscription?.end_date} hasPlan=${!!data?.plan}`);
 
   if (isLoading) {
     return (
@@ -34,7 +36,11 @@ export function SubscriptionGuard({ children, fallback }: SubscriptionGuardProps
         <p className="text-lg font-semibold">Abonnement requis</p>
         <p className="mt-1 text-sm text-muted-foreground max-w-sm">
           {isOwner
-            ? "Votre abonnement est inactif ou expiré. Souscrivez à un forfait pour accéder à cette fonctionnalité."
+            ? data?.subscription && data.subscription.end_date && new Date(data.subscription.end_date + "T23:59:59") < new Date()
+              ? "Votre abonnement a expiré. Souscrivez à un forfait pour réactiver l'accès."
+              : !data?.subscription
+                ? "Aucun abonnement actif. Souscrivez à un forfait pour accéder à cette fonctionnalité."
+                : "Votre abonnement est inactif. Souscrivez à un forfait pour accéder à cette fonctionnalité."
             : "Cette fonctionnalité nécessite un abonnement actif. Contactez l'administrateur de votre établissement."}
         </p>
       </div>

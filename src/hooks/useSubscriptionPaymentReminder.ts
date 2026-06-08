@@ -53,6 +53,15 @@ const formatDaysRemaining = (daysRemaining: number | null) => {
   return `dans ${daysRemaining} jours`;
 };
 
+function computeDaysRemaining(endDate: string | null): number | null {
+  if (!endDate) return null;
+  const end = new Date(endDate + "T23:59:59");
+  const now = new Date();
+  const days = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  console.log(`[useSubscriptionPaymentReminder] daysRemaining: end=${endDate} (parsed=${end.toISOString()}), now=${now.toISOString()}, days=${days}`);
+  return days;
+}
+
 export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
   const { profile, isAuthenticated } = useAuth();
   const businessId = profile?.business_id ?? null;
@@ -90,6 +99,8 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
       const subscription = (subscriptionData as SubscriptionRow | null) ?? null;
       const planId = subscription?.plan_id ?? business?.plan_id ?? null;
 
+      console.log(`[useSubscriptionPaymentReminder] businessId=${businessId}, hasSubscription=${!!subscription}, subscriptionStatus=${subscription?.status}, end_date=${subscription?.end_date}, planId=${planId}`);
+
       let plan: PlanRow | null = null;
       if (planId) {
         const { data: planData } = await supabase
@@ -100,9 +111,7 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
         plan = (planData as PlanRow | null) ?? null;
       }
 
-      const now = new Date();
-      const endDate = subscription?.end_date ? new Date(`${subscription.end_date}T23:59:59`) : null;
-      const daysRemaining = endDate ? Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      const daysRemaining = computeDaysRemaining(subscription?.end_date || null);
       const businessName = business?.name?.trim() || "Votre établissement";
       const planName = plan?.name ?? null;
       const billingCycle = subscription?.billing_cycle || "monthly";
@@ -110,29 +119,59 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
         ? Number(billingCycle === "yearly" ? plan.yearly_price || 0 : plan.monthly_price || 0)
         : null;
 
-      const isExpired = !subscription
-        ? Boolean(planId)
-        : subscription.status === "expired" ||
-          subscription.status === "cancelled" ||
-          (daysRemaining !== null && daysRemaining < 0);
-      const isPastDue = subscription?.status === "past_due";
-      const isTrialingSoon = subscription?.status === "trialing" && daysRemaining !== null && daysRemaining <= 7;
-      const isExpiringSoon = subscription?.status === "active" && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 7;
-      const severity: SubscriptionPaymentReminder["severity"] =
-        isExpired || isPastDue ? "critical" : isTrialingSoon || isExpiringSoon ? "warning" : "none";
+      // --- Compute severity ---
+      // Rule: missing subscription + plan exists = WARNING (never block access)
+      // Rule: trialing with future end_date = no prompt (or warning if <= 7 days)
+      // Rule: expired = CRITICAL (block access)
+      // Rule: active/cancelled/past_due daysRemaining < 0 = CRITICAL
+
+      let isExpired = false;
+      let isPastDue = false;
+      let isTrialingSoon = false;
+      let isExpiringSoon = false;
+      let severity: SubscriptionPaymentReminder["severity"] = "none";
+
+      if (!subscription) {
+        // No subscription row at all: if plan exists, show a warning prompt
+        // (never critical — the business might just have a plan_id but no trial yet)
+        if (planId) {
+          severity = "warning";
+        } else {
+          severity = "none";
+        }
+      } else if (subscription.status === "past_due") {
+        isPastDue = true;
+        severity = "critical";
+      } else if (subscription.status === "expired" || subscription.status === "cancelled") {
+        isExpired = true;
+        severity = "critical";
+      } else if (daysRemaining !== null && daysRemaining < 0) {
+        // Status says active/trialing but end_date has passed
+        isExpired = true;
+        severity = "critical";
+      } else if (subscription.status === "trialing" && daysRemaining !== null && daysRemaining <= 7) {
+        isTrialingSoon = true;
+        severity = "warning";
+      } else if (subscription.status === "active" && daysRemaining !== null && daysRemaining >= 0 && daysRemaining <= 7) {
+        isExpiringSoon = true;
+        severity = "warning";
+      }
+
       const shouldPrompt = Boolean(planId && severity !== "none");
       const isCritical = severity === "critical";
       const dismissible = !isCritical;
 
-      const statusLabel = isPastDue
-        ? "past_due"
-        : isTrialingSoon
-          ? "trialing"
-          : isExpiringSoon
-            ? "expiring"
-            : isExpired
-              ? "expired"
-              : "active";
+      const statusLabel = !subscription
+        ? "no_subscription"
+        : isPastDue
+          ? "past_due"
+          : isTrialingSoon
+            ? "trialing"
+            : isExpiringSoon
+              ? "expiring"
+              : isExpired
+                ? "expired"
+                : "active";
 
       const storageKey = `subscription-reminder:${businessId}:${subscription?.id || "no-subscription"}:${statusLabel}:${subscription?.end_date || "no-end-date"}:${loginSignature}`;
       const paymentUrl = planId
@@ -148,26 +187,40 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
           })
         : null;
 
-      const title = !subscription
-        ? "Activez votre abonnement"
-        : isPastDue
-          ? "Paiement en retard"
-          : isExpired
-            ? "Votre abonnement est expiré"
-            : isTrialingSoon
-              ? "Votre essai se termine bientôt"
-              : "Votre abonnement arrive à expiration";
+      // Titles and descriptions for each scenario
+      let title: string;
+      let description: string;
+      let ctaLabel: string;
 
-      const remainingText = formatDaysRemaining(daysRemaining);
-      const description = !subscription
-        ? "Votre établissement est prêt à finaliser son abonnement."
-        : isPastDue
-          ? "Un paiement est en attente pour maintenir vos accès actifs."
-          : isExpired
-            ? "Régularisez votre abonnement pour réactiver toutes les fonctionnalités."
-            : `Il reste ${remainingText || "peu de temps"} avant l'échéance.`;
+      if (!subscription) {
+        title = planId ? "Activez votre abonnement" : "Aucun forfait défini";
+        description = planId
+          ? "Votre établissement est prêt à finaliser son abonnement."
+          : "Contactez l'administrateur pour configurer un forfait.";
+        ctaLabel = planId ? "Payer maintenant" : "Contacter l'assistance";
+      } else if (isPastDue) {
+        title = "Paiement en retard";
+        description = "Un paiement est en attente pour maintenir vos accès actifs.";
+        ctaLabel = "Payer maintenant";
+      } else if (isExpired) {
+        title = "Votre abonnement est expiré";
+        description = "Régularisez votre abonnement pour réactiver toutes les fonctionnalités.";
+        ctaLabel = "Payer maintenant";
+      } else if (isTrialingSoon) {
+        title = "Votre essai se termine bientôt";
+        description = `Il reste ${formatDaysRemaining(daysRemaining) || "peu de temps"} avant l'échéance.`;
+        ctaLabel = "Renouveler maintenant";
+      } else if (isExpiringSoon) {
+        title = "Votre abonnement arrive à expiration";
+        description = `Il reste ${formatDaysRemaining(daysRemaining) || "peu de temps"} avant l'échéance.`;
+        ctaLabel = "Renouveler maintenant";
+      } else {
+        title = "";
+        description = "";
+        ctaLabel = "Payer maintenant";
+      }
 
-      const ctaLabel = !subscription || isExpired || isPastDue ? "Payer maintenant" : "Renouveler maintenant";
+      console.log(`[useSubscriptionPaymentReminder] Result: severity=${severity}, shouldPrompt=${shouldPrompt}, isCritical=${isCritical}, title="${title}"`);
 
       return {
         shouldPrompt,
