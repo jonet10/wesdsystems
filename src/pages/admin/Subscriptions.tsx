@@ -585,12 +585,12 @@ export default function SuperAdminSubscriptionsPage() {
   });
 
   const totalBusinesses = businesses.length;
-  const activeSubscriptions = subscriptions.filter((row) => row.status === "active");
-  const trialingSubscriptions = subscriptions.filter((row) => row.status === "trialing");
-  const pastDueSubscriptions = subscriptions.filter((row) => row.status === "past_due");
-  const cancelledSubscriptions = subscriptions.filter((row) => row.status === "cancelled");
-  const expiredSubscriptions = subscriptions.filter((row) => row.status === "expired");
-  const expiringSoonSubscriptions = subscriptions.filter((row) => {
+  const activeSubscriptions = dedupActiveSubscriptions;
+  const trialingSubscriptions = dedupTrialingSubscriptions;
+  const pastDueSubscriptions = dedupPastDueSubscriptions;
+  const cancelledSubscriptions = dedupCancelledSubscriptions;
+  const expiredSubscriptions = dedupExpiredSubscriptions;
+  const expiringSoonSubscriptions = deduplicatedSubscriptions.filter((row) => {
     if (!row.end_date) return false;
     const endDate = new Date(`${row.end_date}T23:59:59`);
     const diffDays = (endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
@@ -603,7 +603,7 @@ export default function SuperAdminSubscriptionsPage() {
   }, 0);
   const totalBranches = branches.filter((branch) => branch.active !== false).length;
   const totalOutstanding = debts.reduce((sum, debt) => sum + Number(debt.outstanding_balance || 0), 0);
-  const totalAutoRenew = subscriptions.filter((row) => row.auto_renew !== false).length;
+  const totalAutoRenew = deduplicatedSubscriptions.filter((row) => row.auto_renew !== false).length;
   const totalActiveFeatures = features.filter((feature) => feature.enabled).length;
   const totalLoyaltyRewards = rewards.filter((reward) => reward.active).length;
   const totalLoyaltyAccounts = loyaltySettings.length;
@@ -611,14 +611,34 @@ export default function SuperAdminSubscriptionsPage() {
 
   const businessById = useMemo(() => new Map(businesses.map((business) => [business.id, business])), [businesses]);
   const planById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
+
+  // Deduplicate: keep only the latest subscription per business
+  const deduplicatedSubscriptions = useMemo(() => {
+    const latestPerBusiness = new Map<string, BusinessSubscription>();
+    for (const sub of subscriptions) {
+      const existing = latestPerBusiness.get(sub.business_id);
+      if (!existing || new Date(sub.created_at) > new Date(existing.created_at)) {
+        latestPerBusiness.set(sub.business_id, sub);
+      }
+    }
+    return Array.from(latestPerBusiness.values());
+  }, [subscriptions]);
+
+  // Recalculate stats from deduplicated subscriptions
+  const dedupActiveSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "active");
+  const dedupTrialingSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "trialing");
+  const dedupPastDueSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "past_due");
+  const dedupCancelledSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "cancelled");
+  const dedupExpiredSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "expired");
+
   const subscriptionRows = useMemo(
     () =>
-      subscriptions.map((subscription) => ({
+      deduplicatedSubscriptions.map((subscription) => ({
         ...subscription,
         business: businessById.get(subscription.business_id),
         plan: planById.get(subscription.plan_id),
       })),
-    [businessById, planById, subscriptions]
+    [businessById, planById, deduplicatedSubscriptions]
   );
   const filteredSubscriptionRows = useMemo(() => {
     const term = subscriptionSearch.trim().toLowerCase();
@@ -643,14 +663,14 @@ export default function SuperAdminSubscriptionsPage() {
 
   const planPopularity = useMemo(() => {
     const counts = new Map<string, number>();
-    subscriptions.forEach((subscription) => {
+    deduplicatedSubscriptions.forEach((subscription) => {
       counts.set(subscription.plan_id, (counts.get(subscription.plan_id) || 0) + 1);
     });
     return plans.map((plan) => ({
       ...plan,
       count: counts.get(plan.id) || 0,
     }));
-  }, [plans, subscriptions]);
+  }, [plans, deduplicatedSubscriptions]);
 
   const planColumns: ColumnDef<SubscriptionPlan & { count: number }>[] = [
     {
@@ -971,31 +991,42 @@ export default function SuperAdminSubscriptionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSubscriptionRows.map((subscription) => (
+                    {filteredSubscriptionRows.map((subscription) => {
+                      const statusLabel =
+                        subscription.status === "active" ? "Actif" :
+                        subscription.status === "trialing" ? "Essai" :
+                        subscription.status === "past_due" ? "En retard" :
+                        subscription.status === "expired" ? "Expiré" :
+                        subscription.status === "cancelled" ? "Annulé" :
+                        subscription.status === "suspended" ? "Suspendu" :
+                        subscription.status;
+                      const statusVariant =
+                        subscription.status === "active" ? "default" :
+                        subscription.status === "trialing" ? "secondary" :
+                        subscription.status === "past_due" ? "outline" :
+                        subscription.status === "expired" ? "destructive" :
+                        subscription.status === "cancelled" ? "destructive" :
+                        subscription.status === "suspended" ? "secondary" :
+                        "outline";
+                      const actionLabel =
+                        subscription.status === "active" ? "Gérer" :
+                        subscription.status === "trialing" ? "Activer" :
+                        subscription.status === "expired" ? "Renouveler" :
+                        subscription.status === "cancelled" || subscription.status === "suspended" ? "Réactiver" :
+                        "Activer";
+                      return (
                       <TableRow key={subscription.id}>
-                        <TableCell>{subscription.business?.name || subscription.business_id}</TableCell>
+                        <TableCell className="font-medium">{subscription.business?.name || subscription.business_id}</TableCell>
                         <TableCell>{subscription.plan?.name || subscription.plan_id}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              subscription.status === "active"
-                                ? "default"
-                                : subscription.status === "trialing"
-                                  ? "secondary"
-                                  : subscription.status === "past_due"
-                                    ? "outline"
-                                    : "destructive"
-                            }
-                          >
-                            {subscription.status}
-                          </Badge>
+                          <Badge variant={statusVariant as any}>{statusLabel}</Badge>
                         </TableCell>
                         <TableCell className="capitalize">{subscription.billing_cycle || "monthly"}</TableCell>
-                        <TableCell>{subscription.auto_renew ? "Yes" : "No"}</TableCell>
+                        <TableCell>{subscription.auto_renew ? "Oui" : "Non"}</TableCell>
                         <TableCell>{subscription.end_date ? new Date(subscription.end_date).toLocaleDateString() : "—"}</TableCell>
                         <TableCell className="text-right">
                           <Button 
-                            variant="outline" 
+                            variant={subscription.status === "active" ? "secondary" : "outline"}
                             size="sm"
                             onClick={() => {
                               setSelectedSubscription(subscription);
@@ -1003,11 +1034,12 @@ export default function SuperAdminSubscriptionsPage() {
                               activationForm.reset({ months: 1 });
                             }}
                           >
-                            Activer
+                            {actionLabel}
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                     {filteredSubscriptionRows.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground">

@@ -4,12 +4,6 @@ import { retrieveMonCashTransaction } from "./service.js";
 
 const PUBLIC_URL = "https://wesdsystems.store";
 
-const addBillingCycle = (start: Date, billingCycle: string, durationMonths = 1) => {
-  const next = new Date(start);
-  next.setMonth(next.getMonth() + Math.max(1, durationMonths));
-  return next;
-};
-
 const extractString = (value: unknown) => {
   if (typeof value === "string") return value.trim();
   if (typeof value === "number") return String(value);
@@ -38,56 +32,24 @@ const findPaymentRecord = async (transactionId: string, orderId: string) => {
 };
 
 const upsertSubscriptionActivation = async (payment: any, transaction: any) => {
-  const today = new Date();
   const durationMonths = Math.max(1, Math.min(12, Number(payment.gateway_payload?.duration_months || 1)));
-  const endDate = addBillingCycle(today, payment.billing_cycle || "monthly", durationMonths);
-  const subscriptionPayload = {
-    business_id: payment.business_id,
-    plan_id: payment.plan_id,
-    start_date: today.toISOString().slice(0, 10),
-    end_date: endDate.toISOString().slice(0, 10),
-    status: "active",
-    billing_cycle: payment.billing_cycle || "monthly",
-    auto_renew: true,
-    price_snapshot: Number(payment.amount || 0),
-    currency_code: payment.currency_code || "HTG",
-    notes: `MonCash ${payment.order_id}${transaction?.payment?.transaction_id ? ` · tx ${transaction.payment.transaction_id}` : ""} · ${durationMonths} mois`,
-  };
+  const notes = `MonCash ${payment.order_id}${transaction?.payment?.transaction_id ? ` · tx ${transaction.payment.transaction_id}` : ""} · ${durationMonths} mois`;
 
-  if (payment.subscription_id) {
-    const { error } = await apiSupabase
-      .from("business_subscriptions")
-      .update(subscriptionPayload)
-      .eq("id", payment.subscription_id);
-    if (error) throw error;
-    return payment.subscription_id;
-  }
+  const { data, error } = await apiSupabase.rpc("extend_or_create_subscription", {
+    p_business_id: payment.business_id,
+    p_plan_id: payment.plan_id,
+    p_duration_months: durationMonths,
+    p_amount: Number(payment.amount || 0),
+    p_currency_code: payment.currency_code || "HTG",
+    p_billing_cycle: payment.billing_cycle || "monthly",
+    p_order_id: payment.order_id || null,
+    p_notes: notes,
+  });
 
-  const { data: existingSubscription, error: lookupError } = await apiSupabase
-    .from("business_subscriptions")
-    .select("id")
-    .eq("business_id", payment.business_id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (lookupError) throw lookupError;
+  if (error) throw error;
+  if (!data?.success) throw new Error(data?.error || "Échec de l'activation de l'abonnement");
 
-  if (existingSubscription?.id) {
-    const { error } = await apiSupabase
-      .from("business_subscriptions")
-      .update(subscriptionPayload)
-      .eq("id", existingSubscription.id);
-    if (error) throw error;
-    return existingSubscription.id;
-  }
-
-  const { data: inserted, error: insertError } = await apiSupabase
-    .from("business_subscriptions")
-    .insert(subscriptionPayload)
-    .select("id")
-    .single();
-  if (insertError) throw insertError;
-  return inserted.id;
+  return data.subscription_id;
 };
 
 export default async function handler(req: any, res: any) {

@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
+import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
 
 interface BusinessDay {
   day: string;
@@ -572,6 +573,7 @@ export default function SalonSettingsPage() {
             </TabsContent>
 
             <TabsContent value="subscription" className="space-y-6">
+              <SubscriptionPaymentCard />
               <SubscriptionDashboard />
             </TabsContent>
           </Tabs>

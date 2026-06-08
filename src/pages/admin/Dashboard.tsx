@@ -294,34 +294,15 @@ export default function SuperAdminDashboard() {
         approved_at: new Date().toISOString(),
       }).eq("id", payment.id);
 
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
-
-      const { data: existingSub } = await supabase
-        .from("business_subscriptions")
-        .select("id")
-        .eq("business_id", payment.business_id)
-        .eq("status", "active")
-        .maybeSingle();
-
-      if (existingSub) {
-        await supabase.from("business_subscriptions").update({
-          plan_id: payment.plan_id,
-          end_date: endDate.toISOString(),
-          status: "active",
-        }).eq("id", existingSub.id);
-      } else {
-        await supabase.from("business_subscriptions").insert({
-          business_id: payment.business_id,
-          plan_id: payment.plan_id,
-          start_date: new Date().toISOString(),
-          end_date: endDate.toISOString(),
-          status: "active",
-          billing_cycle: "monthly",
-          price_snapshot: payment.amount,
-          currency_code: payment.currency_code,
-        });
-      }
+      const { data: rpcResult, error: rpcError } = await supabase.rpc("extend_or_create_subscription", {
+        p_business_id: payment.business_id,
+        p_plan_id: payment.plan_id,
+        p_duration_months: 1,
+        p_amount: Number(payment.amount || 0),
+        p_currency_code: payment.currency_code || "HTG",
+      });
+      if (rpcError) throw rpcError;
+      if (!rpcResult?.success) throw new Error(rpcResult?.error || "Échec d'activation");
 
       toast.success("Paiement approuvé. Abonnement activé.");
       await loadData();
