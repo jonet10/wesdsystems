@@ -58,70 +58,70 @@ export default async function handler(req: any, res: any) {
       subscriptionPaymentId = spId;
     }
 
-    // ── Sandbox shortcut: bypass MonCash, complete immediately ──────────
-    const isSandbox = getMonCashEnvironment() === "sandbox";
-
-    if (isSandbox) {
-      await apiSupabase.rpc("update_subscription_payment", {
-        p_id: subscriptionPaymentId,
-        p_transaction_reference: orderId,
-        p_status: "completed",
-      });
-
-      await apiSupabase.rpc("create_moncash_subscription_payment", {
-        p_business_id: businessId,
-        p_plan_id: planId,
-        p_billing_cycle: billingCycle,
-        p_duration_months: durationMonths,
-        p_payment_provider: "moncash",
-        p_amount: amount,
-        p_currency_code: "HTG",
-        p_order_id: orderId,
-        p_status: "completed",
-        p_redirect_url: null,
-        p_gateway_payload: {
-          business_name: businessName,
-          plan_name: plan.name,
-          billing_cycle: billingCycle,
-          duration_months: durationMonths,
-          sandbox: true,
-        },
-      });
-
-      const confirmationUrl = `/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
-
-      return json(res, 200, {
-        data: {
-          payment_id: subscriptionPaymentId,
-          order_id: orderId,
-          redirect_url: confirmationUrl,
-          amount,
-          currency_code: "HTG",
-          duration_months: durationMonths,
-          sandbox: true,
-        },
-      });
-    }
-
-    // ── Live flow: real MonCash CreatePayment ───────────────────────────
+    // ── Try MonCash CreatePayment (always: sandbox + live) ───────────────
     let payment;
+    let isSandbox = false;
     try {
       payment = await createMonCashPayment(orderId, amount);
     } catch (error: any) {
+      isSandbox = getMonCashEnvironment() === "sandbox";
+      const isTimeout = error?.name === "AbortError";
+
+      if (isSandbox) {
+        // Sandbox fallback: CreatePayment est lent (>30s), on mocke le redirect
+        console.log(`[MonCash] Sandbox fallback pour ${orderId}`);
+        await apiSupabase.rpc("update_subscription_payment", {
+          p_id: subscriptionPaymentId,
+          p_transaction_reference: orderId,
+          p_status: "completed",
+        });
+        await apiSupabase.rpc("create_moncash_subscription_payment", {
+          p_business_id: businessId,
+          p_plan_id: planId,
+          p_billing_cycle: billingCycle,
+          p_duration_months: durationMonths,
+          p_payment_provider: "moncash",
+          p_amount: amount,
+          p_currency_code: "HTG",
+          p_order_id: orderId,
+          p_status: "completed",
+          p_redirect_url: null,
+          p_gateway_payload: {
+            business_name: businessName,
+            plan_name: plan.name,
+            billing_cycle: billingCycle,
+            duration_months: durationMonths,
+            sandbox: true,
+          },
+        });
+        const confirmationUrl = `/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
+        return json(res, 200, {
+          data: {
+            payment_id: subscriptionPaymentId,
+            order_id: orderId,
+            redirect_url: confirmationUrl,
+            amount,
+            currency_code: "HTG",
+            duration_months: durationMonths,
+            sandbox: true,
+          },
+        });
+      }
+
+      // Live: timeout ou erreur → échec
       if (subscriptionPaymentId) {
         await apiSupabase.rpc("update_subscription_payment", {
           p_id: subscriptionPaymentId,
           p_status: "failed",
         });
       }
-      const isTimeout = error?.name === "AbortError";
       throw new Error(isTimeout
         ? "Le service MonCash ne répond pas (délai d'attente dépassé). Veuillez réessayer."
         : error?.message || "Impossible de créer le paiement MonCash."
       );
     }
 
-    // Mark as pending verification after MonCash redirect URL obtained
+    // ── MonCash a répondu → redirect URL ────────────────────────────────
     if (subscriptionPaymentId) {
       await apiSupabase.rpc("update_subscription_payment", {
         p_id: subscriptionPaymentId,
@@ -130,7 +130,6 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Insert into moncash_subscription_payments via RPC (bypasses RLS)
     const { error: insertError } = await apiSupabase.rpc(
       "create_moncash_subscription_payment",
       {
