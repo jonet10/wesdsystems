@@ -13,9 +13,9 @@ import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsB
 import { listProducts, searchProducts } from "@/modules/auto-parts/services/products";
 import { listCategories } from "@/modules/auto-parts/services/categories";
 import { searchClients } from "@/modules/auto-parts/services/clients";
-import { listStaff } from "@/modules/auto-parts/services/staff";
 import { createSale } from "@/modules/auto-parts/services/sales";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
 import { printReceipt } from "@/lib/print-utils";
 import { toast } from "sonner";
 import { ShoppingCart, Plus, Minus, Trash2, Search, User, CreditCard, Banknote, X, Percent, Printer } from "lucide-react";
@@ -32,6 +32,7 @@ interface CartItem {
 export default function AutoPartsPOSPage() {
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
+  const { autoPartsStaffSession } = useAuth();
   const [products, setProducts] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
   const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
   const [searchQ, setSearchQ] = useState("");
@@ -63,10 +64,14 @@ export default function AutoPartsPOSPage() {
       try {
         setProducts(await listProducts(businessId) as any);
         setCategories(await listCategories(businessId));
-        setStaff(await listStaff(businessId));
+        const staffList = await listStaff(businessId);
+        setStaff(staffList);
+        if (autoPartsStaffSession) {
+          setSelectedStaff(autoPartsStaffSession.id);
+        }
       } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
     })();
-  }, [businessId]);
+  }, [businessId, autoPartsStaffSession]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -112,7 +117,7 @@ export default function AutoPartsPOSPage() {
 
   const handlePayment = async () => {
     if (!businessId || cart.length === 0) return;
-    const staffMember = staff.find(s => s.id === selectedStaff);
+    const staffMember = staff.find(s => s.id === selectedStaff) || (autoPartsStaffSession ? { name: autoPartsStaffSession.name } as AutoPartsStaff : undefined);
     try {
       const sale = await createSale(businessId, {
         subtotal,
@@ -274,7 +279,12 @@ export default function AutoPartsPOSPage() {
               <Label>TVA (%)</Label>
               <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
             </div>
-            {staff.length > 0 && (
+            {autoPartsStaffSession ? (
+              <div>
+                <Label>Caissier(ère)</Label>
+                <p className="text-sm font-medium text-muted-foreground">{autoPartsStaffSession.name}</p>
+              </div>
+            ) : staff.length > 0 && (
               <div>
                 <Label>Caissier(ère)</Label>
                 <Select value={selectedStaff} onValueChange={setSelectedStaff}>
