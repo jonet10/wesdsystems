@@ -66,109 +66,14 @@ if (billingCycle === "yearly" && Number(plan.yearly_price) > 0) {
 
     // ── Try MonCash CreatePayment (always: sandbox + live) ───────────────
     let payment;
-    let isSandbox = false;
     try {
+      console.log(`[MonCash Create] Initializing payment for order: ${orderId}`);
       payment = await createMonCashPayment(orderId, amount);
+      console.log(`[MonCash Create] Payment initialized, redirectUrl: ${payment.redirectUrl}`);
     } catch (error: any) {
-      isSandbox = getMonCashEnvironment() === "sandbox";
+      console.error(`[MonCash Create] Error during createMonCashPayment:`, error);
       const isTimeout = error?.name === "AbortError";
 
-      if (isSandbox) {
-        // Sandbox fallback: CreatePayment est lent (>30s), on mocke le redirect et on active l'abonnement directement
-        console.log(`[MonCash] Sandbox fallback pour ${orderId}`);
-        await apiSupabase.rpc("update_subscription_payment", {
-          p_id: subscriptionPaymentId,
-          p_transaction_reference: orderId,
-          p_status: "completed",
-        });
-        await apiSupabase.rpc("create_moncash_subscription_payment", {
-          p_business_id: businessId,
-          p_plan_id: planId,
-          p_subscription_payment_id: subscriptionPaymentId,
-          p_billing_cycle: billingCycle,
-          p_duration_months: durationMonths,
-          p_payment_provider: "moncash",
-          p_amount: amount,
-          p_currency_code: "HTG",
-          p_order_id: orderId,
-          p_status: "successful",
-          p_redirect_url: null,
-          p_gateway_payload: {
-            business_name: businessName,
-            plan_name: plan.name,
-            billing_cycle: billingCycle,
-            duration_months: durationMonths,
-            sandbox: true,
-          },
-        });
-        // Activate subscription (same logic as return handler)
-        const { data: business, error: bizErr } = await apiSupabase
-          .from("businesses")
-          .select("plan_id, status")
-          .eq("id", businessId)
-          .maybeSingle();
-        if (bizErr) throw bizErr;
-        const previousPlanId = business?.plan_id || null;
-        // Upsert subscription activation (duplicate minimal logic)
-        const today = new Date();
-        const duration = Math.max(1, Math.min(12, Number(durationMonths)));
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + duration);
-        const subscriptionPayload = {
-          business_id: businessId,
-          plan_id: planId,
-          start_date: today.toISOString().slice(0, 10),
-          end_date: endDate.toISOString().slice(0, 10),
-          status: "active",
-          billing_cycle: billingCycle,
-          auto_renew: true,
-          price_snapshot: Number(amount),
-          currency_code: "HTG",
-          notes: `MonCash ${orderId} sandbox activation for ${duration} months`,
-        };
-        const { data: subInsert, error: subErr } = await apiSupabase
-          .from("business_subscriptions")
-          .insert(subscriptionPayload)
-          .select("id")
-          .single();
-        if (subErr) throw subErr;
-        const subscriptionId = subInsert.id;
-        // Update moncash record with subscription_id
-        await apiSupabase
-          .from("moncash_subscription_payments")
-          .update({ subscription_id: subscriptionId })
-          .eq("id", subscriptionPaymentId);
-        // Update business plan and status
-        await apiSupabase
-          .from("businesses")
-          .update({ plan_id: planId, status: "active" })
-          .eq("id", businessId);
-        // Insert history
-        await apiSupabase.from("business_subscription_history").insert({
-          business_id: businessId,
-          plan_id: planId,
-          previous_plan_id: previousPlanId,
-          action: "created",
-          status_before: business?.status || "pending",
-          status_after: "active",
-          notes: `MonCash sandbox activation order ${orderId}`,
-        });
-
-        const confirmationUrl = `/moncash/confirmation?payment_id=${subscriptionPaymentId}&reference=${orderId}&status=success&sandbox=true`;
-        return json(res, 200, {
-          data: {
-            payment_id: subscriptionPaymentId,
-            order_id: orderId,
-            redirect_url: confirmationUrl,
-            amount,
-            currency_code: "HTG",
-            duration_months: durationMonths,
-            sandbox: true,
-          },
-        });
-      }
-
-      // Live: timeout ou erreur → échec
       if (subscriptionPaymentId) {
         await apiSupabase.rpc("update_subscription_payment", {
           p_id: subscriptionPaymentId,

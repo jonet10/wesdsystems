@@ -45,8 +45,10 @@ const toJson = async (response: Response) => {
 
 export async function getMonCashAccessToken() {
   requireCredentials();
+  console.log(`[MonCash] Starting OAuth request in ${MONCASH_MODE} mode...`);
 
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
+    console.log(`[MonCash] Using cached OAuth token.`);
     return cachedToken.value;
   }
 
@@ -66,14 +68,18 @@ export async function getMonCashAccessToken() {
 
   const payload = await toJson(response);
   if (!response.ok) {
+    console.error(`[MonCash] OAuth error HTTP ${response.status}:`, payload);
     throw new Error(payload?.message || payload?.error_description || "Impossible d'obtenir le token MonCash.");
   }
 
   const token = String(payload?.access_token || "");
   const expiresIn = Number(payload?.expires_in || 0);
   if (!token) {
+    console.error(`[MonCash] OAuth failed, no token in payload:`, payload);
     throw new Error("Token MonCash introuvable.");
   }
+
+  console.log(`[MonCash] OAuth token successfully obtained.`);
 
   cachedToken = {
     value: token,
@@ -86,6 +92,7 @@ export async function getMonCashAccessToken() {
 export async function createMonCashPayment(orderId: string, amount: number) {
   const accessToken = await getMonCashAccessToken();
 
+  console.log(`[MonCash] Sending CreatePayment request for orderId: ${orderId}, amount: ${amount}`);
   const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}/v1/CreatePayment`, {
     method: "POST",
     headers: {
@@ -101,13 +108,17 @@ export async function createMonCashPayment(orderId: string, amount: number) {
 
   const payload = await toJson(response);
   if (!response.ok && response.status !== 202) {
+    console.error(`[MonCash] CreatePayment error HTTP ${response.status}:`, payload);
     throw new Error(payload?.message || payload?.error || "Impossible de créer le paiement MonCash.");
   }
 
   const token = payload?.payment_token?.token;
   if (!token) {
+    console.error(`[MonCash] CreatePayment failed, no token in payload:`, payload);
     throw new Error("MonCash n'a pas renvoyé de jeton de paiement.");
   }
+
+  console.log(`[MonCash] CreatePayment successful, payment_token received.`);
 
   return {
     raw: payload,
@@ -122,6 +133,8 @@ export async function retrieveMonCashTransaction(input: { transactionId?: string
   const endpoint = hasTransactionId ? "/v1/RetrieveTransactionPayment" : "/v1/RetrieveOrderPayment";
   const body = hasTransactionId ? { transactionId: input.transactionId } : { orderId: input.orderId };
 
+  console.log(`[MonCash] Sending ${hasTransactionId ? "RetrieveTransaction" : "RetrieveOrder"} request...`);
+
   const response = await fetchWithTimeout(`${MONCASH_HOST_REST_API}${endpoint}`, {
     method: "POST",
     headers: {
@@ -134,8 +147,11 @@ export async function retrieveMonCashTransaction(input: { transactionId?: string
 
   const payload = await toJson(response);
   if (!response.ok) {
+    console.error(`[MonCash] Retrieve request error HTTP ${response.status}:`, payload);
     throw new Error(payload?.message || payload?.error || "Impossible de récupérer les détails du paiement MonCash.");
   }
+
+  console.log(`[MonCash] Retrieve request successful, status:`, payload?.status);
 
   return payload;
 }

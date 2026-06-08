@@ -96,9 +96,14 @@ export default async function handler(req: any, res: any) {
     const transactionId = extractString((payload as any)?.transaction_id || (payload as any)?.txn_id || (payload as any)?.id);
     const orderId = extractString((payload as any)?.order_id || (payload as any)?.reference || (payload as any)?.orderId);
 
+    console.log(`[MonCash Return] Callback received. Method: ${req.method}, transactionId: ${transactionId}, orderId: ${orderId}`);
+
     if (!transactionId && !orderId) {
+      console.warn(`[MonCash Return] Missing transactionId and orderId in payload:`, payload);
       return json(res, 400, { error: "transactionId ou orderId requis" });
     }
+
+    console.log(`[MonCash Return] Calling retrieveMonCashTransaction...`);
 
     const paymentDetails = await retrieveMonCashTransaction({
       transactionId: transactionId || null,
@@ -110,13 +115,22 @@ export default async function handler(req: any, res: any) {
     const paymentMessage = String(paymentDetails?.payment?.message || paymentDetails?.status || "").toLowerCase();
     const isSuccessful = paymentMessage.includes("successful") || String(paymentDetails?.status || "") === "200";
 
+    console.log(`[MonCash Return] Payment validation: isSuccessful=${isSuccessful}, message=${paymentMessage}`);
+
     const paymentRecord = await findPaymentRecord(resolvedTransactionId, resolvedOrderId);
     if (!paymentRecord) {
+      console.error(`[MonCash Return] Payment record not found for transactionId: ${resolvedTransactionId}, orderId: ${resolvedOrderId}`);
       return json(res, 404, { error: "Paiement MonCash introuvable" });
     }
 
+    console.log(`[MonCash Return] Found payment record: ${paymentRecord.id}, current status: ${paymentRecord.status}`);
+
     if (isSuccessful) {
       if (paymentRecord.status !== "successful") {
+          console.log(`[MonCash Return] Payment is new success. Activating subscription...`);
+          const subscriptionId = await upsertSubscriptionActivation(paymentRecord, paymentDetails);
+          console.log(`[MonCash Return] Subscription activated. ID: ${subscriptionId}`);
+
           const { error: paymentUpdateError } = await apiSupabase
             .from("moncash_subscription_payments")
             .update({
@@ -143,6 +157,7 @@ export default async function handler(req: any, res: any) {
           .update({ plan_id: paymentRecord.plan_id, status: "active" })
           .eq("id", paymentRecord.business_id);
         if (businessUpdateError) throw businessUpdateError;
+        console.log(`[MonCash Return] Business status updated to active.`);
 
         await apiSupabase.from("business_subscription_history").insert({
           business_id: paymentRecord.business_id,
@@ -183,8 +198,13 @@ export default async function handler(req: any, res: any) {
           })
           .eq("business_id", paymentRecord.business_id)
           .in("status", ["pending", "pending_verification"]);
+          
+        console.log(`[MonCash Return] Success flow completed successfully.`);
+      } else {
+        console.log(`[MonCash Return] Payment record was already marked as successful. Ignoring.`);
       }
     } else {
+      console.log(`[MonCash Return] Payment is not successful (status: ${paymentMessage}). Marking as failed.`);
       await apiSupabase
         .from("moncash_subscription_payments")
         .update({
@@ -213,6 +233,7 @@ export default async function handler(req: any, res: any) {
       },
     });
   } catch (error: any) {
+    console.error(`[MonCash Return] Exception caught in handler:`, error);
     return json(res, 500, { error: error?.message || "Impossible de traiter la notification MonCash" });
   }
 }
