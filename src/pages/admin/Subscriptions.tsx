@@ -576,6 +576,28 @@ export default function SuperAdminSubscriptionsPage() {
     }
   });
 
+  const businessById = useMemo(() => new Map(businesses.map((business) => [business.id, business])), [businesses]);
+  const planById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
+
+  // Deduplicate: keep only the latest subscription per business
+  const deduplicatedSubscriptions = useMemo(() => {
+    const latestPerBusiness = new Map<string, BusinessSubscription>();
+    for (const sub of subscriptions) {
+      const existing = latestPerBusiness.get(sub.business_id);
+      if (!existing || new Date(sub.created_at) > new Date(existing.created_at)) {
+        latestPerBusiness.set(sub.business_id, sub);
+      }
+    }
+    return Array.from(latestPerBusiness.values());
+  }, [subscriptions]);
+
+  // Recalculate stats from deduplicated subscriptions
+  const dedupActiveSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "active");
+  const dedupTrialingSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "trialing");
+  const dedupPastDueSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "past_due");
+  const dedupCancelledSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "cancelled");
+  const dedupExpiredSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "expired");
+
   const totalBusinesses = businesses.length;
   const activeSubscriptions = dedupActiveSubscriptions;
   const trialingSubscriptions = dedupTrialingSubscriptions;
@@ -600,28 +622,6 @@ export default function SuperAdminSubscriptionsPage() {
   const totalLoyaltyRewards = rewards.filter((reward) => reward.active).length;
   const totalLoyaltyAccounts = loyaltySettings.length;
   const totalPendingDebts = debts.filter((debt) => debt.status !== "settled").length;
-
-  const businessById = useMemo(() => new Map(businesses.map((business) => [business.id, business])), [businesses]);
-  const planById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
-
-  // Deduplicate: keep only the latest subscription per business
-  const deduplicatedSubscriptions = useMemo(() => {
-    const latestPerBusiness = new Map<string, BusinessSubscription>();
-    for (const sub of subscriptions) {
-      const existing = latestPerBusiness.get(sub.business_id);
-      if (!existing || new Date(sub.created_at) > new Date(existing.created_at)) {
-        latestPerBusiness.set(sub.business_id, sub);
-      }
-    }
-    return Array.from(latestPerBusiness.values());
-  }, [subscriptions]);
-
-  // Recalculate stats from deduplicated subscriptions
-  const dedupActiveSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "active");
-  const dedupTrialingSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "trialing");
-  const dedupPastDueSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "past_due");
-  const dedupCancelledSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "cancelled");
-  const dedupExpiredSubscriptions = deduplicatedSubscriptions.filter((row) => row.status === "expired");
 
   const subscriptionRows = useMemo(
     () =>
