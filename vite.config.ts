@@ -24,33 +24,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (/(react|react-dom|scheduler|react-router|react-hook-form|@hookform|zod|react-is)/.test(id)) {
-              return "vendor-core";
-            }
-            if (id.includes("@radix-ui")) {
-              return "vendor-ui";
-            }
-            if (id.includes("@tanstack")) {
-              return "vendor-tables";
-            }
-            if (id.includes("@supabase")) {
-              return "vendor-supabase";
-            }
-            if (id.includes("lucide-react") || id.includes("recharts") || id.includes("date-fns") || id.includes("i18next")) {
-              return "vendor-core";
-            }
-            if (id.includes("jspdf") || id.includes("html2canvas") || id.includes("dompurify")) {
-              return "vendor-print";
-            }
-            return "vendor-core";
-          }
-        },
-      },
-    },
-  },
 }));
