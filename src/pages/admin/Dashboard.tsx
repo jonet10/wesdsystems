@@ -166,7 +166,7 @@ export default function SuperAdminDashboard() {
       supabase.from("customer_loyalty_accounts").select("id", { count: "exact", head: true }),
       supabase.from("loyalty_rewards").select("active"),
       supabase.from("customer_debts").select("status, outstanding_balance"),
-      supabase.from("subscription_payments").select("*, businesses!inner(name)").in("status", ["completed"]).order("created_at", { ascending: false }),
+      supabase.from("subscription_payments").select("*, businesses!inner(name)").in("status", ["pending_verification"]).order("created_at", { ascending: false }),
     ]);
 
     setPendingPayments((pendingPaymentsData || []) as any[]);

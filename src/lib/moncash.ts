@@ -1,4 +1,4 @@
-const PUBLIC_DOMAIN = "wesdsystems.store";
+const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "wesdsystems.store";
 
 const normalizeUrl = (path: string) => `https://${PUBLIC_DOMAIN}${path.startsWith("/") ? path : `/${path}`}`;
 

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CreditCard, Smartphone, Building2 } from "lucide-react";
 import { PAYMENT_PROVIDER_CONFIGS } from "@/lib/payment-providers";
+import type { PaymentProviderConfig } from "@/lib/payment-providers";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -19,13 +21,45 @@ interface PaymentModalProps {
   onSuccess?: () => void;
 }
 
+const DEFAULT_CONFIG: Record<string, string> = {
+  payment_account_moncash: "31966855",
+  payment_account_natcash: "31966855",
+  payment_account_name: "WesdSystems",
+};
+
 export function PaymentModal({ open, onOpenChange, planId, planName, amount, currencyCode, businessId, onSuccess }: PaymentModalProps) {
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+
+  const { data: appConfig } = useQuery({
+    queryKey: ["app-config"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_app_config");
+      if (error) {
+        console.warn("[PaymentModal] Failed to load app config, using defaults:", error);
+        return DEFAULT_CONFIG;
+      }
+      return { ...DEFAULT_CONFIG, ...(data as Record<string, string> || {}) };
+    },
+  });
+
+  const mergedConfigs = useMemo(() => {
+    const base = { ...PAYMENT_PROVIDER_CONFIGS };
+    if (appConfig) {
+      if (base.moncash) {
+        base.moncash = { ...base.moncash, accountNumber: appConfig.payment_account_moncash || base.moncash.accountNumber, accountName: appConfig.payment_account_name || base.moncash.accountName };
+      }
+      if (base.natcash) {
+        base.natcash = { ...base.natcash, accountNumber: appConfig.payment_account_natcash || base.natcash.accountNumber, accountName: appConfig.payment_account_name || base.natcash.accountName };
+      }
+    }
+    return base;
+  }, [appConfig]);
   const [transactionRef, setTransactionRef] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const selectedConfig = selectedProvider ? PAYMENT_PROVIDER_CONFIGS[selectedProvider] : undefined;
+  const selectedConfig = selectedProvider ? mergedConfigs[selectedProvider] : undefined;
 
   const handleSubmit = async () => {
     if (!selectedProvider || !transactionRef.trim()) {
@@ -78,7 +112,7 @@ export function PaymentModal({ open, onOpenChange, planId, planName, amount, cur
           <div className="space-y-2">
             <Label>Méthode de paiement</Label>
             <div className="grid grid-cols-2 gap-3">
-              {Object.values(PAYMENT_PROVIDER_CONFIGS).map((config) => (
+              {Object.values(mergedConfigs).map((config) => (
                 <button
                   key={config.provider.id}
                   type="button"

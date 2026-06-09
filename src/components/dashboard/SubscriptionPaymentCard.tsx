@@ -14,6 +14,16 @@ import { buildMonCashSubscriptionPaymentLink } from "@/lib/moncash";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { cn } from "@/lib/utils";
 
+type AppConfigMap = Record<string, string>;
+
+const DEFAULT_CONFIG: AppConfigMap = {
+  support_whatsapp: "38073835",
+  support_phone: "31966855",
+  payment_account_moncash: "31966855",
+  payment_account_natcash: "31966855",
+  payment_account_name: "WesdSystems",
+};
+
 const DURATION_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 type BusinessMeta = {
@@ -45,6 +55,21 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
       return (data as BusinessMeta | null) ?? null;
     },
   });
+
+  const { data: appConfig } = useQuery({
+    queryKey: ["app-config"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_app_config");
+      if (error) {
+        console.warn("[SubscriptionPaymentCard] Failed to load app config, using defaults:", error);
+        return DEFAULT_CONFIG;
+      }
+      return { ...DEFAULT_CONFIG, ...(data as AppConfigMap || {}) };
+    },
+  });
+
+  const supportWhatsapp = appConfig?.support_whatsapp || DEFAULT_CONFIG.support_whatsapp;
 
   const plan = data?.plan;
   const subscription = data?.subscription;
@@ -194,12 +219,12 @@ export function SubscriptionPaymentCard({ compact = false }: { compact?: boolean
               <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 text-center">
                 <p className="font-medium text-foreground mb-2">Contactez-nous sur WhatsApp pour le paiement :</p>
                 <a 
-                  href={`https://wa.me/50931966855?text=Bonjour, je souhaite payer manuellement ${format(baseAmount)} pour ${duration} mois d'abonnement au plan ${plan?.name} (Entreprise: ${business?.name}).`} 
+                  href={`https://wa.me/${supportWhatsapp}?text=Bonjour, je souhaite payer manuellement ${format(baseAmount)} pour ${duration} mois d'abonnement au plan ${plan?.name} (Entreprise: ${business?.name}).`} 
                   target="_blank" 
                   rel="noreferrer"
                   className="inline-flex items-center justify-center rounded-md bg-[#25D366] px-4 py-2 text-sm font-medium text-white hover:bg-[#128C7E] transition-colors"
                 >
-                  +509 3196 6855
+                  +{supportWhatsapp}
                 </a>
               </div>
               

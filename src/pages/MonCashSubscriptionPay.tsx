@@ -23,6 +23,7 @@ export default function MonCashSubscriptionPayPage() {
   const durationMonths = Math.max(1, Math.min(12, Number(toText(params.get("duration_months")) || "1")));
   const amount = Number(params.get("amount") || 0);
   const currencyCode = toText(params.get("currency_code")) || "HTG";
+  const paymentId = toText(params.get("payment_id"));
 
   const canPay = Boolean(businessId && planId);
 
@@ -44,6 +45,7 @@ export default function MonCashSubscriptionPayPage() {
           business_name: businessName,
           billing_cycle: billingCycle,
           duration_months: durationMonths,
+          payment_id: paymentId || undefined,
         }),
       });
 

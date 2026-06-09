@@ -2,7 +2,9 @@ import { apiSupabase } from "../supabase.js";
 import { json } from "../pending-tabs/shared.js";
 import { retrieveMonCashTransaction } from "./service.js";
 
-const PUBLIC_URL = "https://wesdsystems.store";
+const PUBLIC_URL = process.env.PUBLIC_URL
+  || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  || "https://wesdsystems.store";
 
 const extractString = (value: unknown) => {
   if (typeof value === "string") return value.trim();
@@ -13,7 +15,7 @@ const extractString = (value: unknown) => {
 const findPaymentRecord = async (transactionId: string, orderId: string) => {
   const query = apiSupabase
     .from("moncash_subscription_payments")
-    .select("id, business_id, subscription_id, plan_id, billing_cycle, amount, currency_code, order_id, transaction_id, status, redirect_url, gateway_payload, callback_payload, paid_at, confirmed_at, created_at, notes")
+    .select("id, business_id, subscription_id, plan_id, billing_cycle, duration_months, amount, currency_code, order_id, transaction_id, status, redirect_url, gateway_payload, callback_payload, paid_at, confirmed_at, created_at, notes")
     .order("created_at", { ascending: false });
 
   if (transactionId) {
@@ -88,23 +90,37 @@ export default async function handler(req: any, res: any) {
     console.log(`[MonCash Return] Found payment record: ${paymentRecord.id}, current status: ${paymentRecord.status}`);
 
     if (isSuccessful) {
-      if (paymentRecord.status !== "successful") {
-          console.log(`[MonCash Return] Payment is new success. Activating subscription...`);
-          const subscriptionId = await upsertSubscriptionActivation(paymentRecord, paymentDetails);
-          console.log(`[MonCash Return] Subscription activated. ID: ${subscriptionId}`);
+      try {
+        // Atomically claim this transaction — only succeeds if status is still 'redirected' or 'pending'
+        const { data: claimed, error: claimError } = await apiSupabase
+          .from("moncash_subscription_payments")
+          .update({
+            transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
+            status: "successful",
+            paid_at: new Date().toISOString(),
+            confirmed_at: new Date().toISOString(),
+            callback_payload: paymentDetails,
+            subscription_id: paymentRecord.subscription_id,
+          })
+          .eq("id", paymentRecord.id)
+          .in("status", ["redirected", "pending"])
+          .select("id");
 
-          const { error: paymentUpdateError } = await apiSupabase
-            .from("moncash_subscription_payments")
-            .update({
-              transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
-              status: "successful",
-              paid_at: new Date().toISOString(),
-              confirmed_at: new Date().toISOString(),
-              callback_payload: paymentDetails,
-              subscription_id: subscriptionId,
-            })
-            .eq("id", paymentRecord.id);
-          if (paymentUpdateError) throw paymentUpdateError;
+        if (claimError) throw claimError;
+        if (!claimed || claimed.length === 0) {
+          console.log(`[MonCash Return] Payment record already claimed by another request (id=${paymentRecord.id}). Skipping.`);
+          return json(res, 200, { data: { ok: true, status: "already_processed" } });
+        }
+
+        console.log(`[MonCash Return] Payment claimed atomically. Activating subscription...`);
+        const subscriptionId = await upsertSubscriptionActivation(paymentRecord, paymentDetails);
+        console.log(`[MonCash Return] Subscription activated. ID: ${subscriptionId}`);
+
+        // Update the moncash record with the actual subscription_id
+        await apiSupabase
+          .from("moncash_subscription_payments")
+          .update({ subscription_id: subscriptionId })
+          .eq("id", paymentRecord.id);
 
         const { data: businessBefore, error: bizBeforeErr } = await apiSupabase
           .from("businesses")
@@ -114,13 +130,7 @@ export default async function handler(req: any, res: any) {
         if (bizBeforeErr) throw bizBeforeErr;
         const previousPlanId = businessBefore?.plan_id || null;
 
-        const { error: businessUpdateError } = await apiSupabase
-          .from("businesses")
-          .update({ plan_id: paymentRecord.plan_id, status: "active" })
-          .eq("id", paymentRecord.business_id);
-        if (businessUpdateError) throw businessUpdateError;
-        console.log(`[MonCash Return] Business status updated to active.`);
-
+        const durationMonths = Math.max(1, Math.min(12, Number(paymentRecord.duration_months || paymentRecord.gateway_payload?.duration_months || 1)));
         await apiSupabase.from("business_subscription_history").insert({
           business_id: paymentRecord.business_id,
           plan_id: paymentRecord.plan_id,
@@ -128,42 +138,65 @@ export default async function handler(req: any, res: any) {
           action: paymentRecord.subscription_id ? "renewed" : "created",
           status_before: paymentRecord.status || "pending",
           status_after: "active",
-          notes: `MonCash order ${paymentRecord.order_id}`,
+          duration_months: durationMonths,
+          notes: `MonCash order ${paymentRecord.order_id} · ${durationMonths} mois`,
         });
 
-        const { data: businessName } = await apiSupabase
+        const { data: businessNameRow } = await apiSupabase
           .from("businesses")
           .select("name")
           .eq("id", paymentRecord.business_id)
           .maybeSingle();
 
+        const businessName = businessNameRow?.name || "Un établissement";
+        const actionLabel = paymentRecord.subscription_id ? "renouvelé" : "souscrit";
+
         await apiSupabase.from("notifications").insert({
           recipient_role: "super_admin",
           type: "subscription_paid",
-          title: "Paiement d'abonnement reçu",
-          message: `${businessName?.name || "Un établissement"} a effectué son paiement d'abonnement et est en attente de validation.`,
+          title: `Abonnement ${actionLabel}`,
+          message: `${businessName} a ${actionLabel} un abonnement via MonCash (${Number(paymentRecord.amount || 0).toLocaleString()} ${paymentRecord.currency_code || "HTG"}).`,
           metadata: {
             business_id: paymentRecord.business_id,
             plan_id: paymentRecord.plan_id,
             amount: paymentRecord.amount,
             transaction_id: resolvedTransactionId,
             order_id: paymentRecord.order_id,
+            auto_approved: true,
           },
         });
 
-        await apiSupabase
+        // Update the specific subscription_payment record linked to this order
+        const { data: spRecord } = await apiSupabase
           .from("subscription_payments")
-          .update({
-            status: "completed",
-            transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
-            completed_at: new Date().toISOString(),
-          })
+          .select("id")
           .eq("business_id", paymentRecord.business_id)
-          .in("status", ["pending", "pending_verification"]);
-          
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (spRecord) {
+          await apiSupabase
+            .from("subscription_payments")
+            .update({
+              status: "completed",
+              subscription_id: subscriptionId,
+              transaction_id: resolvedTransactionId || paymentRecord.transaction_id,
+              completed_at: new Date().toISOString(),
+            })
+            .eq("id", spRecord.id);
+        }
+
         console.log(`[MonCash Return] Success flow completed successfully.`);
-      } else {
-        console.log(`[MonCash Return] Payment record was already marked as successful. Ignoring.`);
+      } catch (innerError: any) {
+        // If something went wrong after claiming, mark as failed
+        console.error(`[MonCash Return] Error during processing, marking as failed:`, innerError);
+        await apiSupabase
+          .from("moncash_subscription_payments")
+          .update({ status: "failed", notes: `Échec après transition: ${innerError?.message || "Erreur inconnue"}` })
+          .eq("id", paymentRecord.id);
+        throw innerError;
       }
     } else {
       console.log(`[MonCash Return] Payment is not successful (status: ${paymentMessage}). Marking as failed.`);
@@ -174,7 +207,8 @@ export default async function handler(req: any, res: any) {
           status: "failed",
           callback_payload: paymentDetails,
         })
-        .eq("id", paymentRecord.id);
+        .eq("id", paymentRecord.id)
+        .in("status", ["redirected", "pending"]);
     }
 
     if (req.method === "GET" && req.query?.redirect !== "0") {

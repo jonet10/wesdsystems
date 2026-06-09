@@ -100,6 +100,7 @@ if (billingCycle === "yearly" && Number(plan.yearly_price) > 0) {
       {
         p_business_id: businessId,
         p_plan_id: planId,
+        p_subscription_payment_id: subscriptionPaymentId,
         p_billing_cycle: billingCycle,
         p_duration_months: durationMonths,
         p_payment_provider: "moncash",
