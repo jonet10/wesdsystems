@@ -1,4 +1,4 @@
-import type { PendingTabDetail, PendingTabSummary } from "../../src/modules/salon/pending-tabs";
+import type { PendingTabDetail, PendingTabSummary } from "../../src/modules/salon/pending-tabs.ts";
 import { apiSupabase } from "../supabase.js";
 
 const json = (res: any, status: number, payload: any) => {
