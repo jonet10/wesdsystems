@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Shield, CreditCard, Database, Check, Copy } from "lucide-react";
+import { Globe, Shield, CreditCard, Database, Check, Copy, Smartphone, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
 import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
+import { supabase } from "@/lib/supabase";
 
 export default function SuperAdminSettingsPage() {
   const [siteName, setSiteName] = useState("Wesd Systems");
@@ -20,10 +21,44 @@ export default function SuperAdminSettingsPage() {
   const [stripeLive, setStripeLive] = useState(false);
   const [stripePublicKey, setStripePublicKey] = useState("pk_test_51Nx...");
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  const [manualPaymentMoncashName, setManualPaymentMoncashName] = useState("Jonet Jean Francois");
+  const [manualPaymentMoncashNumber, setManualPaymentMoncashNumber] = useState("38073835");
+  const [manualPaymentNatcashName, setManualPaymentNatcashName] = useState("Jonet Jean Francois");
+  const [manualPaymentNatcashNumber, setManualPaymentNatcashNumber] = useState("40011619");
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      const { data, error } = await supabase.from("app_config").select("key, value");
+      if (error || !data) return;
+      const map = Object.fromEntries(data.map((r: any) => [r.key, r.value]));
+      if (map.manual_payment_moncash_name) setManualPaymentMoncashName(map.manual_payment_moncash_name);
+      if (map.manual_payment_moncash_number) setManualPaymentMoncashNumber(map.manual_payment_moncash_number);
+      if (map.manual_payment_natcash_name) setManualPaymentNatcashName(map.manual_payment_natcash_name);
+      if (map.manual_payment_natcash_number) setManualPaymentNatcashNumber(map.manual_payment_natcash_number);
+    };
+    void loadConfig();
+  }, []);
+
   const { t } = useTranslation();
 
   const handleSave = (section: string) => {
     toast.success(`Les paramètres de ${section} ont été sauvegardés avec succès !`);
+  };
+
+  const saveManualPaymentConfig = async () => {
+    const entries = [
+      { key: "manual_payment_moncash_name", value: manualPaymentMoncashName },
+      { key: "manual_payment_moncash_number", value: manualPaymentMoncashNumber },
+      { key: "manual_payment_natcash_name", value: manualPaymentNatcashName },
+      { key: "manual_payment_natcash_number", value: manualPaymentNatcashNumber },
+    ];
+    const { error } = await supabase.from("app_config").upsert(entries, { onConflict: "key" });
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde des paramètres de paiement manuel.");
+    } else {
+      toast.success("Paramètres de paiement manuel sauvegardés avec succès !");
+    }
   };
 
   const copyUrl = async (value: string, label: string) => {
@@ -47,7 +82,7 @@ export default function SuperAdminSettingsPage() {
       <StaggerContainer className="space-y-6">
         <StaggerItem>
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-muted/50 p-1 rounded-xl">
+            <TabsList className="grid grid-cols-5 w-full max-w-3xl bg-muted/50 p-1 rounded-xl">
               <TabsTrigger value="general" className="flex items-center gap-2 rounded-lg py-2">
                 <Globe className="h-4 w-4" />
                 <span className="hidden sm:inline">Général</span>
@@ -59,6 +94,10 @@ export default function SuperAdminSettingsPage() {
               <TabsTrigger value="billing" className="flex items-center gap-2 rounded-lg py-2">
                 <CreditCard className="h-4 w-4" />
                 <span className="hidden sm:inline">Paiements</span>
+              </TabsTrigger>
+              <TabsTrigger value="manual-payments" className="flex items-center gap-2 rounded-lg py-2">
+                <Smartphone className="h-4 w-4" />
+                <span className="hidden sm:inline">Manuel</span>
               </TabsTrigger>
               <TabsTrigger value="system" className="flex items-center gap-2 rounded-lg py-2">
                 <Database className="h-4 w-4" />
@@ -238,6 +277,72 @@ export default function SuperAdminSettingsPage() {
                       <Input id="moncash-alert" value={MONCASH_PUBLIC_URLS.alertUrl} readOnly />
                     </div>
                   </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* MANUAL PAYMENTS SETTINGS */}
+            <TabsContent value="manual-payments" className="mt-6">
+              <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold font-display">Paiement manuel</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Numéros et noms des bénéficiaires affichés aux salons lors du paiement manuel
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-muted/10">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      MonCash
+                    </h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="moncash-name">Nom du bénéficiaire</Label>
+                      <Input
+                        id="moncash-name"
+                        value={manualPaymentMoncashName}
+                        onChange={(e) => setManualPaymentMoncashName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="moncash-number">Numéro de téléphone</Label>
+                      <Input
+                        id="moncash-number"
+                        value={manualPaymentMoncashNumber}
+                        onChange={(e) => setManualPaymentMoncashNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-muted/10">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                      NatCash
+                    </h4>
+                    <div className="space-y-2">
+                      <Label htmlFor="natcash-name">Nom du bénéficiaire</Label>
+                      <Input
+                        id="natcash-name"
+                        value={manualPaymentNatcashName}
+                        onChange={(e) => setManualPaymentNatcashName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="natcash-number">Numéro de téléphone</Label>
+                      <Input
+                        id="natcash-number"
+                        value={manualPaymentNatcashNumber}
+                        onChange={(e) => setManualPaymentNatcashNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-border">
+                  <Button variant="hero" onClick={saveManualPaymentConfig}>
+                    Sauvegarder les bénéficiaires
+                  </Button>
                 </div>
               </div>
             </TabsContent>

@@ -31,7 +31,7 @@ export default function AutoPartsCompatibilitiesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      setData(await listCompatibilities());
+      setData(await listCompatibilities(businessId));
       setProducts(await listProducts(businessId) as any);
       setBrands(await listBrands());
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
@@ -45,7 +45,7 @@ export default function AutoPartsCompatibilitiesPage() {
 
   const handleSave = async () => {
     try {
-      await createCompatibility({
+      await createCompatibility(businessId, {
         product_id: form.product_id,
         brand_id: form.brand_id || null,
         model_id: form.model_id || null,

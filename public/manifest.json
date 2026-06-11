@@ -1,0 +1,13 @@
+{
+  "name": "Wesd Systems",
+  "short_name": "Wesd",
+  "description": "Plateforme SaaS de Gestion Multi-Business pour Haïti",
+  "theme_color": "#1E3A5F",
+  "background_color": "#1E3A5F",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

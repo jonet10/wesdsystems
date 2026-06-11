@@ -36,7 +36,7 @@ export default function AutoPartsSuppliersPage() {
   const handleSave = async () => {
     try {
       if (editing) { await updateSupplier(editing.id, form); toast.success("Fournisseur mis à jour"); }
-      else { await createSupplier(form); toast.success("Fournisseur créé"); }
+      else { await createSupplier(businessId, form); toast.success("Fournisseur créé"); }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
   };

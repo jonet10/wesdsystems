@@ -1,14 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsStaff } from "../types";
 
-export async function listStaff(businessId: string | null) {
-  if (businessId) {
-    const { data, error } = await supabase.rpc("auto_parts_list_staff", { p_business_id: businessId });
-    if (error) throw error;
-    return data as AutoPartsStaff[];
-  }
-  let query = supabase.from("auto_parts_staff").select("*").eq("is_active", true);
-  const { data, error } = await query.order("name");
+export async function listStaff(businessId: string) {
+  const { data, error } = await supabase.rpc("auto_parts_list_staff", { p_business_id: businessId });
   if (error) throw error;
   return data as AutoPartsStaff[];
 }
@@ -42,9 +36,10 @@ export async function updateStaff(id: string, staff: {
   role?: string;
   pin_code?: string;
   is_active?: boolean;
-}) {
+}, businessId?: string) {
   const { data, error } = await supabase.rpc("update_auto_parts_staff", {
     p_id: id,
+    p_business_id: businessId ?? null,
     p_name: staff.name ?? null,
     p_username: staff.username ?? null,
     p_email: staff.email ?? null,
@@ -57,8 +52,8 @@ export async function updateStaff(id: string, staff: {
   return data;
 }
 
-export async function deleteStaff(id: string) {
-  const { data, error } = await supabase.rpc("delete_auto_parts_staff", { p_id: id });
+export async function deleteStaff(id: string, businessId?: string) {
+  const { data, error } = await supabase.rpc("delete_auto_parts_staff", { p_id: id, p_business_id: businessId ?? null });
   if (error) throw error;
   return data;
 }

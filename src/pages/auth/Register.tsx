@@ -184,7 +184,7 @@ export default function Register() {
     <div className="min-h-screen bg-background flex text-foreground">
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8 bg-muted/20">
-        <FadeUp className="w-full max-w-md">
+        <FadeUp key={step} className="w-full max-w-md">
           <div className="bg-card rounded-2xl shadow-elevated border border-border p-8">
             <div className="text-center mb-8">
               <Link to="/" className="inline-block">

@@ -1,20 +1,14 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsSale, AutoPartsSaleItem } from "../types";
 
-export async function listSales(businessId: string | null) {
-  if (businessId) {
-    const { data, error } = await supabase.rpc("auto_parts_list_sales", { p_business_id: businessId });
-    if (error) throw error;
-    return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];
-  }
-  let query = supabase.from("auto_parts_sales").select("*, items:auto_parts_sale_items(*)");
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(100);
+export async function listSales(businessId: string) {
+  const { data, error } = await supabase.rpc("auto_parts_list_sales", { p_business_id: businessId });
   if (error) throw error;
   return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];
 }
 
-export async function getSale(id: string) {
-  const { data, error } = await supabase.rpc("auto_parts_get_sale", { p_id: id });
+export async function getSale(id: string, businessId?: string) {
+  const { data, error } = await supabase.rpc("auto_parts_get_sale", { p_id: id, p_business_id: businessId ?? null });
   if (error) throw error;
   return data as AutoPartsSale & { items: AutoPartsSaleItem[] };
 }

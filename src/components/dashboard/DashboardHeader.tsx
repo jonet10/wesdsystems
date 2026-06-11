@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check, AlertCircle, CreditCard } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check, AlertCircle, CreditCard, Menu } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ interface DashboardHeaderProps {
   userName?: string;
   userAvatar?: string;
   userRole?: string;
+  onMenuToggle?: () => void;
 }
 
 const languages = [
@@ -47,7 +48,8 @@ export const DashboardHeader = ({
   subtitle, 
   userName = "Utilisateur", 
   userAvatar,
-  userRole = "employee"
+  userRole = "employee",
+  onMenuToggle,
 }: DashboardHeaderProps) => {
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
@@ -165,6 +167,13 @@ export const DashboardHeader = ({
                       border-b border-purple-500/10 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60
                       px-6 shadow-lg shadow-purple-950/10">
       
+      {/* Mobile menu toggle */}
+      {onMenuToggle && (
+        <Button variant="ghost" size="icon" onClick={onMenuToggle} className="md:hidden h-9 w-9">
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
+
       {/* Page Title */}
       <div className="flex-1 min-w-0">
         <h1 className="text-lg font-semibold truncate">{title}</h1>

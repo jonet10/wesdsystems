@@ -40,12 +40,14 @@ import {
   Container,
   UserCog,
   ArrowLeftRight,
+  Smartphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { glowupStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
 import { PERMISSIONS, filterMenuByPermissions, getSalonEmployeePermissions, type Permission } from "@/config/permissions";
@@ -61,6 +63,8 @@ interface SidebarItem {
 
 interface DashboardSidebarProps {
   role: "super_admin" | "salon_admin" | "employee" | "partner";
+  mobileOpen?: boolean;
+  onMobileToggle?: () => void;
 }
 
 const superAdminItems: SidebarItem[] = [
@@ -70,6 +74,7 @@ const superAdminItems: SidebarItem[] = [
   { icon: Workflow, label: "Modules", path: "/admin/modules", role: "all" },
   { icon: Handshake, label: "Partenaires", path: "/admin/partners", role: "all" },
   { icon: Bell, label: "Demandes partenaires", path: "/admin/partners/applications", role: "all" },
+  { icon: Smartphone, label: "Paiements manuels", path: "/admin/manual-payments", role: "all" },
   { icon: Settings, label: "Paramètres", path: "/admin/settings", role: "all" },
 ];
 
@@ -89,9 +94,10 @@ const partnerItems: SidebarItem[] = [
   { icon: TrendingUp, label: "Rapports", path: "/partner/reports", role: "all" },
 ];
 
-export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
+export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: DashboardSidebarProps) => {
+  const isMobile = useIsMobile();
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(isMobile);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
   const { user, profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
 
@@ -306,64 +312,91 @@ export const DashboardSidebar = ({ role }: DashboardSidebarProps) => {
   };
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 72 : 256 }}
-      className="h-screen flex-shrink-0 bg-background/80 backdrop-blur-xl border-r border-purple-500/10 
-                 flex flex-col z-40 transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20"
-    >
-      {/* Logo Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-purple-500/10">
-        <motion.div 
-          animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
-          className="overflow-hidden whitespace-nowrap"
-        >
-          <Logo className="h-7" />
-        </motion.div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="h-8 w-8 ml-auto"
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {items.map((item) => (
-          <NavItem key={`${item.path}-${item.label}`} item={item} />
-        ))}
-      </nav>
-
-      {/* User Mini Profile (collapsed mode) */}
-      {collapsed && (
-        <div className="p-3 border-t border-purple-500/10">
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="w-full">
-                <UserIcon className="h-4 w-4" />
+    <>
+      {/* Mobile overlay backdrop */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50"
+          onClick={onMobileToggle}
+        />
+      )}
+      <motion.aside
+        initial={false}
+        animate={
+          isMobile
+            ? { x: mobileOpen ? 0 : -300, width: 256 }
+            : { width: collapsed ? 72 : 256 }
+        }
+        className={
+          "h-screen flex-shrink-0 bg-background/80 backdrop-blur-xl border-r border-purple-500/10 " +
+          "flex flex-col transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20 " +
+          (isMobile
+            ? "fixed left-0 top-0 z-40"
+            : "relative z-40")
+        }
+      >
+        {/* Logo Header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-purple-500/10">
+          {!isMobile && (
+            <motion.div
+              animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+              className="overflow-hidden whitespace-nowrap"
+            >
+              <Logo className="h-7" />
+            </motion.div>
+          )}
+          {isMobile ? (
+            <div className="flex items-center justify-between w-full">
+              <Logo className="h-7" />
+              <Button variant="ghost" size="icon" onClick={onMobileToggle} className="h-8 w-8">
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Profil</TooltipContent>
-          </Tooltip>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed(!collapsed)}
+              className="h-8 w-8 ml-auto"
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
-      )}
 
-      {/* Footer Toggle */}
-      {!collapsed && (
-        <div className="p-3 border-t border-purple-500/10">
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-primary/10"
-            onClick={() => setCollapsed(true)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="text-sm">Réduire le menu</span>
-          </Button>
-        </div>
-      )}
-    </motion.aside>
+        {/* Navigation */}
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {items.map((item) => (
+            <NavItem key={`${item.path}-${item.label}`} item={item} />
+          ))}
+        </nav>
+
+        {/* Footer (desktop only) */}
+        {!isMobile && collapsed && (
+          <div className="p-3 border-t border-purple-500/10">
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="w-full">
+                  <UserIcon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Profil</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+        {!isMobile && !collapsed && (
+          <div className="p-3 border-t border-purple-500/10">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-primary/10"
+              onClick={() => setCollapsed(true)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-sm">Réduire le menu</span>
+            </Button>
+          </div>
+        )}
+      </motion.aside>
+    </>
   );
 };

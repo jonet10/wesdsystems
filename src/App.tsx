@@ -10,6 +10,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { OfflineBanner } from "@/components/shared/OfflineBanner";
+import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -26,6 +28,7 @@ import SuperAdminSubscriptions from "./pages/admin/Subscriptions";
 import SuperAdminPartners from "./pages/admin/Partners";
 import SuperAdminPartnerApplications from "./pages/admin/PartnerApplications";
 import SuperAdminSettings from "./pages/admin/Settings";
+import SuperAdminManualPaymentsPage from "./pages/admin/ManualPayments";
 import SalonDashboard from "./pages/salon/Dashboard";
 import ClientsPage from "./pages/salon/Clients";
 import ServicesPage from "./pages/salon/Services";
@@ -161,6 +164,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
                       <SuperAdminSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/manual-payments"
+                  element={
+                    <ProtectedRoute allowedRoles={["super_admin"]}>
+                      <SuperAdminManualPaymentsPage />
                     </ProtectedRoute>
                   }
                 />
@@ -457,6 +468,10 @@ const App = () => (
         </CurrencyProvider>
       </ThemeProvider>
     </QueryClientProvider>
+    <Suspense fallback={null}>
+      <OfflineBanner />
+      <PWAInstallPrompt />
+    </Suspense>
   </ErrorBoundary>
 );
 

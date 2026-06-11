@@ -39,7 +39,7 @@ export default function AutoPartsClientsPage() {
   const handleSave = async () => {
     try {
       if (editing) { await updateClient(editing.id, form); toast.success("Client mis à jour"); }
-      else { await createClient(form); toast.success("Client créé"); }
+      else { await createClient(businessId, form); toast.success("Client créé"); }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
   };

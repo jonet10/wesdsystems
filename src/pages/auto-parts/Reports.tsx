@@ -27,31 +27,38 @@ export default function AutoPartsReportsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const bFilter = (q: any) => businessId ? q.or(`business_id.eq.${businessId},business_id.is.null`) : q;
     (async () => {
+      if (!businessId) { setLoading(false); return; }
       try {
         setAlerts(await listAlerts(businessId));
 
-        // Monthly sales
         const now = new Date();
         const yearStart = new Date(now.getFullYear(), 0, 1).toISOString();
-        const { data: yearSales } = await bFilter(
-          supabase.from("auto_parts_sales").select("total, created_at")
-        ).gte("created_at", yearStart).not("refund_status", "eq", "full");
+        const { data: yearSales } = await supabase
+          .from("auto_parts_sales").select("total, created_at").eq("business_id", businessId)
+          .gte("created_at", yearStart).not("refund_status", "eq", "full");
         const byMonth = Array(12).fill(0);
         (yearSales || []).forEach((s: any) => { byMonth[new Date(s.created_at).getMonth()] += Number(s.total); });
         setMonthlySales(byMonth);
 
-        // Top products
-        const { data: topItems } = await bFilter(
-          supabase.from("auto_parts_sale_items").select("product_name, sum:quantity")
-        ).order("sum", { ascending: false, nullsFirst: false }).limit(10);
-        if (topItems) setTopProducts(topItems.map((t: any) => ({ name: t.product_name, qty: Number(t.sum) })));
+        // Top products (JS aggregation instead of broken SQL sum)
+        const { data: allItems } = await supabase
+          .from("auto_parts_sale_items").select("product_name, quantity").eq("business_id", businessId)
+          .limit(5000);
+        const qtyMap = new Map<string, number>();
+        (allItems || []).forEach((i: any) => {
+          qtyMap.set(i.product_name, (qtyMap.get(i.product_name) || 0) + Number(i.quantity));
+        });
+        setTopProducts(
+          Array.from(qtyMap.entries())
+            .sort((a, b) => b[1] - a[1]).slice(0, 10)
+            .map(([name, qty]) => ({ name, qty }))
+        );
 
         // Category sales via products
-        const { data: catSales } = await bFilter(
-          supabase.from("auto_parts_sale_items").select("product_name, total_price, product:product_id(category:category_id(name))")
-        ).limit(1000);
+        const { data: catSales } = await supabase
+          .from("auto_parts_sale_items").select("product_name, total_price, product:product_id(category:category_id(name))")
+          .eq("business_id", businessId).limit(1000);
         if (catSales) {
           const catMap = new Map<string, number>();
           catSales.forEach((s: any) => {

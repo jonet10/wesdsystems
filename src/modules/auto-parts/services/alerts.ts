@@ -1,16 +1,16 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsAlert } from "../types";
 
-export async function listAlerts(businessId: string | null) {
-  let query = supabase.from("auto_parts_alerts").select("*");
-  if (businessId) query = query.or(`business_id.eq.${businessId},business_id.is.null`);
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
+export async function listAlerts(businessId: string) {
+  const { data, error } = await supabase.from("auto_parts_alerts").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(50);
   if (error) throw error;
   return data as AutoPartsAlert[];
 }
 
-export async function markAlertRead(id: string) {
-  const { error } = await supabase.from("auto_parts_alerts").update({ read: true }).eq("id", id);
+export async function markAlertRead(id: string, businessId?: string) {
+  let q = supabase.from("auto_parts_alerts").update({ read: true });
+  if (businessId) q = q.eq("business_id", businessId);
+  const { error } = await q.eq("id", id);
   if (error) throw error;
 }
 

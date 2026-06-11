@@ -1,13 +1,13 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
 import { useEnsureDefaultBranch } from "@/hooks/useEnsureDefaultBranch";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CreditCard, Lock } from "lucide-react";
+import { AlertTriangle, CreditCard, Lock, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -19,6 +19,8 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children, role, title, subtitle, userName }: DashboardLayoutProps) => {
   useEnsureDefaultBranch();
+  const isMobile = useIsMobile();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const subscriptionReminder = useSubscriptionPaymentReminder();
   const isBusinessArea = role === "salon_admin" || role === "bar_admin";
   const isSubscriptionLocked = isBusinessArea && subscriptionReminder.isCritical;
@@ -30,10 +32,20 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
 
       {/* FOREGROUND CONTENT */}
       <div className="relative z-10 flex w-full h-full">
-        <DashboardSidebar role={role} />
+        <DashboardSidebar
+          role={role}
+          mobileOpen={mobileSidebarOpen}
+          onMobileToggle={() => setMobileSidebarOpen(false)}
+        />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <DashboardHeader title={title} subtitle={subtitle} userName={userName} userRole={role} />
-          <main className="relative flex-1 overflow-auto p-6">
+          <DashboardHeader
+            title={title}
+            subtitle={subtitle}
+            userName={userName}
+            userRole={role}
+            onMenuToggle={isMobile ? () => setMobileSidebarOpen(true) : undefined}
+          />
+          <main className="relative flex-1 overflow-auto p-4 md:p-6">
             {subscriptionReminder.shouldPrompt && isBusinessArea && (
               <div
                 className={cn(

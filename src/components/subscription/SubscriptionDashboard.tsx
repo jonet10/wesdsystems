@@ -11,7 +11,7 @@ import type { SubscriptionPlan } from "@/lib/saas";
 import type { SubscriptionPayment } from "@/lib/payment-providers";
 import { formatLimit } from "@/lib/saas";
 import { formatPaymentStatus } from "@/lib/payment-providers";
-import { MonCashCheckoutModal } from "./MonCashCheckoutModal";
+import { PaymentMethodSelectionModal } from "@/components/manual-payment/PaymentMethodSelectionModal";
 
 interface PlanWithPrice extends SubscriptionPlan {
   price: number;
@@ -305,16 +305,16 @@ export function SubscriptionDashboard() {
       </StaggerItem>
 
       {checkoutPlan && businessId && (
-        <MonCashCheckoutModal
+        <PaymentMethodSelectionModal
           open={!!checkoutPlan}
           onOpenChange={(open) => { if (!open) setCheckoutPlan(null); }}
           planId={checkoutPlan.id}
           planName={checkoutPlan.name}
           monthlyPrice={Number(checkoutPlan.monthly_price || checkoutPlan.price || 0)}
           yearlyPrice={Number(checkoutPlan.yearly_price || 0)}
-          currencyCode="HTG"
           businessId={businessId}
           businessName={profile?.business_name || undefined}
+          onSuccess={() => { setCheckoutPlan(null); void refetch(); }}
         />
       )}
     </StaggerContainer>

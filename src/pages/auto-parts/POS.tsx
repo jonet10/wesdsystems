@@ -113,7 +113,7 @@ export default function AutoPartsPOSPage() {
   const searchClient = async (q: string) => {
     setClientSearch(q);
     if (q.length < 1) { setClientResults([]); return; }
-    try { setClientResults(await searchClients(q)); } catch { }
+    try { setClientResults(await searchClients(q, businessId)); } catch { }
   };
 
   const handlePayment = async () => {

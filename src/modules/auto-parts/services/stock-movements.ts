@@ -1,14 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { AutoPartsStockMovement } from "../types";
 
-export async function listStockMovements(businessId: string | null) {
-  if (businessId) {
-    const { data, error } = await supabase.rpc("auto_parts_list_stock_movements", { p_business_id: businessId });
-    if (error) throw error;
-    return data as (AutoPartsStockMovement & { product: { name: string } })[];
-  }
-  let query = supabase.from("auto_parts_stock_movements").select("*, product:product_id(name)");
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(200);
+export async function listStockMovements(businessId: string) {
+  const { data, error } = await supabase.rpc("auto_parts_list_stock_movements", { p_business_id: businessId });
   if (error) throw error;
   return data as (AutoPartsStockMovement & { product: { name: string } })[];
 }
