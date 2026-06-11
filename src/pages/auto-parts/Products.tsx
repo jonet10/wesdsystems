@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
-import { listProducts, createProduct, updateProduct, deleteProduct } from "@/modules/auto-parts/services/products";
+import { listProducts, listProductsFull, createProduct, updateProduct, deleteProduct } from "@/modules/auto-parts/services/products";
 import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/config/permissions";
 import { listCategories } from "@/modules/auto-parts/services/categories";
@@ -42,7 +42,7 @@ export default function AutoPartsProductsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      setData(await listProducts(businessId));
+      setData(await (canManage ? listProductsFull(businessId) : listProducts(businessId)));
       setCategories(await listCategories(businessId));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
@@ -117,7 +117,7 @@ export default function AutoPartsProductsPage() {
               { key: "sku", label: "SKU", render: (r) => r.sku || "-" },
               { key: "category", label: "Catégorie", render: (r) => r.category?.name ?? "-" },
               { key: "unit_price", label: "Prix vente", render: (r) => format(Number(r.unit_price)) },
-              { key: "cost_price", label: "Prix revient", render: (r) => format(Number(r.cost_price)) },
+              ...(canManage ? [{ key: "cost_price", label: "Prix revient", render: (r: AutoPartsProduct) => format(Number(r.cost_price)) }] : []),
               { key: "stock_quantity", label: "Stock", render: (r) => (
                 <Badge variant={Number(r.stock_quantity) <= 0 ? "destructive" : Number(r.stock_quantity) <= Number(r.min_stock) ? "secondary" : "default"}>
                   {r.stock_quantity}
@@ -153,7 +153,7 @@ export default function AutoPartsProductsPage() {
             <div><Label>SKU</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
             <div><Label>Code-barres</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
             <div><Label>Prix de vente</Label><Input type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></div>
-            <div><Label>Prix de revient</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} /></div>
+            {canManage && <div><Label>Prix de revient</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} /></div>}
             <div><Label>Stock minimum</Label><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></div>
             <div><Label>Stock maximum</Label><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: e.target.value })} /></div>
             <div className="col-span-2"><Label>Emplacement</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>

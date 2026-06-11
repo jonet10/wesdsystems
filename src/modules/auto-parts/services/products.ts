@@ -7,6 +7,12 @@ export async function listProducts(businessId: string) {
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
+export async function listProductsFull(businessId: string) {
+  const { data, error } = await supabase.rpc("auto_parts_list_products_full", { p_business_id: businessId });
+  if (error) throw error;
+  return data as (AutoPartsProduct & { category: { name: string } | null })[];
+}
+
 export async function getProduct(id: string, businessId?: string) {
   const { data, error } = await supabase.rpc("auto_parts_get_product", { p_id: id, p_business_id: businessId ?? null });
   if (error) throw error;

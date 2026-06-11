@@ -35,7 +35,7 @@ export default function AutoPartsSuppliersPage() {
 
   const handleSave = async () => {
     try {
-      if (editing) { await updateSupplier(editing.id, form); toast.success("Fournisseur mis à jour"); }
+      if (editing) { await updateSupplier(editing.id, form, businessId); toast.success("Fournisseur mis à jour"); }
       else { await createSupplier(businessId, form); toast.success("Fournisseur créé"); }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
@@ -43,7 +43,7 @@ export default function AutoPartsSuppliersPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce fournisseur ?")) return;
-    try { await deleteSupplier(id); toast.success("Fournisseur supprimé"); load(); } catch (e: any) { toast.error(e.message); }
+    try { await deleteSupplier(id, businessId); toast.success("Fournisseur supprimé"); load(); } catch (e: any) { toast.error(e.message); }
   };
 
   return (

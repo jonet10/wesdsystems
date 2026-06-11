@@ -38,7 +38,7 @@ export default function AutoPartsClientsPage() {
 
   const handleSave = async () => {
     try {
-      if (editing) { await updateClient(editing.id, form); toast.success("Client mis à jour"); }
+      if (editing) { await updateClient(editing.id, form, businessId); toast.success("Client mis à jour"); }
       else { await createClient(businessId, form); toast.success("Client créé"); }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
@@ -46,7 +46,7 @@ export default function AutoPartsClientsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce client ?")) return;
-    try { await deleteClient(id); toast.success("Client supprimé"); load(); } catch (e: any) { toast.error(e.message); }
+    try { await deleteClient(id, businessId); toast.success("Client supprimé"); load(); } catch (e: any) { toast.error(e.message); }
   };
 
   return (
