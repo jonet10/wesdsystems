@@ -182,3 +182,150 @@ export interface AutoPartsAlert {
   read: boolean;
   created_at: string;
 }
+
+// ─── Rapport types ───
+export interface SalesSummary {
+  current: {
+    order_count: number;
+    client_count: number;
+    total_revenue: number;
+    avg_order_value: number;
+    daily_avg: number;
+    payment_breakdown: Record<string, number>;
+  };
+  previous: {
+    order_count: number;
+    client_count: number;
+    total_revenue: number;
+    avg_order_value: number;
+  };
+  evolution: {
+    revenue_pct: number | null;
+    orders_pct: number | null;
+    clients_pct: number | null;
+    avg_value_pct: number | null;
+  };
+}
+
+export interface TopProduct {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  revenue: number;
+  prev_quantity: number;
+  prev_revenue: number;
+  qty_evolution: number | null;
+  revenue_evolution: number | null;
+}
+
+export interface DormantProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  stock_quantity: number;
+  cost_price: number;
+  stock_value: number;
+  unit_price: number;
+  category_name: string | null;
+  last_sale_date: string | null;
+  days_since_sale: number;
+}
+
+export interface StockForecast {
+  id: string;
+  name: string;
+  sku: string | null;
+  stock_quantity: number;
+  min_stock: number;
+  unit_price: number;
+  avg_daily_sales: number;
+  days_until_rupture: number | null;
+  risk_level: 'rupture' | 'high' | 'medium' | 'low' | 'safe' | 'unknown';
+}
+
+export interface BrandAnalysis {
+  brand_id: string;
+  brand_name: string | null;
+  sale_count: number;
+  revenue: number;
+  percentage: number;
+}
+
+export interface ProfitSummary {
+  summary: {
+    item_count: number;
+    total_revenue: number;
+    total_cost: number;
+    total_profit: number;
+    margin_pct: number;
+  };
+  top_products: ProfitItem[];
+  top_categories: ProfitItem[];
+  top_suppliers: ProfitItem[];
+}
+
+export interface ProfitItem {
+  product_name?: string;
+  category_name?: string;
+  supplier_name?: string;
+  qty: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin_pct: number;
+}
+
+export interface EmployeePerformance {
+  staff_id: string;
+  staff_name: string;
+  staff_role: string;
+  sale_count: number;
+  total_revenue: number;
+  avg_ticket: number;
+  client_count: number;
+}
+
+export interface HourlyActivity {
+  hour: number;
+  day_of_week: number;
+  sale_count: number;
+  revenue: number;
+}
+
+export interface StoreHealth {
+  score: number;
+  sales_growth: number;
+  stock_turnover: number;
+  dormant_ratio: number;
+  rupture_ratio: number;
+  margin_pct: number;
+  category_count: number;
+  total_products: number;
+  active_products: number;
+  out_of_stock: number;
+  dormant_count: number;
+  level: 'excellent' | 'bon' | 'moyen' | 'surveiller' | 'critique';
+  recommendations: string[];
+}
+
+export interface WeeklyTrend {
+  week_start: string;
+  total_sales: number;
+  order_count: number;
+}
+
+export interface ClientSummary {
+  total_clients: number;
+  total_invoices: number;
+  invoices_month: number;
+  invoices_today: number;
+}
+
+export interface KPIData {
+  label: string;
+  value: string | number;
+  icon?: string;
+  color?: string;
+  trend?: number | null;
+  trendLabel?: string;
+}
