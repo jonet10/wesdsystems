@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsBusinessId";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,16 +35,16 @@ export default function AutoPartsDashboardPage() {
   const [clientInfo, setClientInfo] = useState<ClientSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-    try { return await fn(); } catch { return fallback; }
-  };
-
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
-    (async () => {
-      const month = getDateRangePreset("month");
 
-      const results = await Promise.all([
+    const loadData = async () => {
+      const month = getDateRangePreset("month");
+      const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+        try { return await fn(); } catch { return fallback; }
+      };
+
+      const [counts, today, week, mnth, wkTrend, clients] = await Promise.all([
         safeCall(() => supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data), null),
         safeCall(() => salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()), null),
         safeCall(() => salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()), null),
@@ -53,7 +53,6 @@ export default function AutoPartsDashboardPage() {
         safeCall(() => clientSummary(businessId), null),
       ]);
 
-      const [counts, today, week, mnth, wkTrend, clients] = results;
       if (counts) setStats(counts);
       if (today) setTodaySummary(today);
       if (week) setWeekSummary(week);
@@ -61,7 +60,11 @@ export default function AutoPartsDashboardPage() {
       if (wkTrend) setTrend(wkTrend);
       if (clients) setClientInfo(clients);
       setLoading(false);
-    })();
+    };
+
+    loadData();
+    const interval = setInterval(loadData, 60_000);
+    return () => clearInterval(interval);
   }, [businessId]);
 
   const trendChart = useMemo(() => ({
