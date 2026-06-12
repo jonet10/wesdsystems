@@ -25,7 +25,7 @@ import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/t
 export default function AutoPartsProductsPage() {
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
-  const { hasAutoPartsPermission } = useAuth();
+  const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
   const canManage = hasAutoPartsPermission(PERMISSIONS.PRODUCTS_MANAGE);
   const [data, setData] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
   const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
@@ -42,7 +42,7 @@ export default function AutoPartsProductsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      setData(await (canManage ? listProductsFull(businessId) : listProducts(businessId)));
+      setData(await (canManage ? listProductsFull(businessId, autoPartsStaffSession?.session_token) : listProducts(businessId)));
       setCategories(await listCategories(businessId));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };

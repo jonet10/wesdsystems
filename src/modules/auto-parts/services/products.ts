@@ -7,8 +7,10 @@ export async function listProducts(businessId: string) {
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
-export async function listProductsFull(businessId: string) {
-  const { data, error } = await supabase.rpc("auto_parts_list_products_full", { p_business_id: businessId });
+export async function listProductsFull(businessId: string, sessionToken?: string | null) {
+  const params: Record<string, any> = { p_business_id: businessId };
+  if (sessionToken) params.p_session_token = sessionToken;
+  const { data, error } = await supabase.rpc("auto_parts_list_products_full", params);
   if (error) throw error;
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }

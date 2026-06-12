@@ -21,7 +21,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 export default function AutoPartsDashboardPage() {
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
-  const { hasAutoPartsPermission } = useAuth();
+  const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
   const canViewStockValue = hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
   const canViewPurchases = hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
   const canViewReports = hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
@@ -45,7 +45,12 @@ export default function AutoPartsDashboardPage() {
       };
 
       const [counts, today, week, mnth, wkTrend, clients] = await Promise.all([
-        safeCall(() => supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data), null, "dashboard_counts"),
+        safeCall(async () => {
+          const dashboardParams: Record<string, any> = { p_business_id: businessId };
+          if (autoPartsStaffSession?.session_token) dashboardParams.p_session_token = autoPartsStaffSession.session_token;
+          const r = await supabase.rpc("auto_parts_dashboard_counts", dashboardParams);
+          return r.data;
+        }, null, "dashboard_counts"),
         safeCall(() => salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()), null, "sales_summary(today)"),
         safeCall(() => salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()), null, "sales_summary(week)"),
         safeCall(() => salesSummary(businessId, month.start, month.end), null, "sales_summary(month)"),
@@ -65,7 +70,7 @@ export default function AutoPartsDashboardPage() {
     loadData();
     const interval = setInterval(loadData, 60_000);
     return () => clearInterval(interval);
-  }, [businessId]);
+  }, [businessId, autoPartsStaffSession]);
 
   const trendChart = useMemo(() => ({
     labels: trend.map((w) => {
