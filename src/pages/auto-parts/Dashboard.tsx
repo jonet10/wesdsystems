@@ -149,7 +149,7 @@ export default function AutoPartsDashboardPage() {
               color="text-orange-500"
             />
             {canViewPurchases && (
-              <KpiCard icon={<Truck className="h-5 w-5" />} label="Achats mois" value={stats.monthPurchases} color="text-purple-500" />
+              <KpiCard icon={<Truck className="h-5 w-5" />} label="Achats mois" value={format(stats.monthPurchases)} color="text-purple-500" />
             )}
             <KpiCard icon={<Clock className="h-5 w-5" />} label="Moy. journalier" value={format(monthSummary?.current.daily_avg ?? 0)} color="text-teal-500" />
           </div>

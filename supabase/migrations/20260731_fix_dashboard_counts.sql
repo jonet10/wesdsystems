@@ -3,6 +3,10 @@
 -- Fix "Achats mois" to return SUM(total) instead of COUNT(*)
 -- ════════════════════════════════════════════════════════════════════════════
 
+-- Drop both overloads to avoid "not unique" error
+DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID);
+DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID, p_staff_id UUID);
+
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_counts(
   p_business_id UUID,
   p_staff_id UUID DEFAULT NULL
