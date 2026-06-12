@@ -97,6 +97,10 @@ export default function AutoPartsPOSPage() {
   }, [products, catFilter, searchQ]);
 
   const addToCart = (p: AutoPartsProduct) => {
+    if (Number(p.stock_quantity) <= 0) {
+      toast.error(`${p.name} — Stock épuisé`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.product_id === p.id);
       if (existing) {

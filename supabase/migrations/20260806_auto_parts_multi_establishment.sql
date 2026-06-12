@@ -454,6 +454,12 @@ BEGIN
     v_quantity := (v_item->>'quantity')::NUMERIC;
     v_unit_price := (v_item->>'unit_price')::NUMERIC;
 
+    IF v_product_id IS NOT NULL THEN
+      IF (SELECT COALESCE(stock_quantity, 0) FROM public.auto_parts_products WHERE id = v_product_id AND business_id = p_business_id) < v_quantity THEN
+        RAISE EXCEPTION 'STOCK_INSUFFICIENT_%', v_product_id USING HINT = format('Stock insuffisant pour %s', v_product_name);
+      END IF;
+    END IF;
+
     INSERT INTO public.auto_parts_sale_items (sale_id, product_id, product_name, quantity, unit_price, total_price, business_id, branch_id)
     VALUES (v_sale_id, v_product_id, v_product_name, v_quantity, v_unit_price, v_quantity * v_unit_price, p_business_id, p_branch_id);
 

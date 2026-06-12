@@ -3,10 +3,9 @@ import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsSale, AutoPartsSaleItem } from "../types";
 
 export async function listSales(businessId: string, branchId?: string | null) {
-  const { data, error } = await supabase.rpc("auto_parts_list_sales", {
-    p_business_id: businessId,
-    p_branch_id: branchId ?? null,
-  });
+  const params: Record<string, any> = { p_business_id: businessId };
+  if (branchId) params.p_branch_id = branchId;
+  const { data, error } = await supabase.rpc("auto_parts_list_sales", params);
   if (error) throw error;
   return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];
 }
@@ -42,7 +41,7 @@ export async function createSale(businessId: string, sale: {
     total_price: item.quantity * item.unit_price,
   }));
 
-  const { data, error } = await supabase.rpc("create_auto_parts_sale", {
+  const params: Record<string, any> = {
     p_business_id: businessId,
     p_client_id: sale.client_id ?? null,
     p_client_name: sale.client_name ?? null,
@@ -57,9 +56,16 @@ export async function createSale(businessId: string, sale: {
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,
     p_staff_id: sale.staff_id ?? null,
-    p_branch_id: sale.branch_id ?? getStoredBranchId(businessId) ?? null,
     p_items: JSON.parse(JSON.stringify(items)),
-  });
-  if (error) throw error;
+  };
+  const branch = sale.branch_id ?? getStoredBranchId(businessId);
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("create_auto_parts_sale", params);
+  if (error) {
+    if (error.message?.startsWith("STOCK_INSUFFICIENT_")) {
+      throw new Error(error.hint || "Stock insuffisant");
+    }
+    throw error;
+  }
   return data as { id: string; invoice_number: string };
 }

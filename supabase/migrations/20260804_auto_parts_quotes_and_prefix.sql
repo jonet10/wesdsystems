@@ -290,12 +290,12 @@ DECLARE
   v_prefix TEXT := 'INV-';
 BEGIN
   IF p_business_id IS NOT NULL THEN
-    SELECT COALESCE(invoice_prefix, 'INV-') INTO v_prefix
+    SELECT invoice_prefix INTO v_prefix
     FROM public.auto_parts_business_settings
     WHERE business_id = p_business_id;
   END IF;
   next_val := nextval('public.auto_parts_invoice_seq');
-  RETURN v_prefix || LPAD(next_val::TEXT, 6, '0');
+  RETURN COALESCE(v_prefix, 'INV-') || LPAD(next_val::TEXT, 6, '0');
 END;
 $$;
 

@@ -5,17 +5,19 @@ import type { AutoPartsProduct } from "../types";
 const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
 
 export async function listProducts(businessId: string, branchId?: string | null) {
-  const { data, error } = await supabase.rpc("auto_parts_list_products", {
-    p_business_id: businessId,
-    p_branch_id: getBranch(businessId, branchId),
-  });
+  const branch = getBranch(businessId, branchId);
+  const params: Record<string, any> = { p_business_id: businessId };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("auto_parts_list_products", params);
   if (error) throw error;
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
 export async function listProductsFull(businessId: string, sessionToken?: string | null, branchId?: string | null) {
-  const params: Record<string, any> = { p_business_id: businessId, p_branch_id: getBranch(businessId, branchId) };
+  const branch = getBranch(businessId, branchId);
+  const params: Record<string, any> = { p_business_id: businessId };
   if (sessionToken) params.p_session_token = sessionToken;
+  if (branch) params.p_branch_id = branch;
   const { data, error } = await supabase.rpc("auto_parts_list_products_full", params);
   if (error) throw error;
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
@@ -52,11 +54,10 @@ export async function deleteProduct(id: string, businessId?: string) {
 }
 
 export async function searchProducts(businessId: string, searchQuery: string, branchId?: string | null) {
-  const { data, error } = await supabase.rpc("auto_parts_search_products", {
-    p_business_id: businessId,
-    p_query: searchQuery,
-    p_branch_id: getBranch(businessId, branchId),
-  });
+  const branch = getBranch(businessId, branchId);
+  const params: Record<string, any> = { p_business_id: businessId, p_query: searchQuery };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("auto_parts_search_products", params);
   if (error) throw error;
   return data;
 }
