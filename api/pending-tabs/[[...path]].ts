@@ -1,4 +1,4 @@
-import type { PendingTabCreateInput } from "../../src/modules/salon/pending-tabs.ts";
+import type { PendingTabCreateInput } from "../../src/modules/salon/pending-tabs";
 import { apiSupabase } from "../supabase.js";
 import { adjustProductStock, json, loadTabDetail, loadTabSummaryList, restorePendingTabStock } from "./shared.js";
 
