@@ -126,10 +126,9 @@ export async function listReturns(
       return (data as ReturnRecord[]) ?? [];
     }
     case "salon": {
-      const { data, error } = await supabase.rpc("salon_list_returns", {
-        p_business_id: businessId,
-        p_branch_id: branchId ?? null,
-      });
+      const params: Record<string, any> = { p_business_id: businessId };
+      if (branchId) params.p_branch_id = branchId;
+      const { data, error } = await supabase.rpc("salon_list_returns", params);
       if (error) throw error;
       return (data as ReturnRecord[]) ?? [];
     }
