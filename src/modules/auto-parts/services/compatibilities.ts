@@ -5,7 +5,7 @@ export async function listCompatibilities(businessId: string, productId?: string
   let query = supabase
     .from("auto_parts_vehicle_compatibilities")
     .select("*, product:product_id(name), brand:brand_id(name), model:model_id(name)")
-    .eq("business_id", businessId);
+    .or(`business_id.eq.${businessId},business_id.is.null`);
   if (productId) query = query.eq("product_id", productId);
   const { data, error } = await query.order("created_at", { ascending: false });
   if (error) throw error;
@@ -20,7 +20,7 @@ export async function createCompatibility(businessId: string, values: Partial<Au
 
 export async function deleteCompatibility(id: string, businessId?: string) {
   let q = supabase.from("auto_parts_vehicle_compatibilities").delete();
-  if (businessId) q = q.eq("business_id", businessId);
+  if (businessId) q = q.or(`business_id.eq.${businessId},business_id.is.null`);
   const { error } = await q.eq("id", id);
   if (error) throw error;
 }

@@ -148,6 +148,11 @@ BEGIN
 END;
 $$;
 
+-- Compatibility shim: old signature (no session token) → delegates to new function
+CREATE OR REPLACE FUNCTION public.auto_parts_list_products_full(p_business_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$ BEGIN RETURN public.auto_parts_list_products_full(p_business_id, NULL); END; $$;
+
 -- ─── 1c. auto_parts_dormant_products — requires products.manage ───
 DROP FUNCTION IF EXISTS public.auto_parts_dormant_products(p_business_id UUID, p_days INT);
 DROP FUNCTION IF EXISTS public.auto_parts_dormant_products(p_business_id UUID, p_session_token TEXT, p_days INT);
