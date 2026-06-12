@@ -60,6 +60,7 @@ import AutoPartsClients from "./pages/auto-parts/Clients";
 import AutoPartsPOS from "./pages/auto-parts/POS";
 import AutoPartsPurchases from "./pages/auto-parts/Purchases";
 import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
+import AutoPartsSettings from "./pages/auto-parts/Settings";
 import AutoPartsReports from "./pages/auto-parts/Reports";
 import AutoPartsStaff from "./pages/auto-parts/Staff";
 import AutoPartsReturns from "./pages/auto-parts/Returns";
@@ -444,7 +445,7 @@ const App = () => (
                   path="/auto-parts/settings"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SETTINGS_MANAGE}>
-                      <SalonSettings />
+                      <AutoPartsSettings />
                     </ProtectedRoute>
                   }
                 />

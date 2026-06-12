@@ -18,6 +18,7 @@ import { listStaff } from "@/modules/auto-parts/services/staff";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { printReceipt } from "@/lib/print-utils";
+import { getBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
 import { toast } from "sonner";
 import { ShoppingCart, Plus, Minus, Trash2, Search, User, CreditCard, Banknote, X, Percent, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,15 +59,27 @@ export default function AutoPartsPOSPage() {
     taxRate: number; taxAmount: number; total: number;
     paymentMethod: string; selectedClient: { id: string; name: string } | null;
     staffName: string;
+    companyName: string; address?: string; phone?: string; nif?: string;
+    receiptHeader?: string; receiptFooter?: string;
+  } | null>(null);
+  const [bizSettings, setBizSettings] = useState<{
+    company_name: string; address?: string; phone?: string; nif?: string;
+    receipt_header?: string; receipt_footer?: string; invoice_prefix?: string;
   } | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        setProducts(await listProducts(businessId) as any);
-        setCategories(await listCategories(businessId));
-        const staffList = await listStaff(businessId);
+        const [productsData, categoriesData, staffList, bizSettings] = await Promise.all([
+          listProducts(businessId) as any,
+          listCategories(businessId),
+          listStaff(businessId),
+          getBusinessSettings(businessId).catch(() => null),
+        ]);
+        setProducts(productsData);
+        setCategories(categoriesData);
         setStaff(staffList);
+        setBizSettings(bizSettings);
         if (autoPartsStaffSession) {
           setSelectedStaff(autoPartsStaffSession.id);
         }
@@ -145,6 +158,12 @@ export default function AutoPartsPOSPage() {
         paymentMethod,
         selectedClient: selectedClient ? { ...selectedClient } : null,
         staffName: staffMember?.name || "",
+        companyName: bizSettings?.company_name || "Pièces Auto",
+        address: bizSettings?.address,
+        phone: bizSettings?.phone,
+        nif: bizSettings?.nif,
+        receiptHeader: bizSettings?.receipt_header,
+        receiptFooter: bizSettings?.receipt_footer,
       });
       setLastSale({ id: sale.id, invoice_number: sale.invoice_number });
       setCart([]);
@@ -333,8 +352,12 @@ export default function AutoPartsPOSPage() {
             <>
               <div ref={receiptRef} className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight bg-white">
                 <div className="text-center mb-3 pb-3" style={{ borderBottom: "1px dashed #ccc" }}>
-                  <h3 className="font-bold text-sm uppercase">Pièces Auto</h3>
-                  <p className="text-[10px] text-gray-600">Facture #{lastSale.invoice_number}</p>
+                  <h3 className="font-bold text-sm uppercase">{receiptSnapshot.companyName}</h3>
+                  {receiptSnapshot.address && <p className="text-[9px] text-gray-600">{receiptSnapshot.address}</p>}
+                  {receiptSnapshot.phone && <p className="text-[9px] text-gray-600">Tél: {receiptSnapshot.phone}</p>}
+                  {receiptSnapshot.nif && <p className="text-[9px] text-gray-600">NIF: {receiptSnapshot.nif}</p>}
+                  {receiptSnapshot.receiptHeader && <p className="text-[9px] text-gray-500 mt-1">{receiptSnapshot.receiptHeader}</p>}
+                  <p className="text-[10px] text-gray-500 mt-1">Facture #{lastSale.invoice_number}</p>
                   <p className="text-[9px] text-gray-500">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
                   {receiptSnapshot.staffName && <p className="text-[10px] text-gray-600 mt-1">Caissier: {receiptSnapshot.staffName}</p>}
                   {receiptSnapshot.selectedClient && <p className="text-[10px] text-gray-600 mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
@@ -386,8 +409,14 @@ export default function AutoPartsPOSPage() {
                   </p>
                 </div>
                 <div className="text-center mt-3 pt-2" style={{ borderTop: "1px dashed #ccc" }}>
-                  <p className="text-[9px] text-gray-400">Merci de votre visite !</p>
-                  <p className="text-[8px] text-gray-400 mt-1">Document généré électroniquement</p>
+                  {receiptSnapshot.receiptFooter ? (
+                    <p className="text-[9px] text-gray-400">{receiptSnapshot.receiptFooter}</p>
+                  ) : (
+                    <>
+                      <p className="text-[9px] text-gray-400">Merci de votre visite !</p>
+                      <p className="text-[8px] text-gray-400 mt-1">Document généré électroniquement</p>
+                    </>
+                  )}
                 </div>
               </div>
               <DialogFooter className="gap-2">
