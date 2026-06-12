@@ -40,10 +40,13 @@ export async function createPurchase(businessId: string, purchase: {
 }
 
 export async function updatePurchaseStatus(id: string, status: string, businessId?: string) {
-  let q = supabase.from("auto_parts_purchases").update({ status });
-  if (businessId) q = q.eq("business_id", businessId);
-  const { error } = await q.eq("id", id);
+  const { data, error } = await supabase.rpc("update_auto_parts_purchase", {
+    p_id: id,
+    p_business_id: businessId ?? null,
+    p_status: status,
+  });
   if (error) throw error;
+  return data;
 }
 
 export async function updatePurchase(id: string, purchase: {
