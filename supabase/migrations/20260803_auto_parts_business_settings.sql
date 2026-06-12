@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS public.auto_parts_business_settings (
   -- Company identity
   company_name TEXT NOT NULL DEFAULT '',
   logo_url TEXT,
+  slogan TEXT,
+  whatsapp TEXT,
   address TEXT,
   phone TEXT,
   email TEXT,
@@ -71,6 +73,10 @@ CREATE TRIGGER trg_auto_parts_business_settings_updated_at
 
 ALTER TABLE public.auto_parts_business_settings ENABLE ROW LEVEL SECURITY;
 
+-- Add columns if missing (for existing databases)
+ALTER TABLE public.auto_parts_business_settings ADD COLUMN IF NOT EXISTS slogan TEXT;
+ALTER TABLE public.auto_parts_business_settings ADD COLUMN IF NOT EXISTS whatsapp TEXT;
+
 -- Allow access if the user owns the business via business_owner check
 CREATE POLICY "auto_parts_business_settings_select"
   ON public.auto_parts_business_settings
@@ -124,7 +130,7 @@ DECLARE
 BEGIN
   SELECT row_to_json(t)::JSONB INTO v_result
   FROM (
-    SELECT id, business_id, company_name, logo_url, address, phone, email, website,
+    SELECT id, business_id, company_name, logo_url, slogan, whatsapp, address, phone, email, website,
            nif, patente, rc, bank_name, bank_account,
            invoice_prefix, quote_prefix, delivery_note_prefix,
            receipt_footer, receipt_header, low_stock_threshold,
@@ -146,6 +152,8 @@ CREATE OR REPLACE FUNCTION public.upsert_auto_parts_business_settings(
   p_business_id UUID,
   p_company_name TEXT DEFAULT '',
   p_logo_url TEXT DEFAULT NULL,
+  p_slogan TEXT DEFAULT NULL,
+  p_whatsapp TEXT DEFAULT NULL,
   p_address TEXT DEFAULT NULL,
   p_phone TEXT DEFAULT NULL,
   p_email TEXT DEFAULT NULL,
@@ -179,18 +187,20 @@ BEGIN
   END IF;
 
   INSERT INTO public.auto_parts_business_settings
-    (business_id, company_name, logo_url, address, phone, email, website,
+    (business_id, company_name, logo_url, slogan, whatsapp, address, phone, email, website,
      nif, patente, rc, bank_name, bank_account,
      invoice_prefix, quote_prefix, delivery_note_prefix,
      receipt_footer, receipt_header, low_stock_threshold)
   VALUES
-    (p_business_id, p_company_name, p_logo_url, p_address, p_phone, p_email, p_website,
+    (p_business_id, p_company_name, p_logo_url, p_slogan, p_whatsapp, p_address, p_phone, p_email, p_website,
      p_nif, p_patente, p_rc, p_bank_name, p_bank_account,
      p_invoice_prefix, p_quote_prefix, p_delivery_note_prefix,
      p_receipt_footer, p_receipt_header, p_low_stock_threshold)
   ON CONFLICT (business_id) DO UPDATE SET
     company_name          = EXCLUDED.company_name,
     logo_url              = EXCLUDED.logo_url,
+    slogan                = EXCLUDED.slogan,
+    whatsapp              = EXCLUDED.whatsapp,
     address               = EXCLUDED.address,
     phone                 = EXCLUDED.phone,
     email                 = EXCLUDED.email,

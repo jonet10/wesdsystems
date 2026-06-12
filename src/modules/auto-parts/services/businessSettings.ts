@@ -5,6 +5,8 @@ export interface AutoPartsBusinessSettings {
   business_id: string;
   company_name: string;
   logo_url?: string | null;
+  slogan?: string | null;
+  whatsapp?: string | null;
   address?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -41,6 +43,8 @@ export async function upsertBusinessSettings(
     p_business_id: businessId,
     p_company_name: settings.company_name,
     p_logo_url: settings.logo_url ?? null,
+    p_slogan: settings.slogan ?? null,
+    p_whatsapp: settings.whatsapp ?? null,
     p_address: settings.address ?? null,
     p_phone: settings.phone ?? null,
     p_email: settings.email ?? null,
