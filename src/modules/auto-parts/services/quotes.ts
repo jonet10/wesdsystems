@@ -35,10 +35,10 @@ export interface Quote {
 }
 
 export async function listQuotes(businessId: string, branchId?: string | null) {
-  const { data, error } = await supabase.rpc("list_auto_parts_quotes", {
-    p_business_id: businessId,
-    p_branch_id: getBranch(businessId, branchId),
-  });
+  const branch = getBranch(businessId, branchId);
+  const params: Record<string, any> = { p_business_id: businessId };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("list_auto_parts_quotes", params);
   if (error) throw error;
   return data as Quote[];
 }
@@ -71,7 +71,8 @@ export async function createQuote(
     items: QuoteItem[];
   }
 ) {
-  const { data, error } = await supabase.rpc("create_auto_parts_quote", {
+  const branch = quote.branch_id ?? getBranch(businessId);
+  const params: Record<string, any> = {
     p_business_id: businessId,
     p_client_id: quote.client_id ?? null,
     p_client_name: quote.client_name ?? null,
@@ -88,9 +89,10 @@ export async function createQuote(
     p_notes: quote.notes ?? null,
     p_terms: quote.terms ?? null,
     p_quote_prefix: quote.quote_prefix ?? "DEV-",
-    p_branch_id: quote.branch_id ?? getBranch(businessId) ?? null,
     p_items: quote.items as any,
-  });
+  };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("create_auto_parts_quote", params);
   if (error) throw error;
   return data as { id: string; quote_number: string };
 }

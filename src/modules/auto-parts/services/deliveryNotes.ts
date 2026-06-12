@@ -28,10 +28,10 @@ export interface DeliveryNote {
 }
 
 export async function listDeliveryNotes(businessId: string, branchId?: string | null) {
-  const { data, error } = await supabase.rpc("list_auto_parts_delivery_notes", {
-    p_business_id: businessId,
-    p_branch_id: getBranch(businessId, branchId),
-  });
+  const branch = getBranch(businessId, branchId);
+  const params: Record<string, any> = { p_business_id: businessId };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("list_auto_parts_delivery_notes", params);
   if (error) throw error;
   return data as DeliveryNote[];
 }
@@ -57,7 +57,8 @@ export async function createDeliveryNote(
     items: DeliveryNoteItem[];
   }
 ) {
-  const { data, error } = await supabase.rpc("create_auto_parts_delivery_note", {
+  const branch = note.branch_id ?? getBranch(businessId);
+  const params: Record<string, any> = {
     p_business_id: businessId,
     p_sale_id: note.sale_id ?? null,
     p_client_id: note.client_id ?? null,
@@ -67,9 +68,10 @@ export async function createDeliveryNote(
     p_status: note.status ?? "draft",
     p_notes: note.notes ?? null,
     p_prefix: note.prefix ?? "BL-",
-    p_branch_id: note.branch_id ?? getBranch(businessId) ?? null,
     p_items: note.items as any,
-  });
+  };
+  if (branch) params.p_branch_id = branch;
+  const { data, error } = await supabase.rpc("create_auto_parts_delivery_note", params);
   if (error) throw error;
   return data as { id: string; delivery_note_number: string };
 }
