@@ -106,7 +106,7 @@ BEGIN
   ), '[]'::jsonb) INTO v_result
   FROM public.auto_parts_sales s
   WHERE s.business_id = p_business_id
-    AND (p_branch_id IS NULL OR s.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR s.branch_id IS NULL OR s.branch_id = p_branch_id)
   LIMIT 100;
   RETURN v_result;
 END;
@@ -128,7 +128,7 @@ BEGIN
   ), '[]'::jsonb)
   FROM public.auto_parts_products p
   WHERE p.business_id = p_business_id
-    AND (p_branch_id IS NULL OR p.branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id);
 END;
 $$;
 
@@ -153,7 +153,7 @@ BEGIN
     FROM public.auto_parts_products p
     LEFT JOIN public.auto_parts_categories c ON c.id = p.category_id
     WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
-      AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)
+      AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
     ORDER BY p.name
   ) t;
   RETURN v_result;
@@ -175,7 +175,7 @@ BEGIN
   ), '[]'::jsonb)
   FROM public.auto_parts_purchases p
   WHERE p.business_id = p_business_id
-    AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
   LIMIT 100;
 END;
 $$;
@@ -189,7 +189,7 @@ BEGIN
   RETURN COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.sort_order, c.name), '[]'::jsonb)
   FROM public.auto_parts_categories c
   WHERE c.business_id = p_business_id
-    AND (p_branch_id IS NULL OR c.branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR c.branch_id IS NULL OR c.branch_id = p_branch_id);
 END;
 $$;
 
@@ -202,7 +202,7 @@ BEGIN
   RETURN COALESCE(jsonb_agg(to_jsonb(p) ORDER BY p.name), '[]'::jsonb)
   FROM public.auto_parts_products p
   WHERE p.business_id = p_business_id
-    AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
     AND (p.name ILIKE '%' || p_query || '%' OR p.sku ILIKE '%' || p_query || '%')
   LIMIT 20;
 END;
@@ -224,7 +224,7 @@ BEGIN
   ), '[]'::jsonb)
   FROM public.auto_parts_stock_movements sm
   WHERE sm.business_id = p_business_id
-    AND (p_branch_id IS NULL OR sm.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR sm.branch_id IS NULL OR sm.branch_id = p_branch_id)
   LIMIT 200;
 END;
 $$;
@@ -244,7 +244,7 @@ BEGIN
   ), '[]'::jsonb)
   FROM public.auto_parts_quotes q
   WHERE q.business_id = p_business_id
-    AND (p_branch_id IS NULL OR q.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR q.branch_id IS NULL OR q.branch_id = p_branch_id)
   LIMIT 100;
 END;
 $$;
@@ -264,7 +264,7 @@ BEGIN
   ), '[]'::jsonb)
   FROM public.auto_parts_delivery_notes dn
   WHERE dn.business_id = p_business_id
-    AND (p_branch_id IS NULL OR dn.branch_id = p_branch_id)
+    AND (p_branch_id IS NULL OR dn.branch_id IS NULL OR dn.branch_id = p_branch_id)
   LIMIT 100;
 END;
 $$;
@@ -312,27 +312,27 @@ BEGIN
   SELECT COUNT(*) INTO v_total_products
   FROM public.auto_parts_products
   WHERE (business_id = p_business_id OR business_id IS NULL)
-    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   IF v_can_see_finance THEN
     SELECT COALESCE(SUM(cost_price * stock_quantity), 0) INTO v_total_stock_value
     FROM public.auto_parts_products
     WHERE (business_id = p_business_id OR business_id IS NULL)
       AND active = true
-      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
   END IF;
 
   SELECT COUNT(*) INTO v_out_of_stock
   FROM public.auto_parts_products
   WHERE (business_id = p_business_id OR business_id IS NULL)
     AND active = true AND stock_quantity <= 0
-    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   SELECT COUNT(*) INTO v_low_stock
   FROM public.auto_parts_products
   WHERE (business_id = p_business_id OR business_id IS NULL)
     AND active = true AND stock_quantity > 0 AND stock_quantity <= min_stock
-    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   IF p_staff_id IS NOT NULL THEN
     SELECT COALESCE(SUM(total), 0) INTO v_today_sales
@@ -341,7 +341,7 @@ BEGIN
       AND created_at >= v_day_start
       AND refund_status IS DISTINCT FROM 'full'
       AND staff_id = p_staff_id
-      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
     SELECT COALESCE(SUM(total), 0) INTO v_month_sales
     FROM public.auto_parts_sales
@@ -349,21 +349,21 @@ BEGIN
       AND created_at >= v_month_start
       AND refund_status IS DISTINCT FROM 'full'
       AND staff_id = p_staff_id
-      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
   ELSE
     SELECT COALESCE(SUM(total), 0) INTO v_today_sales
     FROM public.auto_parts_sales
     WHERE business_id = p_business_id
       AND created_at >= v_day_start
       AND refund_status IS DISTINCT FROM 'full'
-      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
     SELECT COALESCE(SUM(total), 0) INTO v_month_sales
     FROM public.auto_parts_sales
     WHERE business_id = p_business_id
       AND created_at >= v_month_start
       AND refund_status IS DISTINCT FROM 'full'
-      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
   END IF;
 
   SELECT COALESCE(SUM(total), 0) INTO v_month_purchases
@@ -371,12 +371,12 @@ BEGIN
   WHERE business_id = p_business_id
     AND created_at >= v_month_start
     AND status = 'delivered'
-    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   SELECT COUNT(*) INTO v_pending_orders
   FROM public.auto_parts_purchases
   WHERE business_id = p_business_id AND status IN ('pending', 'confirmed')
-    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   RETURN jsonb_build_object(
     'totalProducts', v_total_products,
