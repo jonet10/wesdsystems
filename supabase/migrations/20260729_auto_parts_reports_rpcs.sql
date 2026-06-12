@@ -501,18 +501,24 @@ DECLARE
 BEGIN
   SELECT COALESCE(jsonb_agg(
     jsonb_build_object(
-      'hour', EXTRACT(HOUR FROM s.created_at)::INT,
-      'day_of_week', EXTRACT(DOW FROM s.created_at)::INT,
-      'sale_count', COUNT(*)::INT,
-      'revenue', COALESCE(SUM(s.total), 0)::NUMERIC
+      'hour', hour,
+      'day_of_week', day_of_week,
+      'sale_count', sale_count,
+      'revenue', revenue
     )
-    ORDER BY EXTRACT(DOW FROM s.created_at), EXTRACT(HOUR FROM s.created_at)
+    ORDER BY day_of_week, hour
   ), '[]'::jsonb) INTO v_result
-  FROM public.auto_parts_sales s
-  WHERE s.business_id = p_business_id
-    AND s.created_at >= p_start_date AND s.created_at < p_end_date
-    AND s.refund_status IS DISTINCT FROM 'full'
-  GROUP BY EXTRACT(HOUR FROM s.created_at), EXTRACT(DOW FROM s.created_at);
+  FROM (
+    SELECT EXTRACT(HOUR FROM s.created_at)::INT AS hour,
+           EXTRACT(DOW FROM s.created_at)::INT AS day_of_week,
+           COUNT(*)::INT AS sale_count,
+           COALESCE(SUM(s.total), 0)::NUMERIC AS revenue
+    FROM public.auto_parts_sales s
+    WHERE s.business_id = p_business_id
+      AND s.created_at >= p_start_date AND s.created_at < p_end_date
+      AND s.refund_status IS DISTINCT FROM 'full'
+    GROUP BY EXTRACT(HOUR FROM s.created_at), EXTRACT(DOW FROM s.created_at)
+  ) agg;
 
   RETURN v_result;
 END;
@@ -783,19 +789,21 @@ BEGIN
   SELECT COALESCE(jsonb_agg(
     jsonb_build_object(
       'week_start', to_char(week_start, 'YYYY-MM-DD'),
-      'total_sales', COALESCE(SUM(s.total), 0),
-      'order_count', COUNT(s.id)::INT
+      'total_sales', total_sales,
+      'order_count', order_count
     )
     ORDER BY week_start
   ), '[]'::jsonb) INTO v_result
   FROM (
-    SELECT date_trunc('week', s.created_at) AS week_start, s.id, s.total
+    SELECT date_trunc('week', s.created_at) AS week_start,
+           COALESCE(SUM(s.total), 0) AS total_sales,
+           COUNT(s.id)::INT AS order_count
     FROM public.auto_parts_sales s
     WHERE s.business_id = p_business_id
       AND s.created_at >= v_start
       AND s.refund_status IS DISTINCT FROM 'full'
-  ) s
-  GROUP BY week_start;
+    GROUP BY date_trunc('week', s.created_at)
+  ) agg;
 
   RETURN v_result;
 END;
