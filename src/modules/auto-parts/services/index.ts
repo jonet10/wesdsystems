@@ -11,3 +11,4 @@ export * from "./stock-movements";
 export * from "./returns";
 export * from "./alerts";
 export * from "./businessSettings";
+export * from "./quotes";
