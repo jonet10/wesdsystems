@@ -13,7 +13,7 @@ export async function listProducts(businessId: string, branchId?: string | null)
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
-export async function listProductsFull(businessId: string, branchId?: string | null, sessionToken?: string | null) {
+export async function listProductsFull(businessId: string, sessionToken?: string | null, branchId?: string | null) {
   const params: Record<string, any> = { p_business_id: businessId, p_branch_id: getBranch(businessId, branchId) };
   if (sessionToken) params.p_session_token = sessionToken;
   const { data, error } = await supabase.rpc("auto_parts_list_products_full", params);
