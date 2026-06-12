@@ -40,17 +40,17 @@ export default function AutoPartsDashboardPage() {
 
     const loadData = async () => {
       const month = getDateRangePreset("month");
-      const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-        try { return await fn(); } catch (e) { console.warn("Dashboard RPC failed:", (e as any)?.message ?? e); return fallback; }
+      const safeCall = async <T,>(fn: () => Promise<T>, fallback: T, name: string): Promise<T> => {
+        try { return await fn(); } catch (e) { console.warn(`Dashboard RPC failed [${name}]:`, (e as any)?.message ?? e); return fallback; }
       };
 
       const [counts, today, week, mnth, wkTrend, clients] = await Promise.all([
-        safeCall(() => supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data), null),
-        safeCall(() => salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()), null),
-        safeCall(() => salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()), null),
-        safeCall(() => salesSummary(businessId, month.start, month.end), null),
-        safeCall(() => weeklyTrend(businessId, 12), []),
-        safeCall(() => clientSummary(businessId), null),
+        safeCall(() => supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data), null, "dashboard_counts"),
+        safeCall(() => salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()), null, "sales_summary(today)"),
+        safeCall(() => salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()), null, "sales_summary(week)"),
+        safeCall(() => salesSummary(businessId, month.start, month.end), null, "sales_summary(month)"),
+        safeCall(() => weeklyTrend(businessId, 12), [], "weekly_trend"),
+        safeCall(() => clientSummary(businessId), null, "client_summary"),
       ]);
 
       if (counts) setStats(counts);
