@@ -84,42 +84,40 @@ export default function AutoPartsReportsPage() {
 
   const reportRef = useRef<HTMLDivElement>(null);
 
+  const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try { return await fn(); } catch { return fallback; }
+  };
+
   const loadAll = useCallback(async () => {
     if (!businessId) { setLoading(false); return; }
     setLoading(true);
-    try {
-      const dateRange = reports.getDateRangePreset(period as any);
-      const prevStart = new Date(new Date(dateRange.start).getTime() - (new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime())).toISOString();
+    const dateRange = reports.getDateRangePreset(period as any);
+    const prevStart = new Date(new Date(dateRange.start).getTime() - (new Date(dateRange.end).getTime() - new Date(dateRange.start).getTime())).toISOString();
 
-      const calls: Promise<any>[] = [
-        reports.topProducts(businessId, dateRange.start, dateRange.end, 10, prevStart, dateRange.start),
-        reports.dormantProducts(businessId, dormantDays),
-        reports.stockForecast(businessId),
-        reports.brandAnalysis(businessId, dateRange.start, dateRange.end),
-        reports.employeePerformance(businessId, dateRange.start, dateRange.end),
-        reports.hourlyActivity(businessId, dateRange.start, dateRange.end),
-        reports.storeHealth(businessId),
-        listAlerts(businessId),
-      ];
+    const [tp, dorm, fc, br, emp, hm, hlth, alrt, prof] = await Promise.all([
+      safeCall(() => reports.topProducts(businessId, dateRange.start, dateRange.end, 10, prevStart, dateRange.start), []),
+      safeCall(() => reports.dormantProducts(businessId, dormantDays), []),
+      safeCall(() => reports.stockForecast(businessId), []),
+      safeCall(() => reports.brandAnalysis(businessId, dateRange.start, dateRange.end), []),
+      safeCall(() => reports.employeePerformance(businessId, dateRange.start, dateRange.end), []),
+      safeCall(() => reports.hourlyActivity(businessId, dateRange.start, dateRange.end), []),
+      safeCall(() => reports.storeHealth(businessId), null),
+      safeCall(() => listAlerts(businessId), []),
+      canViewProfit
+        ? safeCall(() => reports.profitSummary(businessId, dateRange.start, dateRange.end), null)
+        : Promise.resolve(null),
+    ]);
 
-      if (canViewProfit) {
-        calls.push(reports.profitSummary(businessId, dateRange.start, dateRange.end));
-      }
-
-      const [
-        tp, dorm, fc, br, emp, hm, hlth, alrt, prof,
-      ] = await Promise.all(calls);
-
-      setTopProducts(tp);
-      setDormant(dorm);
-      setForecast(fc);
-      setBrands(br);
-      setEmployees(emp);
-      setHeatmap(hm);
-      setHealth(hlth);
-      setAlerts(alrt);
-      if (prof) setProfit(prof);
-    } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
+    setTopProducts(tp);
+    setDormant(dorm);
+    setForecast(fc);
+    setBrands(br);
+    setEmployees(emp);
+    setHeatmap(hm);
+    if (hlth) setHealth(hlth);
+    setAlerts(alrt);
+    if (prof) setProfit(prof);
+    setLoading(false);
   }, [businessId, period, dormantDays, canViewProfit]);
 
   useEffect(() => { loadAll(); }, [loadAll]);

@@ -27,7 +27,7 @@ export default function AutoPartsDashboardPage() {
   const canViewReports = hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
   const canViewProfit = canViewReports && hasAutoPartsPermission(PERMISSIONS.PRODUCTS_MANAGE);
 
-  const [stats, setStats] = useState({ totalProducts: 0, totalStockValue: 0, outOfStock: 0, lowStock: 0 });
+  const [stats, setStats] = useState({ totalProducts: 0, totalStockValue: 0, outOfStock: 0, lowStock: 0, monthPurchases: 0 });
   const [todaySummary, setTodaySummary] = useState<SalesSummaryType | null>(null);
   const [weekSummary, setWeekSummary] = useState<SalesSummaryType | null>(null);
   const [monthSummary, setMonthSummary] = useState<SalesSummaryType | null>(null);
@@ -35,28 +35,32 @@ export default function AutoPartsDashboardPage() {
   const [clientInfo, setClientInfo] = useState<ClientSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
+    try { return await fn(); } catch { return fallback; }
+  };
+
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
     (async () => {
-      try {
-        const month = getDateRangePreset("month");
-        const year = getDateRangePreset("year");
+      const month = getDateRangePreset("month");
 
-        const [counts, today, week, mnth, wkTrend, clients] = await Promise.all([
-          supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data),
-          salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()),
-          salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()),
-          salesSummary(businessId, month.start, month.end),
-          weeklyTrend(businessId, 12),
-          clientSummary(businessId),
-        ]);
-        if (counts) setStats(counts);
-        setTodaySummary(today);
-        setWeekSummary(week);
-        setMonthSummary(mnth);
-        setTrend(wkTrend);
-        if (clients) setClientInfo(clients);
-      } catch (e) { console.error(e); } finally { setLoading(false); }
+      const results = await Promise.all([
+        safeCall(() => supabase.rpc("auto_parts_dashboard_counts", { p_business_id: businessId }).then(r => r.data), null),
+        safeCall(() => salesSummary(businessId, getDateRangePreset("today").start, new Date().toISOString()), null),
+        safeCall(() => salesSummary(businessId, getDateRangePreset("week").start, new Date().toISOString()), null),
+        safeCall(() => salesSummary(businessId, month.start, month.end), null),
+        safeCall(() => weeklyTrend(businessId, 12), []),
+        safeCall(() => clientSummary(businessId), null),
+      ]);
+
+      const [counts, today, week, mnth, wkTrend, clients] = results;
+      if (counts) setStats(counts);
+      if (today) setTodaySummary(today);
+      if (week) setWeekSummary(week);
+      if (mnth) setMonthSummary(mnth);
+      if (wkTrend) setTrend(wkTrend);
+      if (clients) setClientInfo(clients);
+      setLoading(false);
     })();
   }, [businessId]);
 
