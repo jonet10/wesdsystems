@@ -132,6 +132,34 @@ BEGIN
 END;
 $$;
 
+-- ─── auto_parts_list_products_full: add branch filter ───
+DROP FUNCTION IF EXISTS public.auto_parts_list_products_full(p_business_id UUID);
+DROP FUNCTION IF EXISTS public.auto_parts_list_products_full(p_business_id UUID, p_session_token TEXT);
+CREATE OR REPLACE FUNCTION public.auto_parts_list_products_full(
+  p_business_id UUID,
+  p_session_token TEXT DEFAULT NULL,
+  p_branch_id UUID DEFAULT NULL
+)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE v_result JSONB;
+BEGIN
+  IF NOT public.auto_parts_has_permission(p_session_token, 'products.manage', p_business_id) THEN
+    RAISE EXCEPTION 'ACCESS_DENIED' USING HINT = 'Permission requise: products.manage';
+  END IF;
+  SELECT COALESCE(jsonb_agg(to_jsonb(t)), '[]'::jsonb) INTO v_result
+  FROM (
+    SELECT p.*, row_to_json(c.*) AS category
+    FROM public.auto_parts_products p
+    LEFT JOIN public.auto_parts_categories c ON c.id = p.category_id
+    WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
+      AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)
+    ORDER BY p.name
+  ) t;
+  RETURN v_result;
+END;
+$$;
+
 -- ─── auto_parts_list_purchases: add branch filter ───
 DROP FUNCTION IF EXISTS public.auto_parts_list_purchases(UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_list_purchases(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
