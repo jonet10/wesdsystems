@@ -247,43 +247,119 @@ DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID, p
 DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID);
 DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID, p_staff_id UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_counts(
-  p_business_id UUID, p_start_date DATE DEFAULT CURRENT_DATE, p_end_date DATE DEFAULT CURRENT_DATE, p_branch_id UUID DEFAULT NULL
+  p_business_id UUID,
+  p_session_token TEXT DEFAULT NULL,
+  p_staff_id UUID DEFAULT NULL,
+  p_branch_id UUID DEFAULT NULL
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
-DECLARE v_result JSONB;
+DECLARE
+  v_total_products INT;
+  v_total_stock_value NUMERIC;
+  v_out_of_stock INT;
+  v_low_stock INT;
+  v_today_sales NUMERIC;
+  v_month_sales NUMERIC;
+  v_month_purchases NUMERIC;
+  v_pending_orders INT;
+  v_month_start TIMESTAMPTZ;
+  v_day_start TIMESTAMPTZ;
+  v_staff_role TEXT;
+  v_can_see_finance BOOLEAN := false;
 BEGIN
-  WITH branch_filter AS (
-    SELECT 1 WHERE p_branch_id IS NULL
-  )
-  SELECT jsonb_build_object(
-    'total_products', (SELECT COUNT(*) FROM public.auto_parts_products p
-      WHERE p.business_id = p_business_id AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)),
-    'active_products', (SELECT COUNT(*) FROM public.auto_parts_products p
-      WHERE p.business_id = p_business_id AND p.active = true AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)),
-    'out_of_stock', (SELECT COUNT(*) FROM public.auto_parts_products p
-      WHERE p.business_id = p_business_id AND p.active = true
-        AND (p.stock_quantity IS NULL OR p.stock_quantity <= 0)
-        AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)),
-    'low_stock', (SELECT COUNT(*) FROM public.auto_parts_products p
-      WHERE p.business_id = p_business_id AND p.active = true
-        AND p.stock_quantity > 0 AND p.stock_quantity <= COALESCE(p.min_stock, 5)
-        AND (p_branch_id IS NULL OR p.branch_id = p_branch_id)),
-    'total_clients', (SELECT COUNT(*) FROM public.auto_parts_clients c
-      WHERE c.business_id = p_business_id AND (p_branch_id IS NULL OR c.branch_id = p_branch_id)),
-    'sales_today', (SELECT COUNT(*) FROM public.auto_parts_sales s
-      WHERE s.business_id = p_business_id AND s.created_at::DATE = CURRENT_DATE
-        AND (p_branch_id IS NULL OR s.branch_id = p_branch_id)),
-    'revenue_today', (SELECT COALESCE(SUM(s.total), 0) FROM public.auto_parts_sales s
-      WHERE s.business_id = p_business_id AND s.created_at::DATE = CURRENT_DATE
-        AND (p_branch_id IS NULL OR s.branch_id = p_branch_id)),
-    'sales_period', (SELECT COUNT(*) FROM public.auto_parts_sales s
-      WHERE s.business_id = p_business_id AND s.created_at::DATE BETWEEN p_start_date AND p_end_date
-        AND (p_branch_id IS NULL OR s.branch_id = p_branch_id)),
-    'revenue_period', (SELECT COALESCE(SUM(s.total), 0) FROM public.auto_parts_sales s
-      WHERE s.business_id = p_business_id AND s.created_at::DATE BETWEEN p_start_date AND p_end_date
-        AND (p_branch_id IS NULL OR s.branch_id = p_branch_id))
-  ) INTO v_result;
-  RETURN v_result;
+  v_month_start := date_trunc('month', now());
+  v_day_start := date_trunc('day', now());
+
+  IF p_session_token IS NOT NULL THEN
+    SELECT s.staff_role INTO v_staff_role
+    FROM public.resolve_staff_from_token(p_session_token) s;
+    IF v_staff_role IS NOT NULL AND public.staff_has_permission(v_staff_role, 'products.manage') THEN
+      v_can_see_finance := true;
+    END IF;
+    IF NOT v_can_see_finance AND public.auto_parts_has_permission(p_session_token, 'products.manage', p_business_id) THEN
+      v_can_see_finance := true;
+    END IF;
+  END IF;
+
+  SELECT COUNT(*) INTO v_total_products
+  FROM public.auto_parts_products
+  WHERE (business_id = p_business_id OR business_id IS NULL)
+    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+  IF v_can_see_finance THEN
+    SELECT COALESCE(SUM(cost_price * stock_quantity), 0) INTO v_total_stock_value
+    FROM public.auto_parts_products
+    WHERE (business_id = p_business_id OR business_id IS NULL)
+      AND active = true
+      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+  END IF;
+
+  SELECT COUNT(*) INTO v_out_of_stock
+  FROM public.auto_parts_products
+  WHERE (business_id = p_business_id OR business_id IS NULL)
+    AND active = true AND stock_quantity <= 0
+    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+  SELECT COUNT(*) INTO v_low_stock
+  FROM public.auto_parts_products
+  WHERE (business_id = p_business_id OR business_id IS NULL)
+    AND active = true AND stock_quantity > 0 AND stock_quantity <= min_stock
+    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+  IF p_staff_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(total), 0) INTO v_today_sales
+    FROM public.auto_parts_sales
+    WHERE business_id = p_business_id
+      AND created_at >= v_day_start
+      AND refund_status IS DISTINCT FROM 'full'
+      AND staff_id = p_staff_id
+      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+    SELECT COALESCE(SUM(total), 0) INTO v_month_sales
+    FROM public.auto_parts_sales
+    WHERE business_id = p_business_id
+      AND created_at >= v_month_start
+      AND refund_status IS DISTINCT FROM 'full'
+      AND staff_id = p_staff_id
+      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+  ELSE
+    SELECT COALESCE(SUM(total), 0) INTO v_today_sales
+    FROM public.auto_parts_sales
+    WHERE business_id = p_business_id
+      AND created_at >= v_day_start
+      AND refund_status IS DISTINCT FROM 'full'
+      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+    SELECT COALESCE(SUM(total), 0) INTO v_month_sales
+    FROM public.auto_parts_sales
+    WHERE business_id = p_business_id
+      AND created_at >= v_month_start
+      AND refund_status IS DISTINCT FROM 'full'
+      AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+  END IF;
+
+  SELECT COALESCE(SUM(total), 0) INTO v_month_purchases
+  FROM public.auto_parts_purchases
+  WHERE business_id = p_business_id
+    AND created_at >= v_month_start
+    AND status = 'delivered'
+    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+  SELECT COUNT(*) INTO v_pending_orders
+  FROM public.auto_parts_purchases
+  WHERE business_id = p_business_id AND status IN ('pending', 'confirmed')
+    AND (p_branch_id IS NULL OR branch_id = p_branch_id);
+
+  RETURN jsonb_build_object(
+    'totalProducts', v_total_products,
+    'totalStockValue', CASE WHEN v_can_see_finance THEN v_total_stock_value ELSE 0 END,
+    'outOfStock', v_out_of_stock,
+    'lowStock', v_low_stock,
+    'todaySales', v_today_sales,
+    'monthSales', v_month_sales,
+    'monthPurchases', v_month_purchases,
+    'pendingOrders', v_pending_orders
+  );
 END;
 $$;
 
