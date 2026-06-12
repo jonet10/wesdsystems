@@ -64,6 +64,7 @@ import AutoPartsSettings from "./pages/auto-parts/Settings";
 import AutoPartsReports from "./pages/auto-parts/Reports";
 import AutoPartsStaff from "./pages/auto-parts/Staff";
 import AutoPartsReturns from "./pages/auto-parts/Returns";
+import AutoPartsInvoices from "./pages/auto-parts/Invoices";
 import NotFound from "./pages/NotFound";
 import { PERMISSIONS, type Permission } from "@/config/permissions";
 
@@ -446,6 +447,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SETTINGS_MANAGE}>
                       <AutoPartsSettings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/auto-parts/invoices"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
+                      <AutoPartsInvoices />
                     </ProtectedRoute>
                   }
                 />
