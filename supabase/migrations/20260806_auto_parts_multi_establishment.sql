@@ -127,7 +127,7 @@ BEGIN
     ORDER BY p.name
   ), '[]'::jsonb)
   FROM public.auto_parts_products p
-  WHERE p.business_id = p_business_id
+  WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
     AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id);
 END;
 $$;
@@ -188,7 +188,7 @@ AS $$
 BEGIN
   RETURN COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.sort_order, c.name), '[]'::jsonb)
   FROM public.auto_parts_categories c
-  WHERE c.business_id = p_business_id
+  WHERE (c.business_id = p_business_id OR c.business_id IS NULL)
     AND (p_branch_id IS NULL OR c.branch_id IS NULL OR c.branch_id = p_branch_id);
 END;
 $$;
@@ -201,7 +201,7 @@ AS $$
 BEGIN
   RETURN COALESCE(jsonb_agg(to_jsonb(p) ORDER BY p.name), '[]'::jsonb)
   FROM public.auto_parts_products p
-  WHERE p.business_id = p_business_id
+  WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
     AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
     AND (p.name ILIKE '%' || p_query || '%' OR p.sku ILIKE '%' || p_query || '%')
   LIMIT 20;
