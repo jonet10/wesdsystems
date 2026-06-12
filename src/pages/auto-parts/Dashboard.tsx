@@ -41,7 +41,7 @@ export default function AutoPartsDashboardPage() {
     const loadData = async () => {
       const month = getDateRangePreset("month");
       const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-        try { return await fn(); } catch { return fallback; }
+        try { return await fn(); } catch (e) { console.warn("Dashboard RPC failed:", (e as any)?.message ?? e); return fallback; }
       };
 
       const [counts, today, week, mnth, wkTrend, clients] = await Promise.all([

@@ -85,7 +85,7 @@ export default function AutoPartsReportsPage() {
   const reportRef = useRef<HTMLDivElement>(null);
 
   const safeCall = async <T,>(fn: () => Promise<T>, fallback: T): Promise<T> => {
-    try { return await fn(); } catch { return fallback; }
+    try { return await fn(); } catch (e) { console.warn("Reports RPC failed:", (e as any)?.message ?? e); return fallback; }
   };
 
   const loadAll = useCallback(async () => {
