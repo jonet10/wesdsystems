@@ -1,4 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
+
+const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
 
 export interface QuoteItem {
   product_id?: string | null;
@@ -31,8 +34,11 @@ export interface Quote {
   updated_at: string;
 }
 
-export async function listQuotes(businessId: string) {
-  const { data, error } = await supabase.rpc("list_auto_parts_quotes", { p_business_id: businessId });
+export async function listQuotes(businessId: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("list_auto_parts_quotes", {
+    p_business_id: businessId,
+    p_branch_id: getBranch(businessId, branchId),
+  });
   if (error) throw error;
   return data as Quote[];
 }
@@ -61,6 +67,7 @@ export async function createQuote(
     notes?: string;
     terms?: string;
     quote_prefix?: string;
+    branch_id?: string | null;
     items: QuoteItem[];
   }
 ) {
@@ -81,6 +88,7 @@ export async function createQuote(
     p_notes: quote.notes ?? null,
     p_terms: quote.terms ?? null,
     p_quote_prefix: quote.quote_prefix ?? "DEV-",
+    p_branch_id: quote.branch_id ?? getBranch(businessId) ?? null,
     p_items: quote.items as any,
   });
   if (error) throw error;

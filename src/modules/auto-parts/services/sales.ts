@@ -1,8 +1,12 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsSale, AutoPartsSaleItem } from "../types";
 
-export async function listSales(businessId: string) {
-  const { data, error } = await supabase.rpc("auto_parts_list_sales", { p_business_id: businessId });
+export async function listSales(businessId: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("auto_parts_list_sales", {
+    p_business_id: businessId,
+    p_branch_id: branchId ?? null,
+  });
   if (error) throw error;
   return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];
 }
@@ -27,6 +31,7 @@ export async function createSale(businessId: string, sale: {
   client_name?: string;
   staff_id?: string | null;
   notes?: string;
+  branch_id?: string | null;
   items: { product_id?: string | null; product_name: string; quantity: number; unit_price: number }[];
 }) {
   const items = sale.items.map((item) => ({
@@ -52,6 +57,7 @@ export async function createSale(businessId: string, sale: {
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,
     p_staff_id: sale.staff_id ?? null,
+    p_branch_id: sale.branch_id ?? getStoredBranchId(businessId) ?? null,
     p_items: JSON.parse(JSON.stringify(items)),
   });
   if (error) throw error;

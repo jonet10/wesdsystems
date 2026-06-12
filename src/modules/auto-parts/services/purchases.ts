@@ -1,13 +1,14 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsPurchase, AutoPartsPurchaseItem } from "../types";
 
-export async function listPurchases(businessId: string) {
-  const { data, error } = await supabase
-    .from("auto_parts_purchases")
-    .select("*, items:auto_parts_purchase_items(*)")
-    .eq("business_id", businessId)
-    .order("created_at", { ascending: false })
-    .limit(100);
+const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
+
+export async function listPurchases(businessId: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("auto_parts_list_purchases", {
+    p_business_id: businessId,
+    p_branch_id: getBranch(businessId, branchId),
+  });
   if (error) throw error;
   return data as (AutoPartsPurchase & { items: AutoPartsPurchaseItem[] })[];
 }
@@ -21,6 +22,7 @@ export async function createPurchase(businessId: string, purchase: {
   tax_amount: number;
   total: number;
   notes?: string;
+  branch_id?: string | null;
   items: { product_id?: string | null; product_name: string; quantity: number; unit_price: number }[];
 }) {
   const { data, error } = await supabase.rpc("create_auto_parts_purchase", {
@@ -33,6 +35,7 @@ export async function createPurchase(businessId: string, purchase: {
     p_tax_amount: purchase.tax_amount,
     p_total: purchase.total,
     p_notes: purchase.notes ?? null,
+    p_branch_id: purchase.branch_id ?? getBranch(businessId) ?? null,
     p_items: purchase.items as any,
   });
   if (error) throw error;

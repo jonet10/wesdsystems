@@ -457,8 +457,8 @@ DECLARE
 BEGIN
   SELECT COALESCE(jsonb_agg(
     jsonb_build_object(
-      'staff_id', s.staff_id,
-      'staff_name', COALESCE(s.staff_name, st.name, 'Inconnu'),
+      'staff_id', stats.staff_id,
+      'staff_name', COALESCE(st.name, 'Inconnu'),
       'staff_role', st.role,
       'sale_count', stats.cnt,
       'total_revenue', stats.rev,

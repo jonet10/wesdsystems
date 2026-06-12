@@ -200,6 +200,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
           { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },
           { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: Building2, label: "Succursales", path: "/auto-parts/branches", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
     }
@@ -249,6 +250,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     { icon: Layers, label: "Stock", path: "/auto-parts/stock-movements", role: "all", permission: PERMISSIONS.STOCK_VIEW },
     { icon: Workflow, label: "Compatibilités", path: "/auto-parts/compatibilities", role: "all", permission: PERMISSIONS.COMPATIBILITIES_MANAGE },
     { icon: TrendingUp, label: "Rapports", path: "/auto-parts/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+    { icon: Building2, label: "Succursales", path: "/auto-parts/branches", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
     { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
   ];
   const items = (() => {

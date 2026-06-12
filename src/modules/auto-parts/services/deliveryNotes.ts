@@ -1,4 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
+
+const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
 
 export interface DeliveryNoteItem {
   id?: string;
@@ -24,8 +27,11 @@ export interface DeliveryNote {
   updated_at: string;
 }
 
-export async function listDeliveryNotes(businessId: string) {
-  const { data, error } = await supabase.rpc("list_auto_parts_delivery_notes", { p_business_id: businessId });
+export async function listDeliveryNotes(businessId: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("list_auto_parts_delivery_notes", {
+    p_business_id: businessId,
+    p_branch_id: getBranch(businessId, branchId),
+  });
   if (error) throw error;
   return data as DeliveryNote[];
 }
@@ -47,6 +53,7 @@ export async function createDeliveryNote(
     status?: string;
     notes?: string;
     prefix?: string;
+    branch_id?: string | null;
     items: DeliveryNoteItem[];
   }
 ) {
@@ -60,6 +67,7 @@ export async function createDeliveryNote(
     p_status: note.status ?? "draft",
     p_notes: note.notes ?? null,
     p_prefix: note.prefix ?? "BL-",
+    p_branch_id: note.branch_id ?? getBranch(businessId) ?? null,
     p_items: note.items as any,
   });
   if (error) throw error;

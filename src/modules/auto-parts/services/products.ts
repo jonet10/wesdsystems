@@ -1,14 +1,20 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsProduct } from "../types";
 
-export async function listProducts(businessId: string) {
-  const { data, error } = await supabase.rpc("auto_parts_list_products", { p_business_id: businessId });
+const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
+
+export async function listProducts(businessId: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("auto_parts_list_products", {
+    p_business_id: businessId,
+    p_branch_id: getBranch(businessId, branchId),
+  });
   if (error) throw error;
   return data as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
-export async function listProductsFull(businessId: string, sessionToken?: string | null) {
-  const params: Record<string, any> = { p_business_id: businessId };
+export async function listProductsFull(businessId: string, branchId?: string | null, sessionToken?: string | null) {
+  const params: Record<string, any> = { p_business_id: businessId, p_branch_id: getBranch(businessId, branchId) };
   if (sessionToken) params.p_session_token = sessionToken;
   const { data, error } = await supabase.rpc("auto_parts_list_products_full", params);
   if (error) throw error;
@@ -45,8 +51,12 @@ export async function deleteProduct(id: string, businessId?: string) {
   if (error) throw error;
 }
 
-export async function searchProducts(businessId: string, searchQuery: string) {
-  const { data, error } = await supabase.rpc("auto_parts_search_products", { p_business_id: businessId, p_query: searchQuery });
+export async function searchProducts(businessId: string, searchQuery: string, branchId?: string | null) {
+  const { data, error } = await supabase.rpc("auto_parts_search_products", {
+    p_business_id: businessId,
+    p_query: searchQuery,
+    p_branch_id: getBranch(businessId, branchId),
+  });
   if (error) throw error;
   return data;
 }

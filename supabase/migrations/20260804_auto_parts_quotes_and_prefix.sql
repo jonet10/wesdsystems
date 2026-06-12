@@ -98,7 +98,7 @@ DO $$ BEGIN
         business_id IN (SELECT b.id FROM public.businesses b JOIN public.profiles p ON p.business_id = b.id WHERE p.id = auth.uid())
       );
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'quote_items_business_access' ON 'auto_parts_quote_items') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'quote_items_business_access' AND tablename = 'auto_parts_quote_items') THEN
     CREATE POLICY quote_items_business_access ON public.auto_parts_quote_items
       FOR ALL USING (
         business_id IN (SELECT b.id FROM public.businesses b JOIN public.profiles p ON p.business_id = b.id WHERE p.id = auth.uid())
@@ -281,6 +281,7 @@ $$;
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- New version: accepts business_id to read prefix from settings
+DROP FUNCTION IF EXISTS public.generate_auto_parts_invoice_number();
 CREATE OR REPLACE FUNCTION public.generate_auto_parts_invoice_number(p_business_id UUID DEFAULT NULL)
 RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$

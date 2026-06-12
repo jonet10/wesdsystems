@@ -188,6 +188,7 @@ END;
 $$;
 
 -- ─── 8. Record stock movement — set created_by properly ───
+DROP FUNCTION IF EXISTS public.record_auto_parts_stock_movement(p_business_id UUID, p_product_id UUID, p_type TEXT, p_quantity NUMERIC, p_unit_price NUMERIC, p_reference TEXT, p_notes TEXT);
 CREATE OR REPLACE FUNCTION public.record_auto_parts_stock_movement(
   p_business_id UUID,
   p_product_id UUID,
