@@ -50,8 +50,6 @@ WHERE gp.business_id IS NULL
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- ─── 2a. auto_parts_list_products (non-RBAC) ───
-DROP FUNCTION IF EXISTS public.auto_parts_list_products(UUID);
-DROP FUNCTION IF EXISTS public.auto_parts_list_products(UUID, UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_list_products(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -71,9 +69,6 @@ END;
 $$;
 
 -- ─── 2b. auto_parts_list_products_full (RBAC) ───
-DROP FUNCTION IF EXISTS public.auto_parts_list_products_full(UUID);
-DROP FUNCTION IF EXISTS public.auto_parts_list_products_full(UUID, TEXT);
-DROP FUNCTION IF EXISTS public.auto_parts_list_products_full(UUID, TEXT, UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_list_products_full(
   p_business_id UUID,
   p_session_token TEXT DEFAULT NULL,
@@ -100,8 +95,6 @@ END;
 $$;
 
 -- ─── 2c. auto_parts_search_products ───
-DROP FUNCTION IF EXISTS public.auto_parts_search_products(UUID, TEXT);
-DROP FUNCTION IF EXISTS public.auto_parts_search_products(UUID, TEXT, UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_search_products(p_business_id UUID, p_query TEXT, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -116,10 +109,6 @@ END;
 $$;
 
 -- ─── 2d. auto_parts_dashboard_counts ───
-DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(UUID, DATE, DATE);
-DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID, p_session_token TEXT, p_staff_id UUID);
-DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID);
-DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(p_business_id UUID, p_staff_id UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_counts(
   p_business_id UUID,
   p_session_token TEXT DEFAULT NULL,
@@ -238,8 +227,6 @@ END;
 $$;
 
 -- ─── 2e. auto_parts_store_health ───
-DROP FUNCTION IF EXISTS public.auto_parts_store_health(p_business_id UUID);
-DROP FUNCTION IF EXISTS public.auto_parts_store_health(p_business_id UUID, p_session_token TEXT);
 CREATE OR REPLACE FUNCTION public.auto_parts_store_health(
   p_business_id UUID,
   p_session_token TEXT DEFAULT NULL
@@ -491,7 +478,6 @@ END;
 $$;
 
 -- ─── 2f. auto_parts_dormant_products ───
-DROP FUNCTION IF EXISTS public.auto_parts_dormant_products(UUID, INT);
 CREATE OR REPLACE FUNCTION public.auto_parts_dormant_products(
   p_business_id UUID,
   p_days INT DEFAULT 30
@@ -544,7 +530,6 @@ END;
 $$;
 
 -- ─── 2g. auto_parts_stock_forecast ───
-DROP FUNCTION IF EXISTS public.auto_parts_stock_forecast(UUID, INT);
 CREATE OR REPLACE FUNCTION public.auto_parts_stock_forecast(
   p_business_id UUID,
   p_lookback_days INT DEFAULT 90
@@ -602,7 +587,6 @@ END;
 $$;
 
 -- ─── 2h. auto_parts_list_products (RBAC, session token overload) ───
-DROP FUNCTION IF EXISTS public.auto_parts_list_products(TEXT, UUID);
 CREATE OR REPLACE FUNCTION public.auto_parts_list_products(
   p_session_token TEXT,
   p_business_id UUID DEFAULT NULL
