@@ -519,25 +519,8 @@ export default function ServicesPage() {
       setServices(fetchedServices);
 
       if (!fetchedCategories.length || !fetchedServices.length) {
-        await ensureDefaultServices(branchIdToUse);
-        const [categoriesAfterSeed, servicesAfterSeed] = await Promise.all([
-          supabase
-            .from("salon_service_categories")
-            .select("id, name, description, icon, color, allowed_roles")
-            .eq("branch_id", branchIdToUse)
-            .order("sort_order"),
-          supabase
-            .from("salon_services")
-            .select("id, name, description, price_htg, category_id, is_active, sort_order, metadata, requires_employee, duration_minutes")
-            .eq("branch_id", branchIdToUse)
-            .order("sort_order"),
-        ]);
-
-        if (categoriesAfterSeed.error) throw categoriesAfterSeed.error;
-        if (servicesAfterSeed.error) throw servicesAfterSeed.error;
-
-        setCategories((categoriesAfterSeed.data || []) as ServiceCategory[]);
-        setServices((servicesAfterSeed.data || []) as SalonService[]);
+        setCategories([]);
+        setServices([]);
       } else {
         setCategories(fetchedCategories);
       }

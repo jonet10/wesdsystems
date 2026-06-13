@@ -127,7 +127,7 @@ BEGIN
     ORDER BY p.name
   ), '[]'::jsonb)
   FROM public.auto_parts_products p
-  WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
+  WHERE p.business_id = p_business_id
     AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id);
 END;
 $$;
@@ -152,7 +152,7 @@ BEGIN
     SELECT p.*, row_to_json(c.*) AS category
     FROM public.auto_parts_products p
     LEFT JOIN public.auto_parts_categories c ON c.id = p.category_id
-    WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
+    WHERE p.business_id = p_business_id
       AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
     ORDER BY p.name
   ) t;
@@ -201,7 +201,7 @@ AS $$
 BEGIN
   RETURN COALESCE(jsonb_agg(to_jsonb(p) ORDER BY p.name), '[]'::jsonb)
   FROM public.auto_parts_products p
-  WHERE (p.business_id = p_business_id OR p.business_id IS NULL)
+  WHERE p.business_id = p_business_id
     AND (p_branch_id IS NULL OR p.branch_id IS NULL OR p.branch_id = p_branch_id)
     AND (p.name ILIKE '%' || p_query || '%' OR p.sku ILIKE '%' || p_query || '%')
   LIMIT 20;
@@ -311,26 +311,26 @@ BEGIN
 
   SELECT COUNT(*) INTO v_total_products
   FROM public.auto_parts_products
-  WHERE (business_id = p_business_id OR business_id IS NULL)
+  WHERE business_id = p_business_id
     AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   IF v_can_see_finance THEN
     SELECT COALESCE(SUM(cost_price * stock_quantity), 0) INTO v_total_stock_value
     FROM public.auto_parts_products
-    WHERE (business_id = p_business_id OR business_id IS NULL)
+    WHERE business_id = p_business_id
       AND active = true
       AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
   END IF;
 
   SELECT COUNT(*) INTO v_out_of_stock
   FROM public.auto_parts_products
-  WHERE (business_id = p_business_id OR business_id IS NULL)
+  WHERE business_id = p_business_id
     AND active = true AND stock_quantity <= 0
     AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   SELECT COUNT(*) INTO v_low_stock
   FROM public.auto_parts_products
-  WHERE (business_id = p_business_id OR business_id IS NULL)
+  WHERE business_id = p_business_id
     AND active = true AND stock_quantity > 0 AND stock_quantity <= min_stock
     AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 

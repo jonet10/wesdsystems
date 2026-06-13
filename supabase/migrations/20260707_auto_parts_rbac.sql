@@ -118,7 +118,7 @@ BEGIN
     SELECT p.*, row_to_json(c.*) AS category
     FROM public.auto_parts_products p
     LEFT JOIN public.auto_parts_categories c ON c.id = p.category_id
-    WHERE (p.business_id = v_biz OR p.business_id IS NULL)
+    WHERE p.business_id = v_biz
     ORDER BY p.name
   ) t;
 
