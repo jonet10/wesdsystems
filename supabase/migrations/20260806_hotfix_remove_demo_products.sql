@@ -617,12 +617,13 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_products TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_products_full TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_search_products TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_store_health TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dormant_products TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.auto_parts_stock_forecast TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_products(p_business_id UUID, p_branch_id UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_products(p_session_token TEXT, p_business_id UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_products_full(p_business_id UUID, p_session_token TEXT, p_branch_id UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_search_products(p_business_id UUID, p_query TEXT, p_branch_id UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(p_business_id UUID, p_session_token TEXT, p_staff_id UUID, p_branch_id UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_store_health(p_business_id UUID, p_session_token TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dormant_products(p_business_id UUID, p_days INT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.auto_parts_stock_forecast(p_business_id UUID, p_lookback_days INT) TO anon, authenticated;
 
 DO $$ BEGIN RAISE NOTICE 'Migration hotfix appliquée : produits démo supprimés pour les nouveaux comptes'; END $$;
