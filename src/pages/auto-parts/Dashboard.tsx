@@ -326,8 +326,8 @@ function AdminDashboard({ businessId }: { businessId: string }) {
         </div>
       </StaggerItem>
 
-      {/* ── Alertes stock ── */}
-      {(counts.outOfStock > 0 || counts.lowStock > 0) && (
+      {/* ── Alertes & KPIs Secondaires ── */}
+      {(counts.outOfStock > 0 || counts.lowStock > 0 || canViewStockValue || (canViewPurchases && counts.monthPurchases > 0)) && (
         <StaggerItem>
           <div className="flex flex-wrap gap-3">
             {counts.outOfStock > 0 && (
