@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -9,47 +9,51 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+// Global reference so the event is never lost
+let _deferredPrompt: BeforeInstallPromptEvent | null = null;
+const _listeners: Array<(e: BeforeInstallPromptEvent | null) => void> = [];
+
+// Listen as early as possible (module-level, outside React)
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: Event) => {
+    e.preventDefault();
+    _deferredPrompt = e as BeforeInstallPromptEvent;
+    _listeners.forEach((fn) => fn(_deferredPrompt));
+  });
+
+  window.addEventListener("appinstalled", () => {
+    _deferredPrompt = null;
+    _listeners.forEach((fn) => fn(null));
+  });
+}
+
 export function useInstallPWA() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstallable, setIsInstallable] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(_deferredPrompt);
+  const [isInstallable, setIsInstallable] = useState(!!_deferredPrompt);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent the mini-infobar from appearing on mobile
-      e.preventDefault();
-      // Stash the event so it can be triggered later.
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
+    const handler = (e: BeforeInstallPromptEvent | null) => {
+      setDeferredPrompt(e);
+      setIsInstallable(!!e);
     };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-
-    // Also detect if already installed to hide the button
-    const handleAppInstalled = () => {
-      setIsInstallable(false);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener("appinstalled", handleAppInstalled);
-
+    _listeners.push(handler);
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
+      const idx = _listeners.indexOf(handler);
+      if (idx > -1) _listeners.splice(idx, 1);
     };
   }, []);
 
-  const promptInstall = async () => {
-    if (!deferredPrompt) {
-      return;
-    }
-    // Show the install prompt
-    deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
+  const promptInstall = useCallback(async () => {
+    if (!deferredPrompt) return false;
+    await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "accepted") {
+      _deferredPrompt = null;
+      setDeferredPrompt(null);
       setIsInstallable(false);
     }
-    setDeferredPrompt(null);
-  };
+    return outcome === "accepted";
+  }, [deferredPrompt]);
 
   return { isInstallable, promptInstall };
 }

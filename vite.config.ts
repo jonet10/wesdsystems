@@ -19,22 +19,25 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: "script",
-      devOptions: { enabled: false },
+      devOptions: { enabled: true, type: "module" },
       includeAssets: ["logo.png", "placeholder.svg", "favicon.ico"],
       manifest: {
         name: "Wesd Systems",
         short_name: "Wesd",
         description: "Plateforme SaaS de Gestion Multi-Business pour Haïti",
+        lang: "fr",
         theme_color: "#0A0A0F",
         background_color: "#0A0A0F",
         display: "standalone",
         orientation: "portrait-primary",
         start_url: "/auth/login",
+        scope: "/",
         icons: [
-          { src: "/logo.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
-          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/logo.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
