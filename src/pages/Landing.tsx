@@ -45,7 +45,6 @@ import {
   Zap,
   Sun,
   MessageCircle,
-  Smartphone,
 } from "lucide-react";
 
 import { useTheme } from "next-themes";
