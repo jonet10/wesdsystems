@@ -46,7 +46,7 @@ import {
   Sun,
   MessageCircle,
 } from "lucide-react";
-import { InstallPWAButton } from "@/components/shared/InstallPWAButton";
+
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 
@@ -654,7 +654,7 @@ export default function Landing() {
                     {t("nav.signIn")}
                   </Button>
                 </Link>
-                <InstallPWAButton />
+
               </div>
             </div>
           </div>
