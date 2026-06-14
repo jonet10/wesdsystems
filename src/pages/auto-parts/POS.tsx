@@ -282,40 +282,48 @@ export default function AutoPartsPOSPage() {
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Finaliser la vente</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="sm:max-w-md sm:rounded-[24px] border border-cyan-500/20 dark:border-cyan-400/20 shadow-[0_0_50px_rgba(34,211,238,0.15)] bg-white/95 dark:bg-[#0A0A0F]/95 backdrop-blur-2xl dark:text-white">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-violet-500 to-cyan-400 bg-clip-text text-transparent">
+              Finaliser la vente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 mt-2">
             <div>
-              <Label>Remise</Label>
-              <div className="flex gap-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Remise</Label>
+              <div className="flex gap-3 mt-1.5">
                 <Select value={discountType} onValueChange={(v: any) => { setDiscountType(v); setDiscountValue(0); }}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="w-32 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
                     <SelectItem value="none">Aucune</SelectItem>
                     <SelectItem value="percentage">%</SelectItem>
                     <SelectItem value="fixed">Montant</SelectItem>
                   </SelectContent>
                 </Select>
                 {discountType !== "none" && (
-                  <Input type="number" className="w-24" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} />
+                  <Input type="number" className="flex-1 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12 dark:text-white" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} />
                 )}
               </div>
             </div>
             <div>
-              <Label>TVA (%)</Label>
-              <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">TVA (%)</Label>
+              <Input type="number" className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12 dark:text-white" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
             </div>
             {autoPartsStaffSession && autoPartsStaffSession.business_id === businessId ? (
               <div>
-                <Label>Caissier(ère)</Label>
-                <p className="text-sm font-medium text-muted-foreground">{autoPartsStaffSession.name}</p>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Caissier(ère)</Label>
+                <div className="mt-1.5 flex items-center h-12 px-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <p className="text-sm font-medium dark:text-white">{autoPartsStaffSession.name}</p>
+                </div>
               </div>
             ) : staff.length > 0 && (
               <div>
-                <Label>Caissier(ère)</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Caissier(ère)</Label>
                 <Select value={selectedStaff} onValueChange={setSelectedStaff}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
                     {staff.filter(s => s.role === "cashier" || s.role === "admin" || s.role === "manager").map((s) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
@@ -324,10 +332,10 @@ export default function AutoPartsPOSPage() {
               </div>
             )}
             <div>
-              <Label>Moyen de paiement</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Moyen de paiement</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12"><SelectValue /></SelectTrigger>
+                <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
                   <SelectItem value="cash">Espèces</SelectItem>
                   <SelectItem value="card">Carte</SelectItem>
                   <SelectItem value="transfer">Virement</SelectItem>
@@ -336,16 +344,18 @@ export default function AutoPartsPOSPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="border-t pt-4">
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total à payer</span>
-                <span>{format(total)}</span>
+            <div className="border-t border-slate-200 dark:border-white/10 pt-5 mt-2">
+              <div className="flex justify-between items-center text-xl font-bold">
+                <span className="dark:text-white">Total à payer</span>
+                <span className="bg-gradient-to-r from-violet-500 to-cyan-400 bg-clip-text text-transparent text-3xl font-display">{format(total)}</span>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPayment(false)}>Annuler</Button>
-            <Button onClick={handlePayment}>Confirmer le paiement</Button>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
+            <Button variant="ghost" className="rounded-xl h-12 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setShowPayment(false)}>Annuler</Button>
+            <Button onClick={handlePayment} className="rounded-xl h-12 flex-[2] bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-lg shadow-violet-500/25 border-0 text-base font-semibold transition-all">
+              Confirmer le paiement
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

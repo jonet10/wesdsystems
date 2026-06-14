@@ -36,6 +36,7 @@ import {
   Moon,
   Zap,
   Sun,
+  MessageCircle,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
@@ -57,7 +58,7 @@ const businessKeys = [
 
 const LANGUAGE_CODES = ["en", "fr", "es", "ht"] as const;
 const PIE_COLORS = ["#8b5cf6", "#22d3ee", "#14b8a6"];
-const HERO_SLIDES = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images/4.jpg"];
+const HERO_SLIDES = ["/images/1.jpg", "/images/2.jpg", "/images/3.png", "/images/4.jpg", "/images/5.jpg"];
 
 export default function Landing() {
   const { t, i18n } = useTranslation();
@@ -651,6 +652,17 @@ export default function Landing() {
 
         <CommunityActivitySection />
       </main>
+
+      {/* ── WhatsApp Support Floating Button ── */}
+      <a
+        href="https://wa.me/50931966855"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-[#25D366]/50 group"
+        title="Contacter le support via WhatsApp"
+      >
+        <MessageCircle className="h-7 w-7 transition-transform group-hover:rotate-12" />
+      </a>
     </div>
   );
 }

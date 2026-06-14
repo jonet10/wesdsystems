@@ -283,8 +283,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           className={cn(
           "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group border",
           isActive 
-            ? "bg-gradient-to-r from-primary/15 to-info/10 text-primary font-medium border-primary/20 shadow-glow" 
-            : "text-muted-foreground border-transparent hover:bg-primary/5 hover:text-foreground hover:border-primary/10"
+            ? "bg-gradient-to-r from-primary/15 to-info/10 dark:from-violet-500/20 dark:to-cyan-400/10 text-primary dark:text-cyan-400 font-medium border-primary/20 dark:border-cyan-400/20 shadow-glow dark:shadow-[0_0_15px_rgba(34,211,238,0.15)]" 
+            : "text-muted-foreground border-transparent hover:bg-primary/5 dark:hover:bg-white/5 hover:text-foreground dark:hover:text-white hover:border-primary/10 dark:hover:border-white/10"
         )}
       >
         <Icon className={cn("h-4 w-4 flex-shrink-0", isActive && "text-primary")} />
@@ -336,8 +336,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
             : { width: collapsed ? 72 : 256 }
         }
         className={
-          "h-screen flex-shrink-0 bg-background/80 backdrop-blur-xl border-r border-purple-500/10 " +
-          "flex flex-col transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20 " +
+          "h-screen flex-shrink-0 bg-background/80 dark:bg-[#0A0A0F]/95 backdrop-blur-2xl border-r border-purple-500/10 dark:border-white/5 " +
+          "flex flex-col transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20 dark:shadow-black/50 " +
           (isMobile
             ? "fixed left-0 top-0 z-40"
             : "relative z-40")

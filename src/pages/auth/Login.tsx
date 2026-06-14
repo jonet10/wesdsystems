@@ -14,12 +14,15 @@ import { LanguageSelector } from "@/components/shared/LanguageSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { glowupStore } from "@/lib/store";
 
+import { Checkbox } from "@/components/ui/checkbox";
+
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("wesd_saved_email") || "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem("wesd_remember_me") === "true");
   const [loginMode, setLoginMode] = useState<"admin" | "staff">("admin");
-  const [staffUsername, setStaffUsername] = useState("");
+  const [staffUsername, setStaffUsername] = useState(() => localStorage.getItem("wesd_saved_staff") || "");
   const [staffSecret, setStaffSecret] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { loginStaff } = useAuth();
@@ -63,6 +66,14 @@ export default function Login() {
       });
 
       if (error) throw error;
+
+      if (rememberMe) {
+        localStorage.setItem("wesd_saved_email", email);
+        localStorage.setItem("wesd_remember_me", "true");
+      } else {
+        localStorage.removeItem("wesd_saved_email");
+        localStorage.setItem("wesd_remember_me", "false");
+      }
 
       let targetRoute = "/salon";
 
@@ -130,6 +141,14 @@ export default function Login() {
           variant: "destructive",
         });
         return;
+      }
+
+      if (rememberMe) {
+        localStorage.setItem("wesd_saved_staff", staffUsername);
+        localStorage.setItem("wesd_remember_me", "true");
+      } else {
+        localStorage.removeItem("wesd_saved_staff");
+        localStorage.setItem("wesd_remember_me", "false");
       }
 
       console.log("[Login] staff login result:", res);
@@ -226,6 +245,13 @@ export default function Login() {
                     </div>
                   </div>
 
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="remember" checked={rememberMe} onCheckedChange={(c) => setRememberMe(c === true)} />
+                    <Label htmlFor="remember" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Se souvenir de moi
+                    </Label>
+                  </div>
+
                   <Button type="submit" variant="hero" className="w-full shadow-md" size="lg" disabled={isLoading}>
                     {isLoading ? (
                       <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -293,6 +319,13 @@ export default function Login() {
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="remember-staff" checked={rememberMe} onCheckedChange={(c) => setRememberMe(c === true)} />
+                    <Label htmlFor="remember-staff" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Se souvenir de moi
+                    </Label>
                   </div>
 
                   <Button type="submit" variant="default" className="w-full shadow-md bg-blue-600 hover:bg-blue-700" size="lg" disabled={isLoading}>

@@ -164,8 +164,8 @@ export const DashboardHeader = ({
   return (
     <>
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 
-                      border-b border-purple-500/10 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60
-                      px-6 shadow-lg shadow-purple-950/10">
+                      border-b border-purple-500/10 dark:border-white/5 bg-background/70 dark:bg-[#0A0A0F]/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60 dark:supports-[backdrop-filter]:bg-[#0A0A0F]/60
+                      px-6 shadow-lg shadow-purple-950/10 dark:shadow-black/30">
       
       {/* Mobile menu toggle */}
       {onMenuToggle && (

@@ -20,7 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PERMISSIONS } from "@/config/permissions";
 
 const TYPE_LABELS: Record<string, string> = { in: "Entrée", out: "Sortie", adjustment: "Ajustement", sale: "Vente", return: "Retour" };
-const TYPE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = { in: "default", out: "destructive", adjustment: "secondary", sale: "destructive", return: "outline" };
+const TYPE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = { in: "default", out: "destructive", adjustment: "secondary", sale: "outline", return: "outline" };
 
 export default function AutoPartsStockMovementsPage() {
   const businessId = useAutoPartsBusinessId();
@@ -70,9 +70,9 @@ export default function AutoPartsStockMovementsPage() {
           <AutoPartsDataTable
             rows={data}
             columns={[
-              { key: "product", label: "Produit", render: (r) => r.product?.name ?? "-" },
+              { key: "product", label: "Produit", render: (r) => <span className="font-medium">{r.product?.name ?? "-"}</span> },
               { key: "type", label: "Type", render: (r) => <Badge variant={TYPE_COLORS[r.type] || "default"}>{TYPE_LABELS[r.type] || r.type}</Badge> },
-              { key: "quantity", label: "Quantité", render: (r) => <span className={r.quantity > 0 ? "text-green-600" : "text-red-600"}>{r.quantity > 0 ? `+${r.quantity}` : r.quantity}</span> },
+              { key: "quantity", label: "Quantité", render: (r) => <span className={`font-semibold ${r.quantity > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{r.quantity > 0 ? `+${r.quantity}` : r.quantity}</span> },
               { key: "reference", label: "Référence", render: (r) => r.reference || "-" },
               { key: "created_at", label: "Date", render: (r) => new Date(r.created_at).toLocaleString("fr-FR") },
             ]}
@@ -80,53 +80,61 @@ export default function AutoPartsStockMovementsPage() {
         </StaggerItem>
       </StaggerContainer>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nouveau mouvement de stock</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="sm:max-w-md sm:rounded-[24px] border-slate-200 dark:border-cyan-400/20 shadow-2xl dark:shadow-[0_0_50px_rgba(34,211,238,0.15)] bg-white/95 dark:bg-[#0A0A0F]/95 backdrop-blur-2xl dark:text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-violet-600 to-cyan-500 dark:from-violet-400 dark:to-cyan-300 bg-clip-text text-transparent">
+              Nouveau mouvement de stock
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
             <div>
-              <Label>Produit</Label>
-              <Input placeholder="Rechercher un produit..." value={productSearch} onChange={(e) => searchProd(e.target.value)} />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Produit</Label>
+              <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" placeholder="Rechercher un produit..." value={productSearch} onChange={(e) => searchProd(e.target.value)} />
               {products.length > 0 && (
-                <div className="border rounded-md mt-1 max-h-32 overflow-y-auto">
+                <div className="border border-slate-200 dark:border-white/10 rounded-xl mt-2 max-h-40 overflow-y-auto bg-white dark:bg-[#12121a] shadow-lg">
                   {products.map((p) => (
-                    <div key={p.id} className={`px-3 py-2 cursor-pointer hover:bg-muted text-sm ${form.product_id === p.id ? "bg-primary/10" : ""}`} onClick={() => { setForm({ ...form, product_id: p.id }); setProducts([]); setProductSearch(p.name); }}>
-                      {p.name} ({p.sku || "N/A"})
+                    <div key={p.id} className={`px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5 text-sm transition-colors ${form.product_id === p.id ? "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 font-medium" : "dark:text-slate-300"}`} onClick={() => { setForm({ ...form, product_id: p.id }); setProducts([]); setProductSearch(p.name); }}>
+                      {p.name} <span className="opacity-50 text-xs ml-1">({p.sku || "N/A"})</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div>
-              <Label>Type</Label>
-              <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="in">Entrée</SelectItem>
-                  <SelectItem value="out">Sortie</SelectItem>
-                  <SelectItem value="adjustment">Ajustement</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Type</Label>
+                <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
+                  <SelectTrigger className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
+                    <SelectItem value="in">Entrée</SelectItem>
+                    <SelectItem value="out">Sortie</SelectItem>
+                    <SelectItem value="adjustment">Ajustement</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Quantité</Label>
+                <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Prix unitaire (optionnel)</Label>
+                <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Référence</Label>
+                <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" placeholder="Ex: BL-2026..." value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
+              </div>
             </div>
             <div>
-              <Label>Quantité</Label>
-              <Input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
-            </div>
-            <div>
-              <Label>Prix unitaire (optionnel)</Label>
-              <Input type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} />
-            </div>
-            <div>
-              <Label>Référence</Label>
-              <Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Notes</Label>
+              <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" placeholder="Raison de l'ajustement..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
+            <Button variant="ghost" className="rounded-xl h-11 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button onClick={handleSave} className="rounded-xl h-11 flex-1 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-lg shadow-violet-500/25 border-0 font-medium transition-all">Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
