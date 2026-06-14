@@ -25,7 +25,7 @@ i18n
       escapeValue: false, // React already safeguards from xss
     },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'], // Prioritize French (fallbackLng) unless user explicitly selects another language
       caches: ['localStorage'],
     }
   });

@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
         background_color: "#0A0A0F",
         display: "standalone",
         orientation: "portrait-primary",
+        start_url: "/auth/login",
         icons: [
           { src: "/logo.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
           { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },

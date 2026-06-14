@@ -12,25 +12,33 @@ import {
   ArrowRight,
   Building,
   Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  CreditCard,
   DollarSign,
   FileText,
   Globe,
   GraduationCap,
   LayoutGrid,
   Layers,
+  LineChart,
+  MapPin,
   Menu,
   Pill,
-  ChevronRight,
-  BarChart3,
-  Scissors,
-  ShoppingBag,
-  Star,
-  Shield,
-  Sparkles,
   PieChart as PieChartIcon,
+  Scissors,
+  Settings,
+  Shield,
+  ShoppingBag,
+  Smartphone,
+  Sparkles,
+  Star,
+  Store,
   TrendingUp,
   Utensils,
   Users,
+  Wallet,
   X,
   MoreHorizontal,
   Moon,
@@ -38,6 +46,7 @@ import {
   Sun,
   MessageCircle,
 } from "lucide-react";
+import { InstallPWAButton } from "@/components/shared/InstallPWAButton";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 
@@ -645,6 +654,7 @@ export default function Landing() {
                     {t("nav.signIn")}
                   </Button>
                 </Link>
+                <InstallPWAButton />
               </div>
             </div>
           </div>
