@@ -226,6 +226,8 @@ export interface DormantProduct {
   cost_price: number;
   stock_value: number;
   unit_price: number;
+  potential_revenue?: number;
+  potential_profit?: number;
   category_name: string | null;
   last_sale_date: string | null;
   days_since_sale: number;

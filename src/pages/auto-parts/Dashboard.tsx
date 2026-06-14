@@ -220,7 +220,7 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
   const canViewStockValue = isAdmin || hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
   const canViewPurchases  = isAdmin || hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
 
-  const [counts, setCounts] = useState({ totalProducts: 0, totalStockValue: 0, outOfStock: 0, lowStock: 0, monthPurchases: 0 });
+  const [counts, setCounts] = useState({ totalProducts: 0, totalStockValue: 0, totalPotentialRevenue: 0, totalPotentialProfit: 0, outOfStock: 0, lowStock: 0, monthPurchases: 0 });
   const [adminStats, setAdminStats] = useState<{
     global: { salesToday: number; salesWeek: number; salesMonth: number; invoicesToday: number; invoicesWeek: number; invoicesMonth: number };
     byCashier: Array<{ staffId: string; staffName: string; salesToday: number; salesWeek: number; salesMonth: number; invoicesToday: number; invoicesWeek: number; invoicesTotal: number; itemsSoldMonth: number }>;
@@ -347,6 +347,18 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 text-sm">
                 <Package className="h-4 w-4 flex-shrink-0" />
                 <span>Valeur du stock : <strong>{format(counts.totalStockValue)}</strong></span>
+              </div>
+            )}
+            {canViewStockValue && counts.totalPotentialRevenue > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-sm">
+                <TrendingUp className="h-4 w-4 flex-shrink-0" />
+                <span>Valeur potentielle : <strong>{format(counts.totalPotentialRevenue)}</strong></span>
+              </div>
+            )}
+            {canViewStockValue && counts.totalPotentialProfit > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 text-violet-700 dark:text-violet-400 text-sm">
+                <DollarSign className="h-4 w-4 flex-shrink-0" />
+                <span>Marge potentielle : <strong>{format(counts.totalPotentialProfit)}</strong></span>
               </div>
             )}
             {canViewPurchases && counts.monthPurchases > 0 && (

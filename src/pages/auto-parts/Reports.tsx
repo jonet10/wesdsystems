@@ -155,7 +155,7 @@ export default function AutoPartsReportsPage() {
 
   const exportHeaders = {
     "top-products": ["Produit", "Quantité", "Chiffre d'affaires", "Qté période préc.", "Évolution qty (%)", "Évolution CA (%)"],
-    dormant: ["Produit", "SKU", "Stock", "Valeur stock", "Dernière vente", "Jours sans vente"],
+    dormant: ["Produit", "SKU", "Stock", "Valeur stock", "Vente potentielle", "Marge potentielle", "Dernière vente", "Jours sans vente"],
     "stock-forecast": ["Produit", "Stock", "Vente moy./jour", "Jours restants", "Risque"],
     brands: ["Marque", "Ventes", "CA", "%"],
     profit: ["Produit", "Qté", "CA", "Coût", "Profit", "Marge (%)"],
@@ -164,7 +164,7 @@ export default function AutoPartsReportsPage() {
 
   const exportRows = {
     "top-products": topProducts.map((p) => [p.product_name, p.quantity, p.revenue, p.prev_quantity, p.qty_evolution, p.revenue_evolution]),
-    dormant: dormant.map((d) => [d.name, d.sku ?? "-", d.stock_quantity, d.stock_value, d.last_sale_date ?? "Jamais", d.days_since_sale]),
+    dormant: dormant.map((d) => [d.name, d.sku ?? "-", d.stock_quantity, d.stock_value, d.potential_revenue ?? 0, d.potential_profit ?? 0, d.last_sale_date ?? "Jamais", d.days_since_sale]),
     "stock-forecast": forecast.map((f) => [f.name, f.stock_quantity, f.avg_daily_sales, f.days_until_rupture ?? "N/A", RISK_LABELS[f.risk_level]]),
     brands: brands.map((b) => [b.brand_name ?? "Sans marque", b.sale_count, b.revenue, `${b.percentage}%`]),
     profit: (profit?.top_products ?? []).map((p) => [p.product_name ?? "-", p.qty, p.revenue, p.cost, p.profit, `${p.margin_pct}%`]),
@@ -251,24 +251,34 @@ export default function AutoPartsReportsPage() {
             <CardHeader><CardTitle className="text-base">Produits sans mouvement ({dormantDays} jours)</CardTitle></CardHeader>
             <CardContent>
               <table className="w-full text-sm">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Produit</th><th className="py-2">Stock</th><th className="py-2">Valeur</th><th className="py-2">Dernière vente</th><th className="py-2">Jours</th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Produit</th><th className="py-2">Stock</th><th className="py-2">Valeur</th><th className="py-2">Vente potentielle</th><th className="py-2">Marge potentielle</th><th className="py-2">Dernière vente</th><th className="py-2">Jours</th></tr></thead>
                 <tbody>
                   {dormant.map((d, i) => (
                     <tr key={i} className="border-b">
                       <td className="py-2">{d.name}</td>
                       <td className="py-2">{d.stock_quantity}</td>
                       <td className="py-2">{format(d.stock_value)}</td>
+                      <td className="py-2">{format(d.potential_revenue ?? 0)}</td>
+                      <td className="py-2">{format(d.potential_profit ?? 0)}</td>
                       <td className="py-2">{d.last_sale_date ? new Date(d.last_sale_date).toLocaleDateString("fr-FR") : "Jamais"}</td>
                       <td className="py-2"><Badge variant="secondary">{d.days_since_sale} j</Badge></td>
                     </tr>
                   ))}
-                  {dormant.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Aucun produit dormant</td></tr>}
+                  {dormant.length === 0 && <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">Aucun produit dormant</td></tr>}
                 </tbody>
               </table>
               {dormant.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Valeur totale immobilisée : <strong>{format(dormant.reduce((s, d) => s + d.stock_value, 0))}</strong>
-                </p>
+                <div className="flex flex-wrap gap-4 mt-2 text-sm">
+                  <p className="text-muted-foreground">
+                    Valeur totale immobilisée : <strong>{format(dormant.reduce((s, d) => s + d.stock_value, 0))}</strong>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Vente potentielle : <strong>{format(dormant.reduce((s, d) => s + (d.potential_revenue ?? 0), 0))}</strong>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Marge potentielle : <strong>{format(dormant.reduce((s, d) => s + (d.potential_profit ?? 0), 0))}</strong>
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
