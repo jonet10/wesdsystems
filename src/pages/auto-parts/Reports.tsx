@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -441,8 +441,8 @@ export default function AutoPartsReportsPage() {
                     <div key={l} className="text-[10px] text-muted-foreground text-center">{l}</div>
                   ))}
                   {heatmapData.grid.map((row, dow) => (
-                    <>
-                      <div key={`label-${dow}`} className="text-xs text-muted-foreground flex items-center">{DAY_LABELS[dow]}</div>
+                    <Fragment key={dow}>
+                      <div className="text-xs text-muted-foreground flex items-center">{DAY_LABELS[dow]}</div>
                       {row.map((val, col) => (
                         <div
                           key={`${dow}-${col}`}
@@ -455,7 +455,7 @@ export default function AutoPartsReportsPage() {
                           title={`${DAY_LABELS[dow]} ${col * 2}h: ${val} vente(s)`}
                         />
                       ))}
-                    </>
+                    </Fragment>
                   ))}
                 </div>
               </div>

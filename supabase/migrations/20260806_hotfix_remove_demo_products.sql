@@ -6,7 +6,9 @@
 --      établissements EXISTANTS (backward compatibility).
 --   2. Supprimer le filtre OR business_id IS NULL de toutes les RPCs
 --      produits. Les NOUVEAUX établissements verront une liste vide.
---   3. Les catégories, marques, fournisseurs, clients globaux restent
+--      Les NOUVEAUX comptes doivent créer leurs propres produits.
+--   3. Mettre à 0 prix/stock des produits globaux restants.
+--   4. Les catégories, marques, fournisseurs, clients globaux restent
 --      visibles (données de référence).
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -43,6 +45,11 @@ WHERE gp.business_id IS NULL
     WHERE bp.business_id = b.id
       AND (bp.sku = gp.sku OR (bp.sku IS NULL AND gp.sku IS NULL AND bp.name = gp.name))
   );
+
+-- Zéroter les prix/stock sur les produits globaux restants
+UPDATE public.auto_parts_products
+SET unit_price = 0, cost_price = 0, stock_quantity = 0
+WHERE business_id IS NULL;
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- PART 2 — Mise à jour des RPCs : supprimer OR business_id IS NULL
@@ -167,50 +174,6 @@ BEGIN
   FROM public.auto_parts_products
   WHERE business_id = p_business_id
     AND active = true AND stock_quantity > 0 AND stock_quantity <= min_stock
-    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-
-  IF p_staff_id IS NOT NULL THEN
-    SELECT COALESCE(SUM(total), 0) INTO v_today_sales
-    FROM public.auto_parts_sales
-    WHERE business_id = p_business_id
-      AND created_at >= v_day_start
-      AND refund_status IS DISTINCT FROM 'full'
-      AND staff_id = p_staff_id
-      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-
-    SELECT COALESCE(SUM(total), 0) INTO v_month_sales
-    FROM public.auto_parts_sales
-    WHERE business_id = p_business_id
-      AND created_at >= v_month_start
-      AND refund_status IS DISTINCT FROM 'full'
-      AND staff_id = p_staff_id
-      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-  ELSE
-    SELECT COALESCE(SUM(total), 0) INTO v_today_sales
-    FROM public.auto_parts_sales
-    WHERE business_id = p_business_id
-      AND created_at >= v_day_start
-      AND refund_status IS DISTINCT FROM 'full'
-      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-
-    SELECT COALESCE(SUM(total), 0) INTO v_month_sales
-    FROM public.auto_parts_sales
-    WHERE business_id = p_business_id
-      AND created_at >= v_month_start
-      AND refund_status IS DISTINCT FROM 'full'
-      AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-  END IF;
-
-  SELECT COALESCE(SUM(total), 0) INTO v_month_purchases
-  FROM public.auto_parts_purchases
-  WHERE business_id = p_business_id
-    AND created_at >= v_month_start
-    AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
-
-  SELECT COUNT(*) INTO v_pending_orders
-  FROM public.auto_parts_purchases
-  WHERE business_id = p_business_id
-    AND status IN ('pending', 'confirmed')
     AND (p_branch_id IS NULL OR branch_id IS NULL OR branch_id = p_branch_id);
 
   RETURN jsonb_build_object(
@@ -626,4 +589,301 @@ GRANT EXECUTE ON FUNCTION public.auto_parts_store_health(p_business_id UUID, p_s
 GRANT EXECUTE ON FUNCTION public.auto_parts_dormant_products(p_business_id UUID, p_days INT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.auto_parts_stock_forecast(p_business_id UUID, p_lookback_days INT) TO anon, authenticated;
 
-DO $$ BEGIN RAISE NOTICE 'Migration hotfix appliquée : produits démo supprimés pour les nouveaux comptes'; END $$;
+-- ════════════════════════════════════════════════════════════════════════════
+-- PART 3 — Correctifs de sécurité et d'isolation
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ─── 3a. auto_parts_dashboard_stats : supprimer OR business_id IS NULL
+--      sur les ventes/achats (fuite de données entre établissements)
+-- ───
+CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_stats(
+  p_session_token TEXT,
+  p_business_id UUID
+) RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_role TEXT;
+  v_result JSONB;
+  v_total_products INT;
+  v_out_of_stock INT;
+  v_low_stock INT;
+  v_today_sales INT;
+  v_month_sales NUMERIC;
+  v_month_purchases INT;
+  v_pending_orders INT;
+  v_total_stock_value NUMERIC;
+  v_now DATE := CURRENT_DATE;
+  v_month_start TIMESTAMPTZ := date_trunc('month', CURRENT_TIMESTAMP);
+  v_day_start TIMESTAMPTZ := CURRENT_DATE;
+BEGIN
+  SELECT staff_role INTO v_role
+  FROM public.require_staff_permission(p_session_token, 'dashboard.view');
+
+  SELECT COUNT(*) INTO v_total_products
+  FROM public.auto_parts_products
+  WHERE business_id = p_business_id;
+
+  SELECT COUNT(*) INTO v_out_of_stock
+  FROM public.auto_parts_products
+  WHERE business_id = p_business_id
+    AND active = true AND stock_quantity <= 0;
+
+  SELECT COUNT(*) INTO v_low_stock
+  FROM public.auto_parts_products
+  WHERE business_id = p_business_id
+    AND active = true AND stock_quantity > 0 AND stock_quantity <= min_stock;
+
+  SELECT COALESCE(SUM(cost_price * stock_quantity), 0) INTO v_total_stock_value
+  FROM public.auto_parts_products
+  WHERE business_id = p_business_id;
+
+  SELECT COUNT(*) INTO v_today_sales
+  FROM public.auto_parts_sales
+  WHERE business_id = p_business_id
+    AND created_at >= v_day_start;
+
+  SELECT COALESCE(SUM(total), 0) INTO v_month_sales
+  FROM public.auto_parts_sales
+  WHERE business_id = p_business_id
+    AND created_at >= v_month_start;
+
+  SELECT COUNT(*) INTO v_month_purchases
+  FROM public.auto_parts_purchases
+  WHERE business_id = p_business_id
+    AND created_at >= v_month_start AND status = 'delivered';
+
+  SELECT COUNT(*) INTO v_pending_orders
+  FROM public.auto_parts_purchases
+  WHERE business_id = p_business_id
+    AND status IN ('pending', 'confirmed');
+
+  v_result := jsonb_build_object(
+    'totalProducts', v_total_products,
+    'totalStockValue', v_total_stock_value,
+    'outOfStock', v_out_of_stock,
+    'lowStock', v_low_stock,
+    'todaySales', v_today_sales,
+    'monthSales', v_month_sales,
+    'monthPurchases', v_month_purchases,
+    'pendingOrders', v_pending_orders
+  );
+
+  RETURN v_result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_stats(TEXT, UUID) TO anon, authenticated;
+
+-- ─── 3b. current_auto_parts_staff_id : utiliser session_token_hash ───
+CREATE OR REPLACE FUNCTION public.current_auto_parts_staff_id()
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_session_token TEXT;
+  v_hash TEXT;
+  v_staff_id UUID;
+BEGIN
+  v_session_token := current_setting('request.headers', true)::json ->> 'x-staff-session-token';
+  IF v_session_token IS NULL OR v_session_token = '' THEN
+    RETURN NULL;
+  END IF;
+  v_hash := encode(sha256(v_session_token::bytea), 'hex');
+  SELECT staff_id INTO v_staff_id
+  FROM public.auto_parts_staff_sessions
+  WHERE session_token_hash = v_hash AND expires_at > now();
+  RETURN v_staff_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.current_auto_parts_staff_id TO anon, authenticated;
+
+-- ─── 3c. upsert_auto_parts_business_settings : support staff sessions ───
+DROP FUNCTION IF EXISTS public.upsert_auto_parts_business_settings(p_business_id UUID, p_company_name TEXT, p_logo_url TEXT, p_slogan TEXT, p_whatsapp TEXT, p_address TEXT, p_phone TEXT, p_email TEXT, p_website TEXT, p_nif TEXT, p_patente TEXT, p_rc TEXT, p_bank_name TEXT, p_bank_account TEXT, p_invoice_prefix TEXT, p_quote_prefix TEXT, p_delivery_note_prefix TEXT, p_receipt_footer TEXT, p_receipt_header TEXT, p_low_stock_threshold INTEGER);
+CREATE OR REPLACE FUNCTION public.upsert_auto_parts_business_settings(
+  p_business_id UUID,
+  p_company_name TEXT DEFAULT '',
+  p_logo_url TEXT DEFAULT NULL,
+  p_slogan TEXT DEFAULT NULL,
+  p_whatsapp TEXT DEFAULT NULL,
+  p_address TEXT DEFAULT NULL,
+  p_phone TEXT DEFAULT NULL,
+  p_email TEXT DEFAULT NULL,
+  p_website TEXT DEFAULT NULL,
+  p_nif TEXT DEFAULT NULL,
+  p_patente TEXT DEFAULT NULL,
+  p_rc TEXT DEFAULT NULL,
+  p_bank_name TEXT DEFAULT NULL,
+  p_bank_account TEXT DEFAULT NULL,
+  p_invoice_prefix TEXT DEFAULT 'INV-',
+  p_quote_prefix TEXT DEFAULT 'DEV-',
+  p_delivery_note_prefix TEXT DEFAULT 'BL-',
+  p_receipt_footer TEXT DEFAULT NULL,
+  p_receipt_header TEXT DEFAULT NULL,
+  p_low_stock_threshold INTEGER DEFAULT 5,
+  p_session_token TEXT DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_result JSONB;
+  v_belongs BOOLEAN;
+  v_staff_biz UUID;
+  v_user_id UUID;
+BEGIN
+  IF p_session_token IS NOT NULL AND p_session_token != '' THEN
+    SELECT business_id INTO v_staff_biz
+    FROM public.resolve_staff_from_token(p_session_token);
+    IF v_staff_biz IS NULL OR v_staff_biz != p_business_id THEN
+      RETURN jsonb_build_object('error', 'Accès refusé');
+    END IF;
+  ELSE
+    v_user_id := current_setting('request.jwt.claims', true)::json->>'sub';
+    IF v_user_id IS NULL THEN
+      RETURN jsonb_build_object('error', 'Authentification requise');
+    END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM public.businesses b
+      JOIN public.profiles p ON p.business_id = b.id
+      WHERE b.id = p_business_id AND p.id = v_user_id
+    ) INTO v_belongs;
+
+    IF NOT v_belongs THEN
+      RETURN jsonb_build_object('error', 'Accès refusé');
+    END IF;
+  END IF;
+
+  INSERT INTO public.auto_parts_business_settings
+    (business_id, company_name, logo_url, slogan, whatsapp, address, phone, email, website,
+     nif, patente, rc, bank_name, bank_account,
+     invoice_prefix, quote_prefix, delivery_note_prefix,
+     receipt_footer, receipt_header, low_stock_threshold)
+  VALUES
+    (p_business_id, p_company_name, p_logo_url, p_slogan, p_whatsapp, p_address, p_phone, p_email, p_website,
+     p_nif, p_patente, p_rc, p_bank_name, p_bank_account,
+     p_invoice_prefix, p_quote_prefix, p_delivery_note_prefix,
+     p_receipt_footer, p_receipt_header, p_low_stock_threshold)
+  ON CONFLICT (business_id) DO UPDATE SET
+    company_name          = EXCLUDED.company_name,
+    logo_url              = EXCLUDED.logo_url,
+    slogan                = EXCLUDED.slogan,
+    whatsapp              = EXCLUDED.whatsapp,
+    address               = EXCLUDED.address,
+    phone                 = EXCLUDED.phone,
+    email                 = EXCLUDED.email,
+    website               = EXCLUDED.website,
+    nif                   = EXCLUDED.nif,
+    patente               = EXCLUDED.patente,
+    rc                    = EXCLUDED.rc,
+    bank_name             = EXCLUDED.bank_name,
+    bank_account          = EXCLUDED.bank_account,
+    invoice_prefix        = EXCLUDED.invoice_prefix,
+    quote_prefix          = EXCLUDED.quote_prefix,
+    delivery_note_prefix  = EXCLUDED.delivery_note_prefix,
+    receipt_footer        = EXCLUDED.receipt_footer,
+    receipt_header        = EXCLUDED.receipt_header,
+    low_stock_threshold   = EXCLUDED.low_stock_threshold
+  RETURNING id INTO v_result;
+
+  RETURN jsonb_build_object('id', v_result, 'status', 'saved');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.upsert_auto_parts_business_settings(p_business_id UUID, p_company_name TEXT, p_logo_url TEXT, p_slogan TEXT, p_whatsapp TEXT, p_address TEXT, p_phone TEXT, p_email TEXT, p_website TEXT, p_nif TEXT, p_patente TEXT, p_rc TEXT, p_bank_name TEXT, p_bank_account TEXT, p_invoice_prefix TEXT, p_quote_prefix TEXT, p_delivery_note_prefix TEXT, p_receipt_footer TEXT, p_receipt_header TEXT, p_low_stock_threshold INTEGER, p_session_token TEXT) TO anon, authenticated;
+
+-- ─── 3d. record_auto_parts_stock_movement : ajouter p_branch_id ───
+DROP FUNCTION IF EXISTS public.record_auto_parts_stock_movement(p_business_id UUID, p_product_id UUID, p_type TEXT, p_quantity NUMERIC, p_unit_price NUMERIC, p_reference TEXT, p_notes TEXT, p_created_by UUID);
+CREATE OR REPLACE FUNCTION public.record_auto_parts_stock_movement(
+  p_business_id UUID,
+  p_product_id UUID,
+  p_type TEXT,
+  p_quantity NUMERIC,
+  p_unit_price NUMERIC DEFAULT NULL,
+  p_reference TEXT DEFAULT NULL,
+  p_notes TEXT DEFAULT NULL,
+  p_created_by UUID DEFAULT NULL,
+  p_branch_id UUID DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_movement_id UUID;
+  v_creator UUID;
+BEGIN
+  v_creator := COALESCE(p_created_by, current_setting('request.jwt.claims', true)::json->>'sub');
+  INSERT INTO public.auto_parts_stock_movements (product_id, type, quantity, unit_price, reference, notes, business_id, branch_id, created_by)
+  VALUES (p_product_id, p_type, p_quantity, p_unit_price, p_reference, p_notes, p_business_id, p_branch_id, v_creator)
+  RETURNING id INTO v_movement_id;
+  RETURN jsonb_build_object('id', v_movement_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.record_auto_parts_stock_movement(p_business_id UUID, p_product_id UUID, p_type TEXT, p_quantity NUMERIC, p_unit_price NUMERIC, p_reference TEXT, p_notes TEXT, p_created_by UUID, p_branch_id UUID) TO anon, authenticated;
+
+-- ─── 3e. get_auto_parts_business_settings : ajouter vérification propriétaire ───
+DROP FUNCTION IF EXISTS public.get_auto_parts_business_settings(p_business_id UUID);
+CREATE OR REPLACE FUNCTION public.get_auto_parts_business_settings(
+  p_business_id UUID,
+  p_session_token TEXT DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_result JSONB;
+  v_belongs BOOLEAN;
+  v_staff_biz UUID;
+  v_user_id UUID;
+BEGIN
+  IF p_session_token IS NOT NULL AND p_session_token != '' THEN
+    SELECT business_id INTO v_staff_biz
+    FROM public.resolve_staff_from_token(p_session_token);
+    IF v_staff_biz IS NULL OR v_staff_biz != p_business_id THEN
+      RETURN '{}'::JSONB;
+    END IF;
+  ELSE
+    v_user_id := current_setting('request.jwt.claims', true)::json->>'sub';
+    IF v_user_id IS NULL THEN
+      RETURN '{}'::JSONB;
+    END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM public.businesses b
+      JOIN public.profiles p ON p.business_id = b.id
+      WHERE b.id = p_business_id AND p.id = v_user_id
+    ) INTO v_belongs;
+    IF NOT v_belongs THEN
+      RETURN '{}'::JSONB;
+    END IF;
+  END IF;
+
+  SELECT row_to_json(t)::JSONB INTO v_result
+  FROM (
+    SELECT id, business_id, company_name, logo_url, slogan, whatsapp, address, phone, email, website,
+           nif, patente, rc, bank_name, bank_account,
+           invoice_prefix, quote_prefix, delivery_note_prefix,
+           receipt_footer, receipt_header, low_stock_threshold,
+           created_at, updated_at
+    FROM public.auto_parts_business_settings
+    WHERE business_id = p_business_id
+    LIMIT 1
+  ) t;
+
+  RETURN COALESCE(v_result, '{}'::JSONB);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_auto_parts_business_settings(p_business_id UUID, p_session_token TEXT) TO anon, authenticated;
+
+-- ─── 3f. RLS salon_business_profiles : ajouter business_id au filtre ───
+-- L'ancienne politique ne vérifiait que salon_id = current_user_business_id().
+-- Si le trigger sync_business_salon_id n'a pas défini salon_id (base existante),
+-- la lecture est bloquée même si business_id est correct.
+DROP POLICY IF EXISTS salon_business_profiles_tenant_guard ON public.salon_business_profiles;
+CREATE POLICY salon_business_profiles_tenant_guard ON public.salon_business_profiles
+  FOR ALL
+  USING (public.is_super_admin() OR salon_id = public.current_user_business_id() OR business_id = public.current_user_business_id())
+  WITH CHECK (public.is_super_admin() OR salon_id = public.current_user_business_id() OR business_id = public.current_user_business_id());
+
+DROP POLICY IF EXISTS salon_business_hours_tenant_guard ON public.salon_business_hours;
+CREATE POLICY salon_business_hours_tenant_guard ON public.salon_business_hours
+  FOR ALL
+  USING (public.is_super_admin() OR salon_id = public.current_user_business_id() OR business_id = public.current_user_business_id())
+  WITH CHECK (public.is_super_admin() OR salon_id = public.current_user_business_id() OR business_id = public.current_user_business_id());
+
+DO $$ BEGIN RAISE NOTICE 'Migration hotfix appliquée : produits globaux à zéro + correctifs sécurité'; END $$;

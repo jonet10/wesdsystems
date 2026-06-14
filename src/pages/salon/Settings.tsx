@@ -84,7 +84,7 @@ export default function SalonSettingsPage() {
 
   const persistBusinessPatch = useCallback(
     async (patch: Partial<Pick<BusinessRow, "name" | "logo_url" | "currency_code">>) => {
-      const targetBusinessId = profile?.business_id ?? businessId;
+      const targetBusinessId = profile?.business_id ?? businessId ?? user?.user_metadata?.business_id;
       if (!isAuthenticated || !user?.id || !targetBusinessId) {
         return;
       }
@@ -145,12 +145,11 @@ export default function SalonSettingsPage() {
         }
 
         if (profileData?.full_name) setOwner(profileData.full_name);
-        if (!profileData?.business_id) {
-          console.debug("[SalonSettings] Aucun business_id associé au profil", { userId: user.id });
+        const bizId = profileData?.business_id ?? profile?.business_id ?? user?.user_metadata?.business_id;
+        if (!bizId) {
+          console.debug("[SalonSettings] Aucun business_id trouvé", { userId: user.id });
           return;
         }
-
-        const bizId = profileData.business_id;
         setBusinessId(bizId);
 
         const { data: businessData, error: businessError } = await supabase
@@ -248,9 +247,8 @@ export default function SalonSettingsPage() {
           throw new Error(profileUpdateError.message);
         }
 
-        if (profile?.business_id) {
-          const bizId = profile.business_id;
-
+        const bizId = profile?.business_id ?? businessId ?? user?.user_metadata?.business_id;
+        if (bizId) {
           await persistBusinessPatch({
             name: salonName.trim(),
             logo_url: logoUrl,

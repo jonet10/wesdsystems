@@ -39,17 +39,21 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
   return data as AutoPartsProduct & { category: { name: string } | null };
 }
 
-export async function updateProduct(id: string, values: Partial<AutoPartsProduct>, businessId?: string) {
-  let q = supabase.from("auto_parts_products").update(values);
-  if (businessId) q = q.eq("business_id", businessId);
-  const { error } = await q.eq("id", id);
+export async function updateProduct(id: string, values: Partial<AutoPartsProduct>) {
+  const { data, error } = await supabase
+    .from("auto_parts_products")
+    .update(values)
+    .eq("id", id)
+    .select("*, category:category_id(name)")
+    .single();
   if (error) throw error;
+  return data as AutoPartsProduct & { category: { name: string } | null };
 }
 
 export async function deleteProduct(id: string, businessId?: string) {
-  let q = supabase.from("auto_parts_products").delete();
+  let q = supabase.from("auto_parts_products").delete().eq("id", id);
   if (businessId) q = q.eq("business_id", businessId);
-  const { error } = await q.eq("id", id);
+  const { error } = await q;
   if (error) throw error;
 }
 

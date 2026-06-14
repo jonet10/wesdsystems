@@ -55,10 +55,10 @@ const formatDaysRemaining = (daysRemaining: number | null) => {
 
 function computeDaysRemaining(endDate: string | null): number | null {
   if (!endDate) return null;
-  const end = new Date(endDate + "T23:59:59");
+  const [y, m, d] = endDate.split('-').map(Number);
+  const end = new Date(y, m - 1, d, 23, 59, 59, 999);
   const now = new Date();
   const days = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  console.log(`[useSubscriptionPaymentReminder] daysRemaining: end=${endDate} (parsed=${end.toISOString()}), now=${now.toISOString()}, days=${days}`);
   return days;
 }
 
@@ -98,8 +98,6 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
       const business = (businessData as BusinessRow | null) ?? null;
       const subscription = (subscriptionData as SubscriptionRow | null) ?? null;
       const planId = subscription?.plan_id ?? business?.plan_id ?? null;
-
-      console.log(`[useSubscriptionPaymentReminder] businessId=${businessId}, hasSubscription=${!!subscription}, subscriptionStatus=${subscription?.status}, end_date=${subscription?.end_date}, planId=${planId}`);
 
       let plan: PlanRow | null = null;
       if (planId) {
@@ -219,8 +217,6 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
         description = "";
         ctaLabel = "Payer maintenant";
       }
-
-      console.log(`[useSubscriptionPaymentReminder] Result: severity=${severity}, shouldPrompt=${shouldPrompt}, isCritical=${isCritical}, title="${title}"`);
 
       return {
         shouldPrompt,

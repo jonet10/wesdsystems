@@ -59,11 +59,11 @@ export default function AutoPartsPOSPage() {
     taxRate: number; taxAmount: number; total: number;
     paymentMethod: string; selectedClient: { id: string; name: string } | null;
     staffName: string;
-    companyName: string; address?: string; phone?: string; nif?: string;
+    companyName: string; logoUrl?: string; address?: string; phone?: string; nif?: string;
     receiptHeader?: string; receiptFooter?: string;
   } | null>(null);
   const [bizSettings, setBizSettings] = useState<{
-    company_name: string; address?: string; phone?: string; nif?: string;
+    company_name: string; logo_url?: string; address?: string; phone?: string; nif?: string;
     receipt_header?: string; receipt_footer?: string; invoice_prefix?: string;
   } | null>(null);
 
@@ -80,7 +80,7 @@ export default function AutoPartsPOSPage() {
         setCategories(categoriesData);
         setStaff(staffList);
         setBizSettings(bizSettings);
-        if (autoPartsStaffSession) {
+        if (autoPartsStaffSession && autoPartsStaffSession.business_id === businessId) {
           setSelectedStaff(autoPartsStaffSession.id);
         }
       } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
@@ -135,7 +135,8 @@ export default function AutoPartsPOSPage() {
 
   const handlePayment = async () => {
     if (!businessId || cart.length === 0) return;
-    const staffMember = staff.find(s => s.id === selectedStaff) || (autoPartsStaffSession ? { name: autoPartsStaffSession.name } as AutoPartsStaff : undefined);
+    const validStaffSession = autoPartsStaffSession && autoPartsStaffSession.business_id === businessId ? autoPartsStaffSession : undefined;
+    const staffMember = staff.find(s => s.id === selectedStaff) || (validStaffSession ? { name: validStaffSession.name } as AutoPartsStaff : undefined);
     try {
       const sale = await createSale(businessId, {
         subtotal,
@@ -163,6 +164,7 @@ export default function AutoPartsPOSPage() {
         selectedClient: selectedClient ? { ...selectedClient } : null,
         staffName: staffMember?.name || "",
         companyName: bizSettings?.company_name || "Pièces Auto",
+        logoUrl: bizSettings?.logo_url,
         address: bizSettings?.address,
         phone: bizSettings?.phone,
         nif: bizSettings?.nif,
@@ -303,7 +305,7 @@ export default function AutoPartsPOSPage() {
               <Label>TVA (%)</Label>
               <Input type="number" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
             </div>
-            {autoPartsStaffSession ? (
+            {autoPartsStaffSession && autoPartsStaffSession.business_id === businessId ? (
               <div>
                 <Label>Caissier(ère)</Label>
                 <p className="text-sm font-medium text-muted-foreground">{autoPartsStaffSession.name}</p>
@@ -354,57 +356,60 @@ export default function AutoPartsPOSPage() {
           <DialogHeader><DialogTitle>Vente enregistrée</DialogTitle></DialogHeader>
           {lastSale && receiptSnapshot && (
             <>
-              <div ref={receiptRef} className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight bg-white">
-                <div className="text-center mb-3 pb-3" style={{ borderBottom: "1px dashed #ccc" }}>
-                  <h3 className="font-bold text-sm uppercase">{receiptSnapshot.companyName}</h3>
-                  {receiptSnapshot.address && <p className="text-[9px] text-gray-600">{receiptSnapshot.address}</p>}
-                  {receiptSnapshot.phone && <p className="text-[9px] text-gray-600">Tél: {receiptSnapshot.phone}</p>}
-                  {receiptSnapshot.nif && <p className="text-[9px] text-gray-600">NIF: {receiptSnapshot.nif}</p>}
-                  {receiptSnapshot.receiptHeader && <p className="text-[9px] text-gray-500 mt-1">{receiptSnapshot.receiptHeader}</p>}
-                  <p className="text-[10px] text-gray-500 mt-1">Facture #{lastSale.invoice_number}</p>
-                  <p className="text-[9px] text-gray-500">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-                  {receiptSnapshot.staffName && <p className="text-[10px] text-gray-600 mt-1">Caissier: {receiptSnapshot.staffName}</p>}
-                  {receiptSnapshot.selectedClient && <p className="text-[10px] text-gray-600 mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
+              <div id="receipt-print-area" ref={receiptRef} className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight bg-white">
+                <div className="text-center mb-2 pb-2" style={{ borderBottom: "2px solid #000" }}>
+                  {receiptSnapshot.logoUrl && (
+                    <img src={receiptSnapshot.logoUrl} alt="Logo" className="h-12 mx-auto mb-1 object-contain" />
+                  )}
+                  <h3 className="font-bold text-sm uppercase text-black">{receiptSnapshot.companyName}</h3>
+                  {receiptSnapshot.address && <p className="text-[10px] text-black">{receiptSnapshot.address}</p>}
+                  {receiptSnapshot.phone && <p className="text-[10px] text-black">Tél: {receiptSnapshot.phone}</p>}
+                  {receiptSnapshot.nif && <p className="text-[10px] text-black">NIF: {receiptSnapshot.nif}</p>}
+                  {receiptSnapshot.receiptHeader && <p className="text-[10px] text-black mt-1">{receiptSnapshot.receiptHeader}</p>}
+                  <p className="text-[10px] text-black mt-1">Facture #{lastSale.invoice_number}</p>
+                  <p className="text-[10px] text-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }).toUpperCase()} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                  {receiptSnapshot.staffName && <p className="text-[10px] text-black mt-1">Caissier: {receiptSnapshot.staffName}</p>}
+                  {receiptSnapshot.selectedClient && <p className="text-[10px] text-black mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
                 </div>
-                <div className="flex justify-between text-[9px] text-gray-500 font-bold uppercase mb-1 pb-1" style={{ borderBottom: "1px solid #ccc" }}>
-                  <span className="flex-[2]">Article</span>
-                  <span className="w-12 text-right">Qté</span>
-                  <span className="w-16 text-right">Prix</span>
-                  <span className="w-16 text-right">Total</span>
+                <div className="flex justify-between text-[10px] text-black font-bold uppercase mb-1 pb-1" style={{ borderBottom: "1px solid #000" }}>
+                  <span className="flex-[2]">ARTICLE</span>
+                  <span className="w-12 text-right">QTÉ</span>
+                  <span className="w-16 text-right">P.U.</span>
+                  <span className="w-16 text-right">TOTAL</span>
                 </div>
-                <div className="space-y-1 mb-2">
+                <div className="space-y-0.5 mb-1">
                   {receiptSnapshot.cart.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-[10px]">
-                      <span className="flex-[2] truncate pr-1">{item.product_name}</span>
-                      <span className="w-12 text-right text-gray-500">×{item.quantity}</span>
-                      <span className="w-16 text-right text-gray-500">{format(item.unit_price)}</span>
-                      <span className="w-16 text-right font-medium">{format(item.quantity * item.unit_price)}</span>
+                    <div key={idx} className="flex justify-between items-center text-[10px]" style={{ borderBottom: idx < receiptSnapshot.cart.length - 1 ? "1px dotted #999" : "none" }}>
+                      <span className="flex-[2] truncate pr-1 text-black">{item.product_name}</span>
+                      <span className="w-12 text-right text-black">{item.quantity}</span>
+                      <span className="w-16 text-right text-black">{format(item.unit_price)}</span>
+                      <span className="w-16 text-right font-bold text-black">{format(item.quantity * item.unit_price)}</span>
                     </div>
                   ))}
                 </div>
-                <div className="my-2" style={{ borderTop: "1px dashed #ccc" }} />
+                <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
                 <div className="space-y-0.5">
                   <div className="flex justify-between text-[10px]">
-                    <span className="text-gray-500">Sous-total</span>
-                    <span>{format(receiptSnapshot.subtotal)}</span>
+                    <span className="text-black">Sous-total</span>
+                    <span className="text-black">{format(receiptSnapshot.subtotal)}</span>
                   </div>
                   {receiptSnapshot.discountAmount > 0 && (
                     <div className="flex justify-between text-[10px]">
-                      <span className="text-gray-500">Remise</span>
-                      <span className="text-red-500">-{format(receiptSnapshot.discountAmount)}</span>
+                      <span className="text-black">Remise</span>
+                      <span className="text-black">-{format(receiptSnapshot.discountAmount)}</span>
                     </div>
                   )}
                   {receiptSnapshot.taxAmount > 0 && (
                     <div className="flex justify-between text-[10px]">
-                      <span className="text-gray-500">TVA ({receiptSnapshot.taxRate}%)</span>
-                      <span>{format(receiptSnapshot.taxAmount)}</span>
+                      <span className="text-black">TVA ({receiptSnapshot.taxRate}%)</span>
+                      <span className="text-black">{format(receiptSnapshot.taxAmount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-[12px] pt-1" style={{ borderTop: "1px solid #ccc" }}>
+                  <div className="flex justify-between font-bold text-[11px] pt-1 text-black" style={{ borderTop: "2px solid #000" }}>
                     <span>TOTAL</span>
                     <span>{format(receiptSnapshot.total)}</span>
                   </div>
-                  <p className="text-center text-[10px] text-gray-500 uppercase pt-1">
+                  <p className="text-center text-[10px] text-black uppercase pt-1" style={{ borderTop: "1px dashed #000", marginTop: "4px" }}>
                     Paiement: {receiptSnapshot.paymentMethod === "cash" ? "Espèces" :
                                receiptSnapshot.paymentMethod === "card" ? "Carte" :
                                receiptSnapshot.paymentMethod === "transfer" ? "Virement" :
@@ -412,13 +417,13 @@ export default function AutoPartsPOSPage() {
                                receiptSnapshot.paymentMethod === "natcash" ? "NatCash" : receiptSnapshot.paymentMethod}
                   </p>
                 </div>
-                <div className="text-center mt-3 pt-2" style={{ borderTop: "1px dashed #ccc" }}>
+                <div className="text-center mt-2 pt-2" style={{ borderTop: "2px solid #000" }}>
                   {receiptSnapshot.receiptFooter ? (
-                    <p className="text-[9px] text-gray-400">{receiptSnapshot.receiptFooter}</p>
+                    <p className="text-[10px] text-black">{receiptSnapshot.receiptFooter}</p>
                   ) : (
                     <>
-                      <p className="text-[9px] text-gray-400">Merci de votre visite !</p>
-                      <p className="text-[8px] text-gray-400 mt-1">Document généré électroniquement</p>
+                      <p className="text-[10px] text-black">Merci de votre visite !</p>
+                      <p className="text-[9px] text-black mt-1">Document généré électroniquement</p>
                     </>
                   )}
                 </div>

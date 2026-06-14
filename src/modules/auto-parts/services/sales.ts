@@ -2,9 +2,10 @@ import { supabase } from "@/lib/supabase";
 import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsSale, AutoPartsSaleItem } from "../types";
 
-export async function listSales(businessId: string, branchId?: string | null) {
+export async function listSales(businessId: string, branchId?: string | null, staffId?: string | null) {
   const params: Record<string, any> = { p_business_id: businessId };
   if (branchId) params.p_branch_id = branchId;
+  if (staffId) params.p_staff_id = staffId;
   const { data, error } = await supabase.rpc("auto_parts_list_sales", params);
   if (error) throw error;
   return data as (AutoPartsSale & { items: AutoPartsSaleItem[] })[];

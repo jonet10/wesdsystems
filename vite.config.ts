@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      devOptions: { enabled: false },
       includeAssets: ["logo.png", "placeholder.svg", "favicon.ico"],
       manifest: {
         name: "Wesd Systems",

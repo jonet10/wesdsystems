@@ -1,8 +1,13 @@
 import { supabase } from "@/lib/supabase";
+import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsStockMovement } from "../types";
 
-export async function listStockMovements(businessId: string) {
-  const { data, error } = await supabase.rpc("auto_parts_list_stock_movements", { p_business_id: businessId });
+export async function listStockMovements(businessId: string, branchId?: string | null) {
+  const branch = branchId ?? getStoredBranchId(businessId) ?? null;
+  const { data, error } = await supabase.rpc("list_auto_parts_stock_movements", {
+    p_business_id: businessId,
+    p_branch_id: branch,
+  });
   if (error) throw error;
   return data as (AutoPartsStockMovement & { product: { name: string } })[];
 }
@@ -14,9 +19,11 @@ export async function createStockMovement(businessId: string, values: {
   unit_price?: number | null;
   reference?: string;
   notes?: string;
-}) {
+}, branchId?: string | null) {
+  const branch = branchId ?? getStoredBranchId(businessId) ?? null;
   const { data, error } = await supabase.rpc("record_auto_parts_stock_movement", {
     p_business_id: businessId,
+    p_branch_id: branch,
     p_product_id: values.product_id,
     p_type: values.type,
     p_quantity: values.quantity,

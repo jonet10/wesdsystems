@@ -12,11 +12,48 @@ function callRPC<T>(name: string, args: Record<string, any>): Promise<T> {
   });
 }
 
-export function salesSummary(businessId: string, startDate?: string, endDate?: string) {
+export function salesSummary(businessId: string, startDate?: string, endDate?: string, staffId?: string | null) {
   return callRPC<SalesSummary>("auto_parts_sales_summary", {
     p_business_id: businessId,
     p_start_date: startDate ?? null,
     p_end_date: endDate ?? null,
+    ...(staffId ? { p_staff_id: staffId } : {}),
+  });
+}
+
+export function cashierDashboard(businessId: string, staffId: string, branchId?: string | null) {
+  return callRPC<{
+    // Transaction counts
+    salesToday: number; salesWeek: number; salesMonth: number;
+    invoicesToday: number; invoicesWeek: number; invoicesMonth: number;
+    // Revenue (CA)
+    revenueToday: number; revenueWeek: number; revenueMonth: number;
+    // Products sold
+    itemsSoldToday: number; itemsSoldWeek: number; itemsSoldMonth: number;
+  }>("auto_parts_cashier_dashboard", {
+    p_business_id: businessId,
+    p_staff_id: staffId,
+    p_branch_id: branchId ?? null,
+  });
+}
+
+export function adminCashierStats(businessId: string, branchId?: string | null) {
+  return callRPC<{
+    global: {
+      // Revenue (CA)
+      salesToday: number; salesWeek: number; salesMonth: number;
+      invoicesToday: number; invoicesWeek: number; invoicesMonth: number;
+    };
+    byCashier: Array<{
+      staffId: string; staffName: string;
+      // Revenue per cashier
+      salesToday: number; salesWeek: number; salesMonth: number;
+      invoicesToday: number; invoicesWeek: number; invoicesTotal: number;
+      itemsSoldMonth: number;
+    }>;
+  }>("auto_parts_admin_cashier_stats", {
+    p_business_id: businessId,
+    p_branch_id: branchId ?? null,
   });
 }
 

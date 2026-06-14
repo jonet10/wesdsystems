@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getStaffSessionToken } from "./staff-session-helper";
 
 export interface AutoPartsBusinessSettings {
   id?: string;
@@ -26,12 +27,19 @@ export interface AutoPartsBusinessSettings {
   updated_at?: string;
 }
 
+function hasError(data: unknown): data is { error: string } {
+  return typeof data === 'object' && data !== null && 'error' in data;
+}
+
 export async function getBusinessSettings(businessId: string): Promise<AutoPartsBusinessSettings | null> {
+  const sessionToken = getStaffSessionToken();
   const { data, error } = await supabase.rpc("get_auto_parts_business_settings", {
     p_business_id: businessId,
+    p_session_token: sessionToken,
   });
   if (error) throw error;
-  if (!data || Object.keys(data).length === 0) return null;
+  if (hasError(data)) throw new Error(data.error);
+  if (!data || Object.keys(data as object).length === 0) return null;
   return data as AutoPartsBusinessSettings;
 }
 
@@ -39,6 +47,7 @@ export async function upsertBusinessSettings(
   businessId: string,
   settings: Omit<AutoPartsBusinessSettings, "id" | "business_id" | "created_at" | "updated_at">
 ) {
+  const sessionToken = getStaffSessionToken();
   const { data, error } = await supabase.rpc("upsert_auto_parts_business_settings", {
     p_business_id: businessId,
     p_company_name: settings.company_name,
@@ -60,6 +69,7 @@ export async function upsertBusinessSettings(
     p_receipt_footer: settings.receipt_footer ?? null,
     p_receipt_header: settings.receipt_header ?? null,
     p_low_stock_threshold: settings.low_stock_threshold,
+    p_session_token: sessionToken,
   });
   if (error) throw error;
   return data;

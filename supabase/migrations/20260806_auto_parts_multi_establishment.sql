@@ -435,7 +435,7 @@ BEGIN
   END IF;
 
   v_invoice := generate_auto_parts_invoice_number(p_business_id);
-  v_staff_name := (SELECT name FROM public.auto_parts_staff WHERE id = p_staff_id);
+  v_staff_name := (SELECT name FROM public.auto_parts_staff WHERE id = p_staff_id AND business_id = p_business_id);
 
   INSERT INTO public.auto_parts_sales (
     invoice_number, business_id, branch_id, client_id, client_name,
