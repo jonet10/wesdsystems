@@ -213,11 +213,12 @@ function CashierDashboard({ businessId, staffId, staffName }: { businessId: stri
 }
 
 // ─── Admin Dashboard ──────────────────────────────────────────────────────────
-function AdminDashboard({ businessId }: { businessId: string }) {
+function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: boolean }) {
   const { format } = useCurrency();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
-  const canViewStockValue = hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
-  const canViewPurchases  = hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
+  // isAdmin est passé directement depuis le parent (plus fiable dans l'APK)
+  const canViewStockValue = isAdmin || hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
+  const canViewPurchases  = isAdmin || hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
 
   const [counts, setCounts] = useState({ totalProducts: 0, totalStockValue: 0, outOfStock: 0, lowStock: 0, monthPurchases: 0 });
   const [adminStats, setAdminStats] = useState<{
@@ -453,11 +454,15 @@ function AdminDashboard({ businessId }: { businessId: string }) {
 
 export default function AutoPartsDashboardPage() {
   const businessId = useAutoPartsBusinessId();
-  const { autoPartsStaffSession, hasAutoPartsPermission } = useAuth();
+  const { autoPartsStaffSession, hasAutoPartsPermission, profile, session } = useAuth();
+
+  // Un admin Supabase est connecté si session ET profile existent,
+  // OU si session existe mais profile pas encore chargé (cas APK : on fait confiance à la session)
+  const isSupabaseAdmin = !!session;
 
   // Si l'utilisateur a la permission de voir les rapports globaux (Admins, Gérants),
   // il voit toujours le tableau de bord administrateur, même s'il a une session caissier active.
-  const canViewAdminDashboard = hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
+  const canViewAdminDashboard = isSupabaseAdmin || hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
   
   const isStrictlyCashier = !canViewAdminDashboard && autoPartsStaffSession?.role === "cashier";
 
@@ -474,7 +479,7 @@ export default function AutoPartsDashboardPage() {
           staffName={autoPartsStaffSession.name}
         />
       ) : (
-        <AdminDashboard businessId={businessId} />
+        <AdminDashboard businessId={businessId} isAdmin={isSupabaseAdmin} />
       )}
     </DashboardLayout>
   );
