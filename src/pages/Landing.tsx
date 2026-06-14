@@ -45,6 +45,7 @@ import {
   Zap,
   Sun,
   MessageCircle,
+  Smartphone,
 } from "lucide-react";
 
 import { useTheme } from "next-themes";
@@ -654,6 +655,20 @@ export default function Landing() {
                     {t("nav.signIn")}
                   </Button>
                 </Link>
+
+                {/* Android APK Download Button */}
+                <a
+                  href="/wesd-systems.apk"
+                  download="wesd-systems.apk"
+                  className={`flex h-12 items-center gap-2 rounded-full px-6 font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
+                    isDarkMode
+                      ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+                      : "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+                  }`}
+                >
+                  <Smartphone className="h-5 w-5" />
+                  Télécharger l'APK Android
+                </a>
 
               </div>
             </div>
