@@ -405,7 +405,7 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
                           </div>
                         </td>
                         <td className="py-3 px-2 text-right">
-                          <Badge variant="outline" className="font-normal">{c.invoicesTotal}</Badge>
+                          <Badge variant="outline" className="font-normal">{c.salesMonth}</Badge>
                         </td>
                         <td className="py-3 px-2 text-right">
                           <Badge variant="outline" className="font-normal">{c.invoicesTotal}</Badge>
