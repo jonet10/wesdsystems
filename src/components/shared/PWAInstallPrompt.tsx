@@ -115,10 +115,21 @@ export function PWAInstallPrompt() {
       setShowIOSGuide(true);
       return;
     }
-    if (!deferredPrompt) return;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
+    if (!deferredPrompt) {
+      // Pour forcer l'affichage si le navigateur ne le supporte plus
+      alert("Votre navigateur a bloqué l'installation automatique. Vous pouvez l'installer depuis les paramètres de votre navigateur (Ajouter à l'écran d'accueil).");
+      return;
+    }
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setIsVisible(false);
+        setDeferredPrompt(null);
+      }
+    } catch (err) {
+      console.error("Erreur d'installation PWA:", err);
+      // Le prompt ne peut être utilisé qu'une seule fois
       setIsVisible(false);
       setDeferredPrompt(null);
     }
@@ -128,34 +139,30 @@ export function PWAInstallPrompt() {
 
   return (
     <>
-      <div className="fixed bottom-20 left-3 right-3 z-[99998] mx-auto max-w-sm sm:bottom-6 sm:left-auto sm:right-20">
-        <div className="flex items-center gap-3 rounded-2xl border border-violet-500/30 bg-slate-950/95 p-4 shadow-2xl shadow-violet-900/30 backdrop-blur-xl">
-          {/* App icon */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 shadow-lg shadow-violet-500/30">
-            <Smartphone className="h-6 w-6 text-white" />
+      <div className="fixed top-24 left-0 right-0 z-[99998] mx-auto max-w-sm px-4 animate-in slide-in-from-top-10 fade-in duration-500">
+        <div className="flex flex-col gap-3 rounded-2xl border border-violet-500/30 bg-slate-950/95 p-4 shadow-2xl shadow-violet-900/30 backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 shadow-lg shadow-violet-500/30">
+              <Smartphone className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0 pt-1">
+              <p className="text-sm font-bold text-white leading-tight">Installer Wesd Systems</p>
+              <p className="text-xs text-slate-400 mt-0.5">Accès rapide depuis votre écran d'accueil</p>
+            </div>
+            <button
+              onClick={() => setIsVisible(false)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-
-          {/* Text */}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white leading-tight">Installer Wesd Systems</p>
-            <p className="text-xs text-slate-400 mt-0.5">Ajoutez sur votre écran d'accueil</p>
-          </div>
-
-          {/* Install button */}
+          
           <button
             onClick={handleInstall}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-3 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg hover:shadow-violet-500/40 active:scale-95"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 active:scale-[0.98]"
           >
-            <Download className="h-3.5 w-3.5" />
-            Installer
-          </button>
-
-          {/* Dismiss */}
-          <button
-            onClick={() => setIsVisible(false)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white/10 hover:text-slate-300"
-          >
-            <X className="h-4 w-4" />
+            <Download className="h-4 w-4" />
+            Installer maintenant
           </button>
         </div>
       </div>
