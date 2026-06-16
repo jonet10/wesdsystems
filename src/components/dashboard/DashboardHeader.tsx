@@ -299,7 +299,7 @@ export const DashboardHeader = ({
                   </DropdownMenuItem>
                 ))
               ) : (
-                <DropdownMenuItem disabled>Aucune succursale</DropdownMenuItem>
+                <DropdownMenuItem disabled>Aucun établissement</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
