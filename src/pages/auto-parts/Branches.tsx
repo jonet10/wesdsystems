@@ -21,6 +21,7 @@ export default function AutoPartsBranchesPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -38,7 +39,7 @@ export default function AutoPartsBranchesPage() {
         .select("id")
         .single();
       if (error) throw error;
-      toast.success(`Succursale "${name}" créée`);
+      toast.success(`Établissement "${name}" créé`);
       setShowForm(false);
       setName(""); setPhone(""); setEmail(""); setAddress(""); setBusinessType("");
       const { data: updated } = await supabase
@@ -51,14 +52,14 @@ export default function AutoPartsBranchesPage() {
   };
 
   return (
-    <DashboardLayout role="salon_admin" title="Succursales" subtitle="Gestion des établissements / branches">
+    <DashboardLayout role="salon_admin" title="Établissements" subtitle="Gestion de vos différentes entreprises / établissements">
       <StaggerContainer>
         <StaggerItem>
           <div className="flex items-center justify-between mb-6">
             <p className="text-sm text-muted-foreground">
-              {localBranches.length} succursale{localBranches.length > 1 ? "s" : ""}
+              {localBranches.length} établissement{localBranches.length > 1 ? "s" : ""}
             </p>
-            <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4 mr-2" /> Nouvelle succursale</Button>
+            <Button onClick={() => setShowForm(true)}><Plus className="h-4 w-4 mr-2" /> Nouvel établissement</Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -103,7 +104,7 @@ export default function AutoPartsBranchesPage() {
             ))}
             {localBranches.length === 0 && !isLoading && (
               <p className="col-span-full text-center text-muted-foreground py-12">
-                Aucune succursale. Créez-en une pour commencer.
+                Aucun établissement. Créez-en un pour commencer.
               </p>
             )}
           </div>
@@ -112,11 +113,11 @@ export default function AutoPartsBranchesPage() {
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nouvelle succursale</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nouvel établissement</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Nom *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Succursale Pétion-Ville" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Établissement Pétion-Ville" />
             </div>
             <div>
               <Label>Téléphone</Label>
