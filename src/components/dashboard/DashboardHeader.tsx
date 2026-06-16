@@ -279,7 +279,19 @@ export const DashboardHeader = ({
                 branches.map((branch) => (
                   <DropdownMenuItem
                     key={branch.id}
-                    onClick={() => setActiveBranchId(branch.id)}
+                    onClick={() => {
+                      setActiveBranchId(branch.id);
+                      if (branch.business_type && branch.business_type !== glowupStore.getActiveBusiness()) {
+                        glowupStore.setActiveBusiness(branch.business_type as any);
+                        const routes: Record<string, string> = {
+                          salon: "/salon", pharmacie: "/pharmacie", restaurant: "/bar",
+                          bar: "/bar", market: "/market", boutique: "/boutique",
+                          auto_parts: "/auto-parts", school_payments: "/school-payments",
+                        };
+                        const targetPath = routes[branch.business_type as string] || "/salon";
+                        navigate(targetPath);
+                      }
+                    }}
                     className={cn("flex items-center justify-between gap-2", branchId === branch.id && "bg-accent")}
                   >
                     <span className="truncate">{branch.name}</span>

@@ -23,7 +23,7 @@ export function useBusinessBranches() {
       const [{ data: branchRows, error: branchError }, { data: legacyRows, error: legacyError }] = await Promise.all([
         supabase
           .from("business_branches")
-          .select("id, business_id, name, phone, email, address, manager_id, active, branch_code, created_at, updated_at")
+          .select("id, business_id, name, phone, email, address, manager_id, active, branch_code, business_type, created_at, updated_at")
           .eq("business_id", businessId)
           .order("created_at", { ascending: true }),
         supabase

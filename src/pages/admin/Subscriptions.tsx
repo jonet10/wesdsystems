@@ -107,6 +107,7 @@ const branchSchema = z.object({
   email: z.string().email("Email invalide").optional().or(z.literal("")),
   address: z.string().optional().nullable(),
   manager_id: z.string().optional().nullable(),
+  business_type: z.string().optional().nullable(),
   active: z.boolean().default(true),
 });
 
@@ -459,6 +460,7 @@ export default function SuperAdminSubscriptionsPage() {
         email: values.email?.trim() || null,
         address: values.address?.trim() || null,
         manager_id: values.manager_id || null,
+        business_type: values.business_type || null,
         active: values.active,
       };
 
@@ -1308,6 +1310,22 @@ export default function SuperAdminSubscriptionsPage() {
               <div className="space-y-2">
                 <Label>Name</Label>
                 <Input {...branchForm.register("name")} />
+              </div>
+              <div className="space-y-2">
+                <Label>Business Type (Module)</Label>
+                <select
+                  {...branchForm.register("business_type")}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Hériter de l'entreprise</option>
+                  <option value="salon">Salon de Beauté</option>
+                  <option value="auto_parts">Pièces Auto</option>
+                  <option value="pharmacie">Pharmacie</option>
+                  <option value="restaurant">Restaurant/Bar</option>
+                  <option value="market">Supermarché</option>
+                  <option value="boutique">Boutique</option>
+                  <option value="school_payments">École</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>Manager ID</Label>

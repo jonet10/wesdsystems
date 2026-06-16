@@ -21,7 +21,7 @@ export default function AutoPartsBranchesPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
+  const [businessType, setBusinessType] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -34,13 +34,13 @@ export default function AutoPartsBranchesPage() {
     try {
       const { data, error } = await supabase
         .from("business_branches")
-        .insert({ business_id: businessId, name: name.trim(), phone, email, address, active: true })
+        .insert({ business_id: businessId, name: name.trim(), phone, email, address, active: true, business_type: businessType || null })
         .select("id")
         .single();
       if (error) throw error;
       toast.success(`Succursale "${name}" créée`);
       setShowForm(false);
-      setName(""); setPhone(""); setEmail(""); setAddress("");
+      setName(""); setPhone(""); setEmail(""); setAddress(""); setBusinessType("");
       const { data: updated } = await supabase
         .from("business_branches")
         .select("*")
@@ -66,7 +66,21 @@ export default function AutoPartsBranchesPage() {
               <Card
                 key={b.id}
                 className={`cursor-pointer transition-colors ${b.id === branchId ? "ring-2 ring-primary" : ""}`}
-                onClick={() => setActiveBranchId(b.id)}
+                onClick={() => {
+                  setActiveBranchId(b.id);
+                  if (b.business_type && b.business_type !== "auto_parts") {
+                    // Si on était dans auto-parts, et qu'on clique sur un salon, on bascule
+                    import("@/lib/store").then(({ glowupStore }) => {
+                      glowupStore.setActiveBusiness(b.business_type as any);
+                      const routes: Record<string, string> = {
+                        salon: "/salon", pharmacie: "/pharmacie", restaurant: "/bar",
+                        bar: "/bar", market: "/market", boutique: "/boutique",
+                        auto_parts: "/auto-parts", school_payments: "/school-payments",
+                      };
+                      window.location.href = routes[b.business_type as string] || "/salon";
+                    });
+                  }
+                }}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
@@ -111,6 +125,21 @@ export default function AutoPartsBranchesPage() {
             <div>
               <Label>Email</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <Label>Type de module (Optionnel)</Label>
+              <select
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Hériter de l'entreprise (Pièces Auto)</option>
+                <option value="salon">Salon de Beauté</option>
+                <option value="pharmacie">Pharmacie</option>
+                <option value="restaurant">Restaurant/Bar</option>
+                <option value="market">Supermarché</option>
+                <option value="boutique">Boutique</option>
+              </select>
             </div>
             <div>
               <Label>Adresse</Label>
