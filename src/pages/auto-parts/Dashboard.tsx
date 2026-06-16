@@ -237,7 +237,12 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
 
     const load = async () => {
       const dashParams: Record<string, any> = { p_business_id: businessId };
-      if (autoPartsStaffSession?.session_token) dashParams.p_session_token = autoPartsStaffSession.session_token;
+      if (autoPartsStaffSession?.session_token) {
+        dashParams.p_session_token = autoPartsStaffSession.session_token;
+      } else if (isAdmin) {
+        // Admin Supabase connecté directement : on lui donne accès aux finances
+        dashParams.p_is_admin = true;
+      }
 
       const [c, a, t] = await Promise.all([
         safe(async () => { const r = await supabase.rpc("auto_parts_dashboard_counts", dashParams); return r.data; }, null, "counts"),
