@@ -159,6 +159,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Receipt, label: "Dépenses", path: "/salon/expenses", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: TrendingUp, label: "Rapports", path: "/salon/reports", permission: PERMISSIONS.REPORTS_VIEW },
           { icon: BarChart3, label: "Analytics", path: "/salon/sales-analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
+          { icon: Building2, label: "Succursales", path: "/salon/branches", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: Settings, label: "Paramètres", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "market":
