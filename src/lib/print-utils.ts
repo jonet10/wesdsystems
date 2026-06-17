@@ -15,8 +15,14 @@ export function getTimeFr(): string {
 
 export async function printReceipt(element: HTMLElement, fileName = "recu"): Promise<void> {
   try {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) { window.print(); return; }
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
 
     const style = document.createElement("style");
     style.textContent = `
@@ -39,16 +45,32 @@ export async function printReceipt(element: HTMLElement, fileName = "recu"): Pro
     cloned.style.margin = "0";
     cloned.style.background = "#fff";
 
-    printWindow.document.write("<!DOCTYPE html><html><head><meta charset='utf-8'>");
-    printWindow.document.write(style.outerHTML);
-    printWindow.document.write("</head><body>");
-    printWindow.document.write(cloned.outerHTML);
-    printWindow.document.write("</body></html>");
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  } catch {
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    doc.open();
+    doc.write("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+    doc.write(style.outerHTML);
+    doc.write("</head><body>");
+    doc.write(cloned.outerHTML);
+    doc.write("</body></html>");
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    
+    // Attendre que le contenu soit rendu (important pour les images/styles)
+    setTimeout(() => {
+      iframe.contentWindow?.print();
+      // Nettoyer après l'impression
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 250);
+  } catch (e) {
+    console.error("Erreur d'impression:", e);
     window.print();
   }
 }
