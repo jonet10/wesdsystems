@@ -204,6 +204,21 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Building2, label: "Établissements", path: "/auto-parts/branches", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
+      case "school":
+        return [
+          { icon: LayoutDashboard, label: "Dashboard", path: "/school", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Users, label: "Élèves", path: "/school/students", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserIcon, label: "Parents / Tuteurs", path: "/school/parents", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserCog, label: "Professeurs", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Layers, label: "Classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Calendar, label: "Années Acad.", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
+          { icon: BadgeDollarSign, label: "Frais & Tarifs", path: "/school/fees", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: FileText, label: "Factures", path: "/school/invoices", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: ShoppingBag, label: "Caisse", path: "/school/payments", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
+          { icon: TrendingUp, label: "Rapports", path: "/school/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: Settings, label: "Paramètres", path: "/school/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
+        ];
     }
   };
 
