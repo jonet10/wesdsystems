@@ -16,7 +16,7 @@ import type { SchoolTeacher } from "@/modules/school/types";
 
 export default function SchoolTeachers() {
   const { user, profile, isAuthenticated } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
@@ -86,10 +86,15 @@ export default function SchoolTeachers() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
 
     setIsSaving(true);
     try {
+      if (!firstName.trim() || !lastName.trim()) {
+        toast.error("Veuillez saisir le prénom et le nom du professeur");
+        setIsSaving(false);
+        return;
+      }
       const payload = {
         business_id: businessId,
         first_name: firstName,
@@ -136,7 +141,7 @@ export default function SchoolTeachers() {
   );
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -164,11 +169,11 @@ export default function SchoolTeachers() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Prénom</Label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Nom de famille</Label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} required />
+                    <Input value={lastName} onChange={e => setLastName(e.target.value)} />
                   </div>
                 </div>
                 

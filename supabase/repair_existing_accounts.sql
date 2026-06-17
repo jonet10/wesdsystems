@@ -8,7 +8,7 @@ ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS business_type TEXT;
 -- 0b. Extend type check constraint to include auto_parts
 ALTER TABLE public.businesses DROP CONSTRAINT IF EXISTS businesses_type_check;
 ALTER TABLE public.businesses ADD CONSTRAINT businesses_type_check
-  CHECK (type = ANY (ARRAY['salon'::text, 'pharmacie'::text, 'restaurant'::text, 'market'::text, 'boutique'::text, 'auto_parts'::text]));
+  CHECK (type = ANY (ARRAY['salon'::text, 'pharmacie'::text, 'restaurant'::text, 'market'::text, 'boutique'::text, 'auto_parts'::text, 'school'::text]));
 
 -- 0c. Recreate auto_create_trial_subscription function with trial_end_date removed
 CREATE OR REPLACE FUNCTION public.auto_create_trial_subscription()

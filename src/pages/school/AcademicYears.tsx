@@ -73,7 +73,7 @@ export default function SchoolAcademicYears() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
 
     setIsSaving(true);
     try {
@@ -134,7 +134,7 @@ export default function SchoolAcademicYears() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -161,7 +161,7 @@ export default function SchoolAcademicYears() {
               <form onSubmit={handleSave} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nom (ex: 2026-2027)</Label>
-                  <Input id="name" value={name} onChange={e => setName(e.target.value)} required placeholder="2026-2027" />
+                  <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="2026-2027" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">

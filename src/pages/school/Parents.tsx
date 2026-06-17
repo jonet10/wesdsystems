@@ -77,7 +77,7 @@ export default function SchoolParents() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
 
     setIsSaving(true);
     try {
@@ -125,7 +125,7 @@ export default function SchoolParents() {
   );
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -153,11 +153,11 @@ export default function SchoolParents() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Prénom</Label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Nom de famille</Label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} required />
+                    <Input value={lastName} onChange={e => setLastName(e.target.value)} />
                   </div>
                 </div>
                 

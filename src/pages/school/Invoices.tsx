@@ -16,7 +16,7 @@ import { format } from "date-fns";
 
 export default function SchoolInvoices() {
   const { user, profile, isAuthenticated } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [invoices, setInvoices] = useState<SchoolInvoice[]>([]);
@@ -87,7 +87,7 @@ export default function SchoolInvoices() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>

@@ -124,7 +124,7 @@ export default function SchoolSettingsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Paramètres de l'établissement</h1>
@@ -155,7 +155,7 @@ export default function SchoolSettingsPage() {
                         <div className="flex-1 space-y-4">
                           <div className="space-y-2">
                             <Label htmlFor="name">Nom de l'établissement</Label>
-                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="address">Adresse</Label>

@@ -17,7 +17,7 @@ import type { SchoolFeeCategory, SchoolFee, SchoolClass, SchoolAcademicYear } fr
 
 export default function SchoolFees() {
   const { user, profile, isAuthenticated } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   // Data
@@ -85,7 +85,7 @@ export default function SchoolFees() {
 
   const handleSaveCat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
 
     try {
       const payload = {
@@ -176,7 +176,7 @@ export default function SchoolFees() {
   const filteredFees = fees.filter(f => f.academic_year_id === activeYear);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Frais & Tarifs</h1>
@@ -211,7 +211,7 @@ export default function SchoolFees() {
                   <form onSubmit={handleSaveCat} className="space-y-4 pt-4">
                     <div className="space-y-2">
                       <Label>Nom</Label>
-                      <Input value={catName} onChange={e => setCatName(e.target.value)} required placeholder="Ex: Inscription, Scolarité" />
+                      <Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Inscription, Scolarité" />
                     </div>
                     <div className="space-y-2">
                       <Label>Description</Label>
@@ -288,21 +288,21 @@ export default function SchoolFees() {
                   <form onSubmit={handleSaveFee} className="space-y-4 pt-4">
                     <div className="space-y-2">
                       <Label>Classe</Label>
-                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeClassId} onChange={e => setFeeClassId(e.target.value)} required>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeClassId} onChange={e => setFeeClassId(e.target.value)}>
                         <option value="">Sélectionner une classe</option>
                         {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
                       <Label>Catégorie de Frais</Label>
-                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeCatId} onChange={e => setFeeCatId(e.target.value)} required>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeCatId} onChange={e => setFeeCatId(e.target.value)}>
                         <option value="">Sélectionner une catégorie</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
                       <Label>Montant</Label>
-                      <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} required />
+                      <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} />
                     </div>
                     <div className="flex justify-end pt-4"><Button type="submit">Enregistrer</Button></div>
                   </form>

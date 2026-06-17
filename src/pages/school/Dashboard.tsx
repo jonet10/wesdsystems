@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
@@ -57,7 +58,7 @@ export default function SchoolDashboard() {
   }, [businessId]);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tableau de bord École</h1>

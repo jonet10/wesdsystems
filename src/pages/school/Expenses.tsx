@@ -16,7 +16,7 @@ import { format } from "date-fns";
 
 export default function SchoolExpenses() {
   const { user, profile, isAuthenticated } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [expenses, setExpenses] = useState<SchoolExpense[]>([]);
@@ -76,7 +76,7 @@ export default function SchoolExpenses() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
 
     setIsSaving(true);
     try {
@@ -123,7 +123,7 @@ export default function SchoolExpenses() {
   );
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -154,8 +154,7 @@ export default function SchoolExpenses() {
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3" 
                     value={category} 
                     onChange={e => setCategory(e.target.value)} 
-                    required
-                  >
+                   >
                     <option value="">Sélectionner une catégorie</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -164,11 +163,11 @@ export default function SchoolExpenses() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Montant</Label>
-                    <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required />
+                    <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Date</Label>
-                    <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} required />
+                    <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
                   </div>
                 </div>
 

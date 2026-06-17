@@ -68,7 +68,15 @@ export default function SchoolClasses() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) {
+      toast.error("Erreur de session (businessId manquant)");
+      return;
+    }
+
+    if (!name.trim()) {
+      toast.error("Veuillez saisir le nom de la classe");
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -120,7 +128,7 @@ export default function SchoolClasses() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -147,7 +155,7 @@ export default function SchoolClasses() {
               <form onSubmit={handleSave} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nom de la classe</Label>
-                  <Input id="name" value={name} onChange={e => setName(e.target.value)} required placeholder="ex: 7ème AF A" />
+                  <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="ex: 7ème AF A" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">

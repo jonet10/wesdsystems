@@ -184,7 +184,7 @@ export default function SchoolPayments() {
   });
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Caisse & Encaissements</h1>

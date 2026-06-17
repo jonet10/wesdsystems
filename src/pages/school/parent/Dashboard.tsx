@@ -12,7 +12,7 @@ import { format } from "date-fns";
 
 export default function ParentDashboard() {
   const { user, isAuthenticated } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
 
   const [parentRecord, setParentRecord] = useState<any>(null);
   const [children, setChildren] = useState<any[]>([]);

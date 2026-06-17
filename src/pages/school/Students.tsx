@@ -84,7 +84,20 @@ export default function SchoolStudents() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) return;
+    if (!businessId) {
+      toast.error("Erreur de session (businessId manquant)");
+      return;
+    }
+
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Veuillez saisir le prénom et le nom");
+      return;
+    }
+
+    if (!status) {
+      toast.error("Veuillez sélectionner un statut");
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -134,7 +147,7 @@ export default function SchoolStudents() {
   );
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -162,11 +175,11 @@ export default function SchoolStudents() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Prénom</Label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} required />
+                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Nom de famille</Label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} required />
+                    <Input value={lastName} onChange={e => setLastName(e.target.value)} />
                   </div>
                 </div>
                 
@@ -192,7 +205,7 @@ export default function SchoolStudents() {
                   </div>
                   <div className="space-y-2">
                     <Label>Statut</Label>
-                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={status} onChange={e => setStatus(e.target.value)} required>
+                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={status} onChange={e => setStatus(e.target.value)}>
                       <option value="active">Actif</option>
                       <option value="inactive">Inactif</option>
                       <option value="graduated">Diplômé / Terminé</option>
