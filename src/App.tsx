@@ -58,6 +58,21 @@ import AutoPartsCompatibilities from "./pages/auto-parts/Compatibilities";
 import AutoPartsSuppliers from "./pages/auto-parts/Suppliers";
 import AutoPartsClients from "./pages/auto-parts/Clients";
 import AutoPartsPOS from "./pages/auto-parts/POS";
+
+// School
+import SchoolDashboard from "./pages/school/Dashboard";
+import SchoolSettings from "./pages/school/Settings";
+import SchoolAcademicYears from "./pages/school/AcademicYears";
+import SchoolClasses from "./pages/school/Classes";
+import SchoolFees from "./pages/school/Fees";
+import SchoolStudents from "./pages/school/Students";
+import SchoolParents from "./pages/school/Parents";
+import SchoolTeachers from "./pages/school/Teachers";
+import SchoolInvoices from "./pages/school/Invoices";
+import SchoolPayments from "./pages/school/Payments";
+import SchoolExpenses from "./pages/school/Expenses";
+import SchoolReports from "./pages/school/Reports";
+import ParentDashboard from "./pages/school/parent/Dashboard";
 import AutoPartsPurchases from "./pages/auto-parts/Purchases";
 import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
 import AutoPartsSettings from "./pages/auto-parts/Settings";
@@ -121,22 +136,6 @@ import AutoPartsInvoices from "./pages/auto-parts/Invoices";
 import AutoPartsQuotes from "./pages/auto-parts/Quotes";
 import AutoPartsDeliveryNotes from "./pages/auto-parts/DeliveryNotes";
 import AutoPartsBranches from "./pages/auto-parts/Branches";
-
-// School Pages
-import SchoolDashboard from "./pages/school/Dashboard";
-import SchoolStudents from "./pages/school/Students";
-import SchoolParents from "./pages/school/Parents";
-import SchoolTeachers from "./pages/school/Teachers";
-import SchoolClasses from "./pages/school/Classes";
-import SchoolAcademicYears from "./pages/school/AcademicYears";
-import SchoolFees from "./pages/school/Fees";
-import SchoolInvoices from "./pages/school/Invoices";
-import SchoolPayments from "./pages/school/Payments";
-import SchoolExpenses from "./pages/school/Expenses";
-import SchoolReports from "./pages/school/Reports";
-import SchoolSettings from "./pages/school/Settings";
-import ParentPortalDashboard from "./pages/school/parent/Dashboard";
-
 import NotFound from "./pages/NotFound";
 import { PERMISSIONS, type Permission } from "@/config/permissions";
 
@@ -504,98 +503,6 @@ const App = () => (
                 <Route
                   path="/auto-parts/reports"
                   element={
-                {/* Auto Parts Routes */}
-                <Route
-                  path="/auto-parts"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
-                      <AutoPartsDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/products"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.PRODUCTS_READ}>
-                      <AutoPartsProducts />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/categories"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.CATEGORIES_MANAGE}>
-                      <AutoPartsCategories />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/brands"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.BRANDS_MANAGE}>
-                      <AutoPartsBrands />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/models"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.MODELS_MANAGE}>
-                      <AutoPartsModels />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/compatibilities"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.COMPATIBILITIES_MANAGE}>
-                      <AutoPartsCompatibilities />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/suppliers"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SUPPLIERS_MANAGE}>
-                      <AutoPartsSuppliers />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/clients"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.CLIENTS_READ}>
-                      <AutoPartsClients />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/pos"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.POS_VIEW}>
-                      <AutoPartsPOS />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/purchases"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.PURCHASES_MANAGE}>
-                      <AutoPartsPurchases />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/stock-movements"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.STOCK_VIEW}>
-                      <AutoPartsStockMovements />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/reports"
-                  element={
                     <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.REPORTS_VIEW}>
                       <AutoPartsReports />
                     </ProtectedRoute>
@@ -662,88 +569,8 @@ const App = () => (
                 <Route
                   path="/school"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_cashier", "school_accountant", "school_teacher"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/students"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_cashier", "school_accountant"]} allowAuthenticatedWithoutRole>
-                      <SchoolStudents />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/parents"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
-                      <SchoolParents />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/teachers"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
-                      <SchoolTeachers />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/classes"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
-                      <SchoolClasses />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/academic-years"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
-                      <SchoolAcademicYears />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/fees"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_accountant"]} allowAuthenticatedWithoutRole>
-                      <SchoolFees />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/invoices"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
-                      <SchoolInvoices />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/payments"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_cashier", "school_accountant"]} allowAuthenticatedWithoutRole>
-                      <SchoolPayments />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/expenses"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_accountant"]} allowAuthenticatedWithoutRole>
-                      <SchoolExpenses />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/school/reports"
-                  element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_manager", "school_accountant"]} allowAuthenticatedWithoutRole>
-                      <SchoolReports />
                     </ProtectedRoute>
                   }
                 />
@@ -755,13 +582,91 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-
-                {/* Parent Portal Routes */}
                 <Route
-                  path="/parent"
+                  path="/school/academic-years"
                   element={
-                    <ProtectedRoute allowedRoles={["school_parent"]}>
-                      <ParentPortalDashboard />
+                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                      <SchoolAcademicYears />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/classes"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                      <SchoolClasses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/fees"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                      <SchoolFees />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/students"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <SchoolStudents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/parents"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <SchoolParents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/teachers"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                      <SchoolTeachers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/invoices"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <SchoolInvoices />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/payments"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
+                      <SchoolPayments />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/expenses"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <SchoolExpenses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <SchoolReports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/parent/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_parent"]} allowAuthenticatedWithoutRole>
+                      <ParentDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -785,4 +690,3 @@ const App = () => (
 );
 
 export default App;
-
