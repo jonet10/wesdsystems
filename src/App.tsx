@@ -504,61 +504,6 @@ const App = () => (
                 <Route
                   path="/auto-parts/reports"
                   element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.REPORTS_VIEW}>
-                      <AutoPartsReports />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/returns"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.RETURNS_MANAGE}>
-                      <AutoPartsReturns />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/settings"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SETTINGS_MANAGE}>
-                      <AutoPartsSettings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/invoices"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
-                      <AutoPartsInvoices />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/quotes"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
-                      <AutoPartsQuotes />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/delivery-notes"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
-                      <AutoPartsDeliveryNotes />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/branches"
-                  element={
-                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SETTINGS_MANAGE}>
-                      <AutoPartsBranches />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/auto-parts/staff"
                 {/* Auto Parts Routes */}
                 <Route
                   path="/auto-parts"
@@ -840,3 +785,4 @@ const App = () => (
 );
 
 export default App;
+
