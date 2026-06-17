@@ -516,7 +516,7 @@ const App = () => (
                 <Route
                   path="/school"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
                     </ProtectedRoute>
                   }
@@ -524,7 +524,7 @@ const App = () => (
                 <Route
                   path="/school/settings"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
                       <SchoolSettings />
                     </ProtectedRoute>
                   }
@@ -532,7 +532,7 @@ const App = () => (
                 <Route
                   path="/school/academic-years"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
                       <SchoolAcademicYears />
                     </ProtectedRoute>
                   }
@@ -540,7 +540,7 @@ const App = () => (
                 <Route
                   path="/school/classes"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
                       <SchoolClasses />
                     </ProtectedRoute>
                   }
@@ -548,7 +548,7 @@ const App = () => (
                 <Route
                   path="/school/fees"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
                       <SchoolFees />
                     </ProtectedRoute>
                   }
@@ -556,7 +556,7 @@ const App = () => (
                 <Route
                   path="/school/students"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolStudents />
                     </ProtectedRoute>
                   }
@@ -564,7 +564,7 @@ const App = () => (
                 <Route
                   path="/school/parents"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolParents />
                     </ProtectedRoute>
                   }
@@ -572,7 +572,7 @@ const App = () => (
                 <Route
                   path="/school/teachers"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
                       <SchoolTeachers />
                     </ProtectedRoute>
                   }
@@ -580,7 +580,7 @@ const App = () => (
                 <Route
                   path="/school/invoices"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolInvoices />
                     </ProtectedRoute>
                   }
@@ -588,7 +588,7 @@ const App = () => (
                 <Route
                   path="/school/payments"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
                       <SchoolPayments />
                     </ProtectedRoute>
                   }
@@ -596,7 +596,7 @@ const App = () => (
                 <Route
                   path="/school/expenses"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolExpenses />
                     </ProtectedRoute>
                   }
@@ -604,7 +604,7 @@ const App = () => (
                 <Route
                   path="/school/reports"
                   element={
-                    <ProtectedRoute allowedRoles={["school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolReports />
                     </ProtectedRoute>
                   }
