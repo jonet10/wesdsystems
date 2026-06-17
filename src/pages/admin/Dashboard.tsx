@@ -103,8 +103,8 @@ const platformModules: PlatformModule[] = [
   },
   {
     name: "Paiements Scolaires",
-    phase: "coming_soon",
-    label: "À venir",
+    phase: "complete",
+    label: "Complet",
     description: "Gestion des élèves, professeurs, frais scolaires, paiements et rapports financiers.",
   },
 ];
