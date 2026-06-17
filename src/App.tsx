@@ -73,6 +73,16 @@ import SchoolPayments from "./pages/school/Payments";
 import SchoolExpenses from "./pages/school/Expenses";
 import SchoolReports from "./pages/school/Reports";
 import ParentDashboard from "./pages/school/parent/Dashboard";
+import AutoPartsPurchases from "./pages/auto-parts/Purchases";
+import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
+import AutoPartsSettings from "./pages/auto-parts/Settings";
+import AutoPartsReports from "./pages/auto-parts/Reports";
+import AutoPartsStaff from "./pages/auto-parts/Staff";
+import AutoPartsReturns from "./pages/auto-parts/Returns";
+import AutoPartsInvoices from "./pages/auto-parts/Invoices";
+import AutoPartsQuotes from "./pages/auto-parts/Quotes";
+import AutoPartsDeliveryNotes from "./pages/auto-parts/DeliveryNotes";
+import AutoPartsBranches from "./pages/auto-parts/Branches";
 import NotFound from "./pages/NotFound";
 import { PERMISSIONS, type Permission } from "@/config/permissions";
 
