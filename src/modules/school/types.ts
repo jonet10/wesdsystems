@@ -28,8 +28,12 @@ export interface SchoolAcademicYear {
 export interface SchoolClass {
   id: string;
   business_id: string;
+  code?: string | null;
   name: string;
+  cycle?: string | null;
   level?: string | null;
+  level_order?: number | null;
+  section?: string | null;
   max_students?: number | null;
   created_at: string;
 }
