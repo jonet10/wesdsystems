@@ -9,7 +9,7 @@ import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedC
 
 export default function SchoolDashboard() {
   const { user, profile } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [stats, setStats] = useState({
