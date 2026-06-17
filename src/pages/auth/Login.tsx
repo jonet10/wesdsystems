@@ -37,6 +37,7 @@ export default function Login() {
     if (role === 'employee') return 'employee';
     if (role === 'partner' || role?.startsWith('partner')) return 'partner';
     if (['studio_admin', 'salon_admin', 'owner'].includes(role)) return 'studio_admin';
+    if (['school_admin', 'school_accountant', 'school_cashier', 'school_teacher', 'school_parent'].includes(role)) return role;
     return null;
   };
 
@@ -48,7 +49,8 @@ export default function Login() {
       market: "/market",
       boutique: "/boutique",
       auto_parts: "/auto-parts",
-      school_payments: "/school-payments",
+      school_payments: "/school",
+      school: "/school",
     };
     return (businessType && routes[businessType]) || "/salon";
   };

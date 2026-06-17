@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { canAccessEmployeePos, normalizeEmployeeRole } from "@/lib/employee-role";
 import { hasPermission, type Permission } from "@/config/permissions";
 
-type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner";
+type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -21,7 +21,8 @@ function moduleRoute(businessType?: string | null): string {
     market: "/market",
     boutique: "/boutique",
     auto_parts: "/auto-parts",
-    school_payments: "/school-payments",
+    school_payments: "/school",
+    school: "/school",
   };
   return (businessType && routes[businessType]) || "/salon";
 }
@@ -30,6 +31,7 @@ const getDefaultRouteForRole = (role?: string | null, businessType?: string | nu
   if (role === "super_admin") return "/admin";
   if (role === "partner") return "/partner";
   if (role === "employee") return "/employee";
+  if (role === "school_parent") return "/school/parent/dashboard";
   return moduleRoute(businessType);
 };
 
@@ -41,6 +43,7 @@ const normalizeRole = (role?: string | null): AppRole | null => {
   if (!role) return null;
   if (role === "super_admin" || role === "employee" || role === "partner") return role;
   if (["owner", "salon_admin", "studio_admin"].includes(role)) return "studio_admin";
+  if (["school_admin", "school_accountant", "school_cashier", "school_teacher", "school_parent"].includes(role)) return role as AppRole;
   return null;
 };
 
