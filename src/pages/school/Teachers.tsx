@@ -11,17 +11,23 @@ import { Plus, Pencil, Trash2, Search, UserCheck, BookOpen, Phone } from "lucide
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { ExportButtons } from "@/components/school/ExportButtons";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import type { SchoolTeacher } from "@/modules/school/types";
+import { format } from "date-fns";
 
 export default function SchoolTeachers() {
   const { user, profile, isAuthenticated } = useAuth();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [filterSubject, setFilterSubject] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   const loadTeachers = async () => {
     if (!businessId) return;
@@ -136,10 +142,6 @@ export default function SchoolTeachers() {
     }
   };
 
-  const filteredTeachers = teachers.filter(t => 
-    `${t.first_name} ${t.last_name} ${t.subjects?.join(" ")}`.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
@@ -222,16 +224,49 @@ export default function SchoolTeachers() {
           </Dialog>
         </div>
 
-        <Card>
-          <div className="p-4 border-b flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher par nom ou matière..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0"
+        <Card className="p-4 bg-muted/30">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Rechercher par nom..." 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <select
+                value={filterSubject}
+                onChange={(e) => setFilterSubject(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Toutes les matières</option>
+                {allSubjects.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="active">Actifs</option>
+                <option value="inactive">Inactifs</option>
+              </select>
+            </div>
+            <ExportButtons 
+              data={filteredTeachers} 
+              columns={exportColumns} 
+              title="Liste des Professeurs" 
+              schoolSettings={settings}
+              academicYearName={activeAcademicYear?.name || null}
             />
           </div>
+        </Card>
+
+        <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

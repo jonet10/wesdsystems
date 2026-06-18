@@ -7,9 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, Wallet, Receipt, CheckCircle, Printer } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { ExportButtons } from "@/components/school/ExportButtons";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import { printReceipt } from "@/lib/print-utils";
 import type { SchoolInvoice, SchoolPayment, SchoolStudent } from "@/modules/school/types";
@@ -17,6 +20,7 @@ import { format } from "date-fns";
 
 export default function SchoolPayments() {
   const { user, profile, isAuthenticated } = useAuth();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const { formatAmount, currencyCode } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
@@ -183,6 +187,25 @@ export default function SchoolPayments() {
     return studentName.includes(s) || matricule.includes(s) || invoiceNumber.includes(s);
   });
 
+  const [searchHistory, setSearchHistory] = useState("");
+
+  const filteredPayments = payments.filter(pay => {
+    const term = searchHistory.toLowerCase();
+    const studentName = `${pay.invoice?.student?.first_name} ${pay.invoice?.student?.last_name}`.toLowerCase();
+    const invoiceNumber = (pay.invoice?.invoice_number || "").toLowerCase();
+    const receiptNum = (pay.receipt_number || "").toLowerCase();
+    return studentName.includes(term) || invoiceNumber.includes(term) || receiptNum.includes(term);
+  });
+
+  const exportColumns = [
+    { header: "N° Reçu", accessorKey: "receipt_number" },
+    { header: "Date", accessorKey: "payment_date", cell: (p: any) => format(new Date(p.payment_date), "dd/MM/yyyy HH:mm") },
+    { header: "Élève", accessorKey: "student", cell: (p: any) => `${p.invoice?.student?.first_name} ${p.invoice?.student?.last_name}` },
+    { header: "N° Facture", accessorKey: "invoice", cell: (p: any) => p.invoice?.invoice_number },
+    { header: "Méthode", accessorKey: "payment_method" },
+    { header: "Montant", accessorKey: "amount", cell: (p: any) => formatAmount(p.amount) },
+  ];
+
   return (
     <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
@@ -193,7 +216,14 @@ export default function SchoolPayments() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Tabs defaultValue="encaisser" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="encaisser">Encaisser un paiement</TabsTrigger>
+            <TabsTrigger value="historique">Historique des Reçus</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="encaisser">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Area: Pending Invoices to Pay */}
           <Card className="lg:col-span-2 flex flex-col h-[600px]">
             <CardHeader className="pb-3 border-b">
@@ -287,7 +317,68 @@ export default function SchoolPayments() {
               )}
             </CardContent>
           </Card>
-        </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="historique" className="space-y-4">
+            <Card>
+              <div className="p-4 border-b flex flex-col md:flex-row justify-between gap-4">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Rechercher (Reçu, Élève, Facture)..." 
+                    value={searchHistory}
+                    onChange={(e) => setSearchHistory(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <ExportButtons 
+                  data={filteredPayments} 
+                  columns={exportColumns} 
+                  title="Historique des Paiements" 
+                  schoolSettings={settings}
+                  academicYearName={activeAcademicYear?.name || null}
+                />
+              </div>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>N° Reçu</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Élève</TableHead>
+                      <TableHead>Facture</TableHead>
+                      <TableHead>Méthode</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.length === 0 ? (
+                      <TableRow><TableCell colSpan={7} className="text-center py-8">Aucun paiement trouvé</TableCell></TableRow>
+                    ) : (
+                      filteredPayments.map(payment => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{payment.receipt_number}</TableCell>
+                          <TableCell className="text-muted-foreground">{format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}</TableCell>
+                          <TableCell>{payment.invoice?.student?.first_name} {payment.invoice?.student?.last_name}</TableCell>
+                          <TableCell className="text-muted-foreground">{payment.invoice?.invoice_number}</TableCell>
+                          <TableCell><span className="text-xs bg-muted px-2 py-1 rounded-full">{payment.payment_method}</span></TableCell>
+                          <TableCell className="text-right font-bold text-success">+{formatAmount(payment.amount)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handlePrintReceipt(payment)} title="Imprimer le reçu">
+                              <Printer className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>

@@ -9,11 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Pencil, Trash2, Search, User as UserIcon, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { ExportButtons } from "@/components/school/ExportButtons";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import type { SchoolParent } from "@/modules/school/types";
 
 export default function SchoolParents() {
   const { user, profile, isAuthenticated } = useAuth();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [parents, setParents] = useState<SchoolParent[]>([]);
@@ -124,6 +127,15 @@ export default function SchoolParents() {
     `${p.first_name} ${p.last_name} ${p.phone} ${p.email}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  const exportColumns = [
+    { header: "Prénom", accessorKey: "first_name" },
+    { header: "Nom", accessorKey: "last_name" },
+    { header: "Téléphone", accessorKey: "phone", cell: (p: any) => p.phone || "-" },
+    { header: "Email", accessorKey: "email", cell: (p: any) => p.email || "-" },
+    { header: "Profession", accessorKey: "profession", cell: (p: any) => p.profession || "-" },
+    { header: "Adresse", accessorKey: "address", cell: (p: any) => p.address || "-" },
+  ];
+
   return (
     <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-6xl mx-auto">
@@ -193,13 +205,22 @@ export default function SchoolParents() {
         </div>
 
         <Card>
-          <div className="p-4 border-b flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher par nom, email, ou téléphone..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0"
+          <div className="p-4 border-b flex flex-col md:flex-row justify-between gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher par nom, email, ou téléphone..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <ExportButtons 
+              data={filteredParents} 
+              columns={exportColumns} 
+              title="Liste des Parents / Responsables" 
+              schoolSettings={settings}
+              academicYearName={activeAcademicYear?.name || null}
             />
           </div>
           <CardContent className="p-0">
