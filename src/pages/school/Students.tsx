@@ -9,29 +9,62 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Pencil, Trash2, Search, GraduationCap, User as UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { ExportButtons } from "@/components/school/ExportButtons";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
-import type { SchoolStudent } from "@/modules/school/types";
+import type { SchoolStudent, SchoolClass, SchoolAcademicYear } from "@/modules/school/types";
 
 export default function SchoolStudents() {
   const { user, profile, isAuthenticated } = useAuth();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [students, setStudents] = useState<SchoolStudent[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [years, setYears] = useState<SchoolAcademicYear[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Filters
   const [search, setSearch] = useState("");
+  const [filterClass, setFilterClass] = useState("all");
+  const [filterSection, setFilterSection] = useState("all");
+  const [filterGender, setFilterGender] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterYear, setFilterYear] = useState("all");
 
   const loadStudents = async () => {
     if (!businessId) return;
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("school_students")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("last_name", { ascending: true });
+      const [studentsRes, classesRes, yearsRes] = await Promise.all([
+        supabase
+          .from("school_students")
+          .select("*")
+          .eq("business_id", businessId)
+          .order("last_name", { ascending: true }),
+        supabase
+          .from("school_classes")
+          .select("*")
+          .eq("business_id", businessId)
+          .order("level_order", { ascending: true })
+          .order("name", { ascending: true }),
+        supabase
+          .from("school_academic_years")
+          .select("*")
+          .eq("business_id", businessId)
+          .order("start_date", { ascending: false })
+      ]);
 
-      if (error) throw error;
-      setStudents(data || []);
+      if (studentsRes.error) throw studentsRes.error;
+      setStudents(studentsRes.data || []);
+      
+      if (classesRes.data) setClasses(classesRes.data);
+      if (yearsRes.data) {
+        setYears(yearsRes.data);
+        if (filterYear === "all" && activeAcademicYear) {
+          setFilterYear(activeAcademicYear.id);
+        }
+      }
     } catch (error: any) {
       toast.error("Erreur de chargement", { description: error.message });
     } finally {
@@ -41,7 +74,7 @@ export default function SchoolStudents() {
 
   useEffect(() => {
     if (isAuthenticated) loadStudents();
-  }, [isAuthenticated, businessId]);
+  }, [isAuthenticated, businessId, activeAcademicYear]);
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -213,6 +246,24 @@ export default function SchoolStudents() {
     }
   };
 
+  const filteredStudents = students.filter(s => {
+    if (search && !`${s.first_name} ${s.last_name} ${s.matricule}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterClass !== "all" && s.class_level !== filterClass) return false;
+    if (filterGender !== "all" && s.gender !== filterGender) return false;
+    if (filterStatus !== "all" && s.status !== filterStatus) return false;
+    // Section is part of class or separate? The schema doesn't have a section field on student, but we can filter if needed. Currently student only has classLevel.
+    return true;
+  });
+
+  const exportColumns = [
+    { header: "Matricule", accessorKey: "matricule" },
+    { header: "Nom Complet", accessorKey: "name", cell: (s: any) => `${s.first_name} ${s.last_name}` },
+    { header: "Sexe", accessorKey: "gender" },
+    { header: "Classe", accessorKey: "class_level" },
+    { header: "Téléphone", accessorKey: "phone" },
+    { header: "Statut", accessorKey: "status" },
+  ];
+
   const handleDelete = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cet élève ?")) return;
     try {
@@ -224,9 +275,7 @@ export default function SchoolStudents() {
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    `${s.first_name} ${s.last_name} ${s.matricule}`.toLowerCase().includes(search.toLowerCase())
-  );
+  // removed duplicate filteredStudents
 
   return (
     <DashboardLayout role="salon_admin">
@@ -497,16 +546,71 @@ export default function SchoolStudents() {
           </Dialog>
         </div>
 
-        <Card>
-          <div className="p-4 border-b flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher par nom..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0"
+        <Card className="p-4 bg-muted/30">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher (Nom, matricule...)"
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <select
+                value={filterClass}
+                onChange={(e) => setFilterClass(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Toutes les classes</option>
+                {classes.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+              <select
+                value={filterGender}
+                onChange={(e) => setFilterGender(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Tous les sexes</option>
+                <option value="M">Masculin</option>
+                <option value="F">Féminin</option>
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="active">Actif</option>
+                <option value="transferred">Transféré</option>
+                <option value="graduated">Diplômé</option>
+                <option value="dropped_out">Abandon</option>
+              </select>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="all">Toutes les années</option>
+                {years.map(y => (
+                  <option key={y.id} value={y.id}>{y.name} {y.active ? "(Active)" : ""}</option>
+                ))}
+              </select>
+            </div>
+            
+            <ExportButtons 
+              data={filteredStudents} 
+              columns={exportColumns} 
+              title="Liste des Élèves" 
+              schoolSettings={settings}
+              academicYearName={years.find(y => y.id === filterYear)?.name || activeAcademicYear?.name || null}
             />
           </div>
+        </Card>
+
+        <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

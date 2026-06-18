@@ -10,12 +10,15 @@ import { Plus, Search, FileText, Eye, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { ExportButtons } from "@/components/school/ExportButtons";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
-import type { SchoolInvoice, SchoolStudent, SchoolAcademicYear } from "@/modules/school/types";
+import type { SchoolInvoice, SchoolStudent, SchoolAcademicYear, SchoolClass } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolInvoices() {
   const { user, profile, isAuthenticated } = useAuth();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
@@ -65,6 +68,17 @@ export default function SchoolInvoices() {
     const s = search.toLowerCase();
     return studentName.includes(s) || matricule.includes(s) || invoiceNumber.includes(s);
   });
+
+  const exportColumns = [
+    { header: "N° Facture", accessorKey: "invoice_number" },
+    { header: "Date", accessorKey: "issue_date", cell: (i: any) => i.issue_date ? format(new Date(i.issue_date), "dd/MM/yyyy") : "-" },
+    { header: "Élève", accessorKey: "student", cell: (i: any) => `${i.student?.first_name} ${i.student?.last_name}` },
+    { header: "Matricule", accessorKey: "matricule", cell: (i: any) => i.student?.matricule || "-" },
+    { header: "Total", accessorKey: "total_amount", cell: (i: any) => formatAmount(i.total_amount) },
+    { header: "Payé", accessorKey: "paid_amount", cell: (i: any) => formatAmount(i.paid_amount) },
+    { header: "Reste", accessorKey: "balance", cell: (i: any) => formatAmount(i.balance) },
+    { header: "Statut", accessorKey: "status", cell: (i: any) => getStatusLabel(i.status) },
+  ];
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -125,13 +139,22 @@ export default function SchoolInvoices() {
         </div>
 
         <Card>
-          <div className="p-4 border-b flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher une facture ou un élève..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0"
+          <div className="p-4 border-b flex flex-col md:flex-row justify-between gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher une facture ou un élève..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <ExportButtons 
+              data={filteredInvoices} 
+              columns={exportColumns} 
+              title="Liste des Factures" 
+              schoolSettings={settings}
+              academicYearName={activeAcademicYear?.name || null}
             />
           </div>
           <CardContent className="p-0">
