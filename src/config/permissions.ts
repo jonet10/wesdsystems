@@ -30,6 +30,10 @@ export const PERMISSIONS = {
   SCHOOL_STUDENTS_MANAGE: "school.students.manage",
   SCHOOL_PAYMENTS_MANAGE: "school.payments.manage",
   SCHOOL_CLASSES_MANAGE: "school.classes.manage",
+  SCHOOL_ENROLLMENTS_MANAGE: "school.enrollments.manage",
+  SCHOOL_INVOICES_MANAGE: "school.invoices.manage",
+  SCHOOL_REPORTS_VIEW: "school.reports.view",
+  SCHOOL_FINANCE_VIEW: "school.finance.view",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -38,7 +42,7 @@ export type AutoPartsRole = "admin" | "manager" | "cashier";
 
 export type SalonEmployeeRole = "cashier" | "barber" | "manager";
 
-export type BusinessType = "salon" | "pharmacie" | "restaurant" | "bar" | "market" | "boutique" | "auto_parts" | "school_payments";
+export type BusinessType = "salon" | "pharmacie" | "restaurant" | "bar" | "market" | "boutique" | "auto_parts" | "school" | "school_payments";
 
 export const AUTO_PARTS_ROLE_PERMISSIONS: Record<AutoPartsRole, Permission[]> = {
   admin: [

@@ -7,17 +7,18 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, CalendarDays } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarDays, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import type { SchoolAcademicYear } from "@/modules/school/types";
+import type { SchoolAcademicYear, SchoolFee } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolAcademicYears() {
   const { user, profile, isAuthenticated } = useAuth();
   const [years, setYears] = useState<SchoolAcademicYear[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingYear, setEditingYear] = useState<SchoolAcademicYear | null>(null);
 
@@ -49,10 +50,40 @@ export default function SchoolAcademicYears() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadYears();
-    }
+    if (isAuthenticated) loadYears();
   }, [isAuthenticated, businessId]);
+
+  const generateYears = async () => {
+    if (!businessId) return;
+    if (!confirm("Générer 5 années académiques à partir de 2026-2027 ?")) return;
+    setIsGenerating(true);
+    try {
+      const baseYear = 2026;
+      const payloads = Array.from({ length: 5 }, (_, i) => {
+        const start = baseYear + i;
+        const end = start + 1;
+        return {
+          business_id: businessId,
+          name: `${start}-${end}`,
+          start_date: `${start}-09-01`,
+          end_date: `${end}-08-31`,
+          active: i === 0,
+        };
+      });
+
+      const { error } = await supabase
+        .from("school_academic_years")
+        .insert(payloads);
+
+      if (error) throw error;
+      toast.success("5 années générées avec succès (2026-2031)");
+      loadYears();
+    } catch (error: any) {
+      toast.error("Erreur de génération", { description: error.message });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const resetForm = () => {
     setEditingYear(null);
@@ -77,7 +108,6 @@ export default function SchoolAcademicYears() {
 
     setIsSaving(true);
     try {
-      // If we are setting this to active, we must deactivate others
       if (active) {
         await supabase
           .from("school_academic_years")
@@ -129,7 +159,7 @@ export default function SchoolAcademicYears() {
       toast.success("Année supprimée");
       loadYears();
     } catch (error: any) {
-      toast.error("Impossible de supprimer", { description: "Cette année est probablement liée à des inscriptions." });
+      toast.error("Impossible de supprimer", { description: "Cette année est liée à des inscriptions." });
     }
   };
 
@@ -143,82 +173,91 @@ export default function SchoolAcademicYears() {
               Gérez les années scolaires et définissez l'année en cours
             </p>
           </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Année
+
+          <div className="flex gap-2">
+            {years.length === 0 && !isLoading && (
+              <Button variant="outline" onClick={generateYears} disabled={isGenerating}>
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                Générer 2026-2031
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{editingYear ? "Modifier l'année" : "Ajouter une année"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSave} className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nom (ex: 2026-2027)</Label>
-                  <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="2026-2027" />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+            )}
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle Année
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingYear ? "Modifier l'année" : "Ajouter une année"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSave} className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Date de début</Label>
-                    <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <Label htmlFor="name">Nom (ex: 2026-2027)</Label>
+                    <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="2026-2027" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endDate">Date de fin</Label>
-                    <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between p-4 border rounded-lg mt-2">
-                  <div className="space-y-0.5">
-                    <Label>Année en cours</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Définir comme année académique active
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Date de début</Label>
+                      <Input id="startDate" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">Date de fin</Label>
+                      <Input id="endDate" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    </div>
                   </div>
-                  <Switch checked={active} onCheckedChange={setActive} />
-                </div>
 
-                <div className="flex justify-end pt-4">
-                  <Button type="submit" disabled={isSaving}>
-                    {isSaving ? "Enregistrement..." : "Enregistrer"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="flex items-center justify-between p-4 border rounded-lg mt-2">
+                    <div className="space-y-0.5">
+                      <Label>Année en cours</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Définir comme année académique active
+                      </p>
+                    </div>
+                    <Switch checked={active} onCheckedChange={setActive} />
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button type="submit" disabled={isSaving}>
+                      {isSaving ? "Enregistrement..." : "Enregistrer"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom de l'année</TableHead>
-                  <TableHead>Période</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+        {!isLoading && years.length === 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <CalendarDays className="h-12 w-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-1">Aucune année académique</p>
+              <p className="text-sm mb-6">Cliquez sur "Générer 2026-2031" pour créer les 5 prochaines années ou ajoutez-les manuellement.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {years.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8">Chargement...</TableCell>
+                    <TableHead>Nom de l'année</TableHead>
+                    <TableHead>Période</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : years.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      Aucune année académique configurée.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  years.map((year) => (
+                </TableHeader>
+                <TableBody>
+                  {years.map((year) => (
                     <TableRow key={year.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center">
@@ -227,7 +266,7 @@ export default function SchoolAcademicYears() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {year.start_date && year.end_date 
+                        {year.start_date && year.end_date
                           ? `${format(new Date(year.start_date), "dd/MM/yyyy")} au ${format(new Date(year.end_date), "dd/MM/yyyy")}`
                           : "Non défini"
                         }
@@ -252,12 +291,12 @@ export default function SchoolAcademicYears() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );

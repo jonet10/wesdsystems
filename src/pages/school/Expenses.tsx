@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,45 +8,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Search, ArrowDownRight, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { supabase } from "@/lib/supabase";
+import { useExpenses, useCreateExpense, useUpdateExpense, useDeleteExpense } from "@/hooks/useSchoolData";
 import type { SchoolExpense } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolExpenses() {
-  const { user, profile, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
-  const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
-  const [expenses, setExpenses] = useState<SchoolExpense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: expenses = [], isLoading } = useExpenses();
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const deleteExpense = useDeleteExpense();
+
   const [search, setSearch] = useState("");
 
-  const loadExpenses = async () => {
-    if (!businessId) return;
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("school_expenses")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("expense_date", { ascending: false });
-
-      if (error) throw error;
-      setExpenses(data || []);
-    } catch (error: any) {
-      toast.error("Erreur de chargement", { description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) loadExpenses();
-  }, [isAuthenticated, businessId]);
-
-  // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<SchoolExpense | null>(null);
   const [category, setCategory] = useState("");
@@ -76,30 +52,19 @@ export default function SchoolExpenses() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
-
+    if (!category || !amount) { toast.error("Catégorie et montant requis"); return; }
     setIsSaving(true);
     try {
-      const payload = {
-        business_id: businessId,
-        category,
-        amount: parseFloat(amount),
-        expense_date: expenseDate || null,
-        description: description || null,
-        created_by: user?.id,
-      };
-
+      const payload = { category, amount: parseFloat(amount), expense_date: expenseDate || null, description: description || null };
       if (editingExpense) {
-        await supabase.from("school_expenses").update(payload).eq("id", editingExpense.id);
+        await updateExpense.mutateAsync({ id: editingExpense.id, data: payload });
         toast.success("Dépense mise à jour");
       } else {
-        await supabase.from("school_expenses").insert([payload]);
+        await createExpense.mutateAsync(payload);
         toast.success("Dépense enregistrée");
       }
-
       setIsDialogOpen(false);
       resetForm();
-      loadExpenses();
     } catch (error: any) {
       toast.error("Erreur lors de l'enregistrement", { description: error.message });
     } finally {
@@ -110,17 +75,18 @@ export default function SchoolExpenses() {
   const handleDelete = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette dépense ?")) return;
     try {
-      await supabase.from("school_expenses").delete().eq("id", id);
+      await deleteExpense.mutateAsync(id);
       toast.success("Dépense supprimée");
-      loadExpenses();
     } catch (error: any) {
       toast.error("Impossible de supprimer");
     }
   };
 
-  const filteredExpenses = expenses.filter(exp => 
+  const filteredExpenses = expenses.filter(exp =>
     `${exp.category} ${exp.description}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalExpenses = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
 
   return (
     <DashboardLayout role="salon_admin">
@@ -128,20 +94,12 @@ export default function SchoolExpenses() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dépenses</h1>
-            <p className="text-muted-foreground">
-              Gérez les sorties d'argent et les charges de l'établissement
-            </p>
+            <p className="text-muted-foreground">Gérez les sorties d'argent et les charges de l'établissement</p>
           </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouvelle Dépense
-              </Button>
+              <Button><Plus className="h-4 w-4 mr-2" /> Nouvelle Dépense</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -150,36 +108,21 @@ export default function SchoolExpenses() {
               <form onSubmit={handleSave} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label>Catégorie</Label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3" 
-                    value={category} 
-                    onChange={e => setCategory(e.target.value)} 
-                   >
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={category} onChange={e => setCategory(e.target.value)}>
                     <option value="">Sélectionner une catégorie</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Montant</Label>
-                    <Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Date</Label>
-                    <Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>Montant</Label><Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Date</Label><Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} /></div>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Description / Motif</Label>
                   <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Paiement facture Électricité Mars..." />
                 </div>
-
                 <div className="flex justify-end pt-4">
-                  <Button type="submit" disabled={isSaving}>
-                    {isSaving ? "Enregistrement..." : "Enregistrer"}
-                  </Button>
+                  <Button type="submit" disabled={isSaving}>{isSaving ? "Enregistrement..." : "Enregistrer"}</Button>
                 </div>
               </form>
             </DialogContent>
@@ -192,9 +135,7 @@ export default function SchoolExpenses() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Total des dépenses (Global)</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-destructive">
-                {formatAmount(expenses.reduce((sum, exp) => sum + Number(exp.amount), 0))}
-              </div>
+              <div className="text-3xl font-bold text-destructive">{formatAmount(totalExpenses)}</div>
             </CardContent>
           </Card>
         </div>
@@ -202,12 +143,7 @@ export default function SchoolExpenses() {
         <Card>
           <div className="p-4 border-b flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher une catégorie ou une description..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0"
-            />
+            <Input placeholder="Rechercher une catégorie ou une description..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm border-none shadow-none focus-visible:ring-0 px-0" />
           </div>
           <CardContent className="p-0">
             <Table>
@@ -222,43 +158,23 @@ export default function SchoolExpenses() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
                 ) : filteredExpenses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Aucune dépense trouvée.
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucune dépense trouvée.</TableCell></TableRow>
                 ) : (
                   filteredExpenses.map((expense) => (
                     <TableRow key={expense.id}>
-                      <TableCell className="text-muted-foreground">
-                        {expense.expense_date ? format(new Date(expense.expense_date), "dd/MM/yyyy") : "-"}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{expense.expense_date ? format(new Date(expense.expense_date), "dd/MM/yyyy") : "-"}</TableCell>
                       <TableCell className="font-medium">
-                        <div className="flex items-center">
-                          <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {expense.category}
-                        </div>
+                        <div className="flex items-center"><Tag className="h-4 w-4 mr-2 text-muted-foreground" />{expense.category}</div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {expense.description || "-"}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground">{expense.description || "-"}</TableCell>
                       <TableCell className="font-semibold text-destructive">
-                        <div className="flex items-center">
-                          <ArrowDownRight className="h-4 w-4 mr-1" />
-                          {formatAmount(expense.amount)}
-                        </div>
+                        <div className="flex items-center"><ArrowDownRight className="h-4 w-4 mr-1" />{formatAmount(expense.amount)}</div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(expense.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(expense.id)}><Trash2 className="h-4 w-4" /></Button>
                       </TableCell>
                     </TableRow>
                   ))

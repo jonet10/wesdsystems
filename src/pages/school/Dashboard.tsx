@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight } from "lucide-react";
@@ -9,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 
 export default function SchoolDashboard() {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
@@ -137,19 +139,19 @@ export default function SchoolDashboard() {
               <CardTitle>Raccourcis</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => window.location.href = '/school/payments'}>
-                 <Wallet className="h-8 w-8 text-primary" />
-                 <div>
-                   <div className="font-semibold">Aller à la Caisse</div>
-                   <div className="text-sm text-muted-foreground">Encaisser un paiement d'élève</div>
-                 </div>
+               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/school/payments')}>
+                  <Wallet className="h-8 w-8 text-primary" />
+                  <div>
+                    <div className="font-semibold">Aller à la Caisse</div>
+                    <div className="text-sm text-muted-foreground">Encaisser un paiement d'élève</div>
+                  </div>
                </div>
-               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => window.location.href = '/school/students'}>
-                 <GraduationCap className="h-8 w-8 text-primary" />
-                 <div>
-                   <div className="font-semibold">Nouveau Dossier</div>
-                   <div className="text-sm text-muted-foreground">Inscrire un nouvel élève</div>
-                 </div>
+               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/school/students')}>
+                  <GraduationCap className="h-8 w-8 text-primary" />
+                  <div>
+                    <div className="font-semibold">Nouveau Dossier</div>
+                    <div className="text-sm text-muted-foreground">Inscrire un nouvel élève</div>
+                  </div>
                </div>
             </CardContent>
           </Card>

@@ -15,22 +15,31 @@ import { ExportButtons } from "@/components/school/ExportButtons";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import { printReceipt } from "@/lib/print-utils";
-import type { SchoolInvoice, SchoolPayment, SchoolStudent } from "@/modules/school/types";
+import { paymentService, setBusinessId } from "@/modules/school/services";
+import type { SchoolInvoice, SchoolPayment, SchoolStudent, SchoolPaymentPlan } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolPayments() {
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
-  const { formatAmount, currencyCode } = useCurrency();
+  const { format: formatAmount, currencyCode } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
+
+  useEffect(() => {
+    if (businessId) setBusinessId(businessId);
+  }, [businessId]);
 
   const [invoices, setInvoices] = useState<SchoolInvoice[]>([]);
   const [payments, setPayments] = useState<SchoolPayment[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  // Payment Plans
+  const [paymentPlans, setPaymentPlans] = useState<SchoolPaymentPlan[]>([]);
+
   // Payment Form
   const [selectedInvoice, setSelectedInvoice] = useState<SchoolInvoice | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [reference, setReference] = useState("");
@@ -71,18 +80,75 @@ export default function SchoolPayments() {
     if (isAuthenticated) loadData();
   }, [isAuthenticated, businessId]);
 
+  const loadPaymentPlans = async (invoiceId: string) => {
+    const { data, error } = await supabase
+      .from("school_payment_plans")
+      .select("*")
+      .eq("invoice_id", invoiceId)
+      .order("due_date");
+    if (error) return;
+    setPaymentPlans(data || []);
+  };
+
+  // New plan form
+  const [showNewPlan, setShowNewPlan] = useState(false);
+  const [newPlanTitle, setNewPlanTitle] = useState("");
+  const [newPlanAmount, setNewPlanAmount] = useState("");
+  const [newPlanDueDate, setNewPlanDueDate] = useState("");
+
+  const resetNewPlan = () => {
+    setShowNewPlan(false);
+    setNewPlanTitle("");
+    setNewPlanAmount("");
+    setNewPlanDueDate("");
+  };
+
+  const handleAddPlan = async () => {
+    if (!selectedInvoice || !newPlanTitle.trim() || !newPlanAmount) {
+      toast.error("Titre et montant requis");
+      return;
+    }
+    const amount = parseFloat(newPlanAmount.replace(",", "."));
+    if (isNaN(amount) || amount <= 0) { toast.error("Montant invalide"); return; }
+    try {
+      const { error } = await supabase.from("school_payment_plans").insert([{
+        invoice_id: selectedInvoice.id,
+        business_id: businessId,
+        title: newPlanTitle.trim(),
+        amount_due: amount,
+        amount_paid: 0,
+        balance: amount,
+        due_date: newPlanDueDate || null,
+        status: "pending",
+      }]);
+      if (error) throw error;
+      toast.success("Versement ajouté");
+      resetNewPlan();
+      loadPaymentPlans(selectedInvoice.id);
+    } catch (error: any) {
+      toast.error("Erreur", { description: error.message });
+    }
+  };
+
+  const sanitizeAmount = (value: string) => {
+    return value.replace(/[^0-9,.]/g, "").replace(/,/g, ".");
+  };
+
   const handlePay = (inv: SchoolInvoice) => {
     setSelectedInvoice(inv);
     setPaymentAmount(inv.balance.toString());
     setPaymentMethod("Cash");
     setReference("");
+    setSelectedPlanId("");
+    setShowNewPlan(false);
+    loadPaymentPlans(inv.id);
   };
 
   const submitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInvoice || !businessId) return;
 
-    const amount = parseFloat(paymentAmount);
+    const amount = parseFloat(paymentAmount.replace(",", "."));
     if (isNaN(amount) || amount <= 0) {
       toast.error("Veuillez entrer un montant valide");
       return;
@@ -94,53 +160,16 @@ export default function SchoolPayments() {
 
     setIsProcessing(true);
     try {
-      // 1. Generate receipt number
-      const { data: receiptNum, error: rpcError } = await supabase.rpc('generate_school_receipt_number', {
-        p_business_id: businessId
-      });
-      if (rpcError) throw rpcError;
-
-      // 2. Insert Payment
-      const paymentPayload = {
-        business_id: businessId,
+      await paymentService.recordPayment({
         invoice_id: selectedInvoice.id,
-        receipt_number: receiptNum,
-        amount: amount,
+        payment_plan_id: selectedPlanId || undefined,
+        amount,
         payment_method: paymentMethod,
-        reference: reference || null,
-        created_by: user?.id
-      };
-
-      const { data: newPayment, error: payError } = await supabase
-        .from("school_payments")
-        .insert([paymentPayload])
-        .select()
-        .single();
-      
-      if (payError) throw payError;
-
-      // 3. Update Invoice Balance
-      const newPaidAmount = Number(selectedInvoice.paid_amount) + amount;
-      const newBalance = Number(selectedInvoice.balance) - amount;
-      let newStatus = selectedInvoice.status;
-      if (newBalance <= 0) newStatus = 'paid';
-      else if (newPaidAmount > 0) newStatus = 'partial';
-
-      const { error: updateError } = await supabase
-        .from("school_invoices")
-        .update({
-          paid_amount: newPaidAmount,
-          balance: newBalance,
-          status: newStatus
-        })
-        .eq("id", selectedInvoice.id);
-
-      if (updateError) throw updateError;
-
-      toast.success("Paiement enregistré avec succès", {
-        description: `Reçu N° ${receiptNum}`
+        reference: reference || undefined,
+        created_by: user?.id,
       });
 
+      toast.success("Paiement enregistré avec succès");
       setSelectedInvoice(null);
       loadData();
     } catch (error: any) {
@@ -152,7 +181,8 @@ export default function SchoolPayments() {
 
   const handlePrintReceipt = (payment: SchoolPayment) => {
     const student = payment.invoice?.student;
-    const content = `
+    const receiptDiv = document.createElement("div");
+    receiptDiv.innerHTML = `
       <div style="font-family: sans-serif; max-width: 300px; margin: 0 auto; text-align: center;">
         <h2>Reçu de Paiement</h2>
         <p style="font-size: 14px; margin: 0;">N° ${payment.receipt_number}</p>
@@ -164,6 +194,7 @@ export default function SchoolPayments() {
           <p><strong>Élève :</strong> ${student?.first_name} ${student?.last_name}</p>
           <p><strong>Facture :</strong> ${payment.invoice?.invoice_number}</p>
           <p><strong>Méthode :</strong> ${payment.payment_method}</p>
+          <p><strong>Réf :</strong> ${payment.reference || '-'}</p>
         </div>
 
         <hr style="border-top: 1px dashed #ccc; margin: 15px 0;" />
@@ -174,9 +205,10 @@ export default function SchoolPayments() {
         </div>
 
         <p style="font-size: 12px; margin-top: 30px; color: #888;">Merci pour votre paiement !</p>
+        <p style="font-size: 10px; margin-top: 5px; color: #aaa;">${settings?.name || ""}</p>
       </div>
     `;
-    printReceipt(content);
+    printReceipt(receiptDiv);
   };
 
   const filteredInvoices = invoices.filter(inv => {
@@ -381,8 +413,8 @@ export default function SchoolPayments() {
         </Tabs>
       </div>
 
-      <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog open={!!selectedInvoice} onOpenChange={(open) => { if (!open) { setSelectedInvoice(null); resetNewPlan(); }}}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
@@ -407,17 +439,93 @@ export default function SchoolPayments() {
                 </div>
               </div>
 
+              {/* Payment Plans / Versements */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold">Versements programmés</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowNewPlan(!showNewPlan)}>
+                    {showNewPlan ? "Annuler" : "+ Ajouter un versement"}
+                  </Button>
+                </div>
+
+                {paymentPlans.length > 0 && (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {paymentPlans.map(plan => {
+                      const remaining = plan.balance;
+                      const isSelected = selectedPlanId === plan.id;
+                      return (
+                        <label
+                          key={plan.id}
+                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                            isSelected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentPlan"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedPlanId(plan.id);
+                              setPaymentAmount(remaining.toString());
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">{plan.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {plan.due_date && <span>Échéance: {format(new Date(plan.due_date), "dd/MM/yyyy")} · </span>}
+                              Total: {formatAmount(plan.amount_due)}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-bold text-sm">{formatAmount(remaining)}</div>
+                            <div className="text-xs text-muted-foreground">reste</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {paymentPlans.length === 0 && !showNewPlan && (
+                  <p className="text-xs text-muted-foreground">Aucun versement programmé.</p>
+                )}
+
+                {/* New plan form */}
+                {showNewPlan && (
+                  <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                    <p className="text-sm font-medium">Nouveau versement</p>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Titre</Label>
+                      <Input value={newPlanTitle} onChange={e => setNewPlanTitle(e.target.value)} placeholder="Ex: 1ère tranche, 2ème versement..." />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Montant ({currencyCode})</Label>
+                        <Input value={newPlanAmount} onChange={e => setNewPlanAmount(sanitizeAmount(e.target.value))} placeholder="0.00" inputMode="decimal" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Date d'échéance</Label>
+                        <Input type="date" value={newPlanDueDate} onChange={e => setNewPlanDueDate(e.target.value)} />
+                      </div>
+                    </div>
+                    <Button type="button" size="sm" onClick={handleAddPlan} className="w-full">
+                      Ajouter ce versement
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label>Montant à encaisser ({currencyCode})</Label>
                 <Input 
-                  type="number" 
-                  step="0.01" 
-                  max={selectedInvoice.balance}
+                  inputMode="decimal"
                   value={paymentAmount} 
-                  onChange={(e) => setPaymentAmount(e.target.value)} 
+                  onChange={(e) => setPaymentAmount(sanitizeAmount(e.target.value))} 
                   required 
                   autoFocus
                   className="text-lg font-bold"
+                  placeholder="0.00"
                 />
               </div>
 
@@ -447,7 +555,7 @@ export default function SchoolPayments() {
               </div>
 
               <div className="flex justify-end pt-4 gap-2">
-                <Button type="button" variant="outline" onClick={() => setSelectedInvoice(null)}>
+                <Button type="button" variant="outline" onClick={() => { setSelectedInvoice(null); resetNewPlan(); }}>
                   Annuler
                 </Button>
                 <Button type="submit" disabled={isProcessing}>

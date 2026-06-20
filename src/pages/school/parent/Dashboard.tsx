@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 
 export default function ParentDashboard() {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
 
@@ -110,7 +112,7 @@ export default function ParentDashboard() {
             </p>
           </div>
           {totalBalanceDue > 0 && (
-            <Button className="bg-primary text-primary-foreground">
+            <Button className="bg-primary text-primary-foreground" onClick={() => navigate("/school/payments")}>
               <CreditCard className="h-4 w-4 mr-2" />
               Payer en ligne
             </Button>

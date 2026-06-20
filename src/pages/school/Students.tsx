@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,19 +12,29 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { ExportButtons } from "@/components/school/ExportButtons";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
+import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useClasses } from "@/hooks/useSchoolData";
 import { supabase } from "@/lib/supabase";
-import type { SchoolStudent, SchoolClass, SchoolAcademicYear } from "@/modules/school/types";
+import type { SchoolStudent, SchoolAcademicYear } from "@/modules/school/types";
 
 export default function SchoolStudents() {
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
-  const [students, setStudents] = useState<SchoolStudent[]>([]);
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
-  const [years, setYears] = useState<SchoolAcademicYear[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
+  const { data: students = [], isLoading } = useStudents();
+  const { data: classes = [] } = useClasses();
+  const { data: years = [] } = useQuery({
+    queryKey: ["school", "academic-years"],
+    queryFn: async () => {
+      const { data } = await supabase.from("school_academic_years").select("*").eq("business_id", businessId).order("start_date", { ascending: false });
+      return (data || []) as SchoolAcademicYear[];
+    },
+    enabled: !!businessId,
+  });
+  const createStudent = useCreateStudent();
+  const updateStudent = useUpdateStudent();
+  const deleteStudent = useDeleteStudent();
+
   // Filters
   const [search, setSearch] = useState("");
   const [filterClass, setFilterClass] = useState("all");
@@ -32,49 +43,11 @@ export default function SchoolStudents() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterYear, setFilterYear] = useState("all");
 
-  const loadStudents = async () => {
-    if (!businessId) return;
-    try {
-      setIsLoading(true);
-      const [studentsRes, classesRes, yearsRes] = await Promise.all([
-        supabase
-          .from("school_students")
-          .select("*")
-          .eq("business_id", businessId)
-          .order("last_name", { ascending: true }),
-        supabase
-          .from("school_classes")
-          .select("*")
-          .eq("business_id", businessId)
-          .order("level_order", { ascending: true })
-          .order("name", { ascending: true }),
-        supabase
-          .from("school_academic_years")
-          .select("*")
-          .eq("business_id", businessId)
-          .order("start_date", { ascending: false })
-      ]);
-
-      if (studentsRes.error) throw studentsRes.error;
-      setStudents(studentsRes.data || []);
-      
-      if (classesRes.data) setClasses(classesRes.data);
-      if (yearsRes.data) {
-        setYears(yearsRes.data);
-        if (filterYear === "all" && activeAcademicYear) {
-          setFilterYear(activeAcademicYear.id);
-        }
-      }
-    } catch (error: any) {
-      toast.error("Erreur de chargement", { description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (isAuthenticated) loadStudents();
-  }, [isAuthenticated, businessId, activeAcademicYear]);
+    if (filterYear === "all" && activeAcademicYear) {
+      setFilterYear(activeAcademicYear.id);
+    }
+  }, [activeAcademicYear]);
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -101,7 +74,7 @@ export default function SchoolStudents() {
     addressSection: "",
     addressNeighborhood: "",
     phone: "",
-    status: "active",
+    status: "active" as string,
     motherFirstName: "",
     motherLastName: "",
     motherDeceased: false,
@@ -172,15 +145,8 @@ export default function SchoolStudents() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId) {
-      toast.error("Erreur de session (businessId manquant)");
-      return;
-    }
-
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      toast.error("Veuillez saisir le prénom et le nom");
-      return;
-    }
+    if (!businessId) { toast.error("Erreur de session (businessId manquant)"); return; }
+    if (!formData.firstName.trim() || !formData.lastName.trim()) { toast.error("Veuillez saisir le prénom et le nom"); return; }
 
     setIsSaving(true);
     try {
@@ -205,7 +171,7 @@ export default function SchoolStudents() {
         address_section: formData.addressSection || null,
         address_neighborhood: formData.addressNeighborhood || null,
         phone: formData.phone || null,
-        status: formData.status as any,
+        status: formData.status,
         mother_info: {
           first_name: formData.motherFirstName,
           last_name: formData.motherLastName,
@@ -229,16 +195,15 @@ export default function SchoolStudents() {
       };
 
       if (editingStudent) {
-        await supabase.from("school_students").update(payload).eq("id", editingStudent.id);
+        await updateStudent.mutateAsync({ id: editingStudent.id, data: payload });
         toast.success("Élève mis à jour");
       } else {
-        await supabase.from("school_students").insert([payload]);
+        await createStudent.mutateAsync(payload);
         toast.success("Élève ajouté");
       }
 
       setIsDialogOpen(false);
       resetForm();
-      loadStudents();
     } catch (error: any) {
       toast.error("Erreur lors de l'enregistrement", { description: error.message });
     } finally {
@@ -251,7 +216,6 @@ export default function SchoolStudents() {
     if (filterClass !== "all" && s.class_level !== filterClass) return false;
     if (filterGender !== "all" && s.gender !== filterGender) return false;
     if (filterStatus !== "all" && s.status !== filterStatus) return false;
-    // Section is part of class or separate? The schema doesn't have a section field on student, but we can filter if needed. Currently student only has classLevel.
     return true;
   });
 
@@ -267,15 +231,12 @@ export default function SchoolStudents() {
   const handleDelete = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cet élève ?")) return;
     try {
-      await supabase.from("school_students").delete().eq("id", id);
+      await deleteStudent.mutateAsync(id);
       toast.success("Élève supprimé");
-      loadStudents();
     } catch (error: any) {
       toast.error("Impossible de supprimer");
     }
   };
-
-  // removed duplicate filteredStudents
 
   return (
     <DashboardLayout role="salon_admin">
@@ -285,11 +246,8 @@ export default function SchoolStudents() {
             <h1 className="text-2xl font-bold tracking-tight">Dossiers des Élèves</h1>
             <p className="text-muted-foreground">Base de données des élèves inscrits dans votre établissement</p>
           </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
+
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Nouveau Dossier</Button>
             </DialogTrigger>
@@ -303,7 +261,6 @@ export default function SchoolStudents() {
               </DialogHeader>
 
               <form onSubmit={handleSave} className="space-y-8 pt-4">
-                
                 {/* 1. Informations Personnelles */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2 text-primary flex items-center gap-2">
@@ -329,7 +286,6 @@ export default function SchoolStudents() {
                         </label>
                       </div>
                     </div>
-
                     <div className="space-y-2">
                       <Label>Date de naissance *</Label>
                       <Input type="date" value={formData.dob} onChange={e => updateField("dob", e.target.value)} />
@@ -354,7 +310,6 @@ export default function SchoolStudents() {
                       <Label>Commune de la naissance *</Label>
                       <Input value={formData.birthCommune} onChange={e => updateField("birthCommune", e.target.value)} placeholder="Ex: Port-au-Prince" />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Lieu de naissance</Label>
                       <Input value={formData.birthPlace} onChange={e => updateField("birthPlace", e.target.value)} placeholder="Hôpital, clinique..." />
@@ -395,7 +350,7 @@ export default function SchoolStudents() {
                     </div>
                     <div className="space-y-2">
                       <Label>Niveau d'enseignement *</Label>
-                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.educationLevel} onChange={e => updateField("educationLevel", e.target.value)}>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.educationLevel} onChange={e => { updateField("educationLevel", e.target.value); updateField("classLevel", ""); }}>
                         <option value="">Sélectionner</option>
                         <option value="PRESCOLAIRE">Préscolaire</option>
                         <option value="FONDAMENTAL I">Fondamental I</option>
@@ -405,8 +360,27 @@ export default function SchoolStudents() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Niveau d'études *</Label>
-                      <Input value={formData.classLevel} onChange={e => updateField("classLevel", e.target.value)} placeholder="Ex: 5AF, 9AF, NS1" />
+                      <Label>Classe *</Label>
+                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.classLevel} onChange={e => updateField("classLevel", e.target.value)}>
+                        <option value="">Sélectionner une classe...</option>
+                        {classes.filter(c => {
+                          if (c.active === false) return false;
+                          if (!formData.educationLevel) return true;
+                          const cycleMap: Record<string, string> = {
+                            PRESCOLAIRE: "Préscolaire",
+                            "FONDAMENTAL I": "Fondamental 1er Cycle",
+                            "FONDAMENTAL II": "Fondamental 2e Cycle",
+                            "FONDAMENTAL III": "Fondamental 3e Cycle",
+                            SECONDAIRE: "Secondaire Nouveau",
+                          };
+                          return c.cycle === cycleMap[formData.educationLevel];
+                        }).map(c => (
+                          <option key={c.id} value={c.code || c.name}>
+                            {c.code ? `${c.code} — ${c.name}` : c.name}
+                            {c.section ? ` (Section ${c.section})` : ""}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -444,7 +418,7 @@ export default function SchoolStudents() {
                   <h3 className="text-lg font-semibold border-b pb-2 text-primary flex items-center gap-2">
                     <UserIcon className="h-5 w-5" /> Parents
                   </h3>
-                  
+
                   {/* Mère */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center bg-muted/20 p-4 rounded-lg">
                     <div className="col-span-1 font-semibold text-sm">Mère</div>
@@ -534,7 +508,6 @@ export default function SchoolStudents() {
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex justify-end gap-2 pt-6 border-t mt-8">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
                   <Button type="submit" disabled={isSaving} className="bg-green-600 hover:bg-green-700">
@@ -551,12 +524,7 @@ export default function SchoolStudents() {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 flex-1">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher (Nom, matricule...)"
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+                <Input placeholder="Rechercher (Nom, matricule...)" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <select
                 value={filterClass}
@@ -564,8 +532,11 @@ export default function SchoolStudents() {
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="all">Toutes les classes</option>
-                {classes.map(c => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                {classes.filter(c => c.active !== false).map(c => (
+                  <option key={c.id} value={c.code || c.name}>
+                    {c.code ? `${c.code} — ${c.name}` : c.name}
+                    {c.section ? ` (Section ${c.section})` : ""}
+                  </option>
                 ))}
               </select>
               <select
@@ -599,11 +570,10 @@ export default function SchoolStudents() {
                 ))}
               </select>
             </div>
-            
-            <ExportButtons 
-              data={filteredStudents} 
-              columns={exportColumns} 
-              title="Liste des Élèves" 
+            <ExportButtons
+              data={filteredStudents}
+              columns={exportColumns}
+              title="Liste des Élèves"
               schoolSettings={settings}
               academicYearName={years.find(y => y.id === filterYear)?.name || activeAcademicYear?.name || null}
             />

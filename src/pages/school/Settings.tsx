@@ -186,12 +186,10 @@ export default function SchoolSettingsPage() {
                         <div className="w-full md:w-64 space-y-4 shrink-0">
                           <Label>Logo (Factures & Reçus)</Label>
                           <ImageUploader
-                            bucket="avatars"
-                            path={`business/${businessId}/logo`}
-                            onUpload={(url) => setLogoUrl(url)}
-                            defaultImage={logoUrl || undefined}
-                            aspectRatio="square"
-                            className="w-full aspect-square"
+                            currentImageUrl={logoUrl}
+                            onImageUploaded={(url) => setLogoUrl(url)}
+                            onImageDeleted={() => setLogoUrl(null)}
+                            className="w-full"
                           />
                         </div>
                       </div>

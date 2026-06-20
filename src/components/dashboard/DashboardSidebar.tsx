@@ -41,6 +41,8 @@ import {
   UserCog,
   ArrowLeftRight,
   Smartphone,
+  UserPlus,
+  DollarSign,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -205,14 +207,17 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "school":
+      case "school_payments":
         return [
           { icon: LayoutDashboard, label: "Dashboard", path: "/school", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Users, label: "Élèves", path: "/school/students", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserPlus, label: "Inscriptions", path: "/school/enrollments", role: "all", permission: PERMISSIONS.CLIENTS_MANAGE },
           { icon: UserIcon, label: "Parents / Tuteurs", path: "/school/parents", role: "all", permission: PERMISSIONS.CLIENTS_READ },
           { icon: UserCog, label: "Professeurs", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: Layers, label: "Classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Calendar, label: "Années Acad.", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: BadgeDollarSign, label: "Frais & Tarifs", path: "/school/fees", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: DollarSign, label: "Fiche Financière", path: "/school/finance/student", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: FileText, label: "Factures", path: "/school/invoices", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: ShoppingBag, label: "Caisse", path: "/school/payments", role: "all", permission: PERMISSIONS.POS_VIEW },
           { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },

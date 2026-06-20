@@ -73,6 +73,8 @@ import SchoolPayments from "./pages/school/Payments";
 import SchoolExpenses from "./pages/school/Expenses";
 import SchoolReports from "./pages/school/Reports";
 import ParentDashboard from "./pages/school/parent/Dashboard";
+import EnrollmentsPage from "./pages/school/enrollments/EnrollmentsPage";
+import StudentFinancialSheet from "./pages/school/finance/StudentFinancialSheet";
 import AutoPartsPurchases from "./pages/auto-parts/Purchases";
 import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
 import AutoPartsSettings from "./pages/auto-parts/Settings";
@@ -558,6 +560,22 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
                       <SchoolStudents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/enrollments"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
+                      <EnrollmentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/finance/student"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
+                      <StudentFinancialSheet />
                     </ProtectedRoute>
                   }
                 />

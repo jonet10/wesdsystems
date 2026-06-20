@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { autoTable } from "jspdf-autotable";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { SchoolSetting } from "@/modules/school/types";
@@ -27,7 +27,8 @@ export const exportToPDF = async (
   columns: ExportColumn[],
   settings: SchoolSetting | null,
   academicYearName: string | null,
-  userName: string = "Système"
+  userName: string = "Système",
+  footerSummary?: string
 ) => {
   const doc = new jsPDF("p", "pt", "a4");
   const pageWidth = doc.internal.pageSize.width;
@@ -75,7 +76,7 @@ export const exportToPDF = async (
     columns.map(col => col.cell ? col.cell(item) : String(item[col.accessorKey] || "-"))
   );
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: currentY,
     head: [columns.map(col => col.header)],
     body: tableData,
@@ -84,7 +85,6 @@ export const exportToPDF = async (
     styles: { fontSize: 9, cellPadding: 4 },
     margin: { top: 40, right: 40, bottom: 40, left: 40 },
     didDrawPage: (data: any) => {
-      // Footer
       const str = "Page " + doc.internal.getNumberOfPages();
       const dateStr = `Imprimé le: ${format(new Date(), "dd/MM/yyyy à HH:mm", { locale: fr })}`;
       const userStr = `Par: ${userName}`;
@@ -98,6 +98,14 @@ export const exportToPDF = async (
     }
   });
 
+  // Footer summary
+  if (footerSummary) {
+    const finalY = (doc as any).lastAutoTable.finalY + 10 || currentY + 20;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(footerSummary, 40, finalY);
+  }
+
   doc.save(`${title.replace(/\s+/g, '_').toLowerCase()}.pdf`);
 };
 
@@ -107,7 +115,8 @@ export const printDocument = (
   columns: ExportColumn[],
   settings: SchoolSetting | null,
   academicYearName: string | null,
-  userName: string = "Système"
+  userName: string = "Système",
+  footerSummary?: string
 ) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
@@ -157,6 +166,7 @@ export const printDocument = (
           <tbody>${tableRows}</tbody>
         </table>
         
+        ${footerSummary ? `<div style="margin: 10px 0; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 13px; font-weight: bold; text-align: center;">${footerSummary}</div>` : ""}
         <div class="footer">
           <div>Imprimé le: ${format(new Date(), "dd/MM/yyyy à HH:mm", { locale: fr })}</div>
           <div>Généré par: ${userName}</div>

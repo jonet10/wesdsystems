@@ -24,13 +24,14 @@ export function useSchoolSettings() {
             .from("school_settings")
             .select("*")
             .eq("business_id", businessId)
-            .single(),
+            .maybeSingle(),
           supabase
             .from("school_academic_years")
             .select("*")
             .eq("business_id", businessId)
             .eq("active", true)
-            .single()
+            .order("created_at", { ascending: false })
+            .maybeSingle()
         ]);
 
         if (settingsRes.data) setSettings(settingsRes.data);

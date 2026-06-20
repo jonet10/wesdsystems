@@ -35,6 +35,7 @@ export interface SchoolClass {
   level_order?: number | null;
   section?: string | null;
   max_students?: number | null;
+  active?: boolean;
   created_at: string;
 }
 

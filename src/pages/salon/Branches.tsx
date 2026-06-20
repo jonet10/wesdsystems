@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 import { Plus, Building2, Check } from "lucide-react";
 
 export default function SalonBranchesPage() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const businessId = profile?.business_id;
   const { data: branches = [], isLoading } = useBusinessBranches();
@@ -81,7 +83,7 @@ export default function SalonBranchesPage() {
                         bar: "/bar", market: "/market", boutique: "/boutique",
                         auto_parts: "/auto-parts", school_payments: "/school-payments",
                       };
-                      window.location.href = routes[b.business_type as string] || "/salon";
+                      navigate(routes[b.business_type as string] || "/salon");
                     });
                   }
                 }}
