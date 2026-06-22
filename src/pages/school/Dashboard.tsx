@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight, Package } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -20,7 +20,8 @@ export default function SchoolDashboard() {
     totalParents: 0,
     totalRevenue: 0,
     totalPending: 0,
-    totalExpenses: 0
+    totalExpenses: 0,
+    totalStockValue: 0
   });
 
   useEffect(() => {
@@ -32,24 +33,28 @@ export default function SchoolDashboard() {
           { count: studentsCount },
           { count: parentsCount },
           { data: invoices },
-          { data: expenses }
+          { data: expenses },
+          { data: products }
         ] = await Promise.all([
           supabase.from("school_students").select("*", { count: "exact", head: true }).eq("business_id", businessId),
           supabase.from("school_parents").select("*", { count: "exact", head: true }).eq("business_id", businessId),
           supabase.from("school_invoices").select("paid_amount, balance").eq("business_id", businessId),
-          supabase.from("school_expenses").select("amount").eq("business_id", businessId)
+          supabase.from("school_expenses").select("amount").eq("business_id", businessId),
+          supabase.from("school_products").select("price, stock_quantity").eq("business_id", businessId).eq("active", true)
         ]);
 
         const revenue = invoices?.reduce((sum, inv) => sum + Number(inv.paid_amount), 0) || 0;
         const pending = invoices?.reduce((sum, inv) => sum + Number(inv.balance), 0) || 0;
         const totalExp = expenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
+        const stockValue = products?.reduce((sum, p) => sum + (Number(p.price) * Number(p.stock_quantity)), 0) || 0;
 
         setStats({
           totalStudents: studentsCount || 0,
           totalParents: parentsCount || 0,
           totalRevenue: revenue,
           totalPending: pending,
-          totalExpenses: totalExp
+          totalExpenses: totalExp,
+          totalStockValue: stockValue
         });
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -67,7 +72,7 @@ export default function SchoolDashboard() {
           <p className="text-muted-foreground">Vue d'ensemble de l'établissement et des finances.</p>
         </div>
 
-        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -77,6 +82,19 @@ export default function SchoolDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{stats.totalStudents}</div>
                 <p className="text-xs text-muted-foreground mt-1">Actifs dans le système</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Parents / Tuteurs</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalParents}</div>
+                <p className="text-xs text-muted-foreground mt-1">Contacts enregistrés</p>
               </CardContent>
             </Card>
           </StaggerItem>
@@ -99,12 +117,12 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Impayés (En attente)</CardTitle>
+                <CardTitle className="text-sm font-medium">Reste à Payer</CardTitle>
                 <FileText className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-warning">{formatAmount(stats.totalPending)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Reste à recouvrer</p>
+                <p className="text-xs text-muted-foreground mt-1">Factures non soldées</p>
               </CardContent>
             </Card>
           </StaggerItem>
@@ -118,6 +136,19 @@ export default function SchoolDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold text-destructive">{formatAmount(stats.totalExpenses)}</div>
                 <p className="text-xs text-muted-foreground mt-1">Sorties totales</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Valeur du Stock</CardTitle>
+                <Package className="h-4 w-4 text-cyan-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-cyan-500">{formatAmount(stats.totalStockValue)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Fournitures disponibles</p>
               </CardContent>
             </Card>
           </StaggerItem>
@@ -139,20 +170,30 @@ export default function SchoolDashboard() {
               <CardTitle>Raccourcis</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/school/payments')}>
-                  <Wallet className="h-8 w-8 text-primary" />
-                  <div>
-                    <div className="font-semibold">Aller à la Caisse</div>
-                    <div className="text-sm text-muted-foreground">Encaisser un paiement d'élève</div>
-                  </div>
-               </div>
-               <div className="flex items-center gap-4 border p-4 rounded-lg bg-card hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => navigate('/school/students')}>
-                  <GraduationCap className="h-8 w-8 text-primary" />
-                  <div>
-                    <div className="font-semibold">Nouveau Dossier</div>
-                    <div className="text-sm text-muted-foreground">Inscrire un nouvel élève</div>
-                  </div>
-               </div>
+              <div 
+                onClick={() => navigate("/school/students")}
+                className="flex items-center p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              >
+                <div className="bg-primary/10 p-2 rounded-full mr-4">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Nouveau Dossier</h4>
+                  <p className="text-sm text-muted-foreground">Inscrire un nouvel élève</p>
+                </div>
+              </div>
+              <div 
+                onClick={() => navigate("/school/invoices")}
+                className="flex items-center p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              >
+                <div className="bg-primary/10 p-2 rounded-full mr-4">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-medium">Facturation</h4>
+                  <p className="text-sm text-muted-foreground">Gérer les frais de scolarité</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

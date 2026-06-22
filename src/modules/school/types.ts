@@ -248,3 +248,69 @@ export interface SchoolExpense {
   created_by?: string | null;
   created_at: string;
 }
+
+export interface SchoolProduct {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  sku?: string | null;
+  cost_price: number;
+  price: number;
+  stock_quantity: number;
+  min_stock_alert: number;
+  active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SchoolStockMovement {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  product_id: string;
+  movement_type: 'ENTREE' | 'SORTIE' | 'VENTE' | 'AJUSTEMENT' | 'RETOUR';
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  reference_id?: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  
+  product?: SchoolProduct;
+}
+
+export interface SchoolSale {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  receipt_number: string;
+  student_id?: string | null;
+  customer_name?: string | null;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  payment_method: string;
+  status: string;
+  created_by?: string | null;
+  created_at: string;
+  
+  items?: SchoolSaleItem[];
+}
+
+export interface SchoolSaleItem {
+  id: string;
+  sale_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  created_at: string;
+  
+  product?: SchoolProduct;
+}

@@ -83,6 +83,16 @@ export const enrollmentService = {
 
     const enrollment = data as SchoolEnrollment;
 
+    // Synchroniser le champ class_level sur l'élève pour un accès rapide
+    try {
+      const { data: cls } = await supabase.from("school_classes").select("name, code").eq("id", payload.class_id).single();
+      if (cls) {
+        await supabase.from("school_students").update({ class_level: cls.code || cls.name }).eq("id", payload.student_id);
+      }
+    } catch (e) {
+      console.error("Impossible de synchroniser class_level sur l'élève", e);
+    }
+
     if (payload.auto_generate_invoice !== false) {
       await invoiceService.generateFromEnrollment(
         payload.student_id,

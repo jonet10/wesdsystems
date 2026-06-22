@@ -18,7 +18,7 @@ export const paymentService = {
   async getById(id: string) {
     const { data, error } = await supabase
       .from("school_payments")
-      .select("*, invoice:invoice_id(*, student:student_id(*))")
+      .select("*, invoice:invoice_id(*, student:student_id(*)), payment_plan:payment_plan_id(*)")
       .eq("id", id)
       .single();
     if (error) throw error;

@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
-import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
+import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
+import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
 import { PromotionBadge } from "@/components/modules/salon/PromotionBadge";
 import {
   addPendingTabItem,
@@ -1153,12 +1154,43 @@ export default function POSPage() {
   };
 
   const handlePrintReceipt = async () => {
-    if (!receiptRef.current) return;
-    await printReceiptPdf(
-      receiptRef.current,
-      lastSale?.tab_number ? `fiche-${lastSale.tab_number}` : `recu-${lastSale?.sale_number || Date.now()}`
-    );
-    toast.success("Reçu PDF téléchargé !");
+    if (!lastSale || !receiptRef.current) return;
+    const data: ReceiptData = {
+      business: {
+        name: businessInfo?.name || "SALON / SPA",
+        logo_url: businessInfo?.logo_url,
+        address: businessInfo?.address,
+        phone: businessInfo?.phone,
+        email: businessInfo?.email,
+      },
+      transaction: {
+        invoiceNumber: lastSale.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale.sale_number,
+        date: lastSale.closed_at || lastSale.created_at || new Date().toISOString(),
+        cashierName: lastSale.cashier_name || employeeSession?.full_name || "Caisse",
+        clientName: lastSale.customer || "",
+        cashRegister: "CAISSE SALON",
+      },
+      items: lastSale.items?.map((i: any) => ({
+        name: i.name || i.item_name,
+        quantity: i.quantity,
+        price: i.unit_price,
+        total: (i.quantity * i.unit_price) - (i.discount || 0)
+      })) || [],
+      totals: {
+        subtotal: lastSale.total_amount + (lastSale.discount_amount || 0),
+        discount: lastSale.discount_amount,
+        total: lastSale.total_amount,
+      },
+      payment: {
+        method: lastSale.payment === "cash" ? "ESPÈCES" :
+                lastSale.payment === "card" ? "CARTE" :
+                lastSale.payment === "moncash" ? "MONCASH" :
+                lastSale.payment === "natcash" ? "NATCASH" : "AUTRE",
+        amountReceived: lastSale.total_amount,
+      },
+      currencyCode: currencyCode,
+    };
+    printUnifiedReceipt(data, format);
   };
 
   const currentItems = activeTab === "catalogue" ? [...products, ...services] : activeTab === "products" ? products : services;
@@ -1732,35 +1764,55 @@ export default function POSPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden border">
-            <ReceiptTemplate
-              sale={{
-                ...lastSale,
-                cashier_name: lastSale?.cashier_name,
-                customer_name: lastSale?.customer,
-                payment_method: lastSale?.payment,
-                label: lastSale?.label,
-                tab_number: lastSale?.tab_number,
-                opened_at: lastSale?.opened_at,
-                closed_at: lastSale?.closed_at,
-              }}
-              items={lastSale?.items?.map((i: any) => ({
-                item_name: i.name || i.item_name,
-                quantity: i.quantity,
-                unit_price: i.unit_price,
-                total_price: i.quantity * i.unit_price - (i.discount || 0),
-              })) || []}
-              salon={businessInfo}
-              currencyCode={currencyCode}
-              format={format}
-              detailed
-            />
-          </div>
+            <div className="bg-gray-100 p-2 rounded flex justify-center max-h-[60vh] overflow-y-auto">
+              <ReceiptTemplate
+                ref={receiptRef}
+                formatAmount={format}
+                data={{
+                  business: {
+                    name: businessInfo?.name || "SALON / SPA",
+                    logo_url: businessInfo?.logo_url,
+                    address: businessInfo?.address,
+                    phone: businessInfo?.phone,
+                    email: businessInfo?.email,
+                  },
+                  transaction: {
+                    invoiceNumber: lastSale?.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale?.sale_number,
+                    date: lastSale?.closed_at || lastSale?.created_at || new Date().toISOString(),
+                    cashierName: lastSale?.cashier_name || employeeSession?.full_name || "Caisse",
+                    clientName: lastSale?.customer || "",
+                    cashRegister: "CAISSE SALON",
+                  },
+                  items: lastSale?.items?.map((i: any) => ({
+                    name: i.name || i.item_name,
+                    quantity: i.quantity,
+                    price: i.unit_price,
+                    total: (i.quantity * i.unit_price) - (i.discount || 0)
+                  })) || [],
+                  totals: {
+                    subtotal: (lastSale?.total_amount || 0) + (lastSale?.discount_amount || 0),
+                    discount: lastSale?.discount_amount,
+                    total: lastSale?.total_amount || 0,
+                  },
+                  payment: {
+                    method: lastSale?.payment === "cash" ? "ESPÈCES" :
+                            lastSale?.payment === "card" ? "CARTE" :
+                            lastSale?.payment === "moncash" ? "MONCASH" :
+                            lastSale?.payment === "natcash" ? "NATCASH" : "AUTRE",
+                    amountReceived: lastSale?.total_amount || 0,
+                  },
+                  currencyCode: currencyCode,
+                }}
+              />
+            </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
-            <Button onClick={handlePrintReceipt}>Télécharger le PDF</Button>
-          </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
+              <Button onClick={handlePrintReceipt}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimer
+              </Button>
+            </div>
         </DialogContent>
       </Dialog>
 

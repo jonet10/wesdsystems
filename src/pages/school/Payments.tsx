@@ -14,7 +14,8 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { ExportButtons } from "@/components/school/ExportButtons";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
-import { printReceipt } from "@/lib/print-utils";
+import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
+import { ReceiptData } from "@/components/printing/ReceiptTemplate";
 import { paymentService, setBusinessId } from "@/modules/school/services";
 import type { SchoolInvoice, SchoolPayment, SchoolStudent, SchoolPaymentPlan } from "@/modules/school/types";
 import { format } from "date-fns";
@@ -160,7 +161,7 @@ export default function SchoolPayments() {
 
     setIsProcessing(true);
     try {
-      await paymentService.recordPayment({
+      const newPayment = await paymentService.recordPayment({
         invoice_id: selectedInvoice.id,
         payment_plan_id: selectedPlanId || undefined,
         amount,
@@ -171,7 +172,14 @@ export default function SchoolPayments() {
 
       toast.success("Paiement enregistré avec succès");
       setSelectedInvoice(null);
-      loadData();
+      await loadData();
+      
+      try {
+        const fullPayment = await paymentService.getById(newPayment.id);
+        handlePrintReceipt(fullPayment);
+      } catch (err) {
+        console.error("Impossible de charger le reçu", err);
+      }
     } catch (error: any) {
       toast.error("Erreur lors du paiement", { description: error.message });
     } finally {
@@ -181,34 +189,50 @@ export default function SchoolPayments() {
 
   const handlePrintReceipt = (payment: SchoolPayment) => {
     const student = payment.invoice?.student;
-    const receiptDiv = document.createElement("div");
-    receiptDiv.innerHTML = `
-      <div style="font-family: sans-serif; max-width: 300px; margin: 0 auto; text-align: center;">
-        <h2>Reçu de Paiement</h2>
-        <p style="font-size: 14px; margin: 0;">N° ${payment.receipt_number}</p>
-        <p style="font-size: 12px; color: #666;">Date: ${format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}</p>
-        
-        <hr style="border-top: 1px dashed #ccc; margin: 15px 0;" />
-        
-        <div style="text-align: left; margin-bottom: 15px;">
-          <p><strong>Élève :</strong> ${student?.first_name} ${student?.last_name}</p>
-          <p><strong>Facture :</strong> ${payment.invoice?.invoice_number}</p>
-          <p><strong>Méthode :</strong> ${payment.payment_method}</p>
-          <p><strong>Réf :</strong> ${payment.reference || '-'}</p>
-        </div>
+    
+    const data: ReceiptData = {
+      business: {
+        name: settings?.name || "ÉCOLE / INSTITUTION",
+        logo_url: settings?.logo_url,
+        address: settings?.address,
+        phone: settings?.phone,
+        email: settings?.email,
+        receipt_footer_message: "Merci de votre paiement.",
+        receipt_policy_message: "Veuillez conserver ce reçu."
+      },
+      transaction: {
+        invoiceNumber: payment.receipt_number,
+        invoiceLabel: "N° Reçu",
+        date: payment.payment_date,
+        cashierName: user?.user_metadata?.name || "Admin",
+        clientName: `${student?.first_name} ${student?.last_name}`,
+        clientLabel: "Élève",
+        cashRegister: "CAISSE SCOLARITÉ"
+      },
+      items: [{
+        name: payment.payment_plan?.title ? `${payment.payment_plan.title} - Facture ${payment.invoice?.invoice_number}` : `Paiement - Facture ${payment.invoice?.invoice_number}`,
+        quantity: 1,
+        price: payment.amount,
+        total: payment.amount
+      }],
+      totals: {
+        subtotal: payment.amount,
+        total: payment.amount
+      },
+      payment: {
+        method: payment.payment_method.toLowerCase() === "cash" ? "ESPÈCES" :
+                payment.payment_method.toLowerCase() === "carte bancaire" || payment.payment_method.toLowerCase() === "card" ? "CARTE" :
+                payment.payment_method.toLowerCase() === "moncash" ? "MONCASH" :
+                payment.payment_method.toLowerCase() === "natcash" ? "NATCASH" :
+                payment.payment_method.toLowerCase() === "chèque" ? "CHÈQUE" :
+                payment.payment_method.toLowerCase() === "virement" ? "VIREMENT" : "AUTRE",
+        amountReceived: payment.amount,
+        balanceRemaining: payment.invoice?.balance
+      },
+      currencyCode: currencyCode
+    };
 
-        <hr style="border-top: 1px dashed #ccc; margin: 15px 0;" />
-        
-        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;">
-          <span>MONTANT PAYÉ</span>
-          <span>${payment.amount} ${currencyCode}</span>
-        </div>
-
-        <p style="font-size: 12px; margin-top: 30px; color: #888;">Merci pour votre paiement !</p>
-        <p style="font-size: 10px; margin-top: 5px; color: #aaa;">${settings?.name || ""}</p>
-      </div>
-    `;
-    printReceipt(receiptDiv);
+    printUnifiedReceipt(data, formatAmount);
   };
 
   const filteredInvoices = invoices.filter(inv => {

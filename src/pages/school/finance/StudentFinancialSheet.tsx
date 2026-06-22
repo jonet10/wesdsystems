@@ -12,6 +12,9 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { exportToPDF, printDocument, type ExportColumn } from "@/lib/school-export";
 
 export default function StudentFinancialSheet() {
@@ -98,12 +101,149 @@ export default function StudentFinancialSheet() {
     { header: "Solde", accessorKey: "balance", cell: (i: any) => formatAmount(i.balance) },
   ];
 
+  const [isBatchPrinting, setIsBatchPrinting] = useState(false);
+  const [batchClassId, setBatchClassId] = useState("all");
+  const [batchFilterDebt, setBatchFilterDebt] = useState(true);
+
+  const handleBatchPrint = async () => {
+    setIsBatchPrinting(true);
+    try {
+      let targetStudents = students;
+      if (batchClassId !== "all") {
+        targetStudents = students.filter(s => s.class_level === batchClassId);
+      }
+      if (targetStudents.length === 0) {
+        toast.error("Aucun élève trouvé dans cette classe.");
+        return;
+      }
+      
+      const { data: invData, error } = await supabase
+        .from("school_invoices")
+        .select("*")
+        .eq("business_id", businessId)
+        .in("student_id", targetStudents.map(s => s.id));
+        
+      if (error) throw error;
+      
+      const studentBalances = targetStudents.map(student => {
+        const studentInvoices = invData?.filter(i => i.student_id === student.id) || [];
+        const totalBilled = studentInvoices.reduce((sum, i) => sum + Number(i.total_amount), 0);
+        const totalPaid = studentInvoices.reduce((sum, i) => sum + Number(i.paid_amount), 0);
+        const balance = studentInvoices.reduce((sum, i) => sum + Number(i.balance), 0);
+        return { student, totalBilled, totalPaid, balance };
+      });
+      
+      let finalStudents = studentBalances;
+      if (batchFilterDebt) {
+        finalStudents = finalStudents.filter(sb => sb.balance > 0);
+      }
+      
+      if (finalStudents.length === 0) {
+        toast.error("Aucun élève ne correspond aux critères.");
+        return;
+      }
+
+      const slipsHtml = finalStudents.map((sb, idx) => `
+        <div style="width: 48%; box-sizing: border-box; border: 1px dashed #000; padding: 15px; margin-bottom: 20px; page-break-inside: avoid;">
+          ${settings?.logo_url ? `<div style="text-align: center;"><img src="${settings.logo_url}" style="max-height: 50px;" /></div>` : ''}
+          <h3 style="text-align: center; margin: 5px 0; font-size: 14px;">${settings?.name || "ÉCOLE"}</h3>
+          <h4 style="text-align: center; margin: 5px 0; color: #555; font-size: 12px;">AVIS DE PAIEMENT</h4>
+          <hr style="border: 0; border-top: 1px solid #ccc; margin: 10px 0;" />
+          <p style="margin: 3px 0; font-size: 13px;"><strong>Élève :</strong> ${sb.student.first_name} ${sb.student.last_name}</p>
+          <p style="margin: 3px 0; font-size: 13px;"><strong>Classe :</strong> ${sb.student.class_level || "N/A"}</p>
+          <table style="width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 13px;">
+            <tr><td style="padding: 4px 0;">Total facturé :</td><td style="text-align: right; padding: 4px 0;">${formatAmount(sb.totalBilled)}</td></tr>
+            <tr><td style="padding: 4px 0;">Total payé :</td><td style="text-align: right; padding: 4px 0;">${formatAmount(sb.totalPaid)}</td></tr>
+            <tr><td style="padding: 4px 0; font-weight: bold; border-top: 1px solid #000;">Solde à payer :</td><td style="text-align: right; padding: 4px 0; font-weight: bold; border-top: 1px solid #000;">${formatAmount(sb.balance)}</td></tr>
+          </table>
+          ${sb.balance > 0 ? `<p style="font-size: 11px; text-align: center; margin-top: 15px; color: #000;">Veuillez régulariser ce solde dans les plus brefs délais.</p>` : `<p style="font-size: 11px; text-align: center; margin-top: 15px; color: #000;">En règle.</p>`}
+        </div>
+      `).join('');
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Avis de paiement</title>
+            <style>
+              body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 10px; color: #000; }
+              .grid-container { display: flex; flex-wrap: wrap; justify-content: space-between; }
+              @media print {
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="grid-container">
+              ${slipsHtml}
+            </div>
+            <script>window.onload = () => window.print();</script>
+          </body>
+        </html>
+      `;
+      
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(html);
+        printWindow.document.close();
+      }
+
+    } catch (e: any) {
+      toast.error("Erreur de génération", { description: e.message });
+    } finally {
+      setIsBatchPrinting(false);
+    }
+  };
+
+  const uniqueClasses = [...new Set(students.map(s => s.class_level).filter(Boolean))].sort();
+
   return (
     <DashboardLayout role="salon_admin">
       <div className="space-y-6 max-w-7xl mx-auto">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Fiche Financière Élève</h1>
-          <p className="text-muted-foreground">Consultez la situation financière détaillée d'un élève</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Fiche Financière Élève</h1>
+            <p className="text-muted-foreground">Consultez la situation financière détaillée d'un élève</p>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="shrink-0"><Printer className="h-4 w-4 mr-2"/> Générer Avis (Lot)</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Générer les avis de paiement pour une classe</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Classe</Label>
+                  <Select value={batchClassId} onValueChange={setBatchClassId}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionnez une classe" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Toutes les classes</SelectItem>
+                      {uniqueClasses.map(c => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox 
+                    id="filter-debt" 
+                    checked={batchFilterDebt} 
+                    onCheckedChange={(c) => setBatchFilterDebt(c as boolean)} 
+                  />
+                  <Label htmlFor="filter-debt" className="text-sm font-normal">
+                    Ne générer que pour les élèves qui ont un solde (dette) à payer
+                  </Label>
+                </div>
+                <div className="pt-4 flex justify-end">
+                  <Button onClick={handleBatchPrint} disabled={isBatchPrinting}>
+                    {isBatchPrinting ? "Génération..." : "Imprimer les avis (2 par ligne)"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">

@@ -16,6 +16,7 @@ import {
   Utensils,
   Beer,
   ShoppingBag,
+  ShoppingCart,
   FileText,
   Layers,
   Package,
@@ -120,12 +121,20 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     switch (activeBiz) {
       case "pharmacie":
         return [
-          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/pharmacie", permission: PERMISSIONS.DASHBOARD_VIEW },
-          { icon: FileText, label: "Ordonnances", path: "/pharmacie/appointments", permission: PERMISSIONS.APPOINTMENTS_VIEW },
-          { icon: Users, label: "Patients", path: "/pharmacie/clients", permission: PERMISSIONS.CLIENTS_READ },
-          { icon: Users, label: "Pharmaciens", path: "/pharmacie/employees", permission: PERMISSIONS.STAFF_MANAGE },
-          { icon: Pill, label: "Stock Médicaments", path: "/pharmacie/services", permission: PERMISSIONS.STOCK_VIEW },
-          { icon: Settings, label: "Configuration", path: "/pharmacie/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
+          { icon: LayoutDashboard, label: "Dashboard", path: "/pharmacie", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Receipt, label: "POS & Ventes", path: "/pharmacie/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Pill, label: "Produits", path: "/pharmacie/products", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Layers, label: "Catégories", path: "/pharmacie/categories", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Container, label: "Lots (Batches)", path: "/pharmacie/batches", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Truck, label: "Fournisseurs", path: "/pharmacie/suppliers", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: ShoppingCart, label: "Achats", path: "/pharmacie/purchases", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Warehouse, label: "Stock & Mouvements", path: "/pharmacie/stock", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Users, label: "Patients", path: "/pharmacie/patients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: FileText, label: "Ordonnances", path: "/pharmacie/prescriptions", permission: PERMISSIONS.APPOINTMENTS_VIEW },
+          { icon: CreditCard, label: "Crédit Clients", path: "/pharmacie/credits", permission: PERMISSIONS.FINANCE_VIEW },
+          { icon: Wallet, label: "Caisses", path: "/pharmacie/registers", permission: PERMISSIONS.FINANCE_VIEW },
+          { icon: TrendingUp, label: "Rapports", path: "/pharmacie/reports", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Settings, label: "Paramètres", path: "/pharmacie/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "restaurant":
         return [
@@ -220,6 +229,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: DollarSign, label: "Fiche Financière", path: "/school/finance/student", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: FileText, label: "Factures", path: "/school/invoices", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: ShoppingBag, label: "Caisse", path: "/school/payments", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: Package, label: "Fournitures", path: "/school/inventory", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: ShoppingCart, label: "Caisse Fournitures", path: "/school/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
           { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: TrendingUp, label: "Rapports", path: "/school/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
           { icon: Settings, label: "Paramètres", path: "/school/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },

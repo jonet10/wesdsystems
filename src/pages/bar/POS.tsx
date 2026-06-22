@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
-import { ReceiptTemplate } from "@/components/ui/ReceiptTemplate";
+import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
+import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
 
 interface CatalogItem {
   id: string;
@@ -404,31 +405,72 @@ export default function BarPOS() {
             <DialogTitle className="flex items-center justify-between">
               <span>Reçu #{lastSale?.sale_number || ""}</span>
               <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1">
+                <Button variant="outline" size="sm" onClick={() => {
+                  if (!lastSale || !receiptRef.current) return;
+                  const data: ReceiptData = {
+                    business: {
+                      name: "BAR / RESTAURANT",
+                    },
+                    transaction: {
+                      invoiceNumber: lastSale.sale_number || lastSale.id,
+                      date: lastSale.created_at || new Date().toISOString(),
+                      cashierName: user?.user_metadata?.name || "Caisse",
+                      cashRegister: "CAISSE BAR",
+                    },
+                    items: lastSale.items?.map((i: any) => ({
+                      name: i.name || i.item_name,
+                      quantity: i.quantity,
+                      price: i.unit_price,
+                      total: i.quantity * i.unit_price
+                    })) || [],
+                    totals: {
+                      subtotal: lastSale.total || 0,
+                      total: lastSale.total || 0,
+                    },
+                    payment: {
+                      method: lastSale.payment || "ESPÈCES",
+                      amountReceived: lastSale.total || 0,
+                    },
+                    currencyCode: currencyCode,
+                  };
+                  printUnifiedReceipt(data, format);
+                }} className="gap-1">
                   <Printer className="h-4 w-4" /> Imprimer
                 </Button>
               </div>
             </DialogTitle>
           </DialogHeader>
-          <div ref={receiptRef} className="bg-white rounded-lg overflow-hidden border p-4 text-center text-black">
-            <h2 className="font-bold text-xl mb-2">Ticket de Caisse</h2>
-            <p className="text-sm text-gray-500 mb-4">{new Date().toLocaleString()}</p>
-            <div className="text-left space-y-2 mb-4">
-              {lastSale?.items?.map((i: any, idx: number) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span>{i.quantity}x {i.name}</span>
-                  <span>{format(i.quantity * i.unit_price)}</span>
-                </div>
-              ))}
-            </div>
-            <Separator className="my-2" />
-            <div className="flex justify-between font-bold">
-              <span>TOTAL</span>
-              <span>{format(lastSale?.total || 0)}</span>
-            </div>
-            <div className="mt-4 text-xs text-gray-500">
-              Paiement: {lastSale?.payment}
-            </div>
+          <div className="bg-gray-100 p-2 rounded flex justify-center max-h-[60vh] overflow-y-auto">
+            <ReceiptTemplate
+              ref={receiptRef}
+              formatAmount={format}
+              data={{
+                business: {
+                  name: "BAR / RESTAURANT",
+                },
+                transaction: {
+                  invoiceNumber: lastSale?.sale_number || lastSale?.id,
+                  date: lastSale?.created_at || new Date().toISOString(),
+                  cashierName: user?.user_metadata?.name || "Caisse",
+                  cashRegister: "CAISSE BAR",
+                },
+                items: lastSale?.items?.map((i: any) => ({
+                  name: i.name || i.item_name,
+                  quantity: i.quantity,
+                  price: i.unit_price,
+                  total: i.quantity * i.unit_price
+                })) || [],
+                totals: {
+                  subtotal: lastSale?.total || 0,
+                  total: lastSale?.total || 0,
+                },
+                payment: {
+                  method: lastSale?.payment || "ESPÈCES",
+                  amountReceived: lastSale?.total || 0,
+                },
+                currencyCode: currencyCode,
+              }}
+            />
           </div>
         </DialogContent>
       </Dialog>

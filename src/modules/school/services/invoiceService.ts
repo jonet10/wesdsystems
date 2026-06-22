@@ -130,6 +130,21 @@ export const invoiceService = {
         };
       });
 
+      const plansSum = plans.reduce((acc: number, p: any) => acc + Number(p.amount_due), 0);
+      if (plansSum < totalAmount) {
+        // Ajouter la différence (ex: frais d'inscription) comme premier versement exigible immédiatement
+        plans.unshift({
+          invoice_id: invoiceId,
+          business_id: businessId,
+          title: "Frais initiaux (Inscription & Autres)",
+          amount_due: totalAmount - plansSum,
+          amount_paid: 0,
+          balance: totalAmount - plansSum,
+          due_date: new Date().toISOString(), // Exigible immédiatement
+          status: 'pending' as const,
+        });
+      }
+
       const { data, error } = await supabase
         .from("school_payment_plans")
         .insert(plans)

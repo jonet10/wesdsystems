@@ -8,7 +8,7 @@ import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { OfflineBanner } from "@/components/shared/OfflineBanner";
 import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
@@ -16,6 +16,21 @@ import { PWAInstallPrompt } from "@/components/shared/PWAInstallPrompt";
 // Pages
 import Landing from "./pages/Landing";
 import Login from "./pages/auth/Login";
+// Pharmacy Pages
+import PharmacyDashboard from "./pages/pharmacy/Dashboard";
+import PharmacySettings from "./pages/pharmacy/Settings";
+import PharmacyProducts from "./pages/pharmacy/Products";
+import PharmacyCategories from "./pages/pharmacy/Categories";
+import PharmacyBatches from "./pages/pharmacy/Batches";
+import PharmacySuppliers from "./pages/pharmacy/Suppliers";
+import PharmacyPurchases from "./pages/pharmacy/Purchases";
+import PharmacyStock from "./pages/pharmacy/Stock";
+import PharmacyPOS from "./pages/pharmacy/POS";
+import PharmacyPatients from "./pages/pharmacy/Patients";
+import PharmacyPrescriptions from "./pages/pharmacy/Prescriptions";
+import PharmacyCredits from "./pages/pharmacy/Credits";
+import PharmacyRegisters from "./pages/pharmacy/Registers";
+import PharmacyReports from "./pages/pharmacy/Reports";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Register from "./pages/auth/Register";
 import PartnerRegister from "./pages/auth/PartnerRegister";
@@ -70,8 +85,10 @@ import SchoolParents from "./pages/school/Parents";
 import SchoolTeachers from "./pages/school/Teachers";
 import SchoolInvoices from "./pages/school/Invoices";
 import SchoolPayments from "./pages/school/Payments";
-import SchoolExpenses from "./pages/school/Expenses";
-import SchoolReports from "./pages/school/Reports";
+const SchoolExpenses = lazy(() => import("@/pages/school/Expenses"));
+const SchoolInventory = lazy(() => import("@/pages/school/Inventory"));
+const SchoolPOS = lazy(() => import("@/pages/school/POS"));
+const SchoolReports = lazy(() => import("@/pages/school/Reports"));
 import ParentDashboard from "./pages/school/parent/Dashboard";
 import EnrollmentsPage from "./pages/school/enrollments/EnrollmentsPage";
 import StudentFinancialSheet from "./pages/school/finance/StudentFinancialSheet";
@@ -620,6 +637,22 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/school/inventory"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_manager"]} allowAuthenticatedWithoutRole>
+                      <SchoolInventory />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
+                      <SchoolPOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/school/reports"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant"]} allowAuthenticatedWithoutRole>
@@ -635,6 +668,22 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Pharmacy Routes */}
+                <Route path="/pharmacie" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyDashboard /></ProtectedRoute>} />
+                <Route path="/pharmacie/settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacySettings /></ProtectedRoute>} />
+                <Route path="/pharmacie/products" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyProducts /></ProtectedRoute>} />
+                <Route path="/pharmacie/categories" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyCategories /></ProtectedRoute>} />
+                <Route path="/pharmacie/batches" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyBatches /></ProtectedRoute>} />
+                <Route path="/pharmacie/suppliers" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacySuppliers /></ProtectedRoute>} />
+                <Route path="/pharmacie/purchases" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyPurchases /></ProtectedRoute>} />
+                <Route path="/pharmacie/stock" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyStock /></ProtectedRoute>} />
+                <Route path="/pharmacie/pos" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPOS /></ProtectedRoute>} />
+                <Route path="/pharmacie/patients" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPatients /></ProtectedRoute>} />
+                <Route path="/pharmacie/prescriptions" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPrescriptions /></ProtectedRoute>} />
+                <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />
+                <Route path="/pharmacie/registers" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyRegisters /></ProtectedRoute>} />
+                <Route path="/pharmacie/reports" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyReports /></ProtectedRoute>} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

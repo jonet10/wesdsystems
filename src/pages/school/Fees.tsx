@@ -148,6 +148,19 @@ export default function SchoolFees() {
         amount: parseFloat(feeAmount),
       };
 
+      if (!editingFee) {
+        // Check for duplicates
+        const exists = fees.find(f => 
+          f.class_id === feeClassId && 
+          f.category_id === feeCatId && 
+          f.academic_year_id === activeYear
+        );
+        if (exists) {
+          toast.error("Ce montant existe déjà", { description: "Vous avez déjà défini ce type de frais pour cette classe." });
+          return;
+        }
+      }
+
       if (editingFee) {
         await supabase.from("school_fees").update(payload).eq("id", editingFee.id);
         toast.success("Frais mis à jour");

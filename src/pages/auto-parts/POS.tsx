@@ -16,6 +16,9 @@ import { searchClients } from "@/modules/auto-parts/services/clients";
 import { createSale } from "@/modules/auto-parts/services/sales";
 import { listStaff } from "@/modules/auto-parts/services/staff";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/lib/supabase";
+import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
+import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
 import { useAuth } from "@/hooks/useAuth";
 import { printReceipt } from "@/lib/print-utils";
 import { getBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
@@ -33,7 +36,7 @@ interface CartItem {
 
 export default function AutoPartsPOSPage() {
   const businessId = useAutoPartsBusinessId();
-  const { format } = useCurrency();
+  const { format, currencyCode } = useCurrency();
   const { autoPartsStaffSession } = useAuth();
   const [products, setProducts] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
   const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
@@ -362,85 +365,97 @@ export default function AutoPartsPOSPage() {
 
       {/* Receipt Dialog */}
       <Dialog open={showReceipt} onOpenChange={(open) => { if (!open) setReceiptSnapshot(null); setShowReceipt(open); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Vente enregistrée</DialogTitle></DialogHeader>
           {lastSale && receiptSnapshot && (
             <>
-              <div id="receipt-print-area" ref={receiptRef} className="w-[300px] mx-auto p-3 text-[11px] font-mono leading-tight bg-white">
-                <div className="text-center mb-2 pb-2" style={{ borderBottom: "2px solid #000" }}>
-                  {receiptSnapshot.logoUrl && (
-                    <img src={receiptSnapshot.logoUrl} alt="Logo" className="h-12 mx-auto mb-1 object-contain" />
-                  )}
-                  <h3 className="font-bold text-sm uppercase text-black">{receiptSnapshot.companyName}</h3>
-                  {receiptSnapshot.address && <p className="text-[10px] text-black">{receiptSnapshot.address}</p>}
-                  {receiptSnapshot.phone && <p className="text-[10px] text-black">Tél: {receiptSnapshot.phone}</p>}
-                  {receiptSnapshot.nif && <p className="text-[10px] text-black">NIF: {receiptSnapshot.nif}</p>}
-                  {receiptSnapshot.receiptHeader && <p className="text-[10px] text-black mt-1">{receiptSnapshot.receiptHeader}</p>}
-                  <p className="text-[10px] text-black mt-1">Facture #{lastSale.invoice_number}</p>
-                  <p className="text-[10px] text-black">{new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }).toUpperCase()} {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
-                  {receiptSnapshot.staffName && <p className="text-[10px] text-black mt-1">Caissier: {receiptSnapshot.staffName}</p>}
-                  {receiptSnapshot.selectedClient && <p className="text-[10px] text-black mt-1">Client: {receiptSnapshot.selectedClient.name}</p>}
-                </div>
-                <div className="flex justify-between text-[10px] text-black font-bold uppercase mb-1 pb-1" style={{ borderBottom: "1px solid #000" }}>
-                  <span className="flex-[2]">ARTICLE</span>
-                  <span className="w-12 text-right">QTÉ</span>
-                  <span className="w-16 text-right">P.U.</span>
-                  <span className="w-16 text-right">TOTAL</span>
-                </div>
-                <div className="space-y-0.5 mb-1">
-                  {receiptSnapshot.cart.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-[10px]" style={{ borderBottom: idx < receiptSnapshot.cart.length - 1 ? "1px dotted #999" : "none" }}>
-                      <span className="flex-[2] truncate pr-1 text-black">{item.product_name}</span>
-                      <span className="w-12 text-right text-black">{item.quantity}</span>
-                      <span className="w-16 text-right text-black">{format(item.unit_price)}</span>
-                      <span className="w-16 text-right font-bold text-black">{format(item.quantity * item.unit_price)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
-                <div className="space-y-0.5">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="text-black">Sous-total</span>
-                    <span className="text-black">{format(receiptSnapshot.subtotal)}</span>
-                  </div>
-                  {receiptSnapshot.discountAmount > 0 && (
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-black">Remise</span>
-                      <span className="text-black">-{format(receiptSnapshot.discountAmount)}</span>
-                    </div>
-                  )}
-                  {receiptSnapshot.taxAmount > 0 && (
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-black">TVA ({receiptSnapshot.taxRate}%)</span>
-                      <span className="text-black">{format(receiptSnapshot.taxAmount)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold text-[11px] pt-1 text-black" style={{ borderTop: "2px solid #000" }}>
-                    <span>TOTAL</span>
-                    <span>{format(receiptSnapshot.total)}</span>
-                  </div>
-                  <p className="text-center text-[10px] text-black uppercase pt-1" style={{ borderTop: "1px dashed #000", marginTop: "4px" }}>
-                    Paiement: {receiptSnapshot.paymentMethod === "cash" ? "Espèces" :
-                               receiptSnapshot.paymentMethod === "card" ? "Carte" :
-                               receiptSnapshot.paymentMethod === "transfer" ? "Virement" :
-                               receiptSnapshot.paymentMethod === "moncash" ? "MonCash" :
-                               receiptSnapshot.paymentMethod === "natcash" ? "NatCash" : receiptSnapshot.paymentMethod}
-                  </p>
-                </div>
-                <div className="text-center mt-2 pt-2" style={{ borderTop: "2px solid #000" }}>
-                  {receiptSnapshot.receiptFooter ? (
-                    <p className="text-[10px] text-black">{receiptSnapshot.receiptFooter}</p>
-                  ) : (
-                    <>
-                      <p className="text-[10px] text-black">Merci de votre visite !</p>
-                      <p className="text-[9px] text-black mt-1">Document généré électroniquement</p>
-                    </>
-                  )}
-                </div>
+              <div className="max-h-[60vh] overflow-y-auto bg-gray-100 p-2 rounded flex justify-center">
+                <ReceiptTemplate 
+                  ref={receiptRef}
+                  formatAmount={format}
+                  data={{
+                    business: {
+                      name: receiptSnapshot.companyName || "PIÈCES AUTO",
+                      logo_url: receiptSnapshot.logoUrl,
+                      address: receiptSnapshot.address,
+                      phone: receiptSnapshot.phone,
+                      nif: receiptSnapshot.nif,
+                      receipt_footer_message: receiptSnapshot.receiptFooter,
+                    },
+                    transaction: {
+                      invoiceNumber: lastSale.invoice_number,
+                      date: new Date().toISOString(),
+                      cashierName: receiptSnapshot.staffName,
+                      clientName: receiptSnapshot.selectedClient?.name,
+                      cashRegister: "CAISSE PRINCIPALE"
+                    },
+                    items: receiptSnapshot.cart.map((item: any) => ({
+                      name: item.product_name,
+                      quantity: item.quantity,
+                      price: item.unit_price,
+                      total: item.quantity * item.unit_price
+                    })),
+                    totals: {
+                      subtotal: receiptSnapshot.subtotal,
+                      discount: receiptSnapshot.discountAmount,
+                      tax: receiptSnapshot.taxAmount,
+                      total: receiptSnapshot.total
+                    },
+                    payment: {
+                      method: receiptSnapshot.paymentMethod === "cash" ? "ESPÈCES" :
+                              receiptSnapshot.paymentMethod === "card" ? "CARTE" :
+                              receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
+                              receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
+                      amountReceived: receiptSnapshot.total
+                    },
+                    currencyCode: currencyCode
+                  }}
+                />
               </div>
-              <DialogFooter className="gap-2">
+              <DialogFooter className="gap-2 mt-4">
                 <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); }}>Fermer</Button>
-                <Button onClick={() => receiptRef.current && printReceipt(receiptRef.current, `facture-${lastSale.invoice_number}`)}>
+                <Button onClick={() => {
+                  if (receiptRef.current) {
+                    const data: ReceiptData = {
+                      business: {
+                        name: receiptSnapshot.companyName || "PIÈCES AUTO",
+                        logo_url: receiptSnapshot.logoUrl,
+                        address: receiptSnapshot.address,
+                        phone: receiptSnapshot.phone,
+                        nif: receiptSnapshot.nif,
+                        receipt_footer_message: receiptSnapshot.receiptFooter,
+                      },
+                      transaction: {
+                        invoiceNumber: lastSale.invoice_number,
+                        date: new Date().toISOString(),
+                        cashierName: receiptSnapshot.staffName,
+                        clientName: receiptSnapshot.selectedClient?.name,
+                        cashRegister: "CAISSE PRINCIPALE"
+                      },
+                      items: receiptSnapshot.cart.map((item: any) => ({
+                        name: item.product_name,
+                        quantity: item.quantity,
+                        price: item.unit_price,
+                        total: item.quantity * item.unit_price
+                      })),
+                      totals: {
+                        subtotal: receiptSnapshot.subtotal,
+                        discount: receiptSnapshot.discountAmount,
+                        tax: receiptSnapshot.taxAmount,
+                        total: receiptSnapshot.total
+                      },
+                      payment: {
+                        method: receiptSnapshot.paymentMethod === "cash" ? "ESPÈCES" :
+                                receiptSnapshot.paymentMethod === "card" ? "CARTE" :
+                                receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
+                                receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
+                        amountReceived: receiptSnapshot.total
+                      },
+                      currencyCode: currencyCode
+                    };
+                    printUnifiedReceipt(data, format);
+                  }
+                }}>
                   <Printer className="h-4 w-4 mr-2" /> Imprimer
                 </Button>
               </DialogFooter>
