@@ -126,12 +126,11 @@ export default function Register() {
 
       // If email confirmation is enabled, Supabase returns no session immediately.
       if (!data.session) {
-        setNeedsEmailConfirmation(true);
-        setRegisteredEmail(formData.email);
         toast({
           title: "Confirmez votre email",
           description: "Nous avons envoyé un lien de confirmation. Vérifiez votre boîte mail pour activer votre compte.",
         });
+        navigate("/auth/login");
       } else {
         if (referralCode && data.user) {
           const { error: profileError } = await supabase
