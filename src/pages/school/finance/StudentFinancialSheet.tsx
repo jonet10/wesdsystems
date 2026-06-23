@@ -30,15 +30,24 @@ export default function StudentFinancialSheet() {
   const [paymentPlans, setPaymentPlans] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [classes, setClasses] = useState<any[]>([]);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
   const loadStudents = async () => {
     if (!businessId) return;
-    const { data } = await supabase
-      .from("school_students")
-      .select("*")
-      .eq("business_id", businessId)
-      .order("last_name");
-    if (data) setStudents(data);
+    const [studRes, classRes] = await Promise.all([
+      supabase
+        .from("school_students")
+        .select("*")
+        .eq("business_id", businessId)
+        .order("last_name"),
+      supabase
+        .from("school_classes")
+        .select("*")
+        .eq("business_id", businessId)
+    ]);
+    if (studRes.data) setStudents(studRes.data);
+    if (classRes.data) setClasses(classRes.data);
   };
 
   useEffect(() => {
@@ -82,6 +91,134 @@ export default function StudentFinancialSheet() {
       toast.error("Erreur", { description: error.message });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateInvoiceForStudent = async (student: any) => {
+    if (!businessId || !activeAcademicYear) {
+      toast.error("Données de session ou année active manquantes");
+      return;
+    }
+
+    const cls = classes.find(c => c.code === student.class_level || c.name === student.class_level);
+    if (!cls) {
+      toast.error(`Classe "${student.class_level}" non trouvée ou non configurée dans les paramètres.`);
+      return;
+    }
+
+    setIsGeneratingInvoice(true);
+    try {
+      const { data: fees, error: feesErr } = await supabase
+        .from("school_fees")
+        .select("*, category:category_id(*)")
+        .eq("class_id", cls.id)
+        .eq("academic_year_id", activeAcademicYear.id);
+      
+      if (feesErr) throw feesErr;
+
+      if (!fees || fees.length === 0) {
+        toast.error(`Aucun frais n'est configuré pour la classe de ${cls.name} pour l'année ${activeAcademicYear.name}.`, {
+          description: "Veuillez d'abord configurer les montants par classe dans 'Frais & Tarifs'."
+        });
+        return;
+      }
+
+      const { data: invoiceNum, error: rpcError } = await supabase.rpc('generate_school_invoice_number', {
+        p_business_id: businessId
+      });
+      if (rpcError) throw rpcError;
+
+      const totalAmount = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+
+      const { data: invoice, error: invError } = await supabase
+        .from("school_invoices")
+        .insert([{
+          business_id: businessId,
+          student_id: student.id,
+          academic_year_id: activeAcademicYear.id,
+          invoice_number: invoiceNum,
+          total_amount: totalAmount,
+          paid_amount: 0,
+          balance: totalAmount,
+          status: 'pending',
+          issue_date: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+      if (invError) throw invError;
+
+      const invoiceItems = fees.map(fee => ({
+        invoice_id: invoice.id,
+        fee_id: fee.id,
+        business_id: businessId,
+        description: `Frais: ${fee.category?.name || 'Scolarité'}`,
+        amount: fee.amount,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("school_invoice_items")
+        .insert(invoiceItems);
+      if (itemsError) throw itemsError;
+
+      const { data: template, error: tmplError } = await supabase
+        .from("school_payment_templates")
+        .select("*, installments:school_payment_template_installments(*)")
+        .eq("class_id", cls.id)
+        .eq("academic_year_id", activeAcademicYear.id)
+        .maybeSingle();
+      if (tmplError && tmplError.code !== 'PGRST116') throw tmplError;
+
+      if (template?.installments?.length) {
+        const plans = template.installments.map((inst: any) => {
+          const amountDue = inst.is_percentage
+            ? (totalAmount * inst.percentage_or_amount) / 100
+            : inst.percentage_or_amount;
+          return {
+            invoice_id: invoice.id,
+            business_id: businessId,
+            title: inst.title,
+            amount_due: amountDue,
+            amount_paid: 0,
+            balance: amountDue,
+            due_date: inst.due_date || null,
+            status: 'pending',
+          };
+        });
+
+        const plansSum = plans.reduce((acc: number, p: any) => acc + Number(p.amount_due), 0);
+        if (plansSum < totalAmount) {
+          plans.unshift({
+            invoice_id: invoice.id,
+            business_id: businessId,
+            title: "Frais initiaux (Inscription & Autres)",
+            amount_due: totalAmount - plansSum,
+            amount_paid: 0,
+            balance: totalAmount - plansSum,
+            due_date: new Date().toISOString(),
+            status: 'pending',
+          });
+        }
+
+        await supabase.from("school_payment_plans").insert(plans);
+      } else {
+        const defaultPlan = {
+          invoice_id: invoice.id,
+          business_id: businessId,
+          title: "Paiement unique",
+          amount_due: totalAmount,
+          amount_paid: 0,
+          balance: totalAmount,
+          status: 'pending',
+        };
+        await supabase.from("school_payment_plans").insert([defaultPlan]);
+      }
+
+      toast.success("Facture et échéancier de paiement générés avec succès !");
+      loadStudentFinance(student);
+    } catch (err: any) {
+      toast.error("Erreur de génération", { description: err.message });
+    } finally {
+      setIsGeneratingInvoice(false);
     }
   };
 
@@ -283,6 +420,29 @@ export default function StudentFinancialSheet() {
               </Card>
             ) : (
               <>
+                {invoices.length === 0 && (
+                  <Card className="border-warning/30 bg-warning/5 dark:bg-warning/10 mb-6">
+                    <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-semibold text-warning-foreground flex items-center gap-1.5">
+                          ⚠️ Facture de scolarité manquante
+                        </h4>
+                        <p className="text-xs text-muted-foreground font-normal">
+                          Cet élève est inscrit en classe de <strong>{selectedStudent.class_level || "N/A"}</strong> mais aucune facture ni échéancier n'a été créé pour l'année en cours (possiblement inscrit avant la saisie des tarifs).
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => handleGenerateInvoiceForStudent(selectedStudent)}
+                        disabled={isGeneratingInvoice}
+                        size="sm"
+                        className="bg-warning text-warning-foreground hover:bg-warning/80 shrink-0 self-start sm:self-center font-medium"
+                      >
+                        {isGeneratingInvoice ? "Génération..." : "Générer la Facture"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <div className="grid gap-4 md:grid-cols-3">
                   <Card>
                     <CardContent className="p-6">

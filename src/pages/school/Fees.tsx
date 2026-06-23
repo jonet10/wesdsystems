@@ -124,12 +124,18 @@ export default function SchoolFees() {
   const [isFeeDialogOpen, setIsFeeDialogOpen] = useState(false);
   const [editingFee, setEditingFee] = useState<SchoolFee | null>(null);
   const [feeClassId, setFeeClassId] = useState("");
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [feeCatId, setFeeCatId] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
+
+  // Filters
+  const [filterClassId, setFilterClassId] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
 
   const handleEditFee = (fee: SchoolFee) => {
     setEditingFee(fee);
     setFeeClassId(fee.class_id);
+    setSelectedClassIds([fee.class_id]);
     setFeeCatId(fee.category_id);
     setFeeAmount(fee.amount.toString());
     setIsFeeDialogOpen(true);
@@ -140,33 +146,57 @@ export default function SchoolFees() {
     if (!businessId || !activeYear) return;
 
     try {
-      const payload = {
-        business_id: businessId,
-        class_id: feeClassId,
-        academic_year_id: activeYear,
-        category_id: feeCatId,
-        amount: parseFloat(feeAmount),
-      };
-
-      if (!editingFee) {
-        // Check for duplicates
-        const exists = fees.find(f => 
-          f.class_id === feeClassId && 
-          f.category_id === feeCatId && 
-          f.academic_year_id === activeYear
-        );
-        if (exists) {
-          toast.error("Ce montant existe déjà", { description: "Vous avez déjà défini ce type de frais pour cette classe." });
-          return;
-        }
-      }
-
       if (editingFee) {
+        const payload = {
+          business_id: businessId,
+          class_id: feeClassId,
+          academic_year_id: activeYear,
+          category_id: feeCatId,
+          amount: parseFloat(feeAmount),
+        };
         await supabase.from("school_fees").update(payload).eq("id", editingFee.id);
         toast.success("Frais mis à jour");
       } else {
-        await supabase.from("school_fees").insert([payload]);
-        toast.success("Frais ajouté");
+        if (selectedClassIds.length === 0) {
+          toast.error("Veuillez sélectionner au moins une classe");
+          return;
+        }
+
+        const payloadsToInsert = [];
+        let skippedCount = 0;
+
+        for (const classId of selectedClassIds) {
+          const exists = fees.find(f => 
+            f.class_id === classId && 
+            f.category_id === feeCatId && 
+            f.academic_year_id === activeYear
+          );
+          if (exists) {
+            skippedCount++;
+            continue;
+          }
+          payloadsToInsert.push({
+            business_id: businessId,
+            class_id: classId,
+            academic_year_id: activeYear,
+            category_id: feeCatId,
+            amount: parseFloat(feeAmount),
+          });
+        }
+
+        if (payloadsToInsert.length === 0) {
+          toast.error("Ces tarifs existent déjà pour toutes les classes sélectionnées.");
+          return;
+        }
+
+        const { error } = await supabase.from("school_fees").insert(payloadsToInsert);
+        if (error) throw error;
+
+        if (skippedCount > 0) {
+          toast.success(`Frais ajoutés pour ${payloadsToInsert.length} classe(s) (${skippedCount} ignorée(s) car déjà configurée(s))`);
+        } else {
+          toast.success(`Frais ajoutés pour ${payloadsToInsert.length} classe(s)`);
+        }
       }
       setIsFeeDialogOpen(false);
       loadData();
@@ -186,7 +216,12 @@ export default function SchoolFees() {
     }
   };
 
-  const filteredFees = fees.filter(f => f.academic_year_id === activeYear);
+  const filteredFees = fees.filter(f => {
+    const matchesYear = f.academic_year_id === activeYear;
+    const matchesClass = !filterClassId || f.class_id === filterClassId;
+    const matchesCategory = !filterCategoryId || f.category_id === filterCategoryId;
+    return matchesYear && matchesClass && matchesCategory;
+  });
 
   return (
     <DashboardLayout role="salon_admin">
@@ -277,50 +312,131 @@ export default function SchoolFees() {
           </TabsContent>
 
           <TabsContent value="amounts" className="m-0 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Label>Année :</Label>
-                <select 
-                  className="flex h-10 w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                  value={activeYear}
-                  onChange={e => setActiveYear(e.target.value)}
-                >
-                  {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
-                </select>
-              </div>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-secondary/20 p-3 rounded-lg border border-border/50">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium whitespace-nowrap">Année :</Label>
+                    <select 
+                      className="flex h-9 w-[150px] rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background"
+                      value={activeYear}
+                      onChange={e => setActiveYear(e.target.value)}
+                    >
+                      {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                    </select>
+                  </div>
 
-              <Dialog open={isFeeDialogOpen} onOpenChange={(open) => {
-                setIsFeeDialogOpen(open);
-                if (!open) { setEditingFee(null); setFeeClassId(""); setFeeCatId(""); setFeeAmount(""); }
-              }}>
-                <DialogTrigger asChild>
-                  <Button disabled={!activeYear}><Plus className="h-4 w-4 mr-2" />Ajouter un tarif</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>{editingFee ? "Modifier" : "Ajouter un tarif"}</DialogTitle></DialogHeader>
-                  <form onSubmit={handleSaveFee} className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label>Classe</Label>
-                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeClassId} onChange={e => setFeeClassId(e.target.value)}>
-                        <option value="">Sélectionner une classe</option>
-                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Catégorie de Frais</Label>
-                      <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeCatId} onChange={e => setFeeCatId(e.target.value)}>
-                        <option value="">Sélectionner une catégorie</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Montant</Label>
-                      <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} />
-                    </div>
-                    <div className="flex justify-end pt-4"><Button type="submit">Enregistrer</Button></div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium whitespace-nowrap">Classe :</Label>
+                    <select 
+                      className="flex h-9 w-[180px] rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background"
+                      value={filterClassId}
+                      onChange={e => setFilterClassId(e.target.value)}
+                    >
+                      <option value="">Toutes les classes</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-medium whitespace-nowrap">Catégorie :</Label>
+                    <select 
+                      className="flex h-9 w-[180px] rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background"
+                      value={filterCategoryId}
+                      onChange={e => setFilterCategoryId(e.target.value)}
+                    >
+                      <option value="">Toutes les catégories</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <Dialog open={isFeeDialogOpen} onOpenChange={(open) => {
+                  setIsFeeDialogOpen(open);
+                  if (!open) { 
+                    setEditingFee(null); 
+                    setFeeClassId(""); 
+                    setSelectedClassIds([]); 
+                    setFeeCatId(""); 
+                    setFeeAmount(""); 
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button disabled={!activeYear} className="w-full md:w-auto"><Plus className="h-4 w-4 mr-2" />Ajouter un tarif</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader><DialogTitle>{editingFee ? "Modifier le tarif" : "Ajouter un tarif"}</DialogTitle></DialogHeader>
+                    <form onSubmit={handleSaveFee} className="space-y-4 pt-4">
+                      {editingFee ? (
+                        <div className="space-y-2">
+                          <Label>Classe</Label>
+                          <select disabled className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeClassId}>
+                            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label className="font-semibold">Classes concernées</Label>
+                          <div className="border border-border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-background/50">
+                            <div className="flex items-center gap-2 pb-2 border-b border-border">
+                              <input 
+                                type="checkbox"
+                                id="select-all-classes"
+                                className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background"
+                                checked={selectedClassIds.length === classes.length && classes.length > 0}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedClassIds(classes.map(c => c.id));
+                                  } else {
+                                    setSelectedClassIds([]);
+                                  }
+                                }}
+                              />
+                              <label htmlFor="select-all-classes" className="text-xs font-semibold cursor-pointer text-foreground/80 hover:text-foreground">
+                                Sélectionner toutes les classes ({classes.length})
+                              </label>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                              {classes.map(c => (
+                                <div key={c.id} className="flex items-center gap-2 hover:bg-secondary/20 p-1 rounded-sm transition-colors">
+                                  <input 
+                                    type="checkbox"
+                                    id={`class-chk-${c.id}`}
+                                    className="h-4 w-4 rounded border-input text-primary focus:ring-primary bg-background cursor-pointer"
+                                    checked={selectedClassIds.includes(c.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedClassIds([...selectedClassIds, c.id]);
+                                      } else {
+                                        setSelectedClassIds(selectedClassIds.filter(id => id !== c.id));
+                                      }
+                                    }}
+                                  />
+                                  <label htmlFor={`class-chk-${c.id}`} className="text-xs cursor-pointer truncate text-foreground/70 hover:text-foreground">
+                                    {c.name}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label>Catégorie de Frais</Label>
+                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={feeCatId} onChange={e => setFeeCatId(e.target.value)}>
+                          <option value="">Sélectionner une catégorie</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Montant</Label>
+                        <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} />
+                      </div>
+                      <div className="flex justify-end pt-4"><Button type="submit">Enregistrer</Button></div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <Card>

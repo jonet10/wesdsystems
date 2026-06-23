@@ -138,6 +138,60 @@ export default function SchoolInvoices() {
         await supabase.from("school_invoice_items").insert(items);
       }
 
+      // Generate payment plan installments
+      const { data: template, error: tmplError } = await supabase
+        .from("school_payment_templates")
+        .select("*, installments:school_payment_template_installments(*)")
+        .eq("class_id", genClassId)
+        .eq("academic_year_id", genYearId)
+        .maybeSingle();
+      
+      if (!tmplError || tmplError.code === 'PGRST116') {
+        if (template?.installments?.length) {
+          const plans = template.installments.map((inst: any) => {
+            const amountDue = inst.is_percentage
+              ? (totalAmount * inst.percentage_or_amount) / 100
+              : inst.percentage_or_amount;
+            return {
+              invoice_id: invoice.id,
+              business_id: businessId,
+              title: inst.title,
+              amount_due: amountDue,
+              amount_paid: 0,
+              balance: amountDue,
+              due_date: inst.due_date || null,
+              status: 'pending',
+            };
+          });
+
+          const plansSum = plans.reduce((acc: number, p: any) => acc + Number(p.amount_due), 0);
+          if (plansSum < totalAmount) {
+            plans.unshift({
+              invoice_id: invoice.id,
+              business_id: businessId,
+              title: "Frais initiaux (Inscription & Autres)",
+              amount_due: totalAmount - plansSum,
+              amount_paid: 0,
+              balance: totalAmount - plansSum,
+              due_date: new Date().toISOString(),
+              status: 'pending',
+            });
+          }
+          await supabase.from("school_payment_plans").insert(plans);
+        } else {
+          const defaultPlan = {
+            invoice_id: invoice.id,
+            business_id: businessId,
+            title: "Paiement unique",
+            amount_due: totalAmount,
+            amount_paid: 0,
+            balance: totalAmount,
+            status: 'pending',
+          };
+          await supabase.from("school_payment_plans").insert([defaultPlan]);
+        }
+      }
+
       toast.success(`Facture ${invoiceNum} générée avec succès`);
       setIsGenOpen(false);
       setGenStudentId(""); setGenClassId("");
