@@ -44,6 +44,7 @@ import {
   Smartphone,
   UserPlus,
   DollarSign,
+  BookOpen,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -221,17 +222,17 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: LayoutDashboard, label: "Dashboard", path: "/school", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Users, label: "Élèves", path: "/school/students", role: "all", permission: PERMISSIONS.CLIENTS_READ },
           { icon: UserPlus, label: "Inscriptions", path: "/school/enrollments", role: "all", permission: PERMISSIONS.CLIENTS_MANAGE },
-          { icon: UserIcon, label: "Parents / Tuteurs", path: "/school/parents", role: "all", permission: PERMISSIONS.CLIENTS_READ },
-          { icon: UserCog, label: "Professeurs", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: Layers, label: "Classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Calendar, label: "Années Acad.", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
+          { icon: UserIcon, label: "Parents / Tuteurs", path: "/school/parents", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserCog, label: "Professeurs", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: BadgeDollarSign, label: "Frais & Tarifs", path: "/school/fees", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: DollarSign, label: "Fiche Financière", path: "/school/finance/student", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: FileText, label: "Factures", path: "/school/invoices", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: ShoppingBag, label: "Caisse", path: "/school/payments", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: Package, label: "Fournitures", path: "/school/inventory", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: ShoppingCart, label: "Caisse Fournitures", path: "/school/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
-          { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: TrendingUp, label: "Rapports", path: "/school/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
           { icon: Settings, label: "Paramètres", path: "/school/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
@@ -405,10 +406,67 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {items.map((item) => (
-            <NavItem key={`${item.path}-${item.label}`} item={item} />
-          ))}
+        <nav className="flex-1 py-4 px-3 overflow-y-auto">
+          {activeBiz === "school" || activeBiz === "school_payments" ? (
+            // ── SCHOOL: grouped sections
+            <div className="space-y-1">
+              {/* Dashboard (standalone) */}
+              {items.filter(i => i.path === "/school").map(item => (
+                <NavItem key={item.path} item={item} />
+              ))}
+
+              {/* ACADÉMIQUE */}
+              {!collapsed && (
+                <div className="mt-4 mb-1 px-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Académique</span>
+                </div>
+              )}
+              {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
+              {items.filter(i => ["/school/students", "/school/enrollments", "/school/classes", "/school/academic-years", "/school/parents", "/school/teachers"].includes(i.path)).map(item => (
+                <NavItem key={item.path} item={item} />
+              ))}
+
+              {/* FINANCE */}
+              {!collapsed && (
+                <div className="mt-4 mb-1 px-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Finance</span>
+                </div>
+              )}
+              {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
+              {items.filter(i => ["/school/fees", "/school/finance/student", "/school/invoices", "/school/payments", "/school/expenses"].includes(i.path)).map(item => (
+                <NavItem key={item.path} item={item} />
+              ))}
+
+              {/* FOURNITURES */}
+              {!collapsed && (
+                <div className="mt-4 mb-1 px-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Fournitures</span>
+                </div>
+              )}
+              {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
+              {items.filter(i => ["/school/inventory", "/school/pos"].includes(i.path)).map(item => (
+                <NavItem key={item.path} item={item} />
+              ))}
+
+              {/* SYSTÈME */}
+              {!collapsed && (
+                <div className="mt-4 mb-1 px-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Système</span>
+                </div>
+              )}
+              {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
+              {items.filter(i => ["/school/reports", "/school/settings"].includes(i.path)).map(item => (
+                <NavItem key={item.path} item={item} />
+              ))}
+            </div>
+          ) : (
+            // ── ALL OTHER MODULES: flat list
+            <div className="space-y-1">
+              {items.map((item) => (
+                <NavItem key={`${item.path}-${item.label}`} item={item} />
+              ))}
+            </div>
+          )}
         </nav>
 
         {/* Footer (desktop only) */}

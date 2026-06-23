@@ -46,6 +46,10 @@ export default function SchoolPayments() {
   const [reference, setReference] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Receipt dialog
+  const [receiptPayment, setReceiptPayment] = useState<SchoolPayment | null>(null);
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+
   const loadData = async () => {
     if (!businessId) return;
     try {
@@ -176,7 +180,8 @@ export default function SchoolPayments() {
       
       try {
         const fullPayment = await paymentService.getById(newPayment.id);
-        handlePrintReceipt(fullPayment);
+        setReceiptPayment(fullPayment);
+        setShowReceiptDialog(true);
       } catch (err) {
         console.error("Impossible de charger le reçu", err);
       }
@@ -592,6 +597,56 @@ export default function SchoolPayments() {
                 </Button>
               </div>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog */}
+      <Dialog open={showReceiptDialog} onOpenChange={(open) => { if (!open) { setShowReceiptDialog(false); setReceiptPayment(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              Paiement enregistré !
+            </DialogTitle>
+          </DialogHeader>
+          {receiptPayment && (
+            <>
+              {/* Receipt summary */}
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Élève</span>
+                  <span className="font-semibold">{receiptPayment.invoice?.student?.first_name} {receiptPayment.invoice?.student?.last_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">N° Reçu</span>
+                  <span className="font-mono font-bold text-primary">{receiptPayment.receipt_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Méthode</span>
+                  <span className="capitalize">{receiptPayment.payment_method}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-green-200 dark:border-green-800">
+                  <span className="font-bold text-green-700 dark:text-green-400 text-lg">Montant encaissé</span>
+                  <span className="font-bold text-green-700 dark:text-green-400 text-2xl">{formatAmount(receiptPayment.amount)}</span>
+                </div>
+                {receiptPayment.invoice?.balance !== undefined && receiptPayment.invoice.balance > 0 && (
+                  <div className="flex justify-between text-sm text-destructive pt-1">
+                    <span>Solde restant</span>
+                    <span className="font-bold">{formatAmount(receiptPayment.invoice.balance)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setShowReceiptDialog(false); setReceiptPayment(null); }}>
+                  Fermer
+                </Button>
+                <Button onClick={() => handlePrintReceipt(receiptPayment)}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimer le reçu
+                </Button>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

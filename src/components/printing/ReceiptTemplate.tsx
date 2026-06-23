@@ -44,6 +44,8 @@ export interface ReceiptData {
   payment: {
     method: string;
     amountReceived: number;
+    amountTendered?: number;   // montant donné par le client
+    changeGiven?: number;      // monnaie à remettre
     balanceRemaining?: number;
   };
   currencyCode: string;
@@ -185,19 +187,33 @@ export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
 
         {/* PAYMENT METHOD */}
         <div className="border-2 border-black rounded-lg mt-4 flex flex-col overflow-hidden">
-          <div className="flex items-stretch border-b-2 border-black last:border-b-0">
+          <div className="flex items-stretch border-b-2 border-black">
             <div className="w-1/2 p-2 text-center border-r-2 border-black flex flex-col justify-center bg-gray-50">
               <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">MODE DE PAIEMENT</div>
               <div className="receipt-text-sub uppercase">{payment.method}</div>
             </div>
             <div className="w-1/2 p-2 text-center flex flex-col justify-center">
-              <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">MONTANT REÇU</div>
+              <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">TOTAL À PAYER</div>
               <div className="receipt-text-sub font-bold">{formatAmount(payment.amountReceived)}</div>
             </div>
           </div>
-          {payment.balanceRemaining !== undefined && (
-            <div className="p-2 text-center flex flex-col justify-center bg-gray-100">
-              <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">RESTE À PAYER</div>
+          {payment.amountTendered !== undefined && payment.amountTendered > 0 && (
+            <div className="flex items-stretch border-t-2 border-black">
+              <div className="w-1/2 p-2 text-center border-r-2 border-black flex flex-col justify-center bg-gray-50">
+                <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">MONTANT DONNÉ</div>
+                <div className="receipt-text-sub font-bold">{formatAmount(payment.amountTendered)}</div>
+              </div>
+              <div className="w-1/2 p-2 text-center flex flex-col justify-center bg-green-50">
+                <div className="text-[10px] uppercase font-bold text-green-700 mb-1">MONNAIE RENDUE</div>
+                <div className="receipt-text-sub font-bold" style={{ color: '#16a34a' }}>
+                  {formatAmount(payment.changeGiven ?? Math.max(0, payment.amountTendered - payment.amountReceived))}
+                </div>
+              </div>
+            </div>
+          )}
+          {payment.balanceRemaining !== undefined && payment.balanceRemaining > 0 && (
+            <div className="p-2 text-center flex flex-col justify-center bg-red-50 border-t-2 border-black">
+              <div className="text-[10px] uppercase font-bold text-red-600 mb-1">RESTE À PAYER</div>
               <div className="receipt-text-sub font-bold text-red-600">{formatAmount(payment.balanceRemaining)}</div>
             </div>
           )}

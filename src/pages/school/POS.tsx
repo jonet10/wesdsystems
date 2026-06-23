@@ -34,6 +34,7 @@ export default function POS() {
   
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [amountTendered, setAmountTendered] = useState<number | "">("");
   const { user, profile } = useAuth();
   const { format } = useCurrency();
   const { toast } = useToast();
@@ -126,6 +127,9 @@ export default function POS() {
         created_by: user?.id
       });
 
+      const tendered = typeof amountTendered === "number" && amountTendered >= total ? amountTendered : total;
+      const change = tendered - total;
+
       // Prepare receipt data
       const { data: businessInfo } = await supabase.from('school_settings').select('*').eq('business_id', businessId).single();
       const { data: baseBiz } = await supabase.from('businesses').select('currency, name').eq('id', businessId).single();
@@ -162,7 +166,8 @@ export default function POS() {
           method: paymentMethod.toLowerCase() === "cash" ? "ESPÈCES" :
                   paymentMethod.toLowerCase() === "virement" ? "VIREMENT" : paymentMethod.toUpperCase(),
           amountReceived: total,
-          balanceRemaining: 0
+          amountTendered: tendered,
+          changeGiven: change
         },
         currencyCode
       };
@@ -173,6 +178,7 @@ export default function POS() {
       // Reset cart & reload
       setCart([]);
       setCustomerName("");
+      setAmountTendered("");
       loadProducts();
       toast({ title: "Succès", description: "Vente enregistrée avec succès !" });
 
@@ -269,29 +275,59 @@ export default function POS() {
         </div>
 
         <div className="p-4 border-t bg-muted/30 space-y-4">
-          <div className="space-y-2">
-            <Input 
-              placeholder="Nom du client (Optionnel)" 
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <Button 
-                variant={paymentMethod === "Cash" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPaymentMethod("Cash")}
-              >
-                Cash
-              </Button>
-              <Button 
-                variant={paymentMethod === "Virement" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPaymentMethod("Virement")}
-              >
-                Virement
-              </Button>
+            <div className="space-y-2">
+              <Input 
+                placeholder="Nom du client (Optionnel)" 
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button 
+                  variant={paymentMethod === "Cash" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setPaymentMethod("Cash")}
+                >
+                  Cash
+                </Button>
+                <Button 
+                  variant={paymentMethod === "Virement" ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setPaymentMethod("Virement")}
+                >
+                  Virement
+                </Button>
+              </div>
+
+              {/* Montant donné + Monnaie rendue */}
+              {paymentMethod === "Cash" && (
+                <div className="space-y-2">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">G</span>
+                    <Input
+                      type="number"
+                      min={total}
+                      step="any"
+                      placeholder={`Montant donné (min ${format(total)})`}
+                      className="pl-8"
+                      value={amountTendered}
+                      onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                  </div>
+                  {typeof amountTendered === "number" && amountTendered >= total && (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">💵 Monnaie à rendre</span>
+                      <span className="text-lg font-bold text-green-700 dark:text-green-400">{format(amountTendered - total)}</span>
+                    </div>
+                  )}
+                  {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
+                    <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-red-600">⚠️ Montant insuffisant</span>
+                      <span className="text-sm font-bold text-red-600">{format(total - amountTendered)} manquant</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
           
           <div className="flex items-center justify-between text-lg font-bold">
             <span>Total:</span>

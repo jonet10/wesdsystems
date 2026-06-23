@@ -217,6 +217,7 @@ export default function POSPage() {
   const [lastSale, setLastSale] = useState<any>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [showDiscount, setShowDiscount] = useState(false);
+  const [amountTendered, setAmountTendered] = useState<number | "">("");
   const receiptRef = useRef<HTMLDivElement>(null);
   const [productSetupOpen, setProductSetupOpen] = useState(false);
   const [productSetupItem, setProductSetupItem] = useState<CatalogItem | null>(null);
@@ -1187,6 +1188,8 @@ export default function POSPage() {
                 lastSale.payment === "moncash" ? "MONCASH" :
                 lastSale.payment === "natcash" ? "NATCASH" : "AUTRE",
         amountReceived: lastSale.total_amount,
+        amountTendered: typeof amountTendered === "number" && amountTendered >= lastSale.total_amount ? amountTendered : undefined,
+        changeGiven: typeof amountTendered === "number" && amountTendered >= lastSale.total_amount ? amountTendered - lastSale.total_amount : undefined,
       },
       currencyCode: currencyCode,
     };
@@ -1660,6 +1663,37 @@ export default function POSPage() {
                 </div>
               </div>
 
+              {/* Montant donné + Monnaie rendue (cash seulement) */}
+              {paymentMethod === "cash" && (
+                <div className="space-y-2 mt-3">
+                  <Label className="text-xs">Montant donné par le client</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">G</span>
+                    <Input
+                      type="number"
+                      min={total}
+                      step="any"
+                      placeholder={`Min ${format(total)}`}
+                      className="pl-8"
+                      value={amountTendered}
+                      onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
+                    />
+                  </div>
+                  {typeof amountTendered === "number" && amountTendered >= total && (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">💵 Monnaie à rendre</span>
+                      <span className="text-xl font-bold text-green-700 dark:text-green-400">{format(amountTendered - total)}</span>
+                    </div>
+                  )}
+                  {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
+                    <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-red-600">⚠️ Insuffisant</span>
+                      <span className="text-sm font-bold text-red-600">{format(total - amountTendered)} manquant</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activePendingTab ? (
                 <div className="mt-4 space-y-2 shrink-0 sticky bottom-0 bg-card/95 backdrop-blur-sm pt-3">
                   <div className="grid grid-cols-2 gap-2">
@@ -1800,6 +1834,8 @@ export default function POSPage() {
                             lastSale?.payment === "moncash" ? "MONCASH" :
                             lastSale?.payment === "natcash" ? "NATCASH" : "AUTRE",
                     amountReceived: lastSale?.total_amount || 0,
+                    amountTendered: typeof amountTendered === "number" && amountTendered >= (lastSale?.total_amount || 0) ? amountTendered : undefined,
+                    changeGiven: typeof amountTendered === "number" && amountTendered >= (lastSale?.total_amount || 0) ? amountTendered - (lastSale?.total_amount || 0) : undefined,
                   },
                   currencyCode: currencyCode,
                 }}

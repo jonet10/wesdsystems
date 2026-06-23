@@ -54,6 +54,7 @@ export default function AutoPartsPOSPage() {
   const [loading, setLoading] = useState(true);
   const [lastSale, setLastSale] = useState<{ id: string; invoice_number: string } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [amountTendered, setAmountTendered] = useState<number | "">("");
   const receiptRef = useRef<HTMLDivElement>(null);
   const [staff, setStaff] = useState<AutoPartsStaff[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
@@ -156,6 +157,8 @@ export default function AutoPartsPOSPage() {
         staff_id: selectedStaff || null,
         items: cart,
       });
+      const tendered = typeof amountTendered === "number" && amountTendered >= total ? amountTendered : total;
+      const change = tendered - total;
       setReceiptSnapshot({
         cart: [...cart],
         subtotal,
@@ -173,7 +176,9 @@ export default function AutoPartsPOSPage() {
         nif: bizSettings?.nif,
         receiptHeader: bizSettings?.receipt_header,
         receiptFooter: bizSettings?.receipt_footer,
-      });
+        amountTendered: tendered,
+        changeGiven: change,
+      } as any);
       setLastSale({ id: sale.id, invoice_number: sale.invoice_number });
       setCart([]);
       setSelectedClient(null);
@@ -181,6 +186,7 @@ export default function AutoPartsPOSPage() {
       setDiscountType("none");
       setDiscountValue(0);
       setTaxRate(0);
+      setAmountTendered("");
       setShowPayment(false);
       setShowReceipt(true);
     } catch (e: any) { toast.error(e.message); }
@@ -348,10 +354,37 @@ export default function AutoPartsPOSPage() {
               </Select>
             </div>
             <div className="border-t border-slate-200 dark:border-white/10 pt-5 mt-2">
-              <div className="flex justify-between items-center text-xl font-bold">
+              <div className="flex justify-between items-center text-xl font-bold mb-4">
                 <span className="dark:text-white">Total à payer</span>
                 <span className="bg-gradient-to-r from-violet-500 to-cyan-400 bg-clip-text text-transparent text-3xl font-display">{format(total)}</span>
               </div>
+              {/* Montant donné + Monnaie */}
+              {paymentMethod === "cash" && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Montant donné par le client</Label>
+                  <Input
+                    type="number"
+                    min={total}
+                    step="any"
+                    placeholder={`Min ${format(total)}`}
+                    className="bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12 dark:text-white"
+                    value={amountTendered}
+                    onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                  {typeof amountTendered === "number" && amountTendered >= total && (
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3">
+                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">💵 Monnaie à rendre</span>
+                      <span className="text-2xl font-bold text-green-700 dark:text-green-400">{format(amountTendered - total)}</span>
+                    </div>
+                  )}
+                  {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
+                    <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
+                      <span className="text-sm font-semibold text-red-600">⚠️ Montant insuffisant</span>
+                      <span className="text-sm font-bold text-red-600">{format(total - amountTendered)} manquant</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
@@ -406,7 +439,9 @@ export default function AutoPartsPOSPage() {
                               receiptSnapshot.paymentMethod === "card" ? "CARTE" :
                               receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
                               receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
-                      amountReceived: receiptSnapshot.total
+                      amountReceived: receiptSnapshot.total,
+                      amountTendered: (receiptSnapshot as any).amountTendered,
+                      changeGiven: (receiptSnapshot as any).changeGiven
                     },
                     currencyCode: currencyCode
                   }}
@@ -449,7 +484,9 @@ export default function AutoPartsPOSPage() {
                                 receiptSnapshot.paymentMethod === "card" ? "CARTE" :
                                 receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
                                 receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
-                        amountReceived: receiptSnapshot.total
+                      amountReceived: receiptSnapshot.total,
+                        amountTendered: (receiptSnapshot as any).amountTendered,
+                        changeGiven: (receiptSnapshot as any).changeGiven
                       },
                       currencyCode: currencyCode
                     };
