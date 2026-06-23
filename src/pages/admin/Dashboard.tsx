@@ -191,8 +191,9 @@ export default function SuperAdminDashboard() {
     const allBusinessesRows = (allBusinesses || []) as Array<{ id: string; plan_id: string | null }>;
     setMissingPlansCount(
       allBusinessesRows.filter((business) => {
+        const hasActiveSub = activeSubscriptionByBusiness.has(business.id);
         const currentPlanId = activeSubscriptionByBusiness.get(business.id)?.plan_id || business.plan_id;
-        return !currentPlanId;
+        return !currentPlanId || !hasActiveSub;
       }).length
     );
 

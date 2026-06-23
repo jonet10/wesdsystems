@@ -135,9 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!session;
   const hasAutoPartsPermissionFn = useCallback(
     (permission: Permission | Permission[]): boolean => {
-      // Admins with Supabase Auth have all permissions
+      // Admins with Supabase Auth have all permissions only if they are super_admin or auto_parts business admins
       if (!!profile && isAuthenticated) {
-        return true;
+        if (profile.role === 'super_admin' || profile.business_type === 'auto_parts') {
+          return true;
+        }
       }
       return checkPermission(autoPartsPermissions, permission);
     },

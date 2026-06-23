@@ -90,18 +90,52 @@ export default function SuperAdminManualPaymentsPage() {
   const loadPayments = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // 1. Fetch manual payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("manual_payments")
-        .select(`
-          *,
-          user:profiles!manual_payments_user_id_fkey(id, full_name),
-          business:businesses!manual_payments_business_id_fkey(id, name),
-          plan:subscription_plans!manual_payments_plan_id_fkey(id, name)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setPayments((data || []) as PaymentWithRelations[]);
+      if (paymentsError) throw paymentsError;
+
+      if (!paymentsData || paymentsData.length === 0) {
+        setPayments([]);
+        return;
+      }
+
+      // 2. Extract unique foreign keys
+      const userIds = Array.from(new Set(paymentsData.map((p) => p.user_id).filter(Boolean)));
+      const businessIds = Array.from(new Set(paymentsData.map((p) => p.business_id).filter(Boolean)));
+      const planIds = Array.from(new Set(paymentsData.map((p) => p.plan_id).filter(Boolean)));
+
+      // 3. Fetch relations in parallel
+      const [
+        { data: profilesData, error: profilesError },
+        { data: businessesData, error: businessesError },
+        { data: plansData, error: plansError }
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, full_name").in("id", userIds),
+        supabase.from("businesses").select("id, name").in("id", businessIds),
+        supabase.from("subscription_plans").select("id, name").in("id", planIds)
+      ]);
+
+      if (profilesError) throw profilesError;
+      if (businessesError) throw businessesError;
+      if (plansError) throw plansError;
+
+      const profileMap = new Map((profilesData || []).map((p) => [p.id, p]));
+      const businessMap = new Map((businessesData || []).map((b) => [b.id, b]));
+      const planMap = new Map((plansData || []).map((p) => [p.id, p]));
+
+      // 4. Combine them
+      const combined: PaymentWithRelations[] = paymentsData.map((p) => ({
+        ...p,
+        user: p.user_id ? (profileMap.get(p.user_id) as any) : null,
+        business: p.business_id ? (businessMap.get(p.business_id) as any) : null,
+        plan: p.plan_id ? (planMap.get(p.plan_id) as any) : null
+      }));
+
+      setPayments(combined);
     } catch (error: any) {
       console.error("[ManualPayments] Error loading:", error);
       toast.error("Erreur lors du chargement des paiements");

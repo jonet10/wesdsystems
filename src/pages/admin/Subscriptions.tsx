@@ -279,7 +279,7 @@ export default function SuperAdminSubscriptionsPage() {
       supabase.from("subscription_features").select("id, plan_id, feature_key, enabled, feature_label, feature_group, sort_order").order("sort_order", { ascending: true }),
       supabase.from("business_branches").select("id, business_id, name, phone, email, address, manager_id, active, branch_code, created_at, updated_at").order("created_at", { ascending: false }),
       supabase.from("businesses").select("id, name, status, plan_id, created_at").order("created_at", { ascending: false }),
-      supabase.from("business_subscriptions").select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, notes").order("created_at", { ascending: false }),
+      supabase.from("business_subscriptions").select("id, business_id, plan_id, start_date, end_date, status, billing_cycle, auto_renew, price_snapshot, currency_code, created_at").order("created_at", { ascending: false }),
       supabase.from("loyalty_program_settings").select("id, business_id, points_per_currency, currency_spend_for_point, redemption_points_per_reward, active").order("created_at", { ascending: false }),
       supabase.from("loyalty_rewards").select("id, business_id, branch_id, name, description, points_cost, reward_value, reward_type, active").order("created_at", { ascending: false }),
       supabase.from("customer_debts").select("id, business_id, branch_id, customer_name, customer_phone, original_amount, outstanding_balance, due_amount, status, due_date, created_at").order("created_at", { ascending: false }),
@@ -584,12 +584,18 @@ export default function SuperAdminSubscriptionsPage() {
   // Deduplicate: keep only the latest subscription per business
   const deduplicatedSubscriptions = useMemo(() => {
     const latestPerBusiness = new Map<string, BusinessSubscription>();
-    for (const sub of subscriptions) {
-      const existing = latestPerBusiness.get(sub.business_id);
-      if (!existing || new Date(sub.created_at) > new Date(existing.created_at)) {
-        latestPerBusiness.set(sub.business_id, sub);
-      }
-    }
+    subscriptions
+      .slice()
+      .sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA; // Descending
+      })
+      .forEach((sub) => {
+        if (!latestPerBusiness.has(sub.business_id)) {
+          latestPerBusiness.set(sub.business_id, sub);
+        }
+      });
     return Array.from(latestPerBusiness.values());
   }, [subscriptions]);
 
