@@ -138,5 +138,18 @@ export function ProtectedRoute({
     return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
   }
 
+  // School permissions check
+  if (role.startsWith('school_') && role !== 'school_admin' && role !== 'school_parent') {
+    if (requiredPermissions) {
+      const userPerms = profile.permissions || [];
+      const permsToCheck = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
+      
+      const hasPerm = permsToCheck.some(p => userPerms.includes(p));
+      if (!hasPerm) {
+        return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
+      }
+    }
+  }
+
   return <>{children}</>;
 }

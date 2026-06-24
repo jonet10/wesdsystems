@@ -288,6 +288,40 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     { icon: Settings, label: "Paramètres", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
   ];
   const items = (() => {
+    // School custom permissions filter
+    if (profile && (activeBiz === "school" || activeBiz === "school_payments")) {
+      const isSchoolAdmin = profile.role === "school_admin" || profile.role === "super_admin";
+      const customPerms = profile.permissions || [];
+      const schoolItems = getBusinessAdminItems();
+      
+      return schoolItems.filter(item => {
+        if (isSchoolAdmin) return true;
+        
+        const permissionMapping: Record<string, string> = {
+          "/school/students": "school:students",
+          "/school/enrollments": "school:enrollments",
+          "/school/classes": "school:classes",
+          "/school/academic-years": "school:academic-years",
+          "/school/parents": "school:parents",
+          "/school/teachers": "school:teachers",
+          "/school/fees": "school:fees",
+          "/school/finance/student": "school:finance",
+          "/school/invoices": "school:invoices",
+          "/school/payments": "school:payments",
+          "/school/expenses": "school:expenses",
+          "/school/inventory": "school:inventory",
+          "/school/pos": "school:pos",
+          "/school/staff": "school:staff",
+          "/school/reports": "school:reports",
+          "/school/settings": "school:settings",
+        };
+        
+        const required = permissionMapping[item.path];
+        if (!required) return true;
+        return customPerms.includes(required);
+      });
+    }
+
     // Staff session without Supabase Auth → show filtered menu for cashier
     if (autoPartsStaffSession && !profile && !isAuthenticated) {
       const filtered = filterMenuByPermissions(autoPartsAdminItems, autoPartsStaffSession.permissions);

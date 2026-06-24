@@ -23,6 +23,7 @@ interface UserProfile {
   role_normalized: string | null;
   business_id: string | null;
   business_type: string | null;
+  permissions?: string[];
 }
 
 interface AuthState {
@@ -92,7 +93,7 @@ const fetchProfileWithTimeout = async (
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, role, role_normalized, business_id, business_type')
+      .select('id, full_name, role, role_normalized, business_id, business_type, permissions')
       .eq('id', user.id)
       .abortSignal(controller.signal)
       .maybeSingle();

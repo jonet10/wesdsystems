@@ -21,9 +21,11 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => localStorage.getItem("wesd_remember_me") === "true");
-  const [loginMode, setLoginMode] = useState<"admin" | "staff">("admin");
+  const [loginMode, setLoginMode] = useState<"admin" | "staff" | "school">("admin");
   const [staffUsername, setStaffUsername] = useState(() => localStorage.getItem("wesd_saved_staff") || "");
   const [staffSecret, setStaffSecret] = useState("");
+  const [schoolUsername, setSchoolUsername] = useState(() => localStorage.getItem("wesd_saved_school") || "");
+  const [schoolPassword, setSchoolPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { loginStaff } = useAuth();
   const navigate = useNavigate();
@@ -128,6 +130,49 @@ export default function Login() {
     }
   };
 
+  const handleSchoolSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
+    try {
+      // Look up the internal email via username using secure RPC (bypasses RLS for login lookup)
+      const { data: rpcData, error: rpcErr } = await supabase
+        .rpc('get_email_by_username', { p_username: schoolUsername.trim().toLowerCase() });
+
+      if (rpcErr || !rpcData || rpcData.length === 0) {
+        throw new Error('Identifiant introuvable. Vérifiez votre nom d\'utilisateur.');
+      }
+
+      const foundEmail = rpcData[0].email;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: foundEmail,
+        password: schoolPassword,
+      });
+      if (error) throw error;
+
+      if (rememberMe) {
+        localStorage.setItem("wesd_saved_school", schoolUsername);
+      } else {
+        localStorage.removeItem("wesd_saved_school");
+      }
+
+      const role = data.user?.user_metadata?.role || '';
+      let route = '/school';
+      if (role === 'school_cashier') route = '/school/payments';
+      else if (role === 'school_accountant') route = '/school/finance/student';
+      else if (role === 'school_teacher') route = '/school';
+      navigate(route);
+
+      toast({ title: 'Connexion réussie', description: `Bienvenue, ${data.user?.user_metadata?.full_name || schoolUsername} !` });
+    } catch (error: any) {
+      toast({ title: 'Erreur de connexion', description: error.message || 'Identifiants incorrects.', variant: 'destructive' });
+    } finally {
+      clearTimeout(safetyTimer);
+      setIsLoading(false);
+    }
+  };
+
   const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -196,9 +241,10 @@ export default function Login() {
             </div>
 
             <Tabs value={loginMode} onValueChange={(v: any) => setLoginMode(v)} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="admin">Administrateur</TabsTrigger>
-                <TabsTrigger value="staff">Caisse / Employé</TabsTrigger>
+                <TabsTrigger value="school">École</TabsTrigger>
+                <TabsTrigger value="staff">Caisse</TabsTrigger>
               </TabsList>
 
               <TabsContent value="admin">
@@ -282,6 +328,71 @@ export default function Login() {
                 </div>
               </TabsContent>
 
+              {/* ── School users tab ── */}
+              <TabsContent value="school">
+                <form onSubmit={handleSchoolSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="school-username">Identifiant (username)</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-username"
+                        type="text"
+                        placeholder="jean.dupont"
+                        value={schoolUsername}
+                        onChange={(e) => setSchoolUsername(e.target.value)}
+                        className="pl-10"
+                        required
+                        autoComplete="username"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="school-password">Mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="school-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={schoolPassword}
+                        onChange={(e) => setSchoolPassword(e.target.value)}
+                        className="pl-10 pr-10"
+                        required
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="remember-school" checked={rememberMe} onCheckedChange={(c) => setRememberMe(c === true)} />
+                    <Label htmlFor="remember-school" className="text-sm font-medium leading-none">
+                      Se souvenir de moi
+                    </Label>
+                  </div>
+
+                  <Button type="submit" className="w-full shadow-md bg-emerald-600 hover:bg-emerald-700 text-white" size="lg" disabled={isLoading}>
+                    {isLoading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        Connexion École
+                        <ArrowRight className="h-5 w-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+
+              {/* ── POS / Salon staff tab ── */}
               <TabsContent value="staff">
                 <form onSubmit={handleStaffSubmit} className="space-y-5">
                   <div className="space-y-2">

@@ -56,6 +56,8 @@ export default function EnrollmentsPage() {
   const [quickYearId, setQuickYearId] = useState("");
   const [quickStatus, setQuickStatus] = useState<"registered" | "active">("active");
   const [quickAutoInvoice, setQuickAutoInvoice] = useState(true);
+  const [quickScholarshipType, setQuickScholarshipType] = useState<"none" | "half" | "full" | "custom">("none");
+  const [quickCustomPercentage, setQuickCustomPercentage] = useState<number>(25);
   const [isQuickEnrolling, setIsQuickEnrolling] = useState(false);
 
   // CSV import
@@ -117,6 +119,7 @@ export default function EnrollmentsPage() {
     setQuickYearId("");
     setQuickStatus("active");
     setQuickAutoInvoice(true);
+    setQuickScholarshipType("none");
   };
 
   const handleQuickEnroll = async () => {
@@ -131,6 +134,11 @@ export default function EnrollmentsPage() {
         last_name: quickLastName.trim(),
         gender: quickGender,
         class_level: classes.find(c => c.id === quickClassId)?.code || null,
+        scholarship_type: quickScholarshipType === 'custom' ? 'none' : quickScholarshipType,
+        scholarship_percentage: quickScholarshipType === 'full' ? 100
+          : quickScholarshipType === 'half' ? 50
+          : quickScholarshipType === 'custom' ? Math.min(100, Math.max(0, quickCustomPercentage))
+          : 0
       });
       const result = await enrollmentService.create({
         student_id: student.id,
@@ -480,6 +488,28 @@ export default function EnrollmentsPage() {
                       <option value="active">Actif</option>
                       <option value="registered">Pré-inscrit</option>
                     </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bourse / Réduction</Label>
+                    <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={quickScholarshipType} onChange={e => setQuickScholarshipType(e.target.value as any)}>
+                      <option value="none">Aucune</option>
+                      <option value="half">Demi-bourse (50%)</option>
+                      <option value="full">Bourse complète (100%)</option>
+                      <option value="custom">Pourcentage personnalisé</option>
+                    </select>
+                    {quickScholarshipType === 'custom' && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={quickCustomPercentage}
+                          onChange={e => setQuickCustomPercentage(Number(e.target.value))}
+                          className="w-24 text-center"
+                        />
+                        <span className="text-sm font-medium text-muted-foreground">% de réduction</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mt-4">

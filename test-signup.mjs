@@ -5,26 +5,32 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function testSignup() {
-  console.log("Testing check_email_exists...");
-  const email = `test_${Date.now()}@example.com`;
-  const { data: existing, error: checkError } = await supabase.rpc('check_email_exists', { p_email: email });
-  console.log("check_email_exists:", { existing, checkError });
-
-  console.log("Testing signUp...");
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password: 'password123',
-    options: {
-      data: {
-        full_name: 'Test User',
-        business_name: 'Test Business',
-        business_type: 'salon',
-        plan: 'pro'
-      }
-    }
+  console.log("Authenticating as super admin...");
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: 'admin@wesdsystems.store',
+    password: 'Wesdajf10@@##'
   });
 
-  console.log("signUp result:", { data, error });
+  if (authError) {
+    console.error("Auth error:", authError);
+    return;
+  }
+
+  const token = authData.session?.access_token;
+  const client = createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+
+  console.log("Querying all school profiles with get_all_profiles_admin RPC...");
+  const { data, error } = await client
+    .rpc("get_all_profiles_admin");
+
+  if (error) {
+    console.error("Query error:", error);
+  } else {
+    const profiles = typeof data === "string" ? JSON.parse(data) : data;
+    console.log("All profiles in DB:", profiles.filter(p => p.role && p.role.includes("school")));
+  }
 }
 
 testSignup();

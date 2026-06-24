@@ -75,8 +75,8 @@ export const invoiceService = {
       else if (student.scholarship_percentage) discountMultiplier = 1 - (student.scholarship_percentage / 100);
     }
 
-    // Apply discount to amounts
-    const processFee = (fee: any) => ({
+    // Apply discount only to tuition fees — frais d'inscription are always at full price
+    const applyDiscount = (fee: any) => ({
       ...fee,
       originalAmount: fee.amount,
       amount: fee.amount * discountMultiplier
@@ -96,8 +96,9 @@ export const invoiceService = {
       return [blankInvoice];
     }
 
-    let enrollmentFees = fees.filter(f => f.category?.fee_type === 'enrollment').map(processFee);
-    const tuitionFees = fees.filter(f => f.category?.fee_type !== 'enrollment').map(processFee);
+    // Enrollment fees → always full price, tuition fees → discounted
+    let enrollmentFees = fees.filter(f => f.category?.fee_type === 'enrollment');
+    const tuitionFees = fees.filter(f => f.category?.fee_type !== 'enrollment').map(applyDiscount);
     
     if (skipEnrollmentFee) {
       enrollmentFees = [];
@@ -181,23 +182,35 @@ export const invoiceService = {
     if (tmplError && tmplError.code !== 'PGRST116') throw tmplError;
 
     if (template?.installments?.length) {
-      const plans = template.installments.map((inst: any) => {
-        const amountDue = inst.is_percentage
+      let plans = template.installments.map((inst: any) => {
+        const rawAmount = inst.is_percentage
           ? (totalAmount * inst.percentage_or_amount) / 100
           : inst.percentage_or_amount;
         return {
           invoice_id: invoiceId,
           business_id: businessId,
           title: inst.title,
-          amount_due: amountDue,
+          amount_due: rawAmount,
           amount_paid: 0,
-          balance: amountDue,
+          balance: rawAmount,
           due_date: inst.due_date || null,
           status: 'pending' as const,
         };
       });
 
       const plansSum = plans.reduce((acc: number, p: any) => acc + Number(p.amount_due), 0);
+      
+      // If the template uses fixed amounts but the student has a discount, scale down the plans
+      if (plansSum > totalAmount && plansSum > 0) {
+        const scale = totalAmount / plansSum;
+        plans = plans.map(p => ({
+          ...p,
+          amount_due: p.amount_due * scale,
+          balance: p.amount_due * scale,
+        }));
+      } else if (plansSum === 0) {
+        plans = plans.map(p => ({ ...p, amount_due: 0, balance: 0 }));
+      }
       if (plansSum < totalAmount) {
         // Ajouter la différence (ex: frais d'inscription) comme premier versement exigible immédiatement
         plans.unshift({
