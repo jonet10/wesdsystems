@@ -54,6 +54,35 @@ export const reportService = {
     })) as PaymentReportRow[];
   },
 
+  async getEnrollmentPaymentReport(startDate?: string, endDate?: string) {
+    const businessId = getBusinessId();
+    let query = supabase
+      .from("school_payments")
+      .select("*, invoice:invoice_id(*, student:student_id(*), items:school_invoice_items(*, fee:fee_id(*, category:category_id(*))))")
+      .eq("business_id", businessId)
+      .order("payment_date", { ascending: false });
+
+    if (startDate) query = query.gte("payment_date", startDate);
+    if (endDate) query = query.lte("payment_date", endDate);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const filtered = (data || []).filter(p => {
+      const items = p.invoice?.items || [];
+      return items.some((item: any) => item.fee?.category?.fee_type === 'enrollment');
+    });
+
+    return filtered.map(p => ({
+      date: format(new Date(p.payment_date), "dd/MM/yyyy HH:mm"),
+      receipt_number: p.receipt_number,
+      student_name: `${p.invoice?.student?.first_name || ''} ${p.invoice?.student?.last_name || ''}`,
+      invoice_number: p.invoice?.invoice_number || '',
+      payment_method: p.payment_method,
+      amount: Number(p.amount),
+    })) as PaymentReportRow[];
+  },
+
   async getOutstandingReport(classId?: string, statusFilter?: string) {
     const businessId = getBusinessId();
 

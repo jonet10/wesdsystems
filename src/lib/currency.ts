@@ -72,12 +72,14 @@ export function detectCurrency(): string {
 export function formatAmount(amount: number, currencyCode: string = "USD"): string {
   const currency = CURRENCIES[currencyCode] ?? CURRENCIES.USD;
   try {
-    return new Intl.NumberFormat(currency.locale, {
+    const formatted = new Intl.NumberFormat(currency.locale, {
       style: "currency",
       currency: currency.code,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
+    // Replace non-breaking and narrow non-breaking spaces with standard space for PDF compatibility
+    return formatted.replace(/[\u00A0\u202F]/g, ' ');
   } catch {
     return `${currency.symbol}${amount.toFixed(2)}`;
   }
@@ -90,12 +92,13 @@ export function formatAmount(amount: number, currencyCode: string = "USD"): stri
 export function formatAmountCompact(amount: number, currencyCode: string = "USD"): string {
   const currency = CURRENCIES[currencyCode] ?? CURRENCIES.USD;
   try {
-    return new Intl.NumberFormat(currency.locale, {
+    const formatted = new Intl.NumberFormat(currency.locale, {
       style: "currency",
       currency: currency.code,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+    return formatted.replace(/[\u00A0\u202F]/g, ' ');
   } catch {
     return `${currency.symbol}${Math.round(amount).toLocaleString()}`;
   }

@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Printer, FileText, Wallet, CreditCard, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Search, Download, Printer, FileText, Wallet, CreditCard, ArrowUpRight, ArrowDownRight, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -128,7 +128,14 @@ export default function StudentFinancialSheet() {
       });
       if (rpcError) throw rpcError;
 
-      const totalAmount = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+      let subTotal = fees.reduce((sum, f) => sum + Number(f.amount), 0);
+      let discountAmount = 0;
+
+      if (student.scholarship_percentage && student.scholarship_percentage > 0) {
+        discountAmount = (subTotal * student.scholarship_percentage) / 100;
+      }
+
+      const totalAmount = subTotal - discountAmount;
 
       const { data: invoice, error: invError } = await supabase
         .from("school_invoices")
@@ -154,6 +161,16 @@ export default function StudentFinancialSheet() {
         description: `Frais: ${fee.category?.name || 'Scolarité'}`,
         amount: fee.amount,
       }));
+
+      if (discountAmount > 0) {
+        invoiceItems.push({
+          invoice_id: invoice.id,
+          fee_id: null as any,
+          business_id: businessId,
+          description: `Bourse accordée (${student.scholarship_percentage}%)` + (student.scholarship_note ? ` - ${student.scholarship_note}` : ''),
+          amount: -discountAmount,
+        });
+      }
 
       const { error: itemsError } = await supabase
         .from("school_invoice_items")
@@ -219,6 +236,21 @@ export default function StudentFinancialSheet() {
       toast.error("Erreur de génération", { description: err.message });
     } finally {
       setIsGeneratingInvoice(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette facture ? Vous pourrez la regénérer ensuite pour appliquer les nouveaux tarifs ou la bourse.")) return;
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.from("school_invoices").delete().eq("id", invoiceId);
+      if (error) throw error;
+      toast.success("Facture supprimée avec succès.");
+      if (selectedStudent) loadStudentFinance(selectedStudent);
+    } catch (e: any) {
+      toast.error("Erreur de suppression", { description: e.message });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -402,8 +434,12 @@ export default function StudentFinancialSheet() {
                       selectedStudent?.id === s.id ? "bg-primary/10 border border-primary/30" : "hover:bg-muted border border-transparent"
                     }`}
                   >
-                    <div className="font-medium">{s.first_name} {s.last_name}</div>
-                    <div className="text-xs text-muted-foreground">{s.class_level || "N/A"} {s.matricule ? `- ${s.matricule}` : ""}</div>
+                    <div className="font-medium flex justify-between items-center">
+                      <span>{s.first_name} {s.last_name}</span>
+                      {s.scholarship_type === 'full' && <span className="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full dark:bg-green-900/30 dark:text-green-400">🎓 100%</span>}
+                      {s.scholarship_type === 'half' && <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded-full dark:bg-orange-900/30 dark:text-orange-400">🎓 50%</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{s.class_level || "N/A"} {s.matricule ? `- ${s.matricule}` : ""}</div>
                   </button>
                 ))}
               </div>
@@ -549,6 +585,7 @@ export default function StudentFinancialSheet() {
                           <TableHead>Solde</TableHead>
                           <TableHead>Statut</TableHead>
                           <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -572,6 +609,19 @@ export default function StudentFinancialSheet() {
                               </TableCell>
                               <TableCell className="text-muted-foreground text-sm">
                                 {inv.issue_date ? format(new Date(inv.issue_date), "dd/MM/yyyy") : "-"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {inv.paid_amount === 0 && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8"
+                                    onClick={() => handleDeleteInvoice(inv.id)}
+                                    title="Supprimer la facture (utile pour appliquer une bourse et regénérer)"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </TableCell>
                             </TableRow>
                           ))

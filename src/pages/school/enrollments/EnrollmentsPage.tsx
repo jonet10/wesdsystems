@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, RepeatIcon, History, ArrowRight, GraduationCap, Sparkles, Upload, FileSpreadsheet, Loader2 } from "lucide-react";
+import { Search, UserPlus, RepeatIcon, History, ArrowRight, GraduationCap, Sparkles, Upload, FileSpreadsheet, Loader2, Printer, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
@@ -16,12 +16,13 @@ import { supabase } from "@/lib/supabase";
 import type { SchoolStudent, SchoolClass, SchoolAcademicYear, SchoolEnrollment } from "@/modules/school/types";
 import { enrollmentService } from "@/modules/school/services";
 import { studentService } from "@/modules/school/services";
+import { invoiceService } from "@/modules/school/services";
 import { setBusinessId } from "@/modules/school/services/utils";
 import { format } from "date-fns";
 
 export default function EnrollmentsPage() {
   const { user, profile, isAuthenticated } = useAuth();
-  const { activeAcademicYear } = useSchoolSettings();
+  const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [students, setStudents] = useState<SchoolStudent[]>([]);
@@ -44,6 +45,7 @@ export default function EnrollmentsPage() {
   const [transferSearch, setTransferSearch] = useState("");
   const [transferClassId, setTransferClassId] = useState("");
   const [transferYearId, setTransferYearId] = useState("");
+  const [chargeEnrollmentFee, setChargeEnrollmentFee] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
 
   // Quick enrollment (new student)
@@ -58,12 +60,22 @@ export default function EnrollmentsPage() {
 
   // CSV import
   const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+  const [showImportNotice, setShowImportNotice] = useState(false);
   const [csvText, setCsvText] = useState("");
   const [csvClassId, setCsvClassId] = useState("");
   const [csvYearId, setCsvYearId] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importResults, setImportResults] = useState<{ success: number; errors: string[] }>({ success: 0, errors: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Payment slip
+  const [paymentSlipOpen, setPaymentSlipOpen] = useState(false);
+  const [paymentSlipData, setPaymentSlipData] = useState<{
+    studentName: string;
+    className: string;
+    yearName: string;
+    invoices: any[];
+  } | null>(null);
 
   useEffect(() => {
     if (businessId) setBusinessId(businessId);
@@ -120,7 +132,7 @@ export default function EnrollmentsPage() {
         gender: quickGender,
         class_level: classes.find(c => c.id === quickClassId)?.code || null,
       });
-      await enrollmentService.create({
+      const result = await enrollmentService.create({
         student_id: student.id,
         class_id: quickClassId,
         academic_year_id: quickYearId,
@@ -130,6 +142,22 @@ export default function EnrollmentsPage() {
       toast.success(`${quickFirstName} ${quickLastName} inscrit avec succès`, {
         description: "Complétez son dossier dans la page Élèves."
       });
+      
+      // Show payment slip
+      if (quickAutoInvoice && result.invoices?.length > 0) {
+        // Fetch full invoice details with items
+        const fullInvoices = await Promise.all(result.invoices.map((inv: any) => invoiceService.getByIdWithItems(inv.id)));
+        const cls = classes.find(c => c.id === quickClassId);
+        const yr = academicYears.find(y => y.id === quickYearId);
+        setPaymentSlipData({
+          studentName: `${quickFirstName.trim()} ${quickLastName.trim()}`,
+          className: cls ? `${cls.code || ''} ${cls.name}` : '',
+          yearName: yr?.name || '',
+          invoices: fullInvoices,
+        });
+        setPaymentSlipOpen(true);
+      }
+      
       resetQuickForm();
       loadData();
     } catch (error: any) {
@@ -146,7 +174,7 @@ export default function EnrollmentsPage() {
     }
     setIsEnrolling(true);
     try {
-      await enrollmentService.create({
+      const result = await enrollmentService.create({
         student_id: newStudentId,
         class_id: newClassId,
         academic_year_id: newYearId,
@@ -154,6 +182,22 @@ export default function EnrollmentsPage() {
         auto_generate_invoice: autoInvoice,
       });
       toast.success("Inscription réussie");
+
+      // Show payment slip
+      if (autoInvoice && result.invoices?.length > 0) {
+        const fullInvoices = await Promise.all(result.invoices.map((inv: any) => invoiceService.getByIdWithItems(inv.id)));
+        const student = students.find(s => s.id === newStudentId);
+        const cls = classes.find(c => c.id === newClassId);
+        const yr = academicYears.find(y => y.id === newYearId);
+        setPaymentSlipData({
+          studentName: student ? `${student.first_name} ${student.last_name}` : '',
+          className: cls ? `${cls.code || ''} ${cls.name}` : '',
+          yearName: yr?.name || '',
+          invoices: fullInvoices,
+        });
+        setPaymentSlipOpen(true);
+      }
+
       setNewStudentId(""); setNewClassId(""); setNewYearId("");
       loadData();
     } catch (error: any) {
@@ -171,21 +215,32 @@ export default function EnrollmentsPage() {
     setIsTransferring(true);
     let successCount = 0;
     let errorCount = 0;
+    let unpaidDebtCount = 0;
     for (const id of transferStudentIds) {
       try {
-        await enrollmentService.transfer(id, transferClassId, transferYearId);
+        await enrollmentService.transfer(id, transferClassId, transferYearId, chargeEnrollmentFee);
         successCount++;
-      } catch {
+      } catch (err: any) {
+        if (err?.message === "UNPAID_DEBT") {
+          unpaidDebtCount++;
+        }
         errorCount++;
       }
     }
-    const student = students.find(s => s.id === transferStudentIds[0]);
     if (errorCount === 0) {
       toast.success(`${successCount} élève${successCount > 1 ? "s" : ""} transféré${successCount > 1 ? "s" : ""} avec succès`);
     } else {
-      toast.error(`${errorCount} transfert${errorCount > 1 ? "s" : ""} ont échoué`, { description: `${successCount} réussi${successCount > 1 ? "s" : ""}` });
+      if (unpaidDebtCount > 0) {
+        toast.error(`Transfert refusé pour ${unpaidDebtCount} élève(s)`, { description: "Ils doivent d'abord s'acquitter de leurs dettes (solde > 0)." });
+      }
+      if (errorCount > unpaidDebtCount) {
+        toast.error(`${errorCount - unpaidDebtCount} transfert(s) ont échoué pour d'autres raisons.`);
+      }
     }
     setTransferStudentIds([]);
+    setTransferClassId("");
+    setTransferYearId("");
+    setChargeEnrollmentFee(false);
     loadData();
     setIsTransferring(false);
   };
@@ -263,14 +318,24 @@ export default function EnrollmentsPage() {
     }
 
     setImportResults({ success, errors });
+    if (success > 0) {
+      setShowImportNotice(true);
+    }
     if (errors.length === 0) {
-      toast.success(`${success} élève(s) inscrit(s) avec succès`);
+      if (success > 0) {
+        toast.success(`${success} élève(s) inscrit(s) avec succès`);
+      }
       setCsvDialogOpen(false);
       setCsvText("");
       setCsvClassId("");
       setCsvYearId("");
       setImportResults({ success: 0, errors: [] });
       loadData();
+    } else {
+      if (success > 0) {
+        toast.success(`${success} élève(s) inscrit(s) avec succès, mais avec des erreurs`);
+        loadData();
+      }
     }
     setIsImporting(false);
   };
@@ -548,6 +613,16 @@ export default function EnrollmentsPage() {
                     </select>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 py-2">
+                  <input 
+                    type="checkbox" 
+                    id="chargeEnrollmentFee" 
+                    checked={chargeEnrollmentFee} 
+                    onChange={e => setChargeEnrollmentFee(e.target.checked)} 
+                    className="h-4 w-4" 
+                  />
+                  <Label htmlFor="chargeEnrollmentFee" className="text-sm cursor-pointer">Facturer les frais de réinscription</Label>
+                </div>
                 <Button onClick={handleTransfer} disabled={isTransferring} variant="secondary">
                   {isTransferring ? "Transfert..." : <><RepeatIcon className="h-4 w-4 mr-2" />Effectuer le transfert</>}
                 </Button>
@@ -610,7 +685,190 @@ export default function EnrollmentsPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={showImportNotice} onOpenChange={setShowImportNotice}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-warning">
+                <Sparkles className="h-5 w-5 text-warning" />
+                Frais d'Inscription à percevoir
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <p className="text-sm">
+                L'importation de groupe a été effectuée avec succès !
+              </p>
+              <div className="bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg text-sm text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/30">
+                <strong>Action requise :</strong> Pensez à finaliser le paiement des frais d'inscription de ces élèves. 
+                Vous pouvez gérer et imprimer leurs fiches de paiement séparées depuis la <strong>Fiche Financière</strong> de chaque élève.
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setShowImportNotice(false)}>Compris</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Payment Slip Dialog — POS Receipt Style */}
+        <Dialog open={paymentSlipOpen} onOpenChange={setPaymentSlipOpen}>
+          <DialogContent className="max-w-sm max-h-[95vh] overflow-y-auto p-4">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-primary text-sm">
+                <FileText className="h-4 w-4" />
+                Fiche d'Inscription
+              </DialogTitle>
+            </DialogHeader>
+            {paymentSlipData && (
+              <div className="space-y-3 pt-1">
+                {/* Success banner */}
+                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/30 rounded px-3 py-2 text-green-800 dark:text-green-300 text-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>Inscription réussie — fiche à remettre au parent</span>
+                </div>
+
+                {/* ── POS RECEIPT ── */}
+                <div
+                  id="payment-slip-print-area"
+                  className="bg-white text-black rounded border font-mono text-xs leading-tight"
+                  style={{ width: "100%", maxWidth: "300px", margin: "0 auto", padding: "16px 8px", color: "#000" }}
+                >
+                  {/* Logo + School name — centered */}
+                  <div style={{ textAlign: "center", marginBottom: "12px" }}>
+                    {settings?.logo_url && (
+                      <img
+                        src={settings.logo_url}
+                        alt="logo"
+                        style={{ height: "48px", width: "48px", objectFit: "contain", margin: "0 auto 8px" }}
+                      />
+                    )}
+                    <div style={{ fontWeight: "bold", fontSize: "14px", textTransform: "uppercase", marginBottom: "4px" }}>
+                      {settings?.name || "ÉCOLE"}
+                    </div>
+                    {settings?.address && (
+                      <div style={{ fontSize: "11px", marginBottom: "2px" }}>{settings.address}</div>
+                    )}
+                    <div style={{ fontSize: "11px" }}>
+                      {[settings?.phone, settings?.email].filter(Boolean).join(" | ")}
+                    </div>
+                  </div>
+
+                  {/* Dashed separator */}
+                  <div style={{ borderTop: "1px dashed #000", margin: "8px 0" }} />
+
+                  {/* Receipt title */}
+                  <div style={{ textAlign: "center", fontWeight: "bold", fontSize: "12px", marginBottom: "4px" }}>
+                    *** FICHE D'INSCRIPTION ***
+                  </div>
+                  <div style={{ textAlign: "center", fontSize: "11px", marginBottom: "8px" }}>
+                    Année : {paymentSlipData.yearName}
+                  </div>
+
+                  <div style={{ borderTop: "1px dashed #000", margin: "8px 0" }} />
+
+                  {/* Student info */}
+                  <div style={{ marginBottom: "8px", fontSize: "11px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
+                      <span style={{ paddingRight: "8px" }}>Élève:</span>
+                      <span style={{ fontWeight: "bold", textAlign: "right", wordBreak: "break-word" }}>{paymentSlipData.studentName}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
+                      <span style={{ paddingRight: "8px" }}>Classe:</span>
+                      <span style={{ fontWeight: "bold", textAlign: "right", wordBreak: "break-word" }}>{paymentSlipData.className}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <span style={{ paddingRight: "8px" }}>Date:</span>
+                      <span style={{ textAlign: "right" }}>{format(new Date(), "dd/MM/yyyy HH:mm")}</span>
+                    </div>
+                  </div>
+
+                  {/* Invoices */}
+                  {paymentSlipData.invoices.map((inv: any) => (
+                    <div key={inv.id} style={{ marginTop: "12px" }}>
+                      <div style={{ borderTop: "1px dashed #000", margin: "8px 0" }} />
+                      <div style={{ fontWeight: "bold", fontSize: "11px", marginBottom: "6px" }}>
+                        Facture #{inv.invoice_number}
+                      </div>
+
+                      {/* Line items */}
+                      {inv.items && inv.items.length > 0 ? (
+                        inv.items.map((item: any) => (
+                          <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px", fontSize: "11px" }}>
+                            <span style={{ flex: 1, paddingRight: "8px", wordBreak: "break-word" }}>{item.description}</span>
+                            <span style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>
+                              {Number(item.amount).toLocaleString()} HTG
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px", fontSize: "11px" }}>
+                          <span style={{ flex: 1, paddingRight: "8px" }}>Frais</span>
+                          <span style={{ fontWeight: "bold", whiteSpace: "nowrap" }}>{Number(inv.total_amount).toLocaleString()} HTG</span>
+                        </div>
+                      )}
+
+                      {/* Subtotal line */}
+                      <div style={{ borderTop: "1px solid #000", marginTop: "6px", paddingTop: "6px", display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "11px" }}>
+                        <span>Sous-total</span>
+                        <span>{Number(inv.total_amount).toLocaleString()} HTG</span>
+                      </div>
+
+                      {/* Payment plan */}
+                      {inv.plans && inv.plans.length > 0 && (
+                        <div style={{ marginTop: "8px" }}>
+                          <div style={{ fontSize: "11px", textTransform: "uppercase", marginBottom: "4px", fontWeight: "bold" }}>
+                            Échéancier :
+                          </div>
+                          {inv.plans.map((plan: any) => (
+                            <div key={plan.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", fontSize: "11px", marginBottom: "4px" }}>
+                              <span style={{ flex: 1, paddingRight: "8px", wordBreak: "break-word" }}>
+                                {plan.title}{plan.due_date ? ` (${format(new Date(plan.due_date), "dd/MM/yy")})` : ""}
+                              </span>
+                              <span style={{ whiteSpace: "nowrap" }}>{Number(plan.amount_due).toLocaleString()} HTG</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Grand total */}
+                  <div style={{ borderTop: "2px solid #000", borderBottom: "2px solid #000", margin: "12px 0", padding: "8px 0", display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "14px" }}>
+                    <span>TOTAL</span>
+                    <span>{paymentSlipData.invoices.reduce((s: number, inv: any) => s + Number(inv.total_amount), 0).toLocaleString()} HTG</span>
+                  </div>
+
+                  {/* Signatures */}
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "24px", fontSize: "11px" }}>
+                    <div style={{ textAlign: "center", flex: 1 }}>
+                      <div style={{ borderTop: "1px solid #000", marginBottom: "4px", marginTop: "32px" }} />
+                      Responsable
+                    </div>
+                    <div style={{ width: "16px" }} />
+                    <div style={{ textAlign: "center", flex: 1 }}>
+                      <div style={{ borderTop: "1px solid #000", marginBottom: "4px", marginTop: "32px" }} />
+                      Parent/Tuteur
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ textAlign: "center", marginTop: "16px", fontSize: "11px" }}>
+                    - Merci de conserver ce reçu -
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={() => setPaymentSlipOpen(false)}>Fermer</Button>
+                  <Button size="sm" onClick={() => window.print()}>
+                    <Printer className="h-3.5 w-3.5 mr-2" />
+                    Imprimer
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
 }
+

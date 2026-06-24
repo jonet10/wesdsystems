@@ -24,6 +24,16 @@ export const invoiceService = {
     return data as SchoolInvoice & { student?: any; academic_year?: any };
   },
 
+  async getByIdWithItems(id: string) {
+    const { data, error } = await supabase
+      .from("school_invoices")
+      .select("*, student:student_id(*), academic_year:academic_year_id(*), items:school_invoice_items(*), plans:school_payment_plans(*)")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    return data as SchoolInvoice & { student?: any; academic_year?: any; items?: any[]; plans?: any[] };
+  },
+
   async getByStudent(studentId: string) {
     const businessId = getBusinessId();
     const { data, error } = await supabase
@@ -48,50 +58,107 @@ export const invoiceService = {
     return data as (SchoolInvoice & { student?: any })[];
   },
 
-  async generateFromEnrollment(studentId: string, classId: string, academicYearId: string, businessId: string) {
+  async generateFromEnrollment(studentId: string, classId: string, academicYearId: string, businessId: string, skipEnrollmentFee: boolean = false) {
     const fees = await this.getFeesForClass(classId, academicYearId);
-    if (fees.length === 0) return null;
 
-    const { data: invoiceNum, error: rpcError } = await supabase.rpc('generate_school_invoice_number', {
-      p_business_id: businessId
-    });
-    if (rpcError) throw rpcError;
-
-    const totalAmount = fees.reduce((sum, f) => sum + Number(f.amount), 0);
-
-    const { data: invoice, error: invError } = await supabase
-      .from("school_invoices")
-      .insert([{
-        business_id: businessId,
-        student_id: studentId,
-        academic_year_id: academicYearId,
-        invoice_number: invoiceNum,
-        total_amount: totalAmount,
-        paid_amount: 0,
-        balance: totalAmount,
-        status: 'pending',
-        issue_date: new Date().toISOString(),
-      }])
-      .select()
+    // Fetch student to check for scholarship
+    const { data: student } = await supabase
+      .from("school_students")
+      .select("scholarship_type, scholarship_percentage")
+      .eq("id", studentId)
       .single();
-    if (invError) throw invError;
 
-    const invoiceItems = fees.map(fee => ({
-      invoice_id: invoice.id,
-      fee_id: fee.id,
-      business_id: businessId,
-      description: `Frais: ${fee.category?.name || 'Scolarité'}`,
-      amount: fee.amount,
-    }));
+    let discountMultiplier = 1;
+    if (student) {
+      if (student.scholarship_type === 'full') discountMultiplier = 0;
+      else if (student.scholarship_type === 'half') discountMultiplier = 0.5;
+      else if (student.scholarship_percentage) discountMultiplier = 1 - (student.scholarship_percentage / 100);
+    }
 
-    const { error: itemsError } = await supabase
-      .from("school_invoice_items")
-      .insert(invoiceItems);
-    if (itemsError) throw itemsError;
+    // Apply discount to amounts
+    const processFee = (fee: any) => ({
+      ...fee,
+      originalAmount: fee.amount,
+      amount: fee.amount * discountMultiplier
+    });
 
-    const plan = await this.generatePaymentPlan(invoice.id, totalAmount, businessId, classId, academicYearId);
+    // If no fees configured, still generate a zero-amount enrollment invoice for the slip
+    if (fees.length === 0) {
+      const { data: invNum, error: numErr } = await supabase.rpc('generate_school_invoice_number', { p_business_id: businessId });
+      if (numErr) throw numErr;
 
-    return { invoice, plan };
+      const { data: blankInvoice, error: blankErr } = await supabase.from("school_invoices").insert([{
+        business_id: businessId, student_id: studentId, academic_year_id: academicYearId,
+        invoice_number: invNum, total_amount: 0, paid_amount: 0, balance: 0,
+        status: 'pending', issue_date: new Date().toISOString()
+      }]).select().single();
+      if (blankErr) throw blankErr;
+      return [blankInvoice];
+    }
+
+    let enrollmentFees = fees.filter(f => f.category?.fee_type === 'enrollment').map(processFee);
+    const tuitionFees = fees.filter(f => f.category?.fee_type !== 'enrollment').map(processFee);
+    
+    if (skipEnrollmentFee) {
+      enrollmentFees = [];
+    }
+
+    const invoices = [];
+    
+    // 1. Generate Enrollment Invoice (if applicable)
+    if (enrollmentFees.length > 0) {
+      const { data: invNumEnroll, error: errNumEnroll } = await supabase.rpc('generate_school_invoice_number', { p_business_id: businessId });
+      if (errNumEnroll) throw errNumEnroll;
+      
+      const enrollAmount = enrollmentFees.reduce((sum, f) => sum + Number(f.amount), 0);
+      
+      const { data: enrollInvoice, error: invErr1 } = await supabase.from("school_invoices").insert([{
+        business_id: businessId, student_id: studentId, academic_year_id: academicYearId,
+        invoice_number: invNumEnroll, total_amount: enrollAmount, paid_amount: 0, balance: enrollAmount,
+        status: 'pending', issue_date: new Date().toISOString()
+      }]).select().single();
+      if (invErr1) throw invErr1;
+
+      const enrollItems = enrollmentFees.map(fee => ({
+        invoice_id: enrollInvoice.id, fee_id: fee.id, business_id: businessId,
+        description: `Frais: ${fee.category?.name || 'Inscription'}`, amount: fee.amount,
+      }));
+      await supabase.from("school_invoice_items").insert(enrollItems);
+      
+      // Auto payment plan (Single payment for enrollment)
+      await supabase.from("school_payment_plans").insert([{
+        invoice_id: enrollInvoice.id, business_id: businessId, title: "Frais d'inscription",
+        amount_due: enrollAmount, amount_paid: 0, balance: enrollAmount, status: 'pending', due_date: new Date().toISOString()
+      }]);
+      invoices.push(enrollInvoice);
+    }
+
+    // 2. Generate Tuition Invoice
+    if (tuitionFees.length > 0) {
+      const { data: invNumTuition, error: errNumTuition } = await supabase.rpc('generate_school_invoice_number', { p_business_id: businessId });
+      if (errNumTuition) throw errNumTuition;
+      
+      const tuitionAmount = tuitionFees.reduce((sum, f) => sum + Number(f.amount), 0);
+      
+      const { data: tuitionInvoice, error: invErr2 } = await supabase.from("school_invoices").insert([{
+        business_id: businessId, student_id: studentId, academic_year_id: academicYearId,
+        invoice_number: invNumTuition, total_amount: tuitionAmount, paid_amount: 0, balance: tuitionAmount,
+        status: 'pending', issue_date: new Date().toISOString()
+      }]).select().single();
+      if (invErr2) throw invErr2;
+
+      const tuitionItems = tuitionFees.map(fee => ({
+        invoice_id: tuitionInvoice.id, fee_id: fee.id, business_id: businessId,
+        description: `Frais: ${fee.category?.name || 'Scolarité'}`, amount: fee.amount,
+      }));
+      await supabase.from("school_invoice_items").insert(tuitionItems);
+      
+      // Payment plan based on template
+      await this.generatePaymentPlan(tuitionInvoice.id, tuitionAmount, businessId, classId, academicYearId);
+      invoices.push(tuitionInvoice);
+    }
+
+    return invoices;
   },
 
   async getFeesForClass(classId: string, academicYearId: string) {

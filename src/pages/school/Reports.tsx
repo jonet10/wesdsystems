@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, FileText, PieChart, TrendingUp, Printer, Search, Calendar, DollarSign, Users, BookOpen } from "lucide-react";
+import { Download, FileText, PieChart, TrendingUp, Printer, Search, Calendar, DollarSign, Users, BookOpen, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -31,6 +31,7 @@ export default function SchoolReports() {
   const [selectedClassId, setSelectedClassId] = useState("");
 
   const [payments, setPayments] = useState<PaymentReportRow[]>([]);
+  const [enrollmentPayments, setEnrollmentPayments] = useState<PaymentReportRow[]>([]);
   const [outstanding, setOutstanding] = useState<OutstandingReportRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseReportRow[]>([]);
   const [comparison, setComparison] = useState<any>(null);
@@ -52,6 +53,17 @@ export default function SchoolReports() {
       const data = await reportService.getPaymentReport(dateStart || undefined, dateEnd || undefined);
       setPayments(data);
       toast.success(`${data.length} paiements trouvés`);
+    } catch (error: any) {
+      toast.error("Erreur", { description: error.message });
+    } finally { setIsLoading(false); }
+  };
+
+  const loadEnrollmentReport = async () => {
+    setIsLoading(true);
+    try {
+      const data = await reportService.getEnrollmentPaymentReport(dateStart || undefined, dateEnd || undefined);
+      setEnrollmentPayments(data);
+      toast.success(`${data.length} paiements d'inscription trouvés`);
     } catch (error: any) {
       toast.error("Erreur", { description: error.message });
     } finally { setIsLoading(false); }
@@ -172,7 +184,10 @@ export default function SchoolReports() {
         <Tabs defaultValue="payments" className="space-y-6">
           <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent overflow-x-auto">
             <TabsTrigger value="payments" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3">
-              <DollarSign className="h-4 w-4 mr-2" />Paiements
+              <DollarSign className="h-4 w-4 mr-2" />Paiements (Général)
+            </TabsTrigger>
+            <TabsTrigger value="enrollments" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3">
+              <GraduationCap className="h-4 w-4 mr-2" />Recettes Inscriptions
             </TabsTrigger>
             <TabsTrigger value="outstanding" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3">
               <TrendingUp className="h-4 w-4 mr-2" />Impayés
@@ -241,6 +256,67 @@ export default function SchoolReports() {
                     </TableBody>
                   </Table>
                 </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="enrollments" className="space-y-4">
+            <Card>
+              <CardContent className="p-4 flex flex-wrap gap-4 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date début</Label>
+                  <Input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="h-9 w-44" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date fin</Label>
+                  <Input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="h-9 w-44" />
+                </div>
+                <Button onClick={loadEnrollmentReport} disabled={isLoading} size="sm">
+                  <Search className="h-4 w-4 mr-2" />Générer
+                </Button>
+              </CardContent>
+            </Card>
+            {enrollmentPayments.length > 0 ? (
+              <Card>
+                <div className="p-4 border-b flex justify-between items-center">
+                  <div className="font-medium">{enrollmentPayments.length} paiements d'inscription · Total: {formatAmount(enrollmentPayments.reduce((s, r) => s + r.amount, 0))}</div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => printDocument("Rapport des Inscriptions", enrollmentPayments, paymentColumns, settings, activeAcademicYear?.name || null, userName)}>
+                      <Printer className="h-4 w-4 mr-2" />Imprimer
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToPDF("Rapport des Inscriptions", enrollmentPayments, paymentColumns, settings, activeAcademicYear?.name || null, userName)}>
+                      <Download className="h-4 w-4 mr-2" />PDF
+                    </Button>
+                  </div>
+                </div>
+                <CardContent className="p-0 max-h-96 overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>N° Reçu</TableHead>
+                        <TableHead>Élève</TableHead>
+                        <TableHead>Méthode</TableHead>
+                        <TableHead className="text-right">Montant</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {enrollmentPayments.map((r, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-sm">{r.date}</TableCell>
+                          <TableCell className="font-medium">{r.receipt_number}</TableCell>
+                          <TableCell>{r.student_name}</TableCell>
+                          <TableCell>{r.payment_method}</TableCell>
+                          <TableCell className="text-right font-medium text-success">+{formatAmount(r.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : !isLoading && (
+              <Card className="p-8 text-center text-muted-foreground">
+                Aucun paiement d'inscription trouvé pour la période sélectionnée.
               </Card>
             )}
           </TabsContent>

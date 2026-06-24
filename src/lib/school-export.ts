@@ -39,8 +39,10 @@ export const exportToPDF = async (
   if (settings?.logo_url) {
     try {
       const base64 = await getBase64ImageFromUrl(settings.logo_url);
-      doc.addImage(base64, 'PNG', 40, currentY, 50, 50);
-      currentY += 60;
+      const imgWidth = 50;
+      const imgHeight = 50;
+      doc.addImage(base64, 'PNG', (pageWidth / 2) - (imgWidth / 2), currentY, imgWidth, imgHeight);
+      currentY += imgHeight + 10;
     } catch (e) {
       console.error("Failed to load logo", e);
     }

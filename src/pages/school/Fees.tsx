@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Tag, Coins } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,12 +74,14 @@ export default function SchoolFees() {
   const [editingCat, setEditingCat] = useState<SchoolFeeCategory | null>(null);
   const [catName, setCatName] = useState("");
   const [catDesc, setCatDesc] = useState("");
+  const [catType, setCatType] = useState("tuition");
   const [catMandatory, setCatMandatory] = useState(false);
 
   const handleEditCat = (cat: SchoolFeeCategory) => {
     setEditingCat(cat);
     setCatName(cat.name);
     setCatDesc(cat.description || "");
+    setCatType(cat.fee_type || "tuition");
     setCatMandatory(cat.is_mandatory);
     setIsCatDialogOpen(true);
   };
@@ -92,6 +95,7 @@ export default function SchoolFees() {
         business_id: businessId,
         name: catName,
         description: catDesc || null,
+        fee_type: catType,
         is_mandatory: catMandatory,
       };
 
@@ -265,6 +269,18 @@ export default function SchoolFees() {
                       <Label>Description</Label>
                       <Input value={catDesc} onChange={e => setCatDesc(e.target.value)} />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Type de Frais</Label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
+                        value={catType} 
+                        onChange={e => setCatType(e.target.value)}
+                      >
+                        <option value="tuition">Scolarité (Inclus dans l'échéancier)</option>
+                        <option value="enrollment">Inscription (Facture séparée)</option>
+                        <option value="other">Autre frais</option>
+                      </select>
+                    </div>
                     <div className="flex items-center justify-between p-4 border rounded-lg mt-2">
                       <div className="space-y-0.5">
                         <Label>Obligatoire</Label>
@@ -285,6 +301,7 @@ export default function SchoolFees() {
                     <TableRow>
                       <TableHead>Nom</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Obligatoire</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -297,7 +314,12 @@ export default function SchoolFees() {
                         <TableRow key={c.id}>
                           <TableCell className="font-medium">{c.name}</TableCell>
                           <TableCell className="text-muted-foreground">{c.description || "-"}</TableCell>
-                          <TableCell>{c.is_mandatory ? "Oui" : "Non"}</TableCell>
+                          <TableCell>
+                            {c.fee_type === 'enrollment' ? <Badge variant="secondary">Inscription</Badge> : 
+                             c.fee_type === 'tuition' ? <Badge variant="outline">Scolarité</Badge> : 
+                             <Badge variant="outline">Autre</Badge>}
+                          </TableCell>
+                          <TableCell>{c.is_mandatory ? <Badge>Oui</Badge> : <Badge variant="secondary">Non</Badge>}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" onClick={() => handleEditCat(c)}><Pencil className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteCat(c.id)}><Trash2 className="h-4 w-4" /></Button>

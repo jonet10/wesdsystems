@@ -93,19 +93,21 @@ export const enrollmentService = {
       console.error("Impossible de synchroniser class_level sur l'élève", e);
     }
 
+    let invoices: any[] = [];
     if (payload.auto_generate_invoice !== false) {
-      await invoiceService.generateFromEnrollment(
+      const result = await invoiceService.generateFromEnrollment(
         payload.student_id,
         payload.class_id,
         payload.academic_year_id,
         businessId
       );
+      invoices = result || [];
     }
 
-    return enrollment;
+    return { enrollment, invoices };
   },
 
-  async transfer(studentId: string, newClassId: string, academicYearId: string) {
+  async transfer(studentId: string, newClassId: string, academicYearId: string, chargeEnrollmentFee: boolean = false) {
     const businessId = getBusinessId();
     const { data: currentEnrollment, error: findError } = await supabase
       .from("school_enrollments")
@@ -117,6 +119,19 @@ export const enrollmentService = {
       .maybeSingle();
     if (findError) throw findError;
 
+    // Check for unpaid debts
+    const { data: unpaidInvoices, error: unpaidError } = await supabase
+      .from("school_invoices")
+      .select("balance")
+      .eq("business_id", businessId)
+      .eq("student_id", studentId)
+      .gt("balance", 0);
+      
+    if (unpaidError) throw unpaidError;
+    if (unpaidInvoices && unpaidInvoices.length > 0) {
+      throw new Error("UNPAID_DEBT");
+    }
+
     if (currentEnrollment) {
       const { error: updateError } = await supabase
         .from("school_enrollments")
@@ -125,13 +140,24 @@ export const enrollmentService = {
       if (updateError) throw updateError;
     }
 
-    return this.create({
+    const enrollment = await this.create({
       student_id: studentId,
       class_id: newClassId,
       academic_year_id: academicYearId,
       status: 'active',
       auto_generate_invoice: false,
     });
+
+    // Generate new invoices (tuition + optional enrollment fee)
+    await invoiceService.generateFromEnrollment(
+      studentId,
+      newClassId,
+      academicYearId,
+      businessId,
+      !chargeEnrollmentFee
+    );
+
+    return enrollment;
   },
 
   async updateStatus(id: string, status: 'registered' | 'active' | 'withdrawn') {

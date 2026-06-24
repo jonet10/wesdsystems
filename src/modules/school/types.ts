@@ -44,6 +44,7 @@ export interface SchoolFeeCategory {
   business_id: string;
   name: string;
   description?: string | null;
+  fee_type?: 'tuition' | 'enrollment' | 'other';
   is_mandatory: boolean;
   created_at: string;
 }
@@ -121,6 +122,9 @@ export interface SchoolStudent {
   address?: string | null;
   phone?: string | null;
   photo_url?: string | null;
+  scholarship_type?: 'none' | 'half' | 'full';
+  scholarship_percentage?: number;
+  scholarship_note?: string | null;
   status: 'active' | 'inactive' | 'graduated' | 'transferred';
   created_at: string;
 }

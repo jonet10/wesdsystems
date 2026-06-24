@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search, GraduationCap, User as UserIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, GraduationCap, User as UserIcon, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { ExportButtons } from "@/components/school/ExportButtons";
@@ -53,6 +53,8 @@ export default function SchoolStudents() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<SchoolStudent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingMatricule, setIsLoadingMatricule] = useState(false);
+  const [matriculeEditable, setMatriculeEditable] = useState(false);
 
   const initialFormState = {
     matricule: "",
@@ -88,7 +90,9 @@ export default function SchoolStudents() {
     respNinu: "",
     respEmail: "",
     respPhone: "",
-    respAltPhone: ""
+    respAltPhone: "",
+    scholarshipType: "none",
+    scholarshipNote: ""
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -100,6 +104,26 @@ export default function SchoolStudents() {
   const resetForm = () => {
     setEditingStudent(null);
     setFormData(initialFormState);
+    setMatriculeEditable(false);
+  };
+
+  const generateMatricule = async () => {
+    if (!businessId) return;
+    setIsLoadingMatricule(true);
+    try {
+      const { data, error } = await supabase.rpc('generate_school_matricule', {
+        p_business_id: businessId
+      });
+      if (error) throw error;
+      if (data) updateField("matricule", data);
+    } catch (err: any) {
+      // Fallback: generate client-side if RPC not deployed yet
+      const year = new Date().getFullYear();
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      updateField("matricule", `${year}-${rand}`);
+    } finally {
+      setIsLoadingMatricule(false);
+    }
   };
 
   const handleEdit = (s: SchoolStudent) => {
@@ -138,7 +162,9 @@ export default function SchoolStudents() {
       respNinu: s.responsible_person_info?.ninu || "",
       respEmail: s.responsible_person_info?.email || "",
       respPhone: s.responsible_person_info?.phone || "",
-      respAltPhone: s.responsible_person_info?.alt_phone || ""
+      respAltPhone: s.responsible_person_info?.alt_phone || "",
+      scholarshipType: s.scholarship_type || "none",
+      scholarshipNote: s.scholarship_note || ""
     });
     setIsDialogOpen(true);
   };
@@ -191,7 +217,10 @@ export default function SchoolStudents() {
           email: formData.respEmail,
           phone: formData.respPhone,
           alt_phone: formData.respAltPhone
-        }
+        },
+        scholarship_type: formData.scholarshipType,
+        scholarship_note: formData.scholarshipNote || null,
+        scholarship_percentage: formData.scholarshipType === 'full' ? 100 : formData.scholarshipType === 'half' ? 50 : 0
       };
 
       if (editingStudent) {
@@ -247,7 +276,15 @@ export default function SchoolStudents() {
             <p className="text-muted-foreground">Base de données des élèves inscrits dans votre établissement</p>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+          <Dialog open={isDialogOpen} onOpenChange={async (open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              resetForm();
+            } else if (!editingStudent) {
+              // Auto-generate matricule for new students
+              await generateMatricule();
+            }
+          }}>
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" /> Nouveau Dossier</Button>
             </DialogTrigger>
@@ -339,6 +376,53 @@ export default function SchoolStudents() {
                   <h3 className="text-lg font-semibold border-b pb-2 text-primary flex items-center gap-2">
                     <GraduationCap className="h-5 w-5" /> Informations académiques
                   </h3>
+
+                  {/* Matricule (auto-generated) */}
+                  <div className="flex items-end gap-2">
+                    <div className="space-y-2 flex-1">
+                      <Label className="flex items-center gap-1.5">
+                        Matricule
+                        {!editingStudent && (
+                          <span className="text-[10px] bg-primary/10 text-primary font-medium px-1.5 py-0.5 rounded-full">
+                            Généré automatiquement
+                          </span>
+                        )}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          value={isLoadingMatricule ? "Génération..." : formData.matricule}
+                          onChange={e => updateField("matricule", e.target.value)}
+                          readOnly={!matriculeEditable && !editingStudent}
+                          disabled={isLoadingMatricule}
+                          placeholder="Ex: 2026-000001"
+                          className={!matriculeEditable && !editingStudent ? "bg-muted/40 text-muted-foreground pr-10 font-mono tracking-wide" : "pr-10 font-mono tracking-wide"}
+                        />
+                        {!editingStudent && (
+                          <button
+                            type="button"
+                            onClick={() => setMatriculeEditable(!matriculeEditable)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
+                            title={matriculeEditable ? "Verrouiller" : "Modifier manuellement"}
+                          >
+                            {matriculeEditable ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {!editingStudent && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateMatricule}
+                        disabled={isLoadingMatricule}
+                        className="mb-0.5 text-xs shrink-0"
+                      >
+                        {isLoadingMatricule ? "..." : "↺ Regénérer"}
+                      </Button>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>Vacation *</Label>
@@ -383,7 +467,34 @@ export default function SchoolStudents() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Bourse / Scholarship */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-muted/50 mt-4">
+                    <div className="space-y-2">
+                      <Label>Statut de bourse</Label>
+                      <select 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
+                        value={formData.scholarshipType} 
+                        onChange={e => updateField("scholarshipType", e.target.value)}
+                      >
+                        <option value="none">Aucune bourse (Plein tarif)</option>
+                        <option value="half">Demi-bourse (50% de réduction)</option>
+                        <option value="full">Bourse complète (100% de réduction)</option>
+                      </select>
+                    </div>
+                    {formData.scholarshipType !== 'none' && (
+                      <div className="space-y-2">
+                        <Label>Note / Raison de la bourse</Label>
+                        <Input 
+                          value={formData.scholarshipNote} 
+                          onChange={e => updateField("scholarshipNote", e.target.value)} 
+                          placeholder="Ex: Excellence académique, Cas social..." 
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
+
 
                 {/* 3. Adresse */}
                 <div className="space-y-4">

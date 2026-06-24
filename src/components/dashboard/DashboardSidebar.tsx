@@ -233,6 +233,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Receipt, label: "Dépenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: Package, label: "Fournitures", path: "/school/inventory", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: ShoppingCart, label: "Caisse Fournitures", path: "/school/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: UserCog, label: "Utilisateurs", path: "/school/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: TrendingUp, label: "Rapports", path: "/school/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
           { icon: Settings, label: "Paramètres", path: "/school/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
@@ -260,7 +261,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     ? superAdminItems
     : role === "partner"
     ? partnerItems
-    : role === "salon_admin"
+    : (role === "salon_admin" || role === "school_admin" || role === "pharmacy_admin" || role === "market_admin" || role === "admin")
     ? getBusinessAdminItems()
     : employeeSpecificItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
 
@@ -455,7 +456,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
                 </div>
               )}
               {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
-              {items.filter(i => ["/school/reports", "/school/settings"].includes(i.path)).map(item => (
+              {items.filter(i => ["/school/staff", "/school/reports", "/school/settings"].includes(i.path)).map(item => (
                 <NavItem key={item.path} item={item} />
               ))}
             </div>

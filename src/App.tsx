@@ -92,6 +92,7 @@ const SchoolReports = lazy(() => import("@/pages/school/Reports"));
 import ParentDashboard from "./pages/school/parent/Dashboard";
 import EnrollmentsPage from "./pages/school/enrollments/EnrollmentsPage";
 import StudentFinancialSheet from "./pages/school/finance/StudentFinancialSheet";
+import SchoolStaff from "./pages/school/Staff";
 import AutoPartsPurchases from "./pages/auto-parts/Purchases";
 import AutoPartsStockMovements from "./pages/auto-parts/StockMovements";
 import AutoPartsSettings from "./pages/auto-parts/Settings";
@@ -537,6 +538,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/staff"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin"]} allowAuthenticatedWithoutRole>
+                      <SchoolStaff />
                     </ProtectedRoute>
                   }
                 />
