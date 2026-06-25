@@ -37,6 +37,35 @@ const getDefaultRouteForRole = (role?: string | null, businessType?: string | nu
 };
 
 /**
+ * Map each business_type to its expected URL prefix.
+ * Used to prevent cross-module access (e.g. salon admin on /auto-parts).
+ */
+const MODULE_PREFIXES: Record<string, string> = {
+  salon: "/salon",
+  pharmacie: "/pharmacie",
+  restaurant: "/bar",
+  market: "/market",
+  boutique: "/boutique",
+  auto_parts: "/auto-parts",
+  school_payments: "/school",
+  school: "/school",
+};
+
+/**
+ * Returns true if the current path belongs to a different module
+ * than the user's business_type.
+ */
+function isWrongModule(pathname: string, businessType?: string | null): boolean {
+  if (!businessType) return false;
+  const userPrefix = MODULE_PREFIXES[businessType];
+  if (!userPrefix) return false;
+  // Check if the path belongs to any known module OTHER than the user's
+  return Object.entries(MODULE_PREFIXES).some(
+    ([biz, prefix]) => biz !== businessType && pathname.startsWith(prefix)
+  );
+}
+
+/**
  * Normalize raw DB role → canonical AppRole.
  * studio_admin / salon_admin / owner → "studio_admin" (salon routes).
  */
@@ -137,6 +166,13 @@ export function ProtectedRoute({
   }
 
   if (!normalizedAllowedRoles.includes(role)) {
+    return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
+  }
+
+  // Cross-module guard: prevent admins from accessing another business's module.
+  // e.g. a salon admin cannot navigate to /auto-parts, and vice-versa.
+  // super_admin is exempt from this restriction.
+  if (role !== "super_admin" && isWrongModule(location.pathname, profile.business_type)) {
     return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
   }
 
