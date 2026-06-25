@@ -1,7 +1,8 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { canAccessEmployeePos, normalizeEmployeeRole } from "@/lib/employee-role";
+import { normalizeEmployeeRole } from "@/lib/employee-role";
+import { getSalonEmployeePermissions } from "@/config/permissions";
 import { hasPermission, type Permission } from "@/config/permissions";
 
 type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent";
@@ -82,23 +83,24 @@ export function ProtectedRoute({
 
   // Employee sessions are handled separately from Supabase auth.
   if (hasEmployeeSession) {
-    const path = location.pathname;
-    const isEmployeePosRoute = path === "/salon/pos" || path === "/employee/pos";
-    const isEmployeeReportsRoute = path === "/salon/reports";
-    const isEmployeeRoute = path.startsWith("/employee");
-
-    if (isEmployeePosRoute && canAccessEmployeePos(employeeSession?.role)) {
-      return <>{children}</>;
-    }
-
-    if (isEmployeeReportsRoute && (employeeRole === "cashier" || employeeRole === "manager")) {
-      return <>{children}</>;
-    }
+    const routePath = location.pathname;
+    const isEmployeeRoute = routePath.startsWith("/employee");
 
     if (isEmployeeRoute) {
       return <>{children}</>;
     }
 
+    if (requiredPermissions && employeeRole) {
+      const empPerms = getSalonEmployeePermissions(employeeRole);
+      const permsToCheck = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
+      const hasPerm = permsToCheck.some(p => empPerms.includes(p));
+      
+      if (hasPerm) {
+        return <>{children}</>;
+      }
+    }
+    
+    // Default fallback if they don't have the permission
     return <Navigate to="/employee" replace />;
   }
 

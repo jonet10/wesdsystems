@@ -108,21 +108,21 @@ import { PERMISSIONS, type Permission } from "@/config/permissions";
 
 import SalonBranches from "./pages/salon/Branches";
 
-const salonAdminRoutes: { path: string; element: JSX.Element }[] = [
-  { path: "", element: <SalonDashboard /> },
-  { path: "/clients", element: <ClientsPage /> },
-  { path: "/services", element: <ServicesPage /> },
-  { path: "/appointments", element: <AppointmentsPage /> },
-  { path: "/employees", element: <SalonEmployees /> },
-  { path: "/settings", element: <SalonSettings /> },
-  { path: "/inventory", element: <InventoryPage /> },
-  { path: "/pos", element: <POSPage /> },
-  { path: "/sales-analytics", element: <SalesAnalyticsPage /> },
-  { path: "/products", element: <ProductsPage /> },
-  { path: "/expenses", element: <ExpensesPage /> },
-  { path: "/reports", element: <ReportsPage /> },
-  { path: "/promotions", element: <PromotionsPage /> },
-  { path: "/branches", element: <SalonBranches /> },
+const salonAdminRoutes: { path: string; element: JSX.Element; permission?: Permission }[] = [
+  { path: "", element: <SalonDashboard />, permission: PERMISSIONS.DASHBOARD_VIEW },
+  { path: "/clients", element: <ClientsPage />, permission: PERMISSIONS.CLIENTS_READ },
+  { path: "/services", element: <ServicesPage />, permission: PERMISSIONS.SERVICES_MANAGE },
+  { path: "/appointments", element: <AppointmentsPage />, permission: PERMISSIONS.APPOINTMENTS_VIEW },
+  { path: "/employees", element: <SalonEmployees />, permission: PERMISSIONS.STAFF_MANAGE },
+  { path: "/settings", element: <SalonSettings />, permission: PERMISSIONS.SETTINGS_MANAGE },
+  { path: "/inventory", element: <InventoryPage />, permission: PERMISSIONS.STOCK_VIEW },
+  { path: "/pos", element: <POSPage />, permission: PERMISSIONS.POS_VIEW },
+  { path: "/sales-analytics", element: <SalesAnalyticsPage />, permission: PERMISSIONS.ANALYTICS_VIEW },
+  { path: "/products", element: <ProductsPage />, permission: PERMISSIONS.PRODUCTS_READ },
+  { path: "/expenses", element: <ExpensesPage />, permission: PERMISSIONS.EXPENSES_MANAGE },
+  { path: "/reports", element: <ReportsPage />, permission: PERMISSIONS.REPORTS_VIEW },
+  { path: "/promotions", element: <PromotionsPage />, permission: PERMISSIONS.PROMOTIONS_MANAGE },
+  { path: "/branches", element: <SalonBranches />, permission: PERMISSIONS.SETTINGS_MANAGE },
 ];
 
 const queryClient = new QueryClient();

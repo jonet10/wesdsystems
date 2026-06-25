@@ -329,7 +329,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
       return filtered;
     }
     // Employee session without Supabase Auth → show filtered menu
-    if (employeeSession && !profile && !isAuthenticated && role === "salon_admin") {
+    if (employeeSession && !profile && !isAuthenticated) {
       const empRole = normalizeEmployeeRole(employeeSession.role);
       const empPerms = empRole ? getSalonEmployeePermissions(empRole) : null;
       if (empPerms) {
