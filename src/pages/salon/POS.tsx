@@ -924,6 +924,8 @@ export default function POSPage() {
 
   const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
   const { subtotal, totalDiscount, total } = totals;
+  const paidOnTab = activePendingTab ? Number((activePendingTab as any)._total_paid || 0) : 0;
+  const remainingBalance = activePendingTab && paidOnTab > 0 ? Math.max(0, total - paidOnTab) : total;
   const resolvedPaymentSplits = useMemo(
     () => buildPaymentSplits(paymentMethod, total, paymentSplits),
     [paymentMethod, paymentSplits, total]
@@ -996,14 +998,14 @@ export default function POSPage() {
       toast.error("Veuillez entrer un montant valide");
       return;
     }
-    if (encaisserAmount < total && !encaisserCreditConfirm) {
+    if (encaisserAmount < remainingBalance && !encaisserCreditConfirm) {
       setEncaisserCreditConfirm(true);
       return;
     }
 
     const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
-    const isFullPayment = encaisserAmount >= total;
-    const paidAmount = isFullPayment ? total : encaisserAmount;
+    const isFullPayment = encaisserAmount >= remainingBalance;
+    const paidAmount = isFullPayment ? remainingBalance : encaisserAmount;
     const encaisserItems = pendingTabDraftItems.map(i => ({
       name: i.name,
       item_name: i.name,
@@ -1076,8 +1078,8 @@ export default function POSPage() {
       closed_at: new Date().toISOString(),
       _encaisser: true,
       _amountPaid: paidAmount,
-      _changeGiven: isFullPayment ? encaisserAmount - total : 0,
-      _balanceRemaining: isFullPayment ? 0 : total - paidAmount,
+      _changeGiven: isFullPayment ? encaisserAmount - remainingBalance : 0,
+      _balanceRemaining: isFullPayment ? 0 : remainingBalance - paidAmount,
     });
     setShowReceipt(true);
     setEncaisserDialogOpen(false);
@@ -1635,6 +1637,18 @@ export default function POSPage() {
                   <span>Total</span>
                   <span className="text-primary">{format(total)}</span>
                 </div>
+                {paidOnTab > 0 && (
+                  <>
+                    <div className="flex justify-between text-success text-xs">
+                      <span>Déjà payé</span>
+                      <span>-{format(paidOnTab)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-base pt-1 border-t border-dashed border-border/60">
+                      <span className="text-amber-600">Reste à payer</span>
+                      <span className="text-amber-600">{format(remainingBalance)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-3 mt-4">
@@ -1841,9 +1855,14 @@ export default function POSPage() {
                       } catch (error: any) {
                         toast.error(error?.message || "Impossible d'annuler la fiche");
                       }
-                    }} disabled={pendingTabSaving || pendingTabLoading}>
+                    }} disabled={pendingTabSaving || pendingTabLoading || paidOnTab > 0}>
                       Annuler la fiche
                     </Button>
+                    {paidOnTab > 0 && (
+                      <p className="text-[10px] text-destructive col-span-2 -mt-1 text-center">
+                        Impossible d'annuler : un paiement partiel a déjà été enregistré
+                      </p>
+                    )}
                     <Button onClick={async () => {
                       await savePendingTabDraft();
                       await loadData(activeBranchId);
@@ -1852,7 +1871,7 @@ export default function POSPage() {
                     </Button>
                   </div>
                   <Button onClick={handleOpenEncaisser} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading || encaisserProcessing} className="w-full bg-primary h-11 text-base font-semibold">
-                    Encaisser la fiche • {format(total)}
+                    Encaisser la fiche • {paidOnTab > 0 ? format(remainingBalance) : format(total)}
                   </Button>
                 </div>
               ) : (
@@ -1927,9 +1946,15 @@ export default function POSPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-4 py-3">
-              <span className="text-sm font-medium">Total fiche</span>
-              <span className="text-xl font-bold text-primary">{format(total)}</span>
+              <span className="text-sm font-medium">{paidOnTab > 0 ? "Reste à payer" : "Total fiche"}</span>
+              <span className="text-xl font-bold text-primary">{format(paidOnTab > 0 ? remainingBalance : total)}</span>
             </div>
+            {paidOnTab > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground px-1">
+                <span>Total initial</span>
+                <span>{format(total)}</span>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs">Montant donné par le client</Label>
               <div className="relative">
@@ -1938,7 +1963,7 @@ export default function POSPage() {
                   type="number"
                   min={0}
                   step="any"
-                  placeholder={`Ex: ${format(total)}`}
+                  placeholder={`Ex: ${format(paidOnTab > 0 ? remainingBalance : total)}`}
                   className="pl-8"
                   value={encaisserAmount}
                   onChange={(e) => {
@@ -1949,17 +1974,17 @@ export default function POSPage() {
                 />
               </div>
             </div>
-            {typeof encaisserAmount === "number" && encaisserAmount >= total && (
+            {typeof encaisserAmount === "number" && encaisserAmount >= remainingBalance && (
               <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
                 <span className="text-sm font-semibold text-green-700 dark:text-green-400">Monnaie à rendre</span>
-                <span className="text-xl font-bold text-green-700 dark:text-green-400">{format(encaisserAmount - total)}</span>
+                <span className="text-xl font-bold text-green-700 dark:text-green-400">{format(encaisserAmount - remainingBalance)}</span>
               </div>
             )}
-            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && !encaisserCreditConfirm && (
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < remainingBalance && !encaisserCreditConfirm && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-3">
                   <span className="text-sm font-semibold text-orange-600">Paiement partiel</span>
-                  <span className="text-sm font-bold text-orange-600">{format(total - encaisserAmount)} restant</span>
+                  <span className="text-sm font-bold text-orange-600">{format(remainingBalance - encaisserAmount)} restant</span>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm">
                   <p className="font-medium mb-1">Accorder un crédit à ce client ?</p>
@@ -1967,7 +1992,7 @@ export default function POSPage() {
                 </div>
               </div>
             )}
-            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && encaisserCreditConfirm && (
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < remainingBalance && encaisserCreditConfirm && (
               <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
                 <span className="text-sm font-semibold text-blue-600">Crédit confirmé</span>
                 <span className="text-sm font-bold text-blue-600">Payé: {format(encaisserAmount)}</span>
@@ -1982,7 +2007,7 @@ export default function POSPage() {
             }}>
               Annuler
             </Button>
-            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && !encaisserCreditConfirm ? (
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < remainingBalance && !encaisserCreditConfirm ? (
               <>
                 <Button variant="destructive" onClick={() => {
                   setEncaisserCreditConfirm(false);
