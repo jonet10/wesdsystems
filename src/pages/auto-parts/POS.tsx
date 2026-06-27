@@ -151,13 +151,13 @@ export default function AutoPartsPOSPage() {
         discount_amount: discountAmount,
         total,
         payment_method: paymentMethod,
-        payment_status: "paid",
+        payment_status: typeof amountTendered === "number" && amountTendered < total ? "partial" : "paid",
         client_id: selectedClient?.id ?? null,
         client_name: selectedClient?.name ?? undefined,
         staff_id: selectedStaff || null,
         items: cart,
       });
-      const tendered = typeof amountTendered === "number" && amountTendered >= total ? amountTendered : total;
+      const tendered = typeof amountTendered === "number" ? amountTendered : total;
       const change = tendered - total;
       setReceiptSnapshot({
         cart: [...cart],
@@ -378,9 +378,9 @@ export default function AutoPartsPOSPage() {
                     </div>
                   )}
                   {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
-                    <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
-                      <span className="text-sm font-semibold text-red-600">⚠️ Montant insuffisant</span>
-                      <span className="text-sm font-bold text-red-600">{format(total - amountTendered)} manquant</span>
+                    <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-xl px-4 py-3">
+                      <span className="text-sm font-semibold text-orange-600">⚠️ Paiement partiel (Crédit)</span>
+                      <span className="text-sm font-bold text-orange-600">{format(total - amountTendered)} restant</span>
                     </div>
                   )}
                 </div>

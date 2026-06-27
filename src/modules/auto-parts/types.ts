@@ -84,6 +84,7 @@ export interface AutoPartsClient {
   address?: string;
   company?: string;
   notes?: string;
+  credit_balance?: number;
   created_at: string;
 }
 

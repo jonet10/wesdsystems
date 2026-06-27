@@ -61,6 +61,10 @@ export default function AutoPartsClientsPage() {
               { key: "phone", label: "Téléphone", render: (r) => r.phone || "-" },
               { key: "email", label: "Email", render: (r) => r.email || "-" },
               { key: "company", label: "Compagnie", render: (r) => r.company || "-" },
+              { key: "credit", label: "Solde dû", render: (r) => {
+                  const bal = Number(r.credit_balance || 0);
+                  return bal > 0 ? <span className="font-bold text-red-600">{bal}</span> : <span className="text-muted-foreground">-</span>;
+              }},
               ...(canManage ? [{ key: "actions", label: "Actions", render: (r: AutoPartsClient) => (
                 <div className="flex gap-2">
                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>

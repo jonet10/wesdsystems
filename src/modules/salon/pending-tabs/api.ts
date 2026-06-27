@@ -184,21 +184,28 @@ const makeTabNumber = (branchId: string, tabs: PendingTabDetail[]) => {
   return `${prefix}-${today}-${next}`;
 };
 
-const mapLocalSummary = (tab: PendingTabDetail): PendingTabSummary => ({
-  id: tab.id,
-  tab_number: tab.tab_number,
-  label: tab.label,
-  client_id: tab.client_id,
-  guest_name: tab.guest_name,
-  status: tab.status,
-  branch_id: tab.branch_id,
-  cashier_id: tab.cashier_id,
-  opened_at: tab.opened_at,
-  closed_at: tab.closed_at,
-  notes: tab.notes,
-  items_count: tab.items.reduce((sum, item) => sum + toNumber(item.quantity), 0),
-  total_amount: tab.items.reduce((sum, item) => sum + toNumber(item.subtotal), 0),
-});
+const mapLocalSummary = (tab: PendingTabDetail): PendingTabSummary => {
+  const summary: PendingTabSummary = {
+    id: tab.id,
+    tab_number: tab.tab_number,
+    label: tab.label,
+    client_id: tab.client_id,
+    guest_name: tab.guest_name,
+    status: tab.status,
+    branch_id: tab.branch_id,
+    cashier_id: tab.cashier_id,
+    opened_at: tab.opened_at,
+    closed_at: tab.closed_at,
+    notes: tab.notes,
+    items_count: tab.items.reduce((sum, item) => sum + toNumber(item.quantity), 0),
+    total_amount: tab.items.reduce((sum, item) => sum + toNumber(item.subtotal), 0),
+  };
+  const totalPaid = (tab as any)._total_paid;
+  if (totalPaid && totalPaid > 0) {
+    (summary as any)._total_paid = totalPaid;
+  }
+  return summary;
+};
 
 const createLocalTab = (input: PendingTabCreateInput): PendingTabDetail => {
   const state = readLocalState();
@@ -325,28 +332,30 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
     );
     if (saleItemError) throw new Error(saleItemError.message);
 
-    if (Array.isArray(input.payment_splits) && input.payment_splits.length > 0) {
-      const { error: paymentError } = await supabase.from("salon_sale_payments").insert(
-        input.payment_splits.map((split) => ({
+    try {
+      if (Array.isArray(input.payment_splits) && input.payment_splits.length > 0) {
+        await supabase.from("salon_sale_payments").insert(
+          input.payment_splits.map((split) => ({
+            sale_id: sale.id,
+            business_id: businessId,
+            branch_id: tab.branch_id,
+            payment_method: split.method || input.payment_method,
+            amount: Number(split.amount || 0),
+            currency_code: input.currency_code || "HTG",
+          }))
+        );
+      } else {
+        await supabase.from("salon_sale_payments").insert({
           sale_id: sale.id,
           business_id: businessId,
           branch_id: tab.branch_id,
-          payment_method: split.method || input.payment_method,
-          amount: Number(split.amount || 0),
+          payment_method: input.payment_method,
+          amount: Number(input.amount_paid || totalAmount),
           currency_code: input.currency_code || "HTG",
-        }))
-      );
-      if (paymentError) throw new Error(paymentError.message);
-    } else {
-      const { error: paymentError } = await supabase.from("salon_sale_payments").insert({
-        sale_id: sale.id,
-        business_id: businessId,
-        branch_id: tab.branch_id,
-        payment_method: input.payment_method,
-        amount: Number(input.amount_paid || totalAmount),
-        currency_code: input.currency_code || "HTG",
-      });
-      if (paymentError) throw new Error(paymentError.message);
+        });
+      }
+    } catch (paymentErr: any) {
+      console.warn("Détails de paiement non enregistrés:", paymentErr?.message);
     }
 
     for (const item of saleItems) {
@@ -368,15 +377,19 @@ const checkoutLocalTab = (tab: PendingTabDetail, input: PendingTabCheckoutInput)
         .eq("id", item.item_id);
       if (updateError) throw new Error(updateError.message);
 
-      await recordStockMovement({
-        business_id: businessId,
-        branch_id: tab.branch_id,
-        product_id: item.item_id,
-        movement_type: "sale",
-        quantity_delta: -Number(item.quantity || 0),
-        reason: `Vente fiche #${tab.tab_number}`,
-        reference_id: sale.id,
-      });
+      try {
+        await recordStockMovement({
+          business_id: businessId,
+          branch_id: tab.branch_id,
+          product_id: item.item_id,
+          movement_type: "sale",
+          quantity_delta: -Number(item.quantity || 0),
+          reason: `Vente fiche #${tab.tab_number}`,
+          reference_id: sale.id,
+        });
+      } catch (err: any) {
+        console.warn("Mouvement stock produit non enregistré:", err.message);
+      }
     }
 
     const hasServices = saleItems.some((item) => item.item_type === "service");
@@ -587,6 +600,25 @@ export async function checkoutPendingTab(tabId: string, input: PendingTabCheckou
       if (!tab) throw new Error("Fiche introuvable");
       const result = checkoutLocalTab(tab, input) as unknown as { sale: any; items: any[]; tab: PendingTabDetail | null };
       return result;
+    }
+  );
+}
+
+export async function recordTabPayment(tabId: string, amount: number) {
+  return withLocalFallback(
+    () => fetchJson<{ success: boolean }>(`/${encodeURIComponent(tabId)}/pay`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    }),
+    () => {
+      const state = readLocalState();
+      const tab = state.tabs.find((t) => t.id === tabId);
+      if (!tab) throw new Error("Fiche introuvable");
+      const totalPaid = (tab as any)._total_paid || 0;
+      (tab as any)._total_paid = totalPaid + amount;
+      writeLocalState(state);
+      return { success: true };
     }
   );
 }

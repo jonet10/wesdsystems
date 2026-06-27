@@ -87,6 +87,7 @@ export default function ClientsPage() {
     lastVisit: client.last_visit ? new Date(client.last_visit).toLocaleDateString() : "Jamais",
     visits: client.visit_count || 0,
     totalSpent: client.total_spent ? format(client.total_spent) : format(0),
+    creditBalance: Number(client.credit_balance || 0),
   });
 
   const clients = useMemo(() => {
@@ -348,9 +349,17 @@ export default function ClientsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
-                  <span className="text-sm text-muted-foreground">Total dépensé</span>
-                  <span className="font-semibold text-primary">{client.totalSpent}</span>
+                <div className="flex flex-col gap-2 pt-4 border-t border-border mt-auto">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Total dépensé</span>
+                    <span className="font-semibold text-primary">{client.totalSpent}</span>
+                  </div>
+                  {(client as any).creditBalance > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-red-600">Solde dû (Crédit)</span>
+                      <span className="font-bold text-red-600">{format((client as any).creditBalance)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

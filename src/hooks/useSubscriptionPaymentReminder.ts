@@ -53,7 +53,7 @@ const formatDaysRemaining = (daysRemaining: number | null) => {
   return `dans ${daysRemaining} jours`;
 };
 
-function computeDaysRemaining(endDate: string | null): number | null {
+export function computeDaysRemaining(endDate: string | null): number | null {
   if (!endDate) return null;
   const [y, m, d] = endDate.split('-').map(Number);
   const end = new Date(y, m - 1, d, 23, 59, 59, 999);

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Building2, Users, GitBranch, CalendarDays, TrendingUp, Sparkles, Zap, RotateCcw, Play } from "lucide-react";
 import { useBusinessSubscription } from "@/hooks/useBusinessSubscription";
+import { useSubscriptionPaymentReminder, computeDaysRemaining } from "@/hooks/useSubscriptionPaymentReminder";
 import type { SubscriptionPlan } from "@/lib/saas";
 import type { SubscriptionPayment } from "@/lib/payment-providers";
 import { formatLimit } from "@/lib/saas";
@@ -67,9 +68,7 @@ export function SubscriptionDashboard() {
   const isExpired = subscription?.status === "expired";
   const isActive = subscription?.status === "active";
 
-  const daysRemaining = subscription?.end_date
-    ? Math.ceil((new Date(`${subscription.end_date}T23:59:59`).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : null;
+  const daysRemaining = subscription?.end_date ? computeDaysRemaining(subscription.end_date) : null;
 
   useEffect(() => {
     if (!businessId) return;
@@ -180,7 +179,9 @@ export function SubscriptionDashboard() {
             <h3 className="text-lg font-semibold font-display">Forfaits disponibles</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {availablePlans.map((p) => {
+            {availablePlans
+              .filter((p) => !plan || p.price >= Number(plan.monthly_price || 0))
+              .map((p) => {
               const isCurrentPlan = plan?.id === p.id;
               const isUpgrade = p.price > (plan ? Number(plan.monthly_price || 0) : 0);
 

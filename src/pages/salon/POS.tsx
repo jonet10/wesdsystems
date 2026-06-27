@@ -34,6 +34,7 @@ import {
   findClientOptions as findPendingTabClientOptions,
   getPendingTab,
   listPendingTabs,
+  recordTabPayment,
   updatePendingTabItem,
 } from "@/modules/salon/pending-tabs";
 import type { PendingTabDetail, PendingTabSummary } from "@/modules/salon/pending-tabs";
@@ -258,6 +259,12 @@ export default function POSPage() {
   const [pendingTabClientLoading, setPendingTabClientLoading] = useState(false);
   const [pendingTabSaving, setPendingTabSaving] = useState(false);
   const [pendingTabLoading, setPendingTabLoading] = useState(false);
+
+  // ── Encaisser (payment-on-tab) dialog ──
+  const [encaisserDialogOpen, setEncaisserDialogOpen] = useState(false);
+  const [encaisserAmount, setEncaisserAmount] = useState<number | "">("");
+  const [encaisserCreditConfirm, setEncaisserCreditConfirm] = useState(false);
+  const [encaisserProcessing, setEncaisserProcessing] = useState(false);
 
   useEffect(() => {
     if (normalizeEmployeeRole(employeeSession?.role) === "cashier") {
@@ -968,6 +975,119 @@ export default function POSPage() {
     return null;
   };
 
+  const handleOpenEncaisser = async () => {
+    if (!activePendingTab) return;
+    if (cart.length === 0) return;
+    setEncaisserProcessing(true);
+    try {
+      await savePendingTabDraft();
+      await loadPendingTabs();
+      setEncaisserAmount("");
+      setEncaisserCreditConfirm(false);
+      setEncaisserDialogOpen(true);
+    } finally {
+      setEncaisserProcessing(false);
+    }
+  };
+
+  const handleConfirmEncaisser = async () => {
+    if (!activePendingTab || encaisserAmount === "" || typeof encaisserAmount !== "number") return;
+    if (encaisserAmount <= 0) {
+      toast.error("Veuillez entrer un montant valide");
+      return;
+    }
+    if (encaisserAmount < total && !encaisserCreditConfirm) {
+      setEncaisserCreditConfirm(true);
+      return;
+    }
+
+    const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
+    const isFullPayment = encaisserAmount >= total;
+    const paidAmount = isFullPayment ? total : encaisserAmount;
+    const encaisserItems = pendingTabDraftItems.map(i => ({
+      name: i.name,
+      item_name: i.name,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      discount: i.discount || 0,
+    }));
+
+    // Record payment in local storage (tracks remaining balance on tab)
+    try {
+      await recordTabPayment(activePendingTab.id, paidAmount);
+    } catch (err: any) {
+      console.warn("Paiement non enregistré localement:", err?.message);
+    }
+
+    // Try to record the payment in Supabase (non-fatal — RLS may block employee sessions)
+    let businessId = authProfile?.business_id ?? null;
+    if (!businessId && user?.id) {
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      businessId = profileRow?.business_id ?? null;
+    }
+    if (businessId && activeBranchId) {
+      try {
+        const { data: sale } = await supabase
+          .from("salon_sales")
+          .insert({
+            business_id: businessId,
+            branch_id: activeBranchId,
+            customer_name: activePendingTab.label,
+            payment_method: "cash",
+            total_amount: paidAmount,
+            discount_amount: 0,
+            tax_amount: 0,
+            cashier_name: cashierName,
+          })
+          .select("id")
+          .single();
+        if (sale?.id) {
+          await supabase.from("salon_sale_payments").insert({
+            sale_id: sale.id,
+            business_id: businessId,
+            branch_id: activeBranchId,
+            payment_method: "cash",
+            amount: paidAmount,
+            currency_code: "HTG",
+          });
+        }
+      } catch (err: any) {
+        console.warn("Paiement partiel non enregistré en base:", err?.message);
+      }
+    }
+
+    setAmountTendered(encaisserAmount);
+    setLastSale({
+      id: `encaisser-${Date.now()}`,
+      sale_number: null,
+      total_amount: total,
+      discount_amount: totalDiscount,
+      items: encaisserItems,
+      customer: activePendingTab.label,
+      payment: "cash",
+      cashier_name: cashierName,
+      tab_number: activePendingTab.tab_number,
+      label: activePendingTab.label,
+      opened_at: activePendingTab.opened_at,
+      closed_at: new Date().toISOString(),
+      _encaisser: true,
+      _amountPaid: paidAmount,
+      _changeGiven: isFullPayment ? encaisserAmount - total : 0,
+      _balanceRemaining: isFullPayment ? 0 : total - paidAmount,
+    });
+    setShowReceipt(true);
+    setEncaisserDialogOpen(false);
+    setEncaisserAmount("");
+    setEncaisserCreditConfirm(false);
+
+    // Reload tabs so remaining balance updates on the tab card
+    await loadPendingTabs();
+  };
+
   const checkout = async () => {
     if (cart.length === 0) return toast.error("Panier vide");
     if (requiresEmployee && !selectedEmployee) {
@@ -1003,6 +1123,8 @@ export default function POSPage() {
         toast.success("Fiche encaissée avec succès !");
         setLastSale({
           ...checkoutResult.sale,
+          total_amount: total,
+          discount_amount: totalDiscount,
           items: checkoutResult.items,
           customer: activePendingTab.label,
           payment: paymentMethod,
@@ -1139,7 +1261,7 @@ export default function POSPage() {
 
       toast.success("Vente enregistrée avec succès !");
 
-      setLastSale({ ...sale, items: cart, customer: selectedClient?.name || "", payment: paymentMethod, cashier_name: cashierName });
+      setLastSale({ ...sale, total_amount: total, discount_amount: totalDiscount, items: cart, customer: selectedClient?.name || "", payment: paymentMethod, cashier_name: cashierName });
       setShowReceipt(true);
       setCart([]);
       setSelectedClient(null);
@@ -1182,7 +1304,13 @@ export default function POSPage() {
         discount: lastSale.discount_amount,
         total: lastSale.total_amount,
       },
-      payment: {
+      payment: lastSale._encaisser ? {
+        method: "ESPÈCES",
+        amountReceived: lastSale._amountPaid,
+        amountTendered: lastSale._changeGiven > 0 ? lastSale._amountPaid + lastSale._changeGiven : lastSale._amountPaid,
+        changeGiven: lastSale._changeGiven > 0 ? lastSale._changeGiven : undefined,
+        balanceRemaining: lastSale._balanceRemaining > 0 ? lastSale._balanceRemaining : undefined,
+      } : {
         method: lastSale.payment === "cash" ? "ESPÈCES" :
                 lastSale.payment === "card" ? "CARTE" :
                 lastSale.payment === "moncash" ? "MONCASH" :
@@ -1304,8 +1432,10 @@ export default function POSPage() {
                                 {tab.tab_number}
                               </p>
                             </div>
-                            <Badge variant={active ? "default" : "outline"} className="text-[10px] h-5">
-                              {format(tab.total_amount)}
+                            <Badge variant={active ? "default" : "outline"} className={cn("text-[10px] h-5", (tab as any)._total_paid > 0 && "text-amber-600 border-amber-400")}>
+                              {(tab as any)._total_paid > 0
+                                ? `Solde: ${format(tab.total_amount - (tab as any)._total_paid)}`
+                                : format(tab.total_amount)}
                             </Badge>
                           </div>
                           <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
@@ -1389,50 +1519,53 @@ export default function POSPage() {
               )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <ScrollArea className="flex-1 pr-2 -mr-2 min-h-0">
-                {cart.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">
-                      {activePendingTab ? "Ajoutez des articles à la fiche" : "Ajoutez des articles pour commencer"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {cart.map(item => (
-                      <div key={item.key} className={cn(
-                        "flex items-center gap-2 p-2 rounded-lg",
-                        item.promotion_applied ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-muted/40"
-                      )}>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{item.name}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="text-xs text-muted-foreground">{format(item.unit_price)} × {item.quantity}</p>
-                            {item.promotion_applied && (
-                              <Badge variant="secondary" className="text-[10px] px-1 h-4">
-                                <Tag className="h-2.5 w-2.5 mr-0.5" /> Promo
-                              </Badge>
-                            )}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <ScrollArea className="h-full">
+                  {cart.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">
+                        {activePendingTab ? "Ajoutez des articles à la fiche" : "Ajoutez des articles pour commencer"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {cart.map(item => (
+                        <div key={item.key} className={cn(
+                          "flex items-center gap-2 p-2 rounded-lg",
+                          item.promotion_applied ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-muted/40"
+                        )}>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{item.name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs text-muted-foreground">{format(item.unit_price)} × {item.quantity}</p>
+                              {item.promotion_applied && (
+                                <Badge variant="secondary" className="text-[10px] px-1 h-4">
+                                  <Tag className="h-2.5 w-2.5 mr-0.5" /> Promo
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, -1)}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, 1)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.key)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, -1)}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, 1)}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.key)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
 
+              <div className="shrink-0 space-y-3">
               {/* Employee Selector */}
               {requiresEmployee && (
                 <div className="mt-2">
@@ -1686,9 +1819,9 @@ export default function POSPage() {
                     </div>
                   )}
                   {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
-                    <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
-                      <span className="text-sm font-semibold text-red-600">⚠️ Insuffisant</span>
-                      <span className="text-sm font-bold text-red-600">{format(total - amountTendered)} manquant</span>
+                    <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-orange-600">⚠️ Paiement partiel (Crédit)</span>
+                      <span className="text-sm font-bold text-orange-600">{format(total - amountTendered)} restant</span>
                     </div>
                   )}
                 </div>
@@ -1718,7 +1851,7 @@ export default function POSPage() {
                       Ajouter au tab
                     </Button>
                   </div>
-                  <Button onClick={checkout} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="w-full bg-primary h-11 text-base font-semibold">
+                  <Button onClick={handleOpenEncaisser} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading || encaisserProcessing} className="w-full bg-primary h-11 text-base font-semibold">
                     Encaisser la fiche • {format(total)}
                   </Button>
                 </div>
@@ -1737,6 +1870,7 @@ export default function POSPage() {
                   </div>
                 </div>
               )}
+              </div>
             </CardContent>
           </Card>
         </StaggerItem>
@@ -1776,6 +1910,100 @@ export default function POSPage() {
             <Button variant="outline" onClick={() => setOptionsModalOpen(false)}>Annuler</Button>
             <Button onClick={confirmServiceOptions}>Ajouter au panier</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal : Encaisser la fiche (paiement sur fiche) ────────────── */}
+      <Dialog open={encaisserDialogOpen} onOpenChange={(open) => {
+        if (!open) { setEncaisserCreditConfirm(false); setEncaisserAmount(""); }
+        setEncaisserDialogOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Encaisser la fiche</DialogTitle>
+            <DialogDescription>
+              {activePendingTab?.label} — {activePendingTab?.tab_number}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-4 py-3">
+              <span className="text-sm font-medium">Total fiche</span>
+              <span className="text-xl font-bold text-primary">{format(total)}</span>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Montant donné par le client</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">G</span>
+                <Input
+                  type="number"
+                  min={0}
+                  step="any"
+                  placeholder={`Ex: ${format(total)}`}
+                  className="pl-8"
+                  value={encaisserAmount}
+                  onChange={(e) => {
+                    setEncaisserAmount(e.target.value === "" ? "" : Number(e.target.value));
+                    setEncaisserCreditConfirm(false);
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleConfirmEncaisser(); }}
+                />
+              </div>
+            </div>
+            {typeof encaisserAmount === "number" && encaisserAmount >= total && (
+              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+                <span className="text-sm font-semibold text-green-700 dark:text-green-400">Monnaie à rendre</span>
+                <span className="text-xl font-bold text-green-700 dark:text-green-400">{format(encaisserAmount - total)}</span>
+              </div>
+            )}
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && !encaisserCreditConfirm && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-3">
+                  <span className="text-sm font-semibold text-orange-600">Paiement partiel</span>
+                  <span className="text-sm font-bold text-orange-600">{format(total - encaisserAmount)} restant</span>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm">
+                  <p className="font-medium mb-1">Accorder un crédit à ce client ?</p>
+                  <p className="text-muted-foreground text-xs">Le solde restant sera dû par le client. La fiche reste en attente.</p>
+                </div>
+              </div>
+            )}
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && encaisserCreditConfirm && (
+              <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+                <span className="text-sm font-semibold text-blue-600">Crédit confirmé</span>
+                <span className="text-sm font-bold text-blue-600">Payé: {format(encaisserAmount)}</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              setEncaisserDialogOpen(false);
+              setEncaisserCreditConfirm(false);
+              setEncaisserAmount("");
+            }}>
+              Annuler
+            </Button>
+            {typeof encaisserAmount === "number" && encaisserAmount > 0 && encaisserAmount < total && !encaisserCreditConfirm ? (
+              <>
+                <Button variant="destructive" onClick={() => {
+                  setEncaisserCreditConfirm(false);
+                  setEncaisserAmount("");
+                  setEncaisserDialogOpen(false);
+                }}>
+                  Non
+                </Button>
+                <Button onClick={() => setEncaisserCreditConfirm(true)}>
+                  Oui, créditer
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={handleConfirmEncaisser}
+                disabled={encaisserAmount === "" || typeof encaisserAmount !== "number" || encaisserAmount <= 0}
+              >
+                Confirmer
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1828,7 +2056,13 @@ export default function POSPage() {
                     discount: lastSale?.discount_amount,
                     total: lastSale?.total_amount || 0,
                   },
-                  payment: {
+                  payment: lastSale?._encaisser ? {
+                    method: "ESPÈCES",
+                    amountReceived: lastSale._amountPaid,
+                    amountTendered: lastSale._changeGiven > 0 ? lastSale._amountPaid + lastSale._changeGiven : lastSale._amountPaid,
+                    changeGiven: lastSale._changeGiven > 0 ? lastSale._changeGiven : undefined,
+                    balanceRemaining: lastSale._balanceRemaining > 0 ? lastSale._balanceRemaining : undefined,
+                  } : {
                     method: lastSale?.payment === "cash" ? "ESPÈCES" :
                             lastSale?.payment === "card" ? "CARTE" :
                             lastSale?.payment === "moncash" ? "MONCASH" :
