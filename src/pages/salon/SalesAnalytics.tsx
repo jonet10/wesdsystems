@@ -52,10 +52,21 @@ export default function SalesAnalyticsPage() {
 
       const [{ data: s }, { data: i }] = await Promise.all([
         supabase.from("salon_sales").select("id, total_amount, return_amount, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(500),
-        supabase.from("salon_sale_items").select("item_type, item_name, quantity, total_price, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(2000),
+        supabase.from("salon_sale_items").select("product_id, service_id, quantity, total_price, created_at, salon_products(name), salon_services(name)").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(2000),
       ]);
       setSales(((s || []).map((x: any) => ({ ...x, total_amount: Number(x.total_amount || 0), return_amount: Number(x.return_amount || 0) })) as Sale[]));
-      setItems(((i || []).map((x: any) => ({ ...x, quantity: Number(x.quantity || 0), total_price: Number(x.total_price || 0) })) as SaleItem[]));
+      
+      const mappedItems = (i || []).map((x: any) => {
+        const isProduct = !!x.product_id;
+        const isService = !!x.service_id;
+        return {
+          item_type: isProduct ? "product" : isService ? "service" : "other",
+          item_name: x.salon_products?.name || x.salon_services?.name || "Article",
+          quantity: Number(x.quantity || 0),
+          total_price: Number(x.total_price || 0),
+        };
+      });
+      setItems(mappedItems as SaleItem[]);
     };
     void load();
   }, [activeBranchId]);

@@ -45,7 +45,7 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
       
       let query = supabase
         .from("commission_transactions")
-        .select("*, salon_sales!sale_id(sale_number, tab_number)")
+        .select("*")
         .eq("employee_id", employeeId);
 
       if (filterRange === "week") {
@@ -60,11 +60,43 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
         query = query.gte("calculated_at", startOfMonth.toISOString());
       }
 
-      const { data } = await query
+      const { data: txsData, error: txsError } = await query
         .order("calculated_at", { ascending: false })
         .limit(100);
 
-      setTxs((data || []) as CommissionTx[]);
+      if (txsError) {
+        console.error("Error loading commissions:", txsError.message);
+        setTxs([]);
+        setLoading(false);
+        return;
+      }
+
+      const safeTxs = txsData || [];
+      const saleIds = Array.from(new Set(safeTxs.map((tx: any) => tx.sale_id).filter(Boolean)));
+
+      const salesMap = new Map<string, { sale_number: string; tab_number: string | null }>();
+      if (saleIds.length > 0) {
+        const { data: salesData } = await supabase
+          .from("salon_sales")
+          .select("id, sale_number, tab_number")
+          .in("id", saleIds);
+
+        if (salesData) {
+          salesData.forEach((s: any) => {
+            salesMap.set(s.id, {
+              sale_number: s.sale_number,
+              tab_number: s.tab_number,
+            });
+          });
+        }
+      }
+
+      const mergedTxs = safeTxs.map((tx: any) => ({
+        ...tx,
+        salon_sales: tx.sale_id ? salesMap.get(tx.sale_id) || null : null,
+      }));
+
+      setTxs(mergedTxs as CommissionTx[]);
       setLoading(false);
     };
     load();
