@@ -1123,6 +1123,8 @@ export default function POSPage() {
         });
 
         toast.success("Fiche encaissée avec succès !");
+        const pendingBarberObj = employees.find(e => e.id === (selectedEmployee || checkoutResult.sale?.employee_id));
+        const pendingBarberName = pendingBarberObj ? `${pendingBarberObj.first_name} ${pendingBarberObj.last_name}`.trim() : "";
         setLastSale({
           ...checkoutResult.sale,
           total_amount: total,
@@ -1135,6 +1137,7 @@ export default function POSPage() {
           label: activePendingTab.label,
           opened_at: activePendingTab.opened_at,
           closed_at: checkoutResult.sale.closed_at,
+          barber_name: pendingBarberName,
         });
         setShowReceipt(true);
         leavePendingTabMode();
@@ -1262,8 +1265,19 @@ export default function POSPage() {
       }
 
       toast.success("Vente enregistrée avec succès !");
+      const directBarberObj = employees.find(e => e.id === selectedEmployee);
+      const directBarberName = directBarberObj ? `${directBarberObj.first_name} ${directBarberObj.last_name}`.trim() : "";
 
-      setLastSale({ ...sale, total_amount: total, discount_amount: totalDiscount, items: cart, customer: selectedClient?.name || "", payment: paymentMethod, cashier_name: cashierName });
+      setLastSale({
+        ...sale,
+        total_amount: total,
+        discount_amount: totalDiscount,
+        items: cart,
+        customer: selectedClient?.name || "",
+        payment: paymentMethod,
+        cashier_name: cashierName,
+        barber_name: directBarberName,
+      });
       setShowReceipt(true);
       setCart([]);
       setSelectedClient(null);
@@ -1294,6 +1308,7 @@ export default function POSPage() {
         cashierName: lastSale.cashier_name || employeeSession?.full_name || "Caisse",
         clientName: lastSale.customer || "",
         cashRegister: "CAISSE SALON",
+        barberName: lastSale.barber_name,
       },
       items: lastSale.items?.map((i: any) => ({
         name: i.name || i.item_name,
@@ -2069,6 +2084,7 @@ export default function POSPage() {
                     cashierName: lastSale?.cashier_name || employeeSession?.full_name || "Caisse",
                     clientName: lastSale?.customer || "",
                     cashRegister: "CAISSE SALON",
+                    barberName: lastSale?.barber_name,
                   },
                   items: lastSale?.items?.map((i: any) => ({
                     name: i.name || i.item_name,

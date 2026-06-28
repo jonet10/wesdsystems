@@ -33,6 +33,7 @@ export interface ReceiptData {
     clientName?: string;
     clientLabel?: string;
     clientPhone?: string;
+    barberName?: string;
   };
   items: ReceiptItem[];
   totals: {
@@ -130,6 +131,12 @@ export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
             <div>
               <span>Tél : </span>
               <span>{transaction.clientPhone}</span>
+            </div>
+          )}
+          {transaction.barberName && (
+            <div>
+              <span>Barbier/Coiffeur : </span>
+              <span>{transaction.barberName}</span>
             </div>
           )}
         </div>
