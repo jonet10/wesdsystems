@@ -1546,7 +1546,7 @@ export default function POSPage() {
       }
 
       // Calculate commissions
-      if (selectedEmployee && requiresEmployee) {
+      if (selectedEmployee) {
         for (const item of cart) {
           if (item.type === "service" && businessId) {
             const rate = await getCommissionRate(selectedEmployee, item.item_id);
