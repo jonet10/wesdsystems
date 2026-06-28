@@ -17,6 +17,10 @@ interface CommissionTx {
   status: string;
   calculated_at: string;
   paid_at: string | null;
+  salon_sales: {
+    sale_number: string;
+    tab_number: string | null;
+  } | null;
 }
 
 interface Props {
@@ -41,7 +45,7 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
       
       let query = supabase
         .from("commission_transactions")
-        .select("*")
+        .select("*, salon_sales ( sale_number, tab_number )")
         .eq("employee_id", employeeId);
 
       if (filterRange === "week") {
@@ -70,6 +74,13 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
     return txs.reduce((acc, tx) => acc + Number(tx.commission_amount || 0), 0);
   }, [txs]);
 
+  const getReceiptNumber = (tx: CommissionTx) => {
+    if (!tx.salon_sales) return "-";
+    return tx.salon_sales.tab_number 
+      ? `FICHE-${tx.salon_sales.tab_number}` 
+      : tx.salon_sales.sale_number;
+  };
+
   const handlePrintReport = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -82,8 +93,8 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
         <td style="padding: 8px; border-bottom: 1px solid #ddd;">
           ${tx.rate_type === "percentage" ? `${tx.rate_value}% sur ${format(tx.sale_amount)}` : `${format(tx.rate_value)} fixe`}
         </td>
-        <td style="padding: 8px; border-bottom: 1px solid #ddd;">
-          ${tx.status === "paid" ? "Payé" : tx.status === "approved" ? "Approuvé" : tx.status === "cancelled" ? "Annulé" : "En attente"}
+        <td style="padding: 8px; border-bottom: 1px solid #ddd; font-weight: 500;">
+          ${getReceiptNumber(tx)}
         </td>
         <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right; font-weight: bold; color: #10b981;">
           ${format(tx.commission_amount)}
@@ -113,7 +124,7 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
               <tr>
                 <th>Date</th>
                 <th>Calcul</th>
-                <th>Statut</th>
+                <th>N° Reçu</th>
                 <th style="text-align: right;">Commission</th>
               </tr>
             </thead>
@@ -198,15 +209,21 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
             {txs.map((tx) => (
               <div key={tx.id} className="flex items-center justify-between bg-muted/30 rounded-lg p-3 border border-border/50">
                 <div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(tx.calculated_at).toLocaleDateString("fr-FR")}
-                  </p>
-                  <p className="text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground font-semibold">
+                      {getReceiptNumber(tx)}
+                    </p>
+                    <span className="text-muted-foreground/40">•</span>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(tx.calculated_at).toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                  <p className="text-sm font-medium mt-0.5">
                     {tx.rate_type === "percentage"
                       ? `${tx.rate_value}% sur ${format(tx.sale_amount)}`
                       : `${format(tx.rate_value)} fixe`}
                   </p>
-                  <div className="mt-1">
+                  <div className="mt-1.5">
                     {statusBadge(tx.status)}
                   </div>
                 </div>
