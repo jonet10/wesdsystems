@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -2233,25 +2234,22 @@ export default function POSPage() {
                   {/* Moyen de paiement */}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold">Moyen de paiement</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: "cash", label: "Espèces", icon: Banknote },
-                        { id: "moncash", label: "MonCash", icon: Wallet },
-                        { id: "natcash", label: "NatCash", icon: Wallet },
-                        { id: "card", label: "Carte", icon: CreditCard },
-                        { id: "mixed", label: "Mixte", icon: CreditCard },
-                      ].map(method => {
-                        const Icon = method.icon;
-                        return (
-                          <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"}
-                            className={cn("justify-start gap-2 h-9 text-xs", paymentMethod === method.id && "bg-primary")}
-                            onClick={() => setPaymentMethod(method.id as PaymentMethod)}>
-                            <Icon className="h-3.5 w-3.5" />
-                            {method.label}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    <Select
+                      value={paymentMethod}
+                      onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+                    >
+                      <SelectTrigger className="w-full h-9 text-xs bg-background">
+                        <SelectValue placeholder="Sélectionnez un mode de paiement" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Espèces</SelectItem>
+                        <SelectItem value="moncash">MonCash</SelectItem>
+                        <SelectItem value="natcash">NatCash</SelectItem>
+                        <SelectItem value="card">Carte</SelectItem>
+                        <SelectItem value="mixed">Mixte</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                     {paymentMethod === "mixed" && (
                       <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
@@ -2279,7 +2277,6 @@ export default function POSPage() {
                         </div>
                       </div>
                     )}
-                  </div>
 
                   {/* Montant donné + Monnaie rendue (cash seulement) */}
                   {paymentMethod === "cash" && (
