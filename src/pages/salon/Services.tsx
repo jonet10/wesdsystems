@@ -498,6 +498,8 @@ export default function ServicesPage() {
         return;
       }
 
+      await ensureDefaultServices(branchIdToUse);
+
       const [categoriesRes, servicesRes] = await Promise.all([
         supabase
           .from("salon_service_categories")
@@ -516,14 +518,9 @@ export default function ServicesPage() {
 
       const fetchedCategories = (categoriesRes.data || []) as ServiceCategory[];
       const fetchedServices = (servicesRes.data || []) as SalonService[];
+      
+      setCategories(fetchedCategories);
       setServices(fetchedServices);
-
-      if (!fetchedCategories.length || !fetchedServices.length) {
-        setCategories([]);
-        setServices([]);
-      } else {
-        setCategories(fetchedCategories);
-      }
 
       const { data: roleRows } = await supabase
         .from("service_role_requirements")
