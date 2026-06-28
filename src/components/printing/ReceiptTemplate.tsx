@@ -1,7 +1,6 @@
 import React, { forwardRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 export interface ReceiptItem {
   name: string;
@@ -45,8 +44,8 @@ export interface ReceiptData {
   payment: {
     method: string;
     amountReceived: number;
-    amountTendered?: number;   // montant donné par le client
-    changeGiven?: number;      // monnaie à remettre
+    amountTendered?: number;
+    changeGiven?: number;
     balanceRemaining?: number;
   };
   currencyCode: string;
@@ -55,207 +54,436 @@ export interface ReceiptData {
 interface ReceiptTemplateProps {
   data: ReceiptData;
   formatAmount: (amount: number) => string;
+  printerWidth?: string; // "58" | "80" | "A4" | "custom"
 }
 
-export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
-  ({ data, formatAmount }, ref) => {
-    const { business, transaction, items, totals, payment } = data;
+// ─── 1. TEMPLATE 58 MM (COMPACT) ───
+export const Receipt58Template = ({ data, formatAmount }: { data: ReceiptData; formatAmount: (amount: number) => string }) => {
+  const { business, transaction, items, totals, payment } = data;
+  const qrContent = `INV:${transaction.invoiceNumber}|DATE:${format(new Date(transaction.date), 'dd/MM/yyyy')}|AMT:${totals.total}`;
 
-    // Build QR Code content
-    const qrContent = `INV:${transaction.invoiceNumber}|DATE:${format(new Date(transaction.date), 'dd/MM/yyyy')}|AMT:${totals.total}`;
+  return (
+    <div className="receipt-58 bg-white text-black p-2 mx-auto" style={{ width: '58mm', fontSize: '11px', fontFamily: 'monospace', lineHeight: '1.2' }}>
+      <div className="text-center mb-2">
+        {business.logo_url && (
+          <img src={business.logo_url} alt="Logo" className="mx-auto mb-1" style={{ maxHeight: '40px', maxWidth: '100%', objectFit: 'contain' }} />
+        )}
+        <div className="font-bold text-sm uppercase">{business.name}</div>
+        <div className="text-[9px] mt-0.5">
+          {business.address && <div>{business.address}</div>}
+          {business.phone && <div>Tél : {business.phone}</div>}
+          {business.nif && <div>NIF : {business.nif}</div>}
+        </div>
+      </div>
+
+      <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
+
+      <div className="text-center font-bold text-xs uppercase my-1">
+        REÇU
+      </div>
+
+      {/* INFO TRANSACTION */}
+      <div className="text-[9px] space-y-0.5">
+        <div>{transaction.invoiceLabel || "Facture"} : #{transaction.invoiceNumber}</div>
+        <div>Date : {format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}</div>
+        {transaction.clientName && <div>Client : {transaction.clientName}</div>}
+        {transaction.barberName && <div>Barbier : {transaction.barberName}</div>}
+      </div>
+
+      <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
+
+      {/* ARTICLES */}
+      <div className="space-y-1">
+        {items.map((item, idx) => (
+          <div key={idx} className="text-[10px]">
+            <div className="font-bold">{item.name}</div>
+            <div className="flex justify-between">
+              <span>{item.quantity} x {formatAmount(item.price)}</span>
+              <span>{formatAmount(item.total)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
+
+      {/* TOTALS */}
+      <div className="space-y-0.5 text-[10px]">
+        <div className="flex justify-between">
+          <span>Sous-total</span>
+          <span>{formatAmount(totals.subtotal)}</span>
+        </div>
+        {(totals.discount || 0) > 0 && (
+          <div className="flex justify-between">
+            <span>Remise</span>
+            <span>-{formatAmount(totals.discount!)}</span>
+          </div>
+        )}
+        {(totals.tax || 0) > 0 && (
+          <div className="flex justify-between">
+            <span>Taxe</span>
+            <span>{formatAmount(totals.tax!)}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold text-xs pt-1">
+          <span>TOTAL</span>
+          <span>{formatAmount(totals.total)}</span>
+        </div>
+      </div>
+
+      <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
+
+      {/* PAYMENTS */}
+      <div className="text-[9px] space-y-0.5">
+        <div className="flex justify-between">
+          <span>Paiement : {payment.method}</span>
+          <span>{formatAmount(payment.amountReceived)}</span>
+        </div>
+        {payment.amountTendered !== undefined && payment.amountTendered > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span>Donné</span>
+              <span>{formatAmount(payment.amountTendered)}</span>
+            </div>
+            <div className="flex justify-between font-bold">
+              <span>Rendu</span>
+              <span>{formatAmount(payment.changeGiven ?? (payment.amountTendered - payment.amountReceived))}</span>
+            </div>
+          </>
+        )}
+        {payment.balanceRemaining !== undefined && payment.balanceRemaining > 0 && (
+          <div className="flex justify-between text-red-600 font-bold">
+            <span>Reste à payer</span>
+            <span>{formatAmount(payment.balanceRemaining)}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
+
+      <div className="text-center text-[9px] mt-2">
+        <div className="font-bold">{business.receipt_footer_message || "Merci de votre visite !"}</div>
+        <div className="italic mt-0.5">{business.receipt_policy_message || "Aucun remboursement après sortie."}</div>
+        
+        {business.show_qr_code !== false && (
+          <div className="flex justify-center mt-2">
+            <QRCodeSVG value={qrContent} size={45} level="L" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── 2. TEMPLATE 80 MM (STANDARD) ───
+export const Receipt80Template = ({ data, formatAmount }: { data: ReceiptData; formatAmount: (amount: number) => string }) => {
+  const { business, transaction, items, totals, payment } = data;
+  const qrContent = `INV:${transaction.invoiceNumber}|DATE:${format(new Date(transaction.date), 'dd/MM/yyyy')}|AMT:${totals.total}`;
+
+  return (
+    <div className="receipt-80 bg-white text-black p-4 mx-auto" style={{ width: '80mm', fontSize: '13px', fontFamily: 'monospace', lineHeight: '1.3' }}>
+      <div className="text-center mb-3">
+        {business.logo_url && (
+          <img src={business.logo_url} alt="Logo" className="mx-auto mb-2" style={{ maxHeight: '60px', maxWidth: '100%', objectFit: 'contain' }} />
+        )}
+        <div className="font-bold text-base uppercase">{business.name}</div>
+        <div className="text-xs mt-1 space-y-0.5">
+          {business.address && <div>{business.address}</div>}
+          {business.phone && <div>Téléphone : {business.phone}</div>}
+          {business.email && <div>Email : {business.email}</div>}
+          {business.nif && <div>NIF : {business.nif}</div>}
+        </div>
+      </div>
+
+      <div style={{ borderBottom: '2px dashed black', margin: '6px 0' }}></div>
+
+      <div className="text-center font-bold text-sm uppercase my-2">
+        REÇU DE PAIEMENT
+      </div>
+
+      {/* INFO TRANSACTION */}
+      <div className="text-xs space-y-1">
+        <div className="flex justify-between">
+          <span>{transaction.invoiceLabel || "Facture"} :</span>
+          <span className="font-bold">#{transaction.invoiceNumber}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Date :</span>
+          <span>{format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}</span>
+        </div>
+        {transaction.clientName && (
+          <div className="flex justify-between">
+            <span>Client :</span>
+            <span className="font-bold">{transaction.clientName}</span>
+          </div>
+        )}
+        {transaction.barberName && (
+          <div className="flex justify-between">
+            <span>Barbier/Coiffeur :</span>
+            <span className="font-bold">{transaction.barberName}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderBottom: '2px dashed black', margin: '6px 0' }}></div>
+
+      {/* ARTICLES */}
+      <div className="space-y-2">
+        <div className="flex justify-between font-bold text-xs uppercase">
+          <span>Désignation</span>
+          <span>Total</span>
+        </div>
+        {items.map((item, idx) => (
+          <div key={idx} className="text-xs">
+            <div className="font-bold">{item.name}</div>
+            <div className="flex justify-between text-gray-700">
+              <span>{item.quantity} x {formatAmount(item.price)}</span>
+              <span>{formatAmount(item.total)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderBottom: '2px dashed black', margin: '6px 0' }}></div>
+
+      {/* TOTALS */}
+      <div className="space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span>Sous-total</span>
+          <span>{formatAmount(totals.subtotal)}</span>
+        </div>
+        {(totals.discount || 0) > 0 && (
+          <div className="flex justify-between">
+            <span>Remise</span>
+            <span>-{formatAmount(totals.discount!)}</span>
+          </div>
+        )}
+        {(totals.tax || 0) > 0 && (
+          <div className="flex justify-between">
+            <span>Taxe</span>
+            <span>{formatAmount(totals.tax!)}</span>
+          </div>
+        )}
+        <div className="flex justify-between font-bold text-sm pt-1 border-t">
+          <span>TOTAL À PAYER</span>
+          <span>{formatAmount(totals.total)}</span>
+        </div>
+      </div>
+
+      <div style={{ borderBottom: '2px dashed black', margin: '6px 0' }}></div>
+
+      {/* PAYMENTS */}
+      <div className="text-xs space-y-1">
+        <div className="flex justify-between">
+          <span>Mode de paiement :</span>
+          <span className="uppercase font-bold">{payment.method}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Montant encaissé :</span>
+          <span>{formatAmount(payment.amountReceived)}</span>
+        </div>
+        {payment.amountTendered !== undefined && payment.amountTendered > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span>Donné :</span>
+              <span>{formatAmount(payment.amountTendered)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-green-700">
+              <span>Monnaie rendue :</span>
+              <span>{formatAmount(payment.changeGiven ?? (payment.amountTendered - payment.amountReceived))}</span>
+            </div>
+          </>
+        )}
+        {payment.balanceRemaining !== undefined && payment.balanceRemaining > 0 && (
+          <div className="flex justify-between text-red-600 font-bold border-t pt-1">
+            <span>Reste à payer :</span>
+            <span>{formatAmount(payment.balanceRemaining)}</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderBottom: '2px dashed black', margin: '6px 0' }}></div>
+
+      <div className="text-center text-xs mt-3">
+        <div className="font-bold">★ {business.receipt_footer_message || "Merci de votre visite !"} ★</div>
+        <div className="italic text-[10px] mt-1">{business.receipt_policy_message || "Aucun échange ni remboursement après sortie."}</div>
+        
+        {business.show_qr_code !== false && (
+          <div className="flex justify-center mt-3">
+            <QRCodeSVG value={qrContent} size={60} level="L" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── 3. TEMPLATE A4 (FACTURATION PROFESSIONNELLE) ───
+export const ReceiptA4Template = ({ data, formatAmount }: { data: ReceiptData; formatAmount: (amount: number) => string }) => {
+  const { business, transaction, items, totals, payment } = data;
+  const qrContent = `INV:${transaction.invoiceNumber}|DATE:${format(new Date(transaction.date), 'dd/MM/yyyy')}|AMT:${totals.total}`;
+
+  return (
+    <div className="receipt-a4 bg-white text-black p-8 mx-auto" style={{ width: '210mm', minHeight: '297mm', fontSize: '14px', fontFamily: 'sans-serif', lineHeight: '1.4' }}>
+      {/* HEADER */}
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          {business.logo_url && (
+            <img src={business.logo_url} alt="Logo" className="mb-3" style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain' }} />
+          )}
+          <h1 className="text-2xl font-bold uppercase text-gray-800">{business.name}</h1>
+          <div className="text-sm text-gray-600 mt-1 space-y-1">
+            {business.address && <div>{business.address}</div>}
+            {business.phone && <div>Téléphone : {business.phone}</div>}
+            {business.email && <div>Email : {business.email}</div>}
+            {business.nif && <div>NIF : {business.nif}</div>}
+          </div>
+        </div>
+        <div className="text-right">
+          <h2 className="text-xl font-bold text-primary uppercase">Facture</h2>
+          <div className="text-sm text-gray-600 mt-1 space-y-1">
+            <div>Numéro : <span className="font-bold text-black">#{transaction.invoiceNumber}</span></div>
+            <div>Date : {format(new Date(transaction.date), 'dd MMMM yyyy HH:mm')}</div>
+            {transaction.barberName && <div>Prestataire / Barbier : <span className="font-medium text-black">{transaction.barberName}</span></div>}
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-gray-300 my-6" />
+
+      {/* CLIENT INFO */}
+      <div className="mb-8">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Facturé à</h3>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="font-bold text-base">{transaction.clientName || "Client Anonyme"}</div>
+          {transaction.clientPhone && <div className="text-sm text-gray-600 mt-1">Téléphone : {transaction.clientPhone}</div>}
+        </div>
+      </div>
+
+      {/* TABLE */}
+      <table className="w-full text-left border-collapse mb-8">
+        <thead>
+          <tr className="bg-gray-100 text-gray-700 uppercase text-xs font-bold border-b border-gray-300">
+            <th className="py-3 px-4">Désignation</th>
+            <th className="py-3 px-4 text-center">Quantité</th>
+            <th className="py-3 px-4 text-right">Prix Unitaire</th>
+            <th className="py-3 px-4 text-right">Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, idx) => (
+            <tr key={idx} className="border-b border-gray-200 text-sm">
+              <td className="py-3 px-4 font-medium">{item.name}</td>
+              <td className="py-3 px-4 text-center">{item.quantity}</td>
+              <td className="py-3 px-4 text-right">{formatAmount(item.price)}</td>
+              <td className="py-3 px-4 text-right font-semibold">{formatAmount(item.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* TOTALS AND PAYMENTS */}
+      <div className="flex justify-between items-start gap-8">
+        {/* Left: Payment info */}
+        <div className="w-1/2 bg-gray-50 p-4 rounded-lg text-sm">
+          <h4 className="font-bold text-gray-700 uppercase text-xs tracking-wider mb-2">Règlement</h4>
+          <div className="space-y-1.5">
+            <div className="flex justify-between">
+              <span>Mode de paiement :</span>
+              <span className="font-bold uppercase">{payment.method}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Montant encaissé :</span>
+              <span>{formatAmount(payment.amountReceived)}</span>
+            </div>
+            {payment.amountTendered !== undefined && payment.amountTendered > 0 && (
+              <>
+                <div className="flex justify-between">
+                  <span>Montant donné :</span>
+                  <span>{formatAmount(payment.amountTendered)}</span>
+                </div>
+                <div className="flex justify-between text-green-700 font-semibold">
+                  <span>Monnaie rendue :</span>
+                  <span>{formatAmount(payment.changeGiven ?? (payment.amountTendered - payment.amountReceived))}</span>
+                </div>
+              </>
+            )}
+            {payment.balanceRemaining !== undefined && payment.balanceRemaining > 0 && (
+              <div className="flex justify-between text-red-600 font-bold border-t pt-1.5 mt-1.5">
+                <span>Reste à payer :</span>
+                <span>{formatAmount(payment.balanceRemaining)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Totals */}
+        <div className="w-1/2 space-y-2 text-right text-sm">
+          <div className="flex justify-between pl-8">
+            <span className="text-gray-500">Sous-total</span>
+            <span className="font-medium">{formatAmount(totals.subtotal)}</span>
+          </div>
+          {(totals.discount || 0) > 0 && (
+            <div className="flex justify-between pl-8 text-gray-600">
+              <span>Remise</span>
+              <span>-{formatAmount(totals.discount!)}</span>
+            </div>
+          )}
+          {(totals.tax || 0) > 0 && (
+            <div className="flex justify-between pl-8 text-gray-600">
+              <span>Taxe</span>
+              <span>{formatAmount(totals.tax!)}</span>
+            </div>
+          )}
+          <div className="flex justify-between pl-8 font-bold text-lg text-primary border-t border-gray-300 pt-2">
+            <span>Total</span>
+            <span>{formatAmount(totals.total)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="mt-16 text-center border-t border-gray-200 pt-6">
+        <p className="font-bold text-gray-800">{business.receipt_footer_message || "Merci de votre visite !"}</p>
+        <p className="text-xs text-gray-500 italic mt-1">{business.receipt_policy_message || "Aucun échange ni remboursement après sortie."}</p>
+        
+        {business.show_qr_code !== false && (
+          <div className="flex justify-center mt-6">
+            <QRCodeSVG value={qrContent} size={80} level="L" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── 4. MAIN ROUTER TEMPLATE ───
+export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
+  ({ data, formatAmount, printerWidth }, ref) => {
+    // Resolve width from prop, or fallback to localStorage, defaulting to "58"
+    const width = printerWidth || localStorage.getItem('wesd_pos_printer_width') || '58';
+
+    const renderTemplate = () => {
+      switch (width) {
+        case '80':
+          return <Receipt80Template data={data} formatAmount={formatAmount} />;
+        case 'A4':
+          return <ReceiptA4Template data={data} formatAmount={formatAmount} />;
+        default:
+          return <Receipt58Template data={data} formatAmount={formatAmount} />;
+      }
+    };
 
     return (
-      <div ref={ref} className="receipt-container bg-white text-black p-4 mx-auto" style={{ width: '100%', maxWidth: '80mm', fontFamily: 'monospace' }}>
-        {/* Custom Print Styles forced for thermal printers */}
+      <div ref={ref} className="receipt-print-wrapper bg-white">
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             @page { margin: 0; size: auto; }
             body { margin: 0; padding: 0; background: white; }
-            * {
-              -webkit-print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              color: black !important;
-            }
             .no-print { display: none !important; }
-            /* Forcer les couleurs inverses */
-            .bg-black-print { background-color: black !important; color: white !important; }
-            .bg-black-print * { color: white !important; }
           }
-          .receipt-text-normal { font-size: 14px; line-height: 1.2; }
-          .receipt-text-sub { font-size: 16px; font-weight: bold; }
-          .receipt-text-title { font-size: 24px; font-weight: 900; }
-          .receipt-text-huge { font-size: 28px; font-weight: 900; }
-          .receipt-divider { border-bottom: 2px dashed black; margin: 12px 0; }
-          .receipt-divider-solid { border-bottom: 3px solid black; margin: 12px 0; }
         `}} />
-
-        {/* HEADER */}
-        <div className="text-center mb-4">
-          {business.logo_url && (
-            <img src={business.logo_url} alt="Logo" className="mx-auto mb-2" style={{ maxHeight: '80px', maxWidth: '100%', objectFit: 'contain' }} />
-          )}
-          <div className="receipt-text-title uppercase">{business.name}</div>
-          
-          <div className="mt-2 receipt-text-normal">
-            {business.address && <div>{business.address}</div>}
-            <div className="mt-1">
-              {business.phone && <span>Tél : {business.phone}</span>}
-              {business.phone && business.email && <span> | </span>}
-              {business.email && <span>Email : {business.email}</span>}
-            </div>
-            {business.nif && <div>NIF : {business.nif}</div>}
-            {business.website && <div>{business.website}</div>}
-          </div>
-        </div>
-
-        <div className="receipt-divider-solid"></div>
-
-        {/* TITLE */}
-        <div className="text-center receipt-text-title uppercase mb-4">
-          REÇU DE PAIEMENT
-        </div>
-
-        {/* TRANSACTION INFO */}
-        <div className="flex flex-col gap-1 receipt-text-sub text-center mb-4 font-bold">
-          <div>
-            <span>{transaction.invoiceLabel || "Facture"} : </span>
-            <span>#{transaction.invoiceNumber}</span>
-          </div>
-          {transaction.clientName && (
-            <div>
-              <span>{transaction.clientLabel || "Client"} : </span>
-              <span>{transaction.clientName}</span>
-            </div>
-          )}
-          {transaction.clientPhone && (
-            <div>
-              <span>Tél : </span>
-              <span>{transaction.clientPhone}</span>
-            </div>
-          )}
-          {transaction.barberName && (
-            <div>
-              <span>Barbier/Coiffeur : </span>
-              <span>{transaction.barberName}</span>
-            </div>
-          )}
-        </div>
-
-        {/* TABLE */}
-        <div className="w-full">
-          <div className="flex bg-black-print text-white font-bold receipt-text-normal p-1 px-2 uppercase">
-            <div className="w-full">ARTICLE</div>
-          </div>
-          
-          <div className="mt-2 space-y-3">
-            {items.map((item, idx) => (
-              <div key={idx} className="flex flex-col receipt-text-normal px-2">
-                <div className="font-bold break-words">{item.name}</div>
-                <div className="flex justify-between w-full mt-1">
-                  <div>{item.quantity} x {formatAmount(item.price)}</div>
-                  <div className="font-bold">{formatAmount(item.total)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="receipt-divider mt-4"></div>
-
-        {/* SUBTOTALS */}
-        <div className="space-y-1 px-2 receipt-text-sub uppercase">
-          <div className="flex justify-between">
-            <span>SOUS-TOTAL</span>
-            <span>{formatAmount(totals.subtotal)}</span>
-          </div>
-          {(totals.tax || 0) > 0 && (
-            <div className="flex justify-between">
-              <span>TAXE</span>
-              <span>{formatAmount(totals.tax!)}</span>
-            </div>
-          )}
-          {(totals.discount || 0) > 0 && (
-            <div className="flex justify-between">
-              <span>REMISE</span>
-              <span>-{formatAmount(totals.discount!)}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="receipt-divider"></div>
-
-        {/* TOTAL */}
-        <div className="flex justify-between items-center px-2 receipt-text-huge uppercase">
-          <span>TOTAL</span>
-          <span>{formatAmount(totals.total)}</span>
-        </div>
-
-        <div className="receipt-divider"></div>
-
-        {/* PAYMENT METHOD */}
-        <div className="border-2 border-black rounded-lg mt-4 flex flex-col overflow-hidden">
-          <div className="flex items-stretch border-b-2 border-black">
-            <div className="w-1/2 p-2 text-center border-r-2 border-black flex flex-col justify-center bg-gray-50">
-              <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">MODE DE PAIEMENT</div>
-              <div className="receipt-text-sub uppercase">{payment.method}</div>
-            </div>
-            <div className="w-1/2 p-2 text-center flex flex-col justify-center">
-              <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">TOTAL À PAYER</div>
-              <div className="receipt-text-sub font-bold">{formatAmount(payment.amountReceived)}</div>
-            </div>
-          </div>
-          {payment.amountTendered !== undefined && payment.amountTendered > 0 && (
-            <div className="flex items-stretch border-t-2 border-black">
-              <div className="w-1/2 p-2 text-center border-r-2 border-black flex flex-col justify-center bg-gray-50">
-                <div className="text-[10px] uppercase font-bold text-gray-600 mb-1">MONTANT DONNÉ</div>
-                <div className="receipt-text-sub font-bold">{formatAmount(payment.amountTendered)}</div>
-              </div>
-              <div className="w-1/2 p-2 text-center flex flex-col justify-center bg-green-50">
-                <div className="text-[10px] uppercase font-bold text-green-700 mb-1">MONNAIE RENDUE</div>
-                <div className="receipt-text-sub font-bold" style={{ color: '#16a34a' }}>
-                  {formatAmount(payment.changeGiven ?? Math.max(0, payment.amountTendered - payment.amountReceived))}
-                </div>
-              </div>
-            </div>
-          )}
-          {payment.balanceRemaining !== undefined && payment.balanceRemaining > 0 && (
-            <div className="p-2 text-center flex flex-col justify-center bg-red-50 border-t-2 border-black">
-              <div className="text-[10px] uppercase font-bold text-red-600 mb-1">RESTE À PAYER</div>
-              <div className="receipt-text-sub font-bold text-red-600">{formatAmount(payment.balanceRemaining)}</div>
-            </div>
-          )}
-        </div>
-
-        {/* FOOTER STARS */}
-        <div className="mt-6 text-center">
-          <div className="receipt-text-sub flex items-center justify-center gap-2 mb-2">
-            <span>★</span>
-            <span>{business.receipt_footer_message || "Merci de votre visite !"}</span>
-            <span>★</span>
-          </div>
-          <div className="text-xs italic text-gray-800">
-            {business.receipt_policy_message || "Aucun échange ni remboursement après sortie du magasin."}
-          </div>
-        </div>
-
-        <div className="receipt-divider mt-4"></div>
-
-        {/* BOTTOM SECTION */}
-        <div className="flex justify-between items-end mt-4 text-[10px] text-gray-600">
-          <div className="w-16">
-            {(business.show_qr_code !== false) && (
-              <QRCodeSVG value={qrContent} size={60} level="L" includeMargin={false} />
-            )}
-          </div>
-          <div className="text-center flex-1 px-2">
-            <div className="font-bold">Document généré électroniquement</div>
-            <div className="mt-1">WesdSystems - wesdsystems.store</div>
-          </div>
-          <div className="text-right">
-            <div>Imprimé le : {format(new Date(), 'dd/MM/yyyy HH:mm')}</div>
-            {transaction.cashierName && <div>Par : {transaction.cashierName}</div>}
-          </div>
-        </div>
+        {renderTemplate()}
       </div>
     );
   }

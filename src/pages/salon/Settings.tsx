@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { cn } from "@/lib/utils";
 import { ImageUploader } from "@/components/shared/ImageUploader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -17,6 +18,9 @@ import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
+import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
+import { ReceiptTemplate } from "@/components/printing/ReceiptTemplate";
+import { Printer, Eye } from "lucide-react";
 
 interface BusinessDay {
   day: string;
@@ -31,6 +35,11 @@ interface BusinessRow {
   name?: string | null;
   logo_url?: string | null;
   currency_code?: string | null;
+  nif?: string | null;
+  receipt_footer_message?: string | null;
+  receipt_policy_message?: string | null;
+  show_qr_code?: boolean | null;
+  show_barcode?: boolean | null;
 }
 
 interface SalonBusinessProfileRow {
@@ -81,9 +90,14 @@ export default function SalonSettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [printerWidth, setPrinterWidth] = useState("58");
+  const [receiptFooterMessage, setReceiptFooterMessage] = useState("Merci pour votre confiance.");
+  const [receiptPolicyMessage, setReceiptPolicyMessage] = useState("Aucun échange ni remboursement après sortie du magasin.");
+  const [showQrCode, setShowQrCode] = useState(true);
+  const [showBarcode, setShowBarcode] = useState(false);
 
   const persistBusinessPatch = useCallback(
-    async (patch: Partial<Pick<BusinessRow, "name" | "logo_url" | "currency_code">>) => {
+    async (patch: Partial<Omit<BusinessRow, "id">>) => {
       const targetBusinessId = profile?.business_id ?? businessId ?? user?.user_metadata?.business_id;
       if (!isAuthenticated || !user?.id || !targetBusinessId) {
         return;
@@ -130,6 +144,7 @@ export default function SalonSettingsPage() {
   };
 
   useEffect(() => {
+    setPrinterWidth(localStorage.getItem('wesd_pos_printer_width') || '58');
     const loadSettings = async () => {
       if (!isAuthenticated || !user?.id) return;
 
@@ -154,7 +169,7 @@ export default function SalonSettingsPage() {
 
         const { data: businessData, error: businessError } = await supabase
           .from("businesses")
-          .select("id, name, logo_url, currency_code")
+          .select("id, name, logo_url, currency_code, nif, receipt_footer_message, receipt_policy_message, show_qr_code, show_barcode")
           .eq("id", bizId)
           .maybeSingle();
 
@@ -165,6 +180,11 @@ export default function SalonSettingsPage() {
         if (businessData) {
           setSalonName(businessData.name || "");
           setLogoUrl(businessData.logo_url || null);
+          if (businessData.nif) setTaxNumber(businessData.nif);
+          if (businessData.receipt_footer_message) setReceiptFooterMessage(businessData.receipt_footer_message);
+          if (businessData.receipt_policy_message) setReceiptPolicyMessage(businessData.receipt_policy_message);
+          if (businessData.show_qr_code !== undefined && businessData.show_qr_code !== null) setShowQrCode(businessData.show_qr_code);
+          if (businessData.show_barcode !== undefined && businessData.show_barcode !== null) setShowBarcode(businessData.show_barcode);
         }
 
         const { data: profileData2, error: profile2Error } = await supabase
@@ -253,6 +273,11 @@ export default function SalonSettingsPage() {
             name: salonName.trim(),
             logo_url: logoUrl,
             currency_code: activeCurrencyCode,
+            nif: taxNumber.trim() || null,
+            receipt_footer_message: receiptFooterMessage.trim(),
+            receipt_policy_message: receiptPolicyMessage.trim(),
+            show_qr_code: showQrCode,
+            show_barcode: showBarcode,
           });
 
           const { data: existingProfile, error: existingProfileError } = await supabase
@@ -386,6 +411,9 @@ export default function SalonSettingsPage() {
               </TabsTrigger>
               <TabsTrigger value="hours" className="gap-2">
                 <Clock className="h-4 w-4" /> Horaires
+              </TabsTrigger>
+              <TabsTrigger value="pos" className="gap-2">
+                <Smartphone className="h-4 w-4" /> POS
               </TabsTrigger>
               <TabsTrigger value="printing" className="gap-2">
                 <FileText className="h-4 w-4" /> Impression
@@ -540,6 +568,206 @@ export default function SalonSettingsPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              </StaggerItem>
+            </TabsContent>
+
+            <TabsContent value="pos" className="space-y-6">
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Smartphone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Configuration du POS / Imprimante</h3>
+                      <p className="text-sm text-muted-foreground">Configurez le matériel d'impression connecté à votre caisse</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Largeur du papier</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: "58", label: "58 mm (Thermique Compact)" },
+                        { id: "80", label: "80 mm (Thermique Large)" },
+                        { id: "A4", label: "A4 (Facture Standard)" },
+                        { id: "custom", label: "Personnalisée (Futur)" },
+                      ].map((w) => (
+                        <button
+                          key={w.id}
+                          type="button"
+                          disabled={w.id === "custom"}
+                          onClick={() => {
+                            setPrinterWidth(w.id);
+                            localStorage.setItem('wesd_pos_printer_width', w.id);
+                            toast.success(`Format d'impression mis à jour : ${w.label}`);
+                          }}
+                          className={cn(
+                            "flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all",
+                            printerWidth === w.id
+                              ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                              : w.id === "custom"
+                              ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
+                              : "border-border hover:border-primary/40 hover:bg-muted/40"
+                          )}
+                        >
+                          <span className="text-sm font-bold">{w.id.toUpperCase()}</span>
+                          <span className="text-[10px] text-muted-foreground mt-1">{w.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="space-y-2">
+                      <Label htmlFor="receipt-footer-msg" className="text-sm font-semibold">Message de remerciement (Pied de ticket)</Label>
+                      <Input
+                        id="receipt-footer-msg"
+                        type="text"
+                        value={receiptFooterMessage}
+                        onChange={(e) => setReceiptFooterMessage(e.target.value)}
+                        placeholder="Merci de votre visite !"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="receipt-policy-msg" className="text-sm font-semibold">Message de politique / Conditions</Label>
+                      <Input
+                        id="receipt-policy-msg"
+                        type="text"
+                        value={receiptPolicyMessage}
+                        onChange={(e) => setReceiptPolicyMessage(e.target.value)}
+                        placeholder="Aucun remboursement après sortie."
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-semibold">Imprimer le QR Code</Label>
+                        <p className="text-xs text-muted-foreground">Inclure un QR Code de validation en bas du ticket</p>
+                      </div>
+                      <Switch
+                        checked={showQrCode}
+                        onCheckedChange={setShowQrCode}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-semibold">Imprimer le Code-barres</Label>
+                        <p className="text-xs text-muted-foreground">Inclure un code-barres sur le ticket (si supporté)</p>
+                      </div>
+                      <Switch
+                        checked={showBarcode}
+                        onCheckedChange={setShowBarcode}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t gap-4">
+                    <div className="text-xs text-muted-foreground">
+                      Le changement de format est instantané sur cet appareil.
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        const sampleData = {
+                          business: {
+                            name: salonName || "Mon Salon de Coiffure",
+                            address: address || "Adresse de l'établissement",
+                            phone: phone || "Téléphone",
+                            nif: taxNumber || undefined,
+                            receipt_footer_message: receiptFooterMessage || undefined,
+                            receipt_policy_message: receiptPolicyMessage || undefined,
+                            show_qr_code: showQrCode,
+                            show_barcode: showBarcode
+                          },
+                          transaction: {
+                            invoiceNumber: "TEST-0001",
+                            date: new Date(),
+                            cashierName: owner || "Caissier Test",
+                            clientName: "Client Démo",
+                            barberName: "Coiffeur Démo"
+                          },
+                          items: [
+                            { name: "Coupe Homme Classique", quantity: 1, price: 1500, total: 1500 },
+                            { name: "Lotion Cheveux Premium", quantity: 1, price: 1000, total: 1000 }
+                          ],
+                          totals: {
+                            subtotal: 2500,
+                            discount: 250,
+                            total: 2250
+                          },
+                          payment: {
+                            method: "Espèces",
+                            amountReceived: 2500,
+                            amountTendered: 2500,
+                            changeGiven: 250
+                          },
+                          currencyCode: activeCurrencyCode || "HTG"
+                        };
+                        const formatAmount = (val: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: activeCurrencyCode || 'HTG' }).format(val);
+                        await printUnifiedReceipt(sampleData, formatAmount);
+                      }}
+                      className="gap-2"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Tester l'impression
+                    </Button>
+                  </div>
+                </div>
+              </StaggerItem>
+
+              {/* Aperçu du ticket */}
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold font-display">Aperçu du ticket</h3>
+                  </div>
+                  <div className="p-4 bg-muted/20 border rounded-xl flex justify-center max-h-[500px] overflow-y-auto">
+                    <ReceiptTemplate
+                      data={{
+                        business: {
+                          name: salonName || "Mon Salon de Coiffure",
+                          address: address || "Adresse de l'établissement",
+                          phone: phone || "Téléphone",
+                          nif: taxNumber || undefined,
+                          receipt_footer_message: receiptFooterMessage || undefined,
+                          receipt_policy_message: receiptPolicyMessage || undefined,
+                          show_qr_code: showQrCode,
+                          show_barcode: showBarcode
+                        },
+                        transaction: {
+                          invoiceNumber: "TEST-0001",
+                          date: new Date(),
+                          cashierName: owner || "Caissier Test",
+                          clientName: "Client Démo",
+                          barberName: "Coiffeur Démo"
+                        },
+                        items: [
+                          { name: "Coupe Homme Classique", quantity: 1, price: 1500, total: 1500 },
+                          { name: "Lotion Cheveux Premium", quantity: 1, price: 1000, total: 1000 }
+                        ],
+                        totals: {
+                          subtotal: 2500,
+                          discount: 250,
+                          total: 2250
+                        },
+                        payment: {
+                          method: "Espèces",
+                          amountReceived: 2500,
+                          amountTendered: 2500,
+                          changeGiven: 250
+                        },
+                        currencyCode: activeCurrencyCode || "HTG"
+                      }}
+                      formatAmount={(val: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: activeCurrencyCode || 'HTG' }).format(val)}
+                      printerWidth={printerWidth}
+                    />
                   </div>
                 </div>
               </StaggerItem>

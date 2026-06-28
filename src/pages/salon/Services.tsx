@@ -336,7 +336,7 @@ export default function ServicesPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState(0);
+  const [price, setPrice] = useState<number | "">(0);
   const [categoryName, setCategoryName] = useState("Pédicure");
   const [active, setActive] = useState(true);
   const [requiresEmployee, setRequiresEmployee] = useState(true);
@@ -348,6 +348,11 @@ export default function ServicesPage() {
   const ensureDefaultServices = async (branchIdToUse: string) => {
     if (bootstrappedBranchRef.current === branchIdToUse) return;
     bootstrappedBranchRef.current = branchIdToUse;
+
+    const cacheKey = `wesd_bootstrapped_branch_${branchIdToUse}`;
+    if (typeof window !== "undefined" && localStorage.getItem(cacheKey) === "true") {
+      return;
+    }
 
     const { data: existingCategories } = await supabase
       .from("salon_service_categories")
@@ -469,6 +474,10 @@ export default function ServicesPage() {
           });
         }
       }
+    }
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem(cacheKey, "true");
     }
   };
 
@@ -1034,7 +1043,7 @@ export default function ServicesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Prix (HTG)</Label>
-                  <Input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+                  <Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} />
                 </div>
                 {isAddonCategory(categoryName) && (
                   <div className="md:col-span-2 space-y-3 rounded-xl border border-border p-4">
@@ -1145,7 +1154,7 @@ export default function ServicesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Prix (HTG)</Label>
-                  <Input type="number" min="0" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
+                  <Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))} />
                 </div>
                 {isAddonCategory(categoryName) && (
                   <div className="md:col-span-2 space-y-3 rounded-xl border border-border p-4">

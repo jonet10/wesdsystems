@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { printReceipt as printReceiptPdf } from "@/lib/print-utils";
 import { toast } from "sonner";
 import {
-  ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search,
+  ShoppingCart, Plus, Minus, Trash2, Printer, Download, Search, Eye,
   Package, Scissors, CreditCard, Banknote, Wallet, User,
   Gift, Percent, Tag, Barcode, UserCog, X, Star, AlertCircle, ArrowLeftRight,
 } from "lucide-react";
@@ -102,6 +102,10 @@ interface BusinessInfo {
   slogan?: string;
   logo_url?: string;
   tax_number?: string;
+  receipt_footer_message?: string;
+  receipt_policy_message?: string;
+  show_qr_code?: boolean;
+  show_barcode?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -189,6 +193,7 @@ export default function POSPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [serviceRoleRequirements, setServiceRoleRequirements] = useState<Record<string, string[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartStep, setCartStep] = useState<1 | 2>(1);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([
     { method: "cash", amount: 0 },
@@ -248,6 +253,9 @@ export default function POSPage() {
   const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
     name: "Mon Salon", address: "123 Rue Principale", phone: "+509 1234 5678",
   });
+  const [salesHistory, setSalesHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPeriod, setHistoryPeriod] = useState<"day" | "week" | "month">("day");
   const [pendingTabs, setPendingTabs] = useState<PendingTabSummary[]>([]);
   const [activePendingTab, setActivePendingTab] = useState<PendingTabDetail | null>(null);
   const [pendingTabDraftItems, setPendingTabDraftItems] = useState<CartItem[]>([]);
@@ -265,6 +273,8 @@ export default function POSPage() {
   const [encaisserAmount, setEncaisserAmount] = useState<number | "">("");
   const [encaisserCreditConfirm, setEncaisserCreditConfirm] = useState(false);
   const [encaisserProcessing, setEncaisserProcessing] = useState(false);
+  const [promptTabLabelOpen, setPromptTabLabelOpen] = useState(false);
+  const [promptTabLabelName, setPromptTabLabelName] = useState("");
 
   useEffect(() => {
     if (normalizeEmployeeRole(employeeSession?.role) === "cashier") {
@@ -528,7 +538,7 @@ export default function POSPage() {
         }
 
         if (resolvedBusinessId) {
-          const { data: biz } = await supabase.from("businesses").select("id, name, logo_url").eq("id", resolvedBusinessId).maybeSingle();
+          const { data: biz } = await supabase.from("businesses").select("id, name, logo_url, receipt_footer_message, receipt_policy_message, show_qr_code, show_barcode").eq("id", resolvedBusinessId).maybeSingle();
           const { data: ext } = await supabase.from("salon_business_profiles").select("email, phone, address, whatsapp, slogan, tax_number").eq("business_id", resolvedBusinessId).maybeSingle();
           if (biz) {
             const info: BusinessInfo = {
@@ -536,6 +546,10 @@ export default function POSPage() {
               address: ext?.address || "",
               phone: ext?.phone || "",
               logo_url: biz.logo_url,
+              receipt_footer_message: biz.receipt_footer_message || undefined,
+              receipt_policy_message: biz.receipt_policy_message || undefined,
+              show_qr_code: biz.show_qr_code !== false,
+              show_barcode: biz.show_barcode === true,
             };
             if (ext) {
               info.whatsapp = ext.whatsapp || "";
@@ -576,6 +590,149 @@ export default function POSPage() {
       console.warn("Impossible de charger les fiches en attente", error);
       setPendingTabs([]);
     }
+  };
+
+  const loadSalesHistory = async () => {
+    if (!activeBranchId) return;
+    try {
+      setLoadingHistory(true);
+      const { data, error } = await supabase
+        .from("salon_sales")
+        .select("*, items:salon_sale_items(*)")
+        .eq("branch_id", activeBranchId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setSalesHistory(data || []);
+    } catch (err: any) {
+      console.error("Error loading sales history:", err);
+      toast.error("Impossible de charger l'historique des fiches");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      void loadSalesHistory();
+    }
+  }, [activeTab, activeBranchId]);
+
+  const filteredSalesHistory = useMemo(() => {
+    if (!searchTerm) return salesHistory;
+    const query = searchTerm.toLowerCase();
+    return salesHistory.filter((sale) => {
+      const matchNumber = (sale.sale_number || "").toLowerCase().includes(query);
+      const matchTab = (sale.tab_number || "").toString().includes(query);
+      const matchClient = (sale.customer_name || sale.customer || "").toLowerCase().includes(query);
+      return matchNumber || matchTab || matchClient;
+    });
+  }, [salesHistory, searchTerm]);
+
+  const groupedSales = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+
+    filteredSalesHistory.forEach((sale) => {
+      const date = new Date(sale.created_at);
+      let groupKey = "";
+
+      if (historyPeriod === "day") {
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+
+        if (date.toDateString() === today.toDateString()) {
+          groupKey = "Aujourd'hui";
+        } else if (date.toDateString() === yesterday.toDateString()) {
+          groupKey = "Hier";
+        } else {
+          groupKey = date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+        }
+      } else if (historyPeriod === "week") {
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(date.setDate(diff));
+        groupKey = `Semaine du ${startOfWeek.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
+      } else {
+        groupKey = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        groupKey = groupKey.charAt(0).toUpperCase() + groupKey.slice(1);
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(sale);
+    });
+
+    return groups;
+  }, [filteredSalesHistory, historyPeriod]);
+
+  const handleReprint = async (sale: any) => {
+    const employeeObj = employees.find(e => e.id === sale.employee_id);
+    const employeeName = employeeObj ? `${employeeObj.first_name} ${employeeObj.last_name}`.trim() : "";
+
+    const data: ReceiptData = {
+      business: {
+        name: businessInfo?.name || "SALON / SPA",
+        logo_url: businessInfo?.logo_url,
+        address: businessInfo?.address,
+        phone: businessInfo?.phone,
+        email: businessInfo?.email,
+        nif: businessInfo?.tax_number,
+        receipt_footer_message: businessInfo?.receipt_footer_message,
+        receipt_policy_message: businessInfo?.receipt_policy_message,
+        show_qr_code: businessInfo?.show_qr_code !== false,
+        show_barcode: businessInfo?.show_barcode === true,
+      },
+      transaction: {
+        invoiceNumber: sale.tab_number ? `FICHE-${sale.tab_number}` : sale.sale_number,
+        date: sale.closed_at || sale.created_at || new Date().toISOString(),
+        cashierName: sale.cashier_name || "Caisse",
+        clientName: sale.customer_name || sale.customer || "",
+        cashRegister: "CAISSE SALON",
+        barberName: employeeName || sale.barber_name || "",
+      },
+      items: sale.items?.map((i: any) => ({
+        name: i.name || i.item_name || (products.find(p => p.id === i.product_id)?.name) || (services.find(s => s.id === i.service_id)?.name) || "Article",
+        quantity: i.quantity,
+        price: i.unit_price,
+        total: i.total_price || ((i.quantity * i.unit_price) - (i.discount || 0))
+      })) || [],
+      totals: {
+        subtotal: sale.total_amount + (sale.discount_amount || 0),
+        discount: sale.discount_amount,
+        total: sale.total_amount,
+      },
+      payment: {
+        method: sale.payment_method === "cash" ? "ESPÈCES" :
+                sale.payment_method === "card" ? "CARTE" :
+                sale.payment_method === "moncash" ? "MONCASH" :
+                sale.payment_method === "natcash" ? "NATCASH" : "AUTRE",
+        amountReceived: sale.total_amount,
+      },
+      currencyCode: currencyCode,
+    };
+    printUnifiedReceipt(data, format);
+    toast.success("Impression lancée !");
+  };
+
+  const handleViewReceipt = (sale: any) => {
+    const employeeObj = employees.find(e => e.id === sale.employee_id);
+    const employeeName = employeeObj ? `${employeeObj.first_name} ${employeeObj.last_name}`.trim() : "";
+
+    setLastSale({
+      ...sale,
+      customer: sale.customer_name || sale.customer || "",
+      barber_name: employeeName || sale.barber_name || "",
+      items: sale.items?.map((i: any) => ({
+        name: i.name || i.item_name || (products.find(p => p.id === i.product_id)?.name) || (services.find(s => s.id === i.service_id)?.name) || "Article",
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+      })) || [],
+      discount_amount: sale.discount_amount || 0,
+      payment: sale.payment_method || "cash",
+    });
+    setShowReceipt(true);
   };
 
   const loadPendingTabDetail = async (tabId: string) => {
@@ -724,6 +881,91 @@ export default function POSPage() {
       toast.error(error?.message || "Impossible d'ouvrir la fiche");
     } finally {
       setPendingTabSaving(false);
+    }
+  };
+
+  const handleConfirmPartialSaleAsTab = async (clientName: string) => {
+    setPromptTabLabelOpen(false);
+    try {
+      const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
+      const cashierId = employeeSession?.id || null;
+
+      // 1. Create a new pending tab
+      const tab = await createPendingTab({
+        label: clientName.trim(),
+        branch_id: activeBranchId,
+        cashier_id: cashierId,
+        client_id: selectedClient?.id || null,
+        guest_name: selectedClient ? selectedClient.name : clientName.trim(),
+      });
+
+      // 2. Add cart items to this new tab
+      for (const item of cart) {
+        await addPendingTabItem(tab.id, {
+          item_type: item.type,
+          item_id: item.item_id,
+          item_name: item.name,
+          unit_price: item.unit_price,
+          quantity: item.quantity,
+          added_by: cashierId,
+        });
+      }
+
+      // 3. Record the partial payment made
+      const amountPaid = paymentMethod === "cash" && typeof amountTendered === "number" && amountTendered < total 
+        ? amountTendered 
+        : paymentMethod === "mixed" 
+        ? paymentValidation.paid 
+        : total;
+
+      if (amountPaid > 0) {
+        await recordTabPayment(tab.id, amountPaid);
+      }
+
+      // 4. Save and trigger receipt display
+      const extBarberObj = employees.find(e => e.id === selectedEmployee);
+      const extBarberName = extBarberObj ? `${extBarberObj.first_name} ${extBarberObj.last_name}`.trim() : "";
+
+      setLastSale({
+        id: `partial-${Date.now()}`,
+        sale_number: null,
+        total_amount: total,
+        discount_amount: totalDiscount,
+        items: cart.map(i => ({
+          name: i.name,
+          item_name: i.name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          discount: i.discount || 0,
+        })),
+        customer: clientName.trim(),
+        payment: paymentMethod,
+        cashier_name: cashierName,
+        tab_number: tab.tab_number,
+        label: tab.label,
+        opened_at: tab.opened_at,
+        closed_at: null,
+        _encaisser: true,
+        _amountPaid: amountPaid,
+        _changeGiven: 0,
+        _balanceRemaining: total - amountPaid,
+        barber_name: extBarberName,
+      });
+
+      setShowReceipt(true);
+      setCart([]);
+      setCartStep(1);
+      setSelectedClient(null);
+      setClientQuery("");
+      setDiscountPercent(0);
+      setPaymentMethod("cash");
+      setPaymentSplits(EMPTY_PAYMENT_SPLITS);
+
+      await loadData(activeBranchId);
+      await loadPendingTabs();
+      toast.success("Fiche en attente créée pour le montant restant !");
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de la création de la fiche");
     }
   };
 
@@ -1006,6 +1248,54 @@ export default function POSPage() {
     const cashierName = employeeSession?.full_name || authProfile?.full_name || user?.email || "Caissier";
     const isFullPayment = encaisserAmount >= remainingBalance;
     const paidAmount = isFullPayment ? remainingBalance : encaisserAmount;
+    const cashierId = employeeSession?.id || null;
+
+    if (isFullPayment) {
+      try {
+        const checkoutResult = await checkoutPendingTab(activePendingTab.id, {
+          payment_method: "cash",
+          amount_paid: paidAmount,
+          cashier_id: cashierId,
+          cashier_name: cashierName,
+          employee_id: selectedEmployee || activePendingTab.employee_id || null,
+          currency_code: currencyCode,
+        });
+
+        toast.success("Fiche encaissée et clôturée avec succès !");
+        const pendingBarberObj = employees.find(e => e.id === (selectedEmployee || checkoutResult.sale?.employee_id));
+        const pendingBarberName = pendingBarberObj ? `${pendingBarberObj.first_name} ${pendingBarberObj.last_name}`.trim() : "";
+        setLastSale({
+          ...checkoutResult.sale,
+          total_amount: total,
+          discount_amount: totalDiscount,
+          items: checkoutResult.items,
+          customer: activePendingTab.label,
+          payment: "cash",
+          tab_number: activePendingTab.tab_number,
+          label: activePendingTab.label,
+          opened_at: activePendingTab.opened_at,
+          closed_at: checkoutResult.sale.closed_at,
+          barber_name: pendingBarberName,
+        });
+        setShowReceipt(true);
+        leavePendingTabMode();
+        setCartStep(1);
+        setDiscountPercent(0);
+        setPaymentMethod("cash");
+        setPaymentSplits(EMPTY_PAYMENT_SPLITS);
+        setEncaisserDialogOpen(false);
+        setEncaisserAmount("");
+        setEncaisserCreditConfirm(false);
+        await loadData(activeBranchId);
+        await loadPendingTabs();
+        return;
+      } catch (err: any) {
+        console.error("Encaisser checkout error:", err);
+        toast.error(err.message || "Erreur lors de la clôture de la fiche");
+        return;
+      }
+    }
+
     const encaisserItems = pendingTabDraftItems.map(i => ({
       name: i.name,
       item_name: i.name,
@@ -1141,12 +1431,31 @@ export default function POSPage() {
         });
         setShowReceipt(true);
         leavePendingTabMode();
+        setCartStep(1);
         setDiscountPercent(0);
         setPaymentMethod("cash");
         setPaymentSplits(EMPTY_PAYMENT_SPLITS);
         await loadData(activeBranchId);
         await loadPendingTabs();
         return;
+      }
+
+      const amountPaid = paymentMethod === "cash" && typeof amountTendered === "number" && amountTendered < total 
+        ? amountTendered 
+        : paymentMethod === "mixed" 
+        ? paymentValidation.paid 
+        : total;
+      const remaining = total - amountPaid;
+
+      if (remaining > 0) {
+        if (!selectedClient) {
+          setPromptTabLabelName("");
+          setPromptTabLabelOpen(true);
+          return;
+        } else {
+          await handleConfirmPartialSaleAsTab(selectedClient.name);
+          return;
+        }
       }
 
       let businessId = authProfile?.business_id ?? null;
@@ -1280,6 +1589,7 @@ export default function POSPage() {
       });
       setShowReceipt(true);
       setCart([]);
+      setCartStep(1);
       setSelectedClient(null);
       setClientQuery("");
       setDiscountPercent(0);
@@ -1301,6 +1611,11 @@ export default function POSPage() {
         address: businessInfo?.address,
         phone: businessInfo?.phone,
         email: businessInfo?.email,
+        nif: businessInfo?.tax_number,
+        receipt_footer_message: businessInfo?.receipt_footer_message,
+        receipt_policy_message: businessInfo?.receipt_policy_message,
+        show_qr_code: businessInfo?.show_qr_code !== false,
+        show_barcode: businessInfo?.show_barcode === true,
       },
       transaction: {
         invoiceNumber: lastSale.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale.sale_number,
@@ -1388,6 +1703,9 @@ export default function POSPage() {
                   </Button>
                   <Button variant={activeTab === "services" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("services")} className="gap-1">
                     <Scissors className="h-4 w-4" /> Prestations
+                  </Button>
+                  <Button variant={activeTab === "history" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("history")} className="gap-1">
+                    <Printer className="h-4 w-4" /> Historique fiches
                   </Button>
                 </div>
                 <div className="relative w-full sm:max-w-xs">
@@ -1482,35 +1800,158 @@ export default function POSPage() {
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
               <ScrollArea className="h-full pr-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {filteredItems.map((item: any) => (
-                    <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-soft active:scale-[0.98]"
-                      onClick={() => handleItemClick(item, item.type)}>
-                      <CardContent className="p-3">
-                        <div className={cn(
-                          "w-full h-14 rounded-lg flex items-center justify-center mb-2",
-                          activeTab === "products" ? "bg-primary/10 text-primary" :
-                          "bg-info/10 text-info"
-                        )}>
-                          {activeTab === "products" ? <Package className="h-6 w-6" /> : <Scissors className="h-6 w-6" />}
-                        </div>
-                        <p className="font-medium text-sm truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {item.stock !== undefined ? `Stock: ${item.stock}` : ""}
-                        </p>
-                        <p className={cn(
-                          "font-semibold mt-1 text-sm",
-                          Number(item.unit_price || 0) > 0 ? "text-primary" : "text-destructive"
-                        )}>
-                          {Number(item.unit_price || 0) > 0 ? format(item.unit_price) : "Prix à définir"}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {filteredItems.length === 0 && (
-                    <p className="col-span-full text-center text-muted-foreground py-8 text-sm">Aucun élément trouvé</p>
-                  )}
-                </div>
+                {activeTab === "history" ? (
+                  <div className="space-y-4">
+                    <div className="flex gap-2 p-1 bg-muted/60 rounded-lg w-fit">
+                      <Button
+                        size="sm"
+                        variant={historyPeriod === "day" ? "default" : "ghost"}
+                        className="h-8 text-xs"
+                        onClick={() => setHistoryPeriod("day")}
+                      >
+                        Jour
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={historyPeriod === "week" ? "default" : "ghost"}
+                        className="h-8 text-xs"
+                        onClick={() => setHistoryPeriod("week")}
+                      >
+                        Semaine
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={historyPeriod === "month" ? "default" : "ghost"}
+                        className="h-8 text-xs"
+                        onClick={() => setHistoryPeriod("month")}
+                      >
+                        Mois
+                      </Button>
+                    </div>
+
+                    {loadingHistory ? (
+                      <div className="flex justify-center items-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : Object.keys(groupedSales).length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 text-sm">
+                        Aucune fiche imprimée trouvée
+                      </p>
+                    ) : (
+                      <div className="space-y-6">
+                        {Object.entries(groupedSales).map(([groupName, sales]) => (
+                          <div key={groupName} className="space-y-3">
+                            <h4 className="font-semibold text-sm border-b pb-1.5 text-muted-foreground tracking-wide uppercase">
+                              {groupName} ({sales.length})
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {sales.map((sale: any) => {
+                                const cashierName = sale.cashier_name || "Caissier";
+                                const dateObj = new Date(sale.created_at);
+                                const dateStr = dateObj.toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                });
+                                const employeeObj = employees.find(e => e.id === sale.employee_id);
+                                const barberName = employeeObj 
+                                  ? `${employeeObj.first_name} ${employeeObj.last_name}`.trim() 
+                                  : sale.barber_name;
+
+                                return (
+                                  <Card key={sale.id} className="border border-border/80 hover:border-primary/40 transition-all shadow-sm">
+                                    <CardContent className="p-4 flex flex-col justify-between h-full space-y-3">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                          <p className="font-bold text-sm text-foreground">
+                                            {sale.tab_number ? `Fiche #${sale.tab_number}` : `Reçu #${sale.sale_number}`}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground mt-0.5">
+                                            Enregistré à {dateStr} par {cashierName}
+                                          </p>
+                                        </div>
+                                        <Badge className="font-semibold">
+                                          {format(sale.total_amount)}
+                                        </Badge>
+                                      </div>
+
+                                      <div className="text-xs text-muted-foreground space-y-1 bg-muted/40 p-2 rounded-lg">
+                                        <div>
+                                          <span className="font-medium text-foreground">Client : </span>
+                                          {sale.customer_name || sale.customer || "Anonyme"}
+                                        </div>
+                                        {barberName && (
+                                          <div>
+                                            <span className="font-medium text-foreground">Barbier : </span>
+                                            {barberName}
+                                          </div>
+                                        )}
+                                        <div className="truncate">
+                                          <span className="font-medium text-foreground">Articles : </span>
+                                          {sale.items?.map((it: any) => it.name || it.item_name || "Article").join(", ") || "-"}
+                                        </div>
+                                      </div>
+
+                                      <div className="flex justify-end gap-2 pt-1 border-t">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs gap-1.5"
+                                          onClick={() => handleViewReceipt(sale)}
+                                        >
+                                          <Eye className="h-3.5 w-3.5" />
+                                          Visualiser
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 text-xs gap-1.5"
+                                          onClick={() => void handleReprint(sale)}
+                                        >
+                                          <Printer className="h-3.5 w-3.5" />
+                                          Réimprimer
+                                        </Button>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {filteredItems.map((item: any) => (
+                      <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-all hover:shadow-soft active:scale-[0.98]"
+                        onClick={() => handleItemClick(item, item.type)}>
+                        <CardContent className="p-3">
+                          <div className={cn(
+                            "w-full h-14 rounded-lg flex items-center justify-center mb-2",
+                            activeTab === "products" ? "bg-primary/10 text-primary" :
+                            "bg-info/10 text-info"
+                          )}>
+                            {activeTab === "products" ? <Package className="h-6 w-6" /> : <Scissors className="h-6 w-6" />}
+                          </div>
+                          <p className="font-medium text-sm truncate">{item.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {item.stock !== undefined ? `Stock: ${item.stock}` : ""}
+                          </p>
+                          <p className={cn(
+                            "font-semibold mt-1 text-sm",
+                            Number(item.unit_price || 0) > 0 ? "text-primary" : "text-destructive"
+                          )}>
+                            {Number(item.unit_price || 0) > 0 ? format(item.unit_price) : "Prix à définir"}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {filteredItems.length === 0 && (
+                      <p className="col-span-full text-center text-muted-foreground py-8 text-sm">Aucun élément trouvé</p>
+                    )}
+                  </div>
+                )}
               </ScrollArea>
             </CardContent>
           </Card>
@@ -1536,375 +1977,429 @@ export default function POSPage() {
               )}
             </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <ScrollArea className="h-full">
-                  {cart.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">
-                        {activePendingTab ? "Ajoutez des articles à la fiche" : "Ajoutez des articles pour commencer"}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {cart.map(item => (
-                        <div key={item.key} className={cn(
-                          "flex items-center gap-2 p-2 rounded-lg",
-                          item.promotion_applied ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-muted/40"
-                        )}>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{item.name}</p>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="text-xs text-muted-foreground">{format(item.unit_price)} × {item.quantity}</p>
-                              {item.promotion_applied && (
-                                <Badge variant="secondary" className="text-[10px] px-1 h-4">
-                                  <Tag className="h-2.5 w-2.5 mr-0.5" /> Promo
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, -1)}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.key, 1)}>
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.key)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+              {cartStep === 1 ? (
+                <>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollArea className="h-full pr-1.5">
+                      {cart.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                          <p className="text-sm">
+                            {activePendingTab ? "Ajoutez des articles à la fiche" : "Ajoutez des articles pour commencer"}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {cart.map(item => (
+                            <div key={item.key} className={cn(
+                              "flex flex-col gap-2 p-3 rounded-lg border transition-all hover:border-primary/30",
+                              item.promotion_applied ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-muted/40 border-border/80"
+                            )}>
+                              <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-sm text-foreground truncate">{item.name}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span className="text-xs text-muted-foreground">{format(item.unit_price)} l'unité</span>
+                                    {item.promotion_applied && (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 h-4.5 bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                                        <Tag className="h-2.5 w-2.5 mr-0.5" /> Promo
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" onClick={() => removeFromCart(item.key)} title="Supprimer">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              
+                              <div className="flex items-center justify-between mt-1 pt-2 border-t border-border/40">
+                                <div className="flex items-center gap-1">
+                                  <Button variant="outline" size="icon" className="h-7 w-7 bg-background" onClick={() => updateQuantity(item.key, -1)}>
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-8 text-center text-sm font-semibold text-foreground">{item.quantity}</span>
+                                  <Button variant="outline" size="icon" className="h-7 w-7 bg-background" onClick={() => updateQuantity(item.key, 1)}>
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-bold text-sm text-primary">
+                                    {format(item.unit_price * item.quantity)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </div>
 
-              <div className="shrink-0 space-y-3">
-              {/* Employee Selector */}
-              {requiresEmployee && (
-                <div className="mt-2">
-                  <Label className="text-xs flex items-center gap-1 mb-1">
-                    <UserCog className="h-3 w-3" /> Employé en charge
-                  </Label>
-                  {availableEmployees.length > 0 ? (
-                    <div className="space-y-1">
-                      {availableEmployees.map((employee) => {
-                        const isSelected = selectedEmployee === employee.id;
-                        const roleLabel = ROLE_LABELS[employee.role] || employee.role;
-                        return (
-                          <button
-                            key={employee.id}
-                            type="button"
-                            onClick={() => setSelectedEmployee(isSelected ? "" : employee.id)}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all",
-                              isSelected
-                                ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                : "border-border hover:border-primary/40 hover:bg-muted/40"
-                            )}
-                          >
-                            <div className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 overflow-hidden">
-                              {employee.photo_url ? (
-                                <img src={employee.photo_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                employee.name.charAt(0).toUpperCase()
-                              )}
+                  <div className="shrink-0 space-y-3 pt-3 border-t">
+                    <div className="flex justify-between items-center text-sm font-semibold">
+                      <span className="text-muted-foreground">Sous-total</span>
+                      <span className="text-base text-foreground font-bold">{format(subtotal)}</span>
+                    </div>
+                    <Button 
+                      className="w-full bg-primary h-11 text-base font-semibold"
+                      disabled={cart.length === 0} 
+                      onClick={() => setCartStep(2)}
+                    >
+                      Continuer
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => setCartStep(1)} className="h-8 gap-1.5">
+                      <X className="h-3.5 w-3.5 rotate-180" />
+                      Retour
+                    </Button>
+                    <span className="text-xs font-semibold text-muted-foreground">Étape 2: Validation</span>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollArea className="h-full pr-1.5">
+                      <div className="space-y-4 pb-4">
+                        {/* Résumé des produits */}
+                      <div className="space-y-1 bg-muted/40 p-3 rounded-lg border border-border/80">
+                        <div className="flex justify-between items-center text-xs font-bold text-muted-foreground pb-1.5 border-b uppercase tracking-wider">
+                          <span>Articles ({cart.length})</span>
+                          <span>Total</span>
+                        </div>
+                        <div className="max-h-[140px] overflow-y-auto space-y-1.5 pr-1 mt-2">
+                          {cart.map(item => (
+                            <div key={item.key} className="flex justify-between items-center text-xs">
+                              <span className="truncate max-w-[160px] text-foreground font-medium">{item.name} <span className="text-muted-foreground">x{item.quantity}</span></span>
+                              <span className="font-semibold text-foreground">{format(item.unit_price * item.quantity)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Employee Selector */}
+                      {requiresEmployee && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold flex items-center gap-1">
+                            <UserCog className="h-3.5 w-3.5 text-primary" /> Employé en charge
+                          </Label>
+                          {availableEmployees.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              {availableEmployees.map((employee) => {
+                                const isSelected = selectedEmployee === employee.id;
+                                const roleLabel = ROLE_LABELS[employee.role] || employee.role;
+                                return (
+                                  <button
+                                    key={employee.id}
+                                    type="button"
+                                    onClick={() => setSelectedEmployee(isSelected ? "" : employee.id)}
+                                    className={cn(
+                                      "flex items-center gap-2 rounded-lg border p-2 text-left transition-all",
+                                      isSelected
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-border hover:border-primary/40 hover:bg-muted/40"
+                                    )}
+                                  >
+                                    <div className="h-7 w-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0 overflow-hidden">
+                                      {employee.photo_url ? (
+                                        <img src={employee.photo_url} alt="" className="h-full w-full object-cover" />
+                                      ) : (
+                                        employee.name.charAt(0).toUpperCase()
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold truncate text-foreground">{employee.name}</p>
+                                      <p className="text-[10px] text-muted-foreground truncate">{roleLabel}</p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                              Aucun employé disponible.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Client Selector */}
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1 text-xs font-semibold">
+                          <User className="h-3.5 w-3.5 text-primary" /> Client <span className="text-muted-foreground font-normal">(optionnel)</span>
+                        </Label>
+
+                        {selectedClient ? (
+                          <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
+                            <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                              {selectedClient.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{employee.name}</p>
-                              <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium truncate text-foreground">{selectedClient.name}</span>
+                                {selectedClient.visit_count >= 3 && (
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                                    <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
+                                  </span>
+                                )}
+                              </div>
+                              {selectedClient.phone && (
+                                <p className="text-xs text-muted-foreground">{selectedClient.phone}</p>
+                              )}
                             </div>
-                            {isSelected && (
-                              <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
+                            <button
+                              onClick={deselectClient}
+                              className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                              title="Désélectionner"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative" ref={clientDropdownRef}>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                  id="pos-client-search"
+                                  type="text"
+                                  value={clientQuery}
+                                  onChange={e => handleClientQueryChange(e.target.value)}
+                                  onFocus={() => clientQuery.length >= 2 && setShowClientDropdown(true)}
+                                  placeholder="Nom ou téléphone..."
+                                  className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                                />
+                                {clientLoading && (
+                                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                )}
+                              </div>
+                              <button
+                                onClick={() => { setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setShowNewClientModal(true); }}
+                                className="flex items-center gap-1 px-2.5 h-9 text-xs font-medium rounded-md border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+                                title="Nouveau client"
+                              >
+                                <Plus className="h-3.5 w-3.5" /> Nouveau
+                              </button>
+                            </div>
+
+                            {showClientDropdown && (
+                              <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+                                {clientResults.length === 0 ? (
+                                  <p className="px-3 py-3 text-xs text-muted-foreground text-center">Aucun client trouvé</p>
+                                ) : (
+                                  clientResults.map(c => (
+                                    <button
+                                      key={c.id}
+                                      onClick={() => selectClient(c)}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
+                                    >
+                                      <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                                        {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-sm font-medium truncate text-foreground">{c.name}</span>
+                                          {c.visit_count >= 3 && (
+                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
+                                              <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
+                                            </span>
+                                          )}
+                                        </div>
+                                        {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                                      </div>
+                                    </button>
+                                  ))
+                                )}
                               </div>
                             )}
-                          </button>
+                          </div>
+                        )}
+                      </div>
+
+                  {/* Réduction */}
+                  <div className="space-y-1.5">
+                    <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 -ml-2" onClick={() => setShowDiscount(!showDiscount)}>
+                      <Percent className="h-3 w-3" /> Réduction
+                    </Button>
+                    {showDiscount && (
+                      <div className="flex items-center gap-2">
+                        <Input type="number" value={discountPercent} onChange={e => setDiscountPercent(Number(e.target.value))} min={0} max={100} className="w-20 h-8 text-xs" />
+                        <span className="text-sm">%</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Moyen de paiement */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Moyen de paiement</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: "cash", label: "Espèces", icon: Banknote },
+                        { id: "moncash", label: "MonCash", icon: Wallet },
+                        { id: "natcash", label: "NatCash", icon: Wallet },
+                        { id: "card", label: "Carte", icon: CreditCard },
+                        { id: "mixed", label: "Mixte", icon: CreditCard },
+                      ].map(method => {
+                        const Icon = method.icon;
+                        return (
+                          <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"}
+                            className={cn("justify-start gap-2 h-9 text-xs", paymentMethod === method.id && "bg-primary")}
+                            onClick={() => setPaymentMethod(method.id as PaymentMethod)}>
+                            <Icon className="h-3.5 w-3.5" />
+                            {method.label}
+                          </Button>
                         );
                       })}
                     </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-                      Aucun employé disponible pour ces prestations.
-                    </div>
-                  )}
-                </div>
-              )}
 
-              <Separator className="my-3" />
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sous-total</span>
-                  <span>{format(subtotal)}</span>
-                </div>
-                {totalDiscount > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>Réduction</span>
-                    <span>-{format(totalDiscount)}</span>
+                    {paymentMethod === "mixed" && (
+                      <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          {paymentSplits.map((split) => (
+                            <div key={split.method} className="space-y-1">
+                              <Label className="text-[11px]">
+                                {split.method === "cash" ? "Espèces" : split.method}
+                              </Label>
+                              <Input
+                                type="number"
+                                min={0}
+                                value={split.amount || ""}
+                                onChange={(e) => updatePaymentSplit(split.method, Number(e.target.value || 0))}
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between text-xs pt-1.5 border-t border-border/40">
+                          <span className="text-muted-foreground">Payé: {format(paymentValidation.paid)}</span>
+                          <span className={paymentValidation.isPaid ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                            Reste: {format(paymentValidation.remaining)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="flex justify-between font-semibold text-base pt-2 border-t">
-                  <span>Total</span>
-                  <span className="text-primary">{format(total)}</span>
-                </div>
-                {paidOnTab > 0 && (
-                  <>
-                    <div className="flex justify-between text-success text-xs">
-                      <span>Déjà payé</span>
-                      <span>-{format(paidOnTab)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-base pt-1 border-t border-dashed border-border/60">
-                      <span className="text-amber-600">Reste à payer</span>
-                      <span className="text-amber-600">{format(remainingBalance)}</span>
-                    </div>
-                  </>
-                )}
-              </div>
 
-              <div className="space-y-3 mt-4">
-                {/* ── Client (optionnel) ── */}
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1 text-xs">
-                    <User className="h-3 w-3" /> Client <span className="text-muted-foreground font-normal">(optionnel)</span>
-                  </Label>
-
-                  {selectedClient ? (
-                    /* ── Selected state ── */
-                    <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
-                        {selectedClient.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  {/* Montant donné + Monnaie rendue (cash seulement) */}
+                  {paymentMethod === "cash" && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Montant donné par le client</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs font-medium">G</span>
+                        <Input
+                          type="number"
+                          min={total}
+                          step="any"
+                          placeholder={`Min ${format(total)}`}
+                          className="pl-8 h-9 text-xs"
+                          value={amountTendered}
+                          onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
+                        />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium truncate">{selectedClient.name}</span>
-                          {selectedClient.visit_count >= 3 && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-                              <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
-                            </span>
-                          )}
+                      {typeof amountTendered === "number" && amountTendered >= total && (
+                        <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+                          <span className="text-xs font-semibold text-green-700 dark:text-green-400">💵 Monnaie à rendre</span>
+                          <span className="text-base font-bold text-green-700 dark:text-green-400">{format(amountTendered - total)}</span>
                         </div>
-                        {selectedClient.phone && (
-                          <p className="text-xs text-muted-foreground">{selectedClient.phone}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={deselectClient}
-                        className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
-                        title="Désélectionner"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    /* ── Search state ── */
-                    <div className="relative" ref={clientDropdownRef}>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                          <input
-                            id="pos-client-search"
-                            type="text"
-                            value={clientQuery}
-                            onChange={e => handleClientQueryChange(e.target.value)}
-                            onFocus={() => clientQuery.length >= 2 && setShowClientDropdown(true)}
-                            placeholder="Nom ou téléphone..."
-                            className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          />
-                          {clientLoading && (
-                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          )}
-                        </div>
-                        <button
-                          onClick={() => { setNewClientName(""); setNewClientPhone(""); setNewClientEmail(""); setShowNewClientModal(true); }}
-                          className="flex items-center gap-1 px-2.5 h-9 text-xs font-medium rounded-md border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
-                          title="Nouveau client"
-                        >
-                          <Plus className="h-3.5 w-3.5" /> Nouveau
-                        </button>
-                      </div>
-
-                      {/* Dropdown */}
-                      {showClientDropdown && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
-                          {clientResults.length === 0 ? (
-                            <p className="px-3 py-3 text-xs text-muted-foreground text-center">Aucun client trouvé</p>
-                          ) : (
-                            clientResults.map(c => (
-                              <button
-                                key={c.id}
-                                onClick={() => selectClient(c)}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/50 transition-colors text-left"
-                              >
-                                <div className="w-7 h-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold flex-shrink-0">
-                                  {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-sm font-medium truncate">{c.name}</span>
-                                    {c.visit_count >= 3 && (
-                                      <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
-                                        <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" /> Fidèle
-                                      </span>
-                                    )}
-                                  </div>
-                                  {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
-                                </div>
-                              </button>
-                            ))
-                          )}
+                      )}
+                      {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
+                        <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg px-3 py-2">
+                          <span className="text-xs font-semibold text-orange-600">⚠️ Paiement partiel (Crédit)</span>
+                          <span className="text-xs font-bold text-orange-600">{format(total - amountTendered)} restant</span>
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-
-                <div>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setShowDiscount(!showDiscount)}>
-                    <Percent className="h-3 w-3" /> Réduction
-                  </Button>
-                  {showDiscount && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Input type="number" value={discountPercent} onChange={e => setDiscountPercent(Number(e.target.value))} min={0} max={100} className="w-20" />
-                      <span className="text-sm">%</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Paiement</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: "cash", label: "Espèces", icon: Banknote },
-                      { id: "moncash", label: "MonCash", icon: Wallet },
-                      { id: "natcash", label: "NatCash", icon: Wallet },
-                      { id: "card", label: "Carte", icon: CreditCard },
-                      { id: "mixed", label: "Mixte", icon: CreditCard },
-                    ].map(method => {
-                      const Icon = method.icon;
-                      return (
-                        <Button key={method.id} variant={paymentMethod === method.id ? "default" : "outline"}
-                          className={cn("justify-start gap-2 h-10", paymentMethod === method.id && "bg-primary")}
-                          onClick={() => setPaymentMethod(method.id as PaymentMethod)}>
-                          <Icon className="h-4 w-4" />
-                          {method.label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  {paymentMethod === "mixed" && (
-                    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        {paymentSplits.map((split) => (
-                          <div key={split.method} className="space-y-1">
-                            <Label className="text-[11px]">
-                              {split.method === "cash" ? "Espèces" : split.method}
-                            </Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={split.amount || ""}
-                              onChange={(e) => updatePaymentSplit(split.method, Number(e.target.value || 0))}
-                              className="h-8 text-xs"
-                            />
-                          </div>
-                        ))}
                       </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Payé: {format(paymentValidation.paid)}</span>
-                        <span className={paymentValidation.isPaid ? "text-success" : "text-destructive"}>
-                          Reste: {format(paymentValidation.remaining)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    </ScrollArea>
               </div>
 
-              {/* Montant donné + Monnaie rendue (cash seulement) */}
-              {paymentMethod === "cash" && (
-                <div className="space-y-2 mt-3">
-                  <Label className="text-xs">Montant donné par le client</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">G</span>
-                    <Input
-                      type="number"
-                      min={total}
-                      step="any"
-                      placeholder={`Min ${format(total)}`}
-                      className="pl-8"
-                      value={amountTendered}
-                      onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
-                    />
+              <div className="shrink-0 space-y-3 pt-3 border-t">
+                {/* Total summary */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sous-total</span>
+                    <span className="text-foreground">{format(subtotal)}</span>
                   </div>
-                  {typeof amountTendered === "number" && amountTendered >= total && (
-                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
-                      <span className="text-sm font-semibold text-green-700 dark:text-green-400">💵 Monnaie à rendre</span>
-                      <span className="text-xl font-bold text-green-700 dark:text-green-400">{format(amountTendered - total)}</span>
+                  {totalDiscount > 0 && (
+                    <div className="flex justify-between text-success">
+                      <span>Réduction</span>
+                      <span>-{format(totalDiscount)}</span>
                     </div>
                   )}
-                  {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
-                    <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg px-3 py-2">
-                      <span className="text-sm font-semibold text-orange-600">⚠️ Paiement partiel (Crédit)</span>
-                      <span className="text-sm font-bold text-orange-600">{format(total - amountTendered)} restant</span>
-                    </div>
+                  <div className="flex justify-between font-bold text-sm pt-1.5 border-t border-border/40 text-foreground">
+                    <span>Total</span>
+                    <span className="text-primary text-base font-bold">{format(total)}</span>
+                  </div>
+                  {paidOnTab > 0 && (
+                    <>
+                      <div className="flex justify-between text-success text-[11px]">
+                        <span>Déjà payé</span>
+                        <span>-{format(paidOnTab)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-sm pt-1 border-t border-dashed border-border/60 text-amber-600">
+                        <span>Reste à payer</span>
+                        <span>{format(remainingBalance)}</span>
+                      </div>
+                    </>
                   )}
                 </div>
-              )}
 
-              {activePendingTab ? (
-                <div className="mt-4 space-y-2 shrink-0 sticky bottom-0 bg-card/95 backdrop-blur-sm pt-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="destructive" onClick={async () => {
-                      if (!activePendingTab) return;
-                      try {
-                        await cancelPendingTab(activePendingTab.id);
-                        toast.success("Fiche annulée");
-                        leavePendingTabMode();
+                {/* Checkout CTA Buttons */}
+                {activePendingTab ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="destructive" size="sm" onClick={async () => {
+                        if (!activePendingTab) return;
+                        try {
+                          await cancelPendingTab(activePendingTab.id);
+                          toast.success("Fiche annulée");
+                          leavePendingTabMode();
+                          setCartStep(1);
+                          await loadData(activeBranchId);
+                          await loadPendingTabs();
+                        } catch (error: any) {
+                          toast.error(error?.message || "Impossible d'annuler la fiche");
+                        }
+                      }} disabled={pendingTabSaving || pendingTabLoading || paidOnTab > 0}>
+                        Annuler la fiche
+                      </Button>
+                      <Button size="sm" onClick={async () => {
+                        await savePendingTabDraft();
                         await loadData(activeBranchId);
-                        await loadPendingTabs();
-                      } catch (error: any) {
-                        toast.error(error?.message || "Impossible d'annuler la fiche");
-                      }
-                    }} disabled={pendingTabSaving || pendingTabLoading || paidOnTab > 0}>
-                      Annuler la fiche
-                    </Button>
+                        setCartStep(1);
+                      }} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="bg-primary">
+                        Ajouter au tab
+                      </Button>
+                    </div>
                     {paidOnTab > 0 && (
-                      <p className="text-[10px] text-destructive col-span-2 -mt-1 text-center">
-                        Impossible d'annuler : un paiement partiel a déjà été enregistré
+                      <p className="text-[9px] text-destructive text-center">
+                        Paiement enregistré: annulation impossible
                       </p>
                     )}
-                    <Button onClick={async () => {
-                      await savePendingTabDraft();
-                      await loadData(activeBranchId);
-                    }} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading} className="bg-primary h-11 text-base font-semibold">
-                      Ajouter au tab
+                    <Button onClick={handleOpenEncaisser} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading || encaisserProcessing} className="w-full bg-primary h-10 font-semibold">
+                      Encaisser la fiche • {paidOnTab > 0 ? format(remainingBalance) : format(total)}
                     </Button>
                   </div>
-                  <Button onClick={handleOpenEncaisser} disabled={cart.length === 0 || pendingTabSaving || pendingTabLoading || encaisserProcessing} className="w-full bg-primary h-11 text-base font-semibold">
-                    Encaisser la fiche • {paidOnTab > 0 ? format(remainingBalance) : format(total)}
-                  </Button>
-                </div>
-              ) : (
-                <div className="mt-4 space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
-                      Annuler
-                    </Button>
-                    <Button variant="outline" onClick={() => setReturnOpen(true)} className="gap-1">
-                      <ArrowLeftRight className="h-4 w-4" /> Retour
-                    </Button>
-                    <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary h-11 text-base font-semibold">
-                      Encaisser • {format(total)}
-                    </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setCart([]); setCartStep(1); }} disabled={cart.length === 0}>
+                        Vider
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setReturnOpen(true)} className="gap-1">
+                        Retour
+                      </Button>
+                      <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary font-semibold text-xs col-span-1">
+                        Encaisser
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
               </div>
+            </>
+          )}
             </CardContent>
           </Card>
         </StaggerItem>
@@ -2077,6 +2572,11 @@ export default function POSPage() {
                     address: businessInfo?.address,
                     phone: businessInfo?.phone,
                     email: businessInfo?.email,
+                    nif: businessInfo?.tax_number,
+                    receipt_footer_message: businessInfo?.receipt_footer_message,
+                    receipt_policy_message: businessInfo?.receipt_policy_message,
+                    show_qr_code: businessInfo?.show_qr_code !== false,
+                    show_barcode: businessInfo?.show_barcode === true,
                   },
                   transaction: {
                     invoiceNumber: lastSale?.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale?.sale_number,
@@ -2554,6 +3054,36 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={promptTabLabelOpen} onOpenChange={setPromptTabLabelOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Nom de la fiche en attente</DialogTitle>
+            <DialogDescription>
+              Un montant restant doit être réglé plus tard. Saisissez le nom de la personne pour enregistrer cette fiche en attente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="prompt-tab-name">Nom du client</Label>
+              <Input
+                id="prompt-tab-name"
+                value={promptTabLabelName}
+                onChange={(e) => setPromptTabLabelName(e.target.value)}
+                placeholder="Ex: Client en attente"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromptTabLabelOpen(false)}>Annuler</Button>
+            <Button onClick={() => void handleConfirmPartialSaleAsTab(promptTabLabelName)} disabled={!promptTabLabelName.trim()}>
+              Créer la fiche en attente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       </SubscriptionGuard>
     </DashboardLayout>
   );

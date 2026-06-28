@@ -41,7 +41,8 @@ export async function printUnifiedReceipt(data: ReceiptData, formatAmount: (amou
     const rootElement = doc.getElementById('receipt-root');
     if (rootElement) {
       const root = createRoot(rootElement);
-      root.render(<ReceiptTemplate data={data} formatAmount={formatAmount} />);
+      const width = localStorage.getItem('wesd_pos_printer_width') || '58';
+      root.render(<ReceiptTemplate data={data} formatAmount={formatAmount} printerWidth={width} />);
       
       // Wait for rendering and images/QR codes to finish
       setTimeout(() => {
