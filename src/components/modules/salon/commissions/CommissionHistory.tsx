@@ -45,7 +45,7 @@ export function CommissionHistory({ employeeId, employeeName, open, onOpenChange
       
       let query = supabase
         .from("commission_transactions")
-        .select("*, salon_sales ( sale_number, tab_number )")
+        .select("*, salon_sales!sale_id(sale_number, tab_number)")
         .eq("employee_id", employeeId);
 
       if (filterRange === "week") {
