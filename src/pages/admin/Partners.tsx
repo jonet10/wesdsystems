@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -199,6 +200,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
 }
 
 export default function SuperAdminPartnersPage() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const { profile } = useAuth();
 
@@ -940,7 +942,7 @@ export default function SuperAdminPartnersPage() {
                 <Input {...partnerForm.register("display_name")} />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t("common.email")}</Label>
                 <Input type="email" {...partnerForm.register("email")} />
               </div>
               <div className="space-y-2">

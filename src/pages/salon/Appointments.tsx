@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -22,6 +23,7 @@ import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 const hours = Array.from({ length: 11 }, (_, i) => i + 8); // 8:00 to 18:00
 
 export default function AppointmentsPage() {
+  const { t } = useTranslation();
   const { isAuthenticated, profile } = useAuth();
   const { format, currency } = useCurrency();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -746,7 +748,7 @@ export default function AppointmentsPage() {
             </div>
 
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Annuler</Button>
+              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>{t("common.cancel")}</Button>
               <Button type="submit" variant="hero">Valider le RDV</Button>
             </DialogFooter>
           </form>
@@ -777,7 +779,7 @@ export default function AppointmentsPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowNewApptClient(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowNewApptClient(false)}>{t("common.cancel")}</Button>
             <Button onClick={saveNewApptClient} disabled={newApptClientSaving}>
               {newApptClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
             </Button>

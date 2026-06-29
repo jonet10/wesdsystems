@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit2, Package, ArrowDownUp, Filter, Trash2 } from "lucide-react";
 import { inventoryService } from "@/modules/school/services/inventoryService";
@@ -35,6 +36,7 @@ import {
 } from "@/components/ui/select";
 
 export default function Inventory() {
+  const { t } = useTranslation();
   const [products, setProducts] = useState<SchoolProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,17 +173,17 @@ export default function Inventory() {
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Produit</TableHead>
-              <TableHead>Catégorie</TableHead>
+              <TableHead>{t("common.category")}</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Prix de vente</TableHead>
               <TableHead>Stock Actuel</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">Chargement...</TableCell>
+                <TableCell colSpan={6} className="text-center py-8">{t("common.loading")}</TableCell>
               </TableRow>
             ) : filteredProducts.length === 0 ? (
               <TableRow>
@@ -249,7 +251,7 @@ export default function Inventory() {
                 <Input name="name" defaultValue={selectedProduct?.name} required />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Catégorie</label>
+                <label className="text-sm font-medium">{t("common.category")}</label>
                 <Input name="category" defaultValue={selectedProduct?.category || ""} placeholder="Uniforme, Livres..." />
               </div>
               <div className="space-y-2">
@@ -274,8 +276,8 @@ export default function Inventory() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsProductModalOpen(false)}>Annuler</Button>
-              <Button type="submit">Enregistrer</Button>
+              <Button type="button" variant="outline" onClick={() => setIsProductModalOpen(false)}>{t("common.cancel")}</Button>
+              <Button type="submit">{t("common.save")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -326,8 +328,8 @@ export default function Inventory() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsStockModalOpen(false)}>Annuler</Button>
-              <Button type="submit">Enregistrer</Button>
+              <Button type="button" variant="outline" onClick={() => setIsStockModalOpen(false)}>{t("common.cancel")}</Button>
+              <Button type="submit">{t("common.save")}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

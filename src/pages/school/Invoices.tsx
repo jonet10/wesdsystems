@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -18,6 +19,7 @@ import type { SchoolInvoice, SchoolStudent, SchoolAcademicYear, SchoolClass, Sch
 import { format } from "date-fns";
 
 export default function SchoolInvoices() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
@@ -268,7 +270,7 @@ export default function SchoolInvoices() {
                   </select>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setIsGenOpen(false)}>Annuler</Button>
+                  <Button variant="outline" onClick={() => setIsGenOpen(false)}>{t("common.cancel")}</Button>
                   <Button onClick={handleGenerateInvoice} disabled={isGenerating}>
                     {isGenerating ? "Génération..." : "Générer la facture"}
                   </Button>
@@ -327,14 +329,14 @@ export default function SchoolInvoices() {
                   <TableHead>Total</TableHead>
                   <TableHead>Payé</TableHead>
                   <TableHead>Reste (Balance)</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">Chargement...</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8">{t("common.loading")}</TableCell>
                   </TableRow>
                 ) : filteredInvoices.length === 0 ? (
                   <TableRow>

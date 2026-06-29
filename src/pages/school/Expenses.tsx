@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import type { SchoolExpense } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolExpenses() {
+  const { t } = useTranslation();
   const { format: formatAmount } = useCurrency();
 
   const { data: expenses = [], isLoading } = useExpenses();
@@ -107,7 +109,7 @@ export default function SchoolExpenses() {
               </DialogHeader>
               <form onSubmit={handleSave} className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label>Catégorie</Label>
+                  <Label>{t("common.category")}</Label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3" value={category} onChange={e => setCategory(e.target.value)}>
                     <option value="">Sélectionner une catégorie</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -150,15 +152,15 @@ export default function SchoolExpenses() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Catégorie</TableHead>
+                  <TableHead>{t("common.category")}</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Montant</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredExpenses.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucune dépense trouvée.</TableCell></TableRow>
                 ) : (

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -143,6 +144,7 @@ function loadModules(): PlatformModuleRow[] {
 }
 
 export default function ModulesPage() {
+  const { t } = useTranslation();
   const [modules, setModules] = useState<PlatformModuleRow[]>(DEFAULT_MODULES);
   const [hydrated, setHydrated] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -433,7 +435,7 @@ export default function ModulesPage() {
             </DialogHeader>
             <div className="grid gap-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="module-name">Nom</Label>
+                <Label htmlFor="module-name">{t("common.name")}</Label>
                 <Input id="module-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
               <div className="space-y-2">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -61,6 +62,7 @@ const COLORS = [
 ];
 
 export default function EmployeesPage() {
+  const { t } = useTranslation();
   const { isAuthenticated, profile } = useAuth();
   const perms = usePermissions("salon_admin");
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -881,7 +883,7 @@ export default function EmployeesPage() {
               )}
               
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>{t("common.cancel")}</Button>
                 <Button type="submit" disabled={isCreatingAccount}>
                   {isCreatingAccount ? "Création..." : "Ajouter l'employé"}
                 </Button>
@@ -1095,8 +1097,8 @@ export default function EmployeesPage() {
               )}
 
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
-                <Button type="submit">Enregistrer</Button>
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>{t("common.cancel")}</Button>
+                <Button type="submit">{t("common.save")}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -1125,7 +1127,7 @@ export default function EmployeesPage() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>{t("common.cancel")}</Button>
               <Button variant="destructive" onClick={handleDeleteEmployee}>
                 Retirer
               </Button>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -17,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import type { SchoolStudent, SchoolAcademicYear } from "@/modules/school/types";
 
 export default function SchoolStudents() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
@@ -542,7 +544,7 @@ export default function SchoolStudents() {
                       <Input value={formData.motherFirstName} onChange={e => updateField("motherFirstName", e.target.value)} />
                     </div>
                     <div className="space-y-2 col-span-1">
-                      <Label className="text-xs">Statut</Label>
+                      <Label className="text-xs">{t("common.status")}</Label>
                       <div className="flex gap-2">
                         <label className="text-sm cursor-pointer"><input type="radio" checked={formData.motherDeceased} onChange={() => updateField("motherDeceased", true)} /> Décédée</label>
                         <label className="text-sm cursor-pointer"><input type="radio" checked={!formData.motherDeceased} onChange={() => updateField("motherDeceased", false)} /> Vivante</label>
@@ -566,7 +568,7 @@ export default function SchoolStudents() {
                       <Input value={formData.fatherFirstName} onChange={e => updateField("fatherFirstName", e.target.value)} />
                     </div>
                     <div className="space-y-2 col-span-1">
-                      <Label className="text-xs">Statut</Label>
+                      <Label className="text-xs">{t("common.status")}</Label>
                       <div className="flex gap-2">
                         <label className="text-sm cursor-pointer"><input type="radio" checked={formData.fatherDeceased} onChange={() => updateField("fatherDeceased", true)} /> Décédé</label>
                         <label className="text-sm cursor-pointer"><input type="radio" checked={!formData.fatherDeceased} onChange={() => updateField("fatherDeceased", false)} /> Vivant</label>
@@ -620,7 +622,7 @@ export default function SchoolStudents() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-6 border-t mt-8">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>{t("common.cancel")}</Button>
                   <Button type="submit" disabled={isSaving} className="bg-green-600 hover:bg-green-700">
                     {isSaving ? "Enregistrement..." : "Soumettre"}
                   </Button>
@@ -700,12 +702,12 @@ export default function SchoolStudents() {
                   <TableHead>Sexe</TableHead>
                   <TableHead>Classe / Niveau</TableHead>
                   <TableHead>Téléphone Resp.</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredStudents.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun élève trouvé.</TableCell></TableRow>
                 ) : (

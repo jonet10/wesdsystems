@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -177,6 +178,7 @@ const describeRpcError = (err: unknown) => {
 };
 
 export default function POSPage() {
+  const { t } = useTranslation();
   const { user, profile: authProfile, employeeSession, logoutEmployee } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(authProfile?.business_id ?? null);
@@ -2431,7 +2433,7 @@ export default function POSPage() {
             ))}
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOptionsModalOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOptionsModalOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={confirmServiceOptions}>Ajouter au panier</Button>
           </div>
         </DialogContent>
@@ -2762,7 +2764,7 @@ export default function POSPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowNewClientModal(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowNewClientModal(false)}>{t("common.cancel")}</Button>
             <Button onClick={saveNewClient} disabled={newClientSaving}>
               {newClientSaving ? "Enregistrement..." : "Créer et sélectionner"}
             </Button>
@@ -3071,7 +3073,7 @@ export default function POSPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPromptTabLabelOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setPromptTabLabelOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={() => void handleConfirmPartialSaleAsTab(promptTabLabelName)} disabled={!promptTabLabelName.trim()}>
               Créer la fiche en attente
             </Button>

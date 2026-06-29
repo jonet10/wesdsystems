@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ interface CartItem {
 }
 
 export default function AutoPartsPOSPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { format, currencyCode } = useCurrency();
   const { autoPartsStaffSession } = useAuth();
@@ -200,7 +202,7 @@ export default function AutoPartsPOSPage() {
           <div className="flex gap-2 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher..." value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-10" />
+              <Input placeholder={t("common.search")} value={searchQ} onChange={(e) => setSearchQ(e.target.value)} className="pl-10" />
             </div>
             <Select value={catFilter} onValueChange={setCatFilter}>
               <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -388,7 +390,7 @@ export default function AutoPartsPOSPage() {
             </div>
           </div>
           <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
-            <Button variant="ghost" className="rounded-xl h-12 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setShowPayment(false)}>Annuler</Button>
+            <Button variant="ghost" className="rounded-xl h-12 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setShowPayment(false)}>{t("common.cancel")}</Button>
             <Button onClick={handlePayment} className="rounded-xl h-12 flex-[2] bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-lg shadow-violet-500/25 border-0 text-base font-semibold transition-all">
               Confirmer le paiement
             </Button>

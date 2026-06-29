@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -77,6 +78,7 @@ function generatePassword(): string {
 }
 
 export default function SchoolStaffPage() {
+  const { t } = useTranslation();
   const { user, profile } = useAuth();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
@@ -281,14 +283,14 @@ export default function SchoolStaffPage() {
                 <TableRow>
                   <TableHead>Nom complet</TableHead>
                   <TableHead>Identifiant (username)</TableHead>
-                  <TableHead>Rôle</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("common.role")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : data.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
@@ -472,7 +474,7 @@ export default function SchoolStaffPage() {
               )}
 
               <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
                 <Button onClick={handleSave} disabled={isSaving}>
                   {isSaving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
@@ -493,7 +495,7 @@ export default function SchoolStaffPage() {
             Le compte sera conservé mais l'accès sera bloqué.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
             <Button variant="destructive" onClick={handleDelete}>Désactiver</Button>
           </DialogFooter>
         </DialogContent>

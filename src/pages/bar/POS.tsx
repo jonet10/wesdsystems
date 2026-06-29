@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -45,6 +46,7 @@ interface CartItem {
 }
 
 export default function BarPOS() {
+  const { t } = useTranslation();
   const { user, profile } = useAuth();
   const { currencyCode, format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -238,7 +240,7 @@ export default function BarPOS() {
                 </div>
                 <div className="relative w-full sm:max-w-xs">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
+                  <Input placeholder={t("common.search")} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8" />
                 </div>
               </div>
             </CardHeader>

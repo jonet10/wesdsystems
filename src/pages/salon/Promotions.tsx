@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -45,6 +46,7 @@ interface Promotion {
 }
 
 export default function PromotionsPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -202,7 +204,7 @@ export default function PromotionsPage() {
             <div className="flex gap-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
+                <Input placeholder={t("common.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
               </div>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -347,7 +349,7 @@ export default function PromotionsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={savePromotion}>{editing ? "Modifier" : "Créer"}</Button>
           </DialogFooter>
         </DialogContent>

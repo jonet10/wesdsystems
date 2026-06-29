@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -19,6 +20,7 @@ import { productService, setPharmacyBusinessId } from "@/modules/pharmacy/servic
 import { glowupStore } from "@/lib/store";
 
 export default function PharmacyPurchases() {
+  const { t } = useTranslation();
   const [data, setData] = useState<PharmacyPurchase[]>([]);
   const [suppliers, setSuppliers] = useState<PharmacySupplier[]>([]);
   const [products, setProducts] = useState<PharmacyProduct[]>([]);
@@ -194,7 +196,7 @@ export default function PharmacyPurchases() {
             </div>
           </div>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave} disabled={items.length === 0}>Valider l'Achat</Button>
           </DialogFooter>
         </DialogContent>

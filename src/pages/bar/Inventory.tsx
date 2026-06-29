@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -28,6 +29,7 @@ interface BarProduct {
 }
 
 export default function BarInventory() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -137,7 +139,7 @@ export default function BarInventory() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="py-8 text-center text-muted-foreground">Chargement...</div>
+                <div className="py-8 text-center text-muted-foreground">{t("common.loading")}</div>
               ) : (
                 <div className="rounded-md border">
                   <Table>
@@ -148,7 +150,7 @@ export default function BarInventory() {
                         <TableHead className="text-center">Unités Restantes</TableHead>
                         <TableHead className="text-center">Total (Unités)</TableHead>
                         <TableHead className="text-right">Prix Unité / Caisse</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-right">{t("common.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -232,7 +234,7 @@ export default function BarInventory() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEntryModalOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setEntryModalOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSaveEntry}>Enregistrer l'entrée</Button>
           </DialogFooter>
         </DialogContent>

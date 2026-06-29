@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { Plus, Building2, Check } from "lucide-react";
 
 export default function SalonBranchesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { profile } = useAuth();
   const businessId = profile?.business_id;
@@ -125,11 +127,11 @@ export default function SalonBranchesPage() {
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Établissement Pétion-Ville" />
             </div>
             <div>
-              <Label>Téléphone</Label>
+              <Label>{t("common.phone")}</Label>
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label>{t("common.email")}</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
@@ -153,7 +155,7 @@ export default function SalonBranchesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving}>{saving ? "Création..." : "Créer"}</Button>
           </DialogFooter>
         </DialogContent>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import type { SchoolInvoice, SchoolPayment, SchoolStudent, SchoolPaymentPlan } f
 import { format } from "date-fns";
 
 export default function SchoolPayments() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const { format: formatAmount, currencyCode } = useCurrency();
@@ -313,7 +315,7 @@ export default function SchoolPayments() {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={4} className="text-center py-8">Chargement...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                   ) : filteredInvoices.length === 0 ? (
                     <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucune facture en attente</TableCell></TableRow>
                   ) : (
@@ -354,7 +356,7 @@ export default function SchoolPayments() {
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-4 space-y-4">
               {isLoading ? (
-                <div className="text-center text-sm text-muted-foreground">Chargement...</div>
+                <div className="text-center text-sm text-muted-foreground">{t("common.loading")}</div>
               ) : payments.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground">Aucun paiement récent</div>
               ) : (

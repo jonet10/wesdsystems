@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,6 +20,7 @@ import { format } from "date-fns";
 import { setBusinessId } from "@/modules/school/services";
 
 export default function SchoolReports() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
   const { settings, activeAcademicYear } = useSchoolSettings();
@@ -428,7 +430,7 @@ export default function SchoolReports() {
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Catégorie</TableHead>
+                        <TableHead>{t("common.category")}</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead className="text-right">Montant</TableHead>
                       </TableRow>

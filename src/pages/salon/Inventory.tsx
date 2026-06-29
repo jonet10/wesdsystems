@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -48,6 +49,7 @@ interface StockMovement {
 }
 
 export default function InventoryPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -398,7 +400,7 @@ export default function InventoryPage() {
                   <tr className="bg-muted/40 border-b border-border">
                     <th className="text-left p-3 text-xs">Produit</th>
                     <th className="text-left p-3 text-xs">Marque</th>
-                    <th className="text-left p-3 text-xs">Catégorie</th>
+                    <th className="text-left p-3 text-xs">{t("common.category")}</th>
                     <th className="text-left p-3 text-xs">Stock Total</th>
                     <th className="text-left p-3 text-xs">Détail (Caisses/Unités)</th>
                     <th className="text-left p-3 text-xs">Seuil</th>
@@ -488,7 +490,7 @@ export default function InventoryPage() {
             <div className="max-h-[calc(100vh-10rem)] overflow-y-auto pr-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                 <div className="md:col-span-2">
-                  <Label>Nom</Label>
+                  <Label>{t("common.name")}</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <div>
@@ -496,7 +498,7 @@ export default function InventoryPage() {
                   <Input value={brand} onChange={(e) => setBrand(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Catégorie</Label>
+                  <Label>{t("common.category")}</Label>
                   <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Produits, Soin, etc." />
                 </div>
                 <div>
@@ -560,7 +562,7 @@ export default function InventoryPage() {
               </div>
             </div>
             <DialogFooter className="sticky bottom-0 bg-background pt-4">
-              <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
               <Button onClick={saveProduct}>{editing ? "Modifier" : "Ajouter"}</Button>
             </DialogFooter>
           </DialogContent>
@@ -594,7 +596,7 @@ export default function InventoryPage() {
               </p>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStockProduct(null)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setStockProduct(null)}>{t("common.cancel")}</Button>
               <Button onClick={applyStock}>Valider</Button>
             </DialogFooter>
           </DialogContent>

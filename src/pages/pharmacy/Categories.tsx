@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -16,6 +17,7 @@ import { productService, getPharmacyBusinessId, setPharmacyBusinessId } from "@/
 import { glowupStore } from "@/lib/store";
 
 export default function PharmacyCategories() {
+  const { t } = useTranslation();
   const [data, setData] = useState<PharmacyCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -123,7 +125,7 @@ export default function PharmacyCategories() {
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvelle"} Catégorie</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Nom</Label>
+              <Label>{t("common.name")}</Label>
               <Input placeholder="Ex: Antalgiques" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
@@ -139,8 +141,8 @@ export default function PharmacyCategories() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

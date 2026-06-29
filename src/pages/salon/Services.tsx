@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -312,6 +313,7 @@ const DEFAULT_SERVICE_SEEDS = [
 ];
 
 export default function ServicesPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const { data: branches = [] } = useBusinessBranches();
@@ -812,7 +814,7 @@ export default function ServicesPage() {
             {showFilters && (
               <div className="flex flex-wrap gap-3 p-4 rounded-xl bg-muted/30 border border-border">
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Statut</Label>
+                  <Label className="text-xs text-muted-foreground">{t("common.status")}</Label>
                   <div className="flex gap-1">
                     {(["all", "active", "inactive"] as const).map((val) => (
                       <Button
@@ -877,12 +879,12 @@ export default function ServicesPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Service</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Catégorie</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Prix</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.category")}</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.price")}</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Professionnel(le)s</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Employé</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Options</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Statut</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.status")}</th>
                     <th className="text-right p-4 text-sm font-semibold text-muted-foreground"></th>
                   </tr>
                 </thead>
@@ -1018,7 +1020,7 @@ export default function ServicesPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nom</Label>
+                <Label>{t("common.name")}</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -1027,7 +1029,7 @@ export default function ServicesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Catégorie</Label>
+                  <Label>{t("common.category")}</Label>
                   <Select
                     value={categoryName}
                     onValueChange={(value) => {
@@ -1114,7 +1116,7 @@ export default function ServicesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setIsAddOpen(false)}>{t("common.cancel")}</Button>
               <Button onClick={saveService}>Créer</Button>
             </DialogFooter>
           </DialogContent>
@@ -1129,7 +1131,7 @@ export default function ServicesPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nom</Label>
+                <Label>{t("common.name")}</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -1138,7 +1140,7 @@ export default function ServicesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Catégorie</Label>
+                  <Label>{t("common.category")}</Label>
                   <Select
                     value={categoryName}
                     onValueChange={(value) => {
@@ -1225,7 +1227,7 @@ export default function ServicesPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setIsEditOpen(false)}>{t("common.cancel")}</Button>
               <Button onClick={saveService}>Mettre à jour</Button>
             </DialogFooter>
           </DialogContent>
@@ -1241,7 +1243,7 @@ export default function ServicesPage() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>{t("common.cancel")}</Button>
               <Button variant="destructive" onClick={deleteService}>Désactiver</Button>
             </DialogFooter>
           </DialogContent>
@@ -1286,7 +1288,7 @@ export default function ServicesPage() {
               ))}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOptionConfigOpen(false)}>Annuler</Button>
+              <Button variant="outline" onClick={() => setIsOptionConfigOpen(false)}>{t("common.cancel")}</Button>
               <Button onClick={saveOptionConfig}>Appliquer</Button>
             </DialogFooter>
           </DialogContent>

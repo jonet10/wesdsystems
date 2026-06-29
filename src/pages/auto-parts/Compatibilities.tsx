@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -19,6 +20,7 @@ import { Trash2 } from "lucide-react";
 import type { AutoPartsProduct, AutoPartsBrand, AutoPartsModel, AutoPartsVehicleCompatibility } from "@/modules/auto-parts/types";
 
 export default function AutoPartsCompatibilitiesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const [data, setData] = useState<any[]>([]);
   const [products, setProducts] = useState<AutoPartsProduct[]>([]);
@@ -125,8 +127,8 @@ export default function AutoPartsCompatibilitiesPage() {
             <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Ajouter</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.add")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

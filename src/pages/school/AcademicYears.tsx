@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import type { SchoolAcademicYear, SchoolFee } from "@/modules/school/types";
 import { format } from "date-fns";
 
 export default function SchoolAcademicYears() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const [years, setYears] = useState<SchoolAcademicYear[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -252,8 +254,8 @@ export default function SchoolAcademicYears() {
                   <TableRow>
                     <TableHead>Nom de l'année</TableHead>
                     <TableHead>Période</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("common.status")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

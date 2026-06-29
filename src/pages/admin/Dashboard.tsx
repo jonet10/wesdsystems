@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, type ReactNode } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -110,6 +111,7 @@ const platformModules: PlatformModule[] = [
 ];
 
 export default function SuperAdminDashboard() {
+  const { t } = useTranslation();
   const { formatCompact } = useCurrency();
   const [stats, setStats] = useState<DashboardStat[]>([
     { title: "Établissements actifs", value: "0", icon: <Building2 className="h-6 w-6" />, trend: { value: 12, isPositive: true } },
@@ -494,9 +496,9 @@ export default function SuperAdminDashboard() {
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Montant</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Méthode</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Code</th>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">{t("common.phone")}</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
-                        <th className="text-right p-3 text-sm font-medium text-muted-foreground">Actions</th>
+                        <th className="text-right p-3 text-sm font-medium text-muted-foreground">{t("common.actions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -574,9 +576,9 @@ export default function SuperAdminDashboard() {
                   <tr className="border-b border-border bg-muted/20">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Établissement</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Plan</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Statut</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">{t("common.status")}</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
+                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>

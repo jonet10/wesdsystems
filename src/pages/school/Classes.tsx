@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { setBusinessId } from "@/modules/school/services/utils";
 import type { SchoolClass } from "@/modules/school/types";
 
 export default function SchoolClasses() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [classCounts, setClassCounts] = useState<Record<string, number>>({});
@@ -307,7 +309,7 @@ export default function SchoolClasses() {
                   </div>
 
                   <div className="flex justify-end pt-4 gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>{t("common.cancel")}</Button>
                     <Button type="submit" disabled={isSaving}>
                       {isSaving ? "Enregistrement..." : "Enregistrer"}
                     </Button>
@@ -348,8 +350,8 @@ export default function SchoolClasses() {
                   <TableHead>Cycle</TableHead>
                   <TableHead>Section</TableHead>
                   <TableHead>Élèves</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

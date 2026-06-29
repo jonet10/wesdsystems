@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -132,6 +133,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
 }
 
 export default function AdminCatalogPage() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [brands, setBrands] = useState<BrandRow[]>([]);
@@ -483,7 +485,7 @@ export default function AdminCatalogPage() {
           <DialogHeader><DialogTitle>{editingCategory ? "Modifier la catégorie" : "Nouvelle catégorie"}</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={saveCategory}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Nom</Label><Input {...categoryForm.register("name")} onChange={(e) => { categoryForm.setValue("name", e.target.value); if (!editingCategory) categoryForm.setValue("slug", slugify(e.target.value)); }} /></div>
+              <div className="space-y-2"><Label>{t("common.name")}</Label><Input {...categoryForm.register("name")} onChange={(e) => { categoryForm.setValue("name", e.target.value); if (!editingCategory) categoryForm.setValue("slug", slugify(e.target.value)); }} /></div>
               <div className="space-y-2"><Label>Slug</Label><Input {...categoryForm.register("slug")} /></div>
               <div className="space-y-2"><Label>Ordre</Label><Input type="number" {...categoryForm.register("sort_order")} /></div>
               <div className="space-y-2">
@@ -495,7 +497,7 @@ export default function AdminCatalogPage() {
               </div>
             </div>
             <div className="space-y-2"><Label>Description</Label><Textarea rows={4} {...categoryForm.register("description")} /></div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsCategoryOpen(false)}>Annuler</Button><Button type="submit">Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsCategoryOpen(false)}>{t("common.cancel")}</Button><Button type="submit">{t("common.save")}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -504,13 +506,13 @@ export default function AdminCatalogPage() {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader><DialogTitle>{editingBrand ? "Modifier la marque" : "Nouvelle marque"}</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={saveBrand}>
-            <div className="space-y-2"><Label>Nom</Label><Input {...brandForm.register("name")} /></div>
+            <div className="space-y-2"><Label>{t("common.name")}</Label><Input {...brandForm.register("name")} /></div>
             <div className="space-y-2"><Label>Description</Label><Textarea rows={4} {...brandForm.register("description")} /></div>
             <div className="flex items-center gap-3 rounded-md border p-3">
               <Switch checked={brandForm.watch("active")} onCheckedChange={(checked) => brandForm.setValue("active", checked)} />
               <span className="text-sm text-muted-foreground">Marque active</span>
             </div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsBrandOpen(false)}>Annuler</Button><Button type="submit">Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsBrandOpen(false)}>{t("common.cancel")}</Button><Button type="submit">{t("common.save")}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -576,7 +578,7 @@ export default function AdminCatalogPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsBeverageOpen(false)}>Annuler</Button><Button type="submit">Enregistrer</Button></DialogFooter>
+            <DialogFooter><Button variant="outline" type="button" onClick={() => setIsBeverageOpen(false)}>{t("common.cancel")}</Button><Button type="submit">{t("common.save")}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

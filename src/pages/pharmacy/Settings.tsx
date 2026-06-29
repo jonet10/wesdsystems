@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { Save, Printer, Shield, Bell } from "lucide-react";
 
 export default function PharmacySettings() {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   // Simulated settings state
@@ -70,7 +72,7 @@ export default function PharmacySettings() {
                       <Input value={settings.address} onChange={e => handleChange("address", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Téléphone</Label>
+                      <Label>{t("common.phone")}</Label>
                       <Input value={settings.phone} onChange={e => handleChange("phone", e.target.value)} />
                     </div>
                     <div className="space-y-2">

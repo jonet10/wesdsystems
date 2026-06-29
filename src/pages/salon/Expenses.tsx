@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -49,6 +50,7 @@ const categoryIcons: Record<string, any> = {
 };
 
 export default function ExpensesPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -207,7 +209,7 @@ export default function ExpensesPage() {
             <div className="flex gap-2 flex-wrap items-center">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
+                <Input placeholder={t("common.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
               </div>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
@@ -239,11 +241,11 @@ export default function ExpensesPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="text-left p-4 text-xs font-medium text-muted-foreground">Date</th>
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">Catégorie</th>
+                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.category")}</th>
                     <th className="text-left p-4 text-xs font-medium text-muted-foreground">Description</th>
                     <th className="text-right p-4 text-xs font-medium text-muted-foreground">Paiement</th>
                     <th className="text-right p-4 text-xs font-medium text-muted-foreground">Montant</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Actions</th>
+                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -322,7 +324,7 @@ export default function ExpensesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={saveExpense}>{editing ? "Modifier" : "Enregistrer"}</Button>
           </DialogFooter>
         </DialogContent>

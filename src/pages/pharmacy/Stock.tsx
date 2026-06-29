@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -35,6 +36,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.Re
 };
 
 export default function PharmacyStock() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,7 +185,7 @@ export default function PharmacyStock() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-center text-muted-foreground py-8">Chargement...</p>
+                <p className="text-center text-muted-foreground py-8">{t("common.loading")}</p>
               ) : filtered.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">Aucun mouvement trouvé</p>
               ) : (

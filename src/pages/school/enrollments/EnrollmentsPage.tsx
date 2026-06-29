@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { setBusinessId } from "@/modules/school/services/utils";
 import { format } from "date-fns";
 
 export default function EnrollmentsPage() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
@@ -437,7 +439,7 @@ export default function EnrollmentsPage() {
                           </div>
                         )}
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" onClick={() => { setCsvDialogOpen(false); setCsvText(""); setCsvClassId(""); setCsvYearId(""); setImportResults({ success: 0, errors: [] }); }}>Annuler</Button>
+                          <Button variant="outline" onClick={() => { setCsvDialogOpen(false); setCsvText(""); setCsvClassId(""); setCsvYearId(""); setImportResults({ success: 0, errors: [] }); }}>{t("common.cancel")}</Button>
                           <Button onClick={handleCSVImport} disabled={isImporting || !csvClassId}>
                             {isImporting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Import...</> : <><Upload className="h-4 w-4 mr-2" />Importer {parseCSV(csvText).length} élève(s)</>}
                           </Button>
@@ -483,7 +485,7 @@ export default function EnrollmentsPage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Statut</Label>
+                    <Label>{t("common.status")}</Label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={quickStatus} onChange={e => setQuickStatus(e.target.value as any)}>
                       <option value="active">Actif</option>
                       <option value="registered">Pré-inscrit</option>
@@ -560,7 +562,7 @@ export default function EnrollmentsPage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Statut</Label>
+                    <Label>{t("common.status")}</Label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={newStatus} onChange={e => setNewStatus(e.target.value as any)}>
                       <option value="active">Actif</option>
                       <option value="registered">Pré-inscrit</option>
@@ -676,12 +678,12 @@ export default function EnrollmentsPage() {
                       <TableHead>Classe</TableHead>
                       <TableHead>Année Académique</TableHead>
                       <TableHead>Date d'inscription</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
-                      <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                     ) : filteredEnrollments.length === 0 ? (
                       <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucune inscription trouvée</TableCell></TableRow>
                     ) : (

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -50,6 +51,7 @@ const STATUS_CONFIG = {
 };
 
 export default function AutoPartsReturnsPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
   const { format } = useCurrency();
@@ -235,7 +237,7 @@ export default function AutoPartsReturnsPage() {
         {/* List */}
         <StaggerItem>
           <div className="space-y-3">
-            {loading && <p className="text-muted-foreground text-sm">Chargement...</p>}
+            {loading && <p className="text-muted-foreground text-sm">{t("common.loading")}</p>}
             {!loading && requests.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <PackageOpen className="h-10 w-10 mx-auto mb-2 opacity-30" />
@@ -424,7 +426,7 @@ export default function AutoPartsReturnsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenCreate(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpenCreate(false)}>{t("common.cancel")}</Button>
             <Button
               onClick={handleSubmitRequest}
               disabled={!foundSale || submitting || draftItems.filter((i) => i.quantity > 0).length === 0}
@@ -447,7 +449,7 @@ export default function AutoPartsReturnsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-green-600 hover:bg-green-700"
               onClick={handleApprove}

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef, useCallback, Fragment } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -60,6 +61,7 @@ const RISK_COLORS: Record<string, "destructive" | "default" | "secondary" | "out
 const DAY_LABELS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export default function AutoPartsReportsPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
   const { hasAutoPartsPermission } = useAuth();
@@ -171,7 +173,7 @@ export default function AutoPartsReportsPage() {
     employees: employees.map((e) => [e.staff_name, e.staff_role, e.sale_count, e.total_revenue, e.avg_ticket, e.client_count]),
   };
 
-  if (loading) return <DashboardLayout role="salon_admin" title="Rapports"><p className="text-muted-foreground p-8">Chargement...</p></DashboardLayout>;
+  if (loading) return <DashboardLayout role="salon_admin" title="Rapports"><p className="text-muted-foreground p-8">{t("common.loading")}</p></DashboardLayout>;
 
   const content = (
     <div ref={reportRef}>
@@ -370,7 +372,7 @@ export default function AutoPartsReportsPage() {
                     <CardHeader><CardTitle className="text-sm">Top catégories rentables</CardTitle></CardHeader>
                     <CardContent className="max-h-60 overflow-y-auto">
                       <table className="w-full text-xs">
-                        <thead><tr className="border-b text-muted-foreground"><th className="py-1 text-left">Catégorie</th><th className="py-1 text-right">Profit</th><th className="py-1 text-right">Marge</th></tr></thead>
+                        <thead><tr className="border-b text-muted-foreground"><th className="py-1 text-left">{t("common.category")}</th><th className="py-1 text-right">Profit</th><th className="py-1 text-right">Marge</th></tr></thead>
                         <tbody>
                           {profit.top_categories.map((c, i) => (
                             <tr key={i} className="border-b"><td className="py-1">{c.category_name}</td><td className="py-1 text-right font-medium">{format(c.profit)}</td><td className="py-1 text-right text-emerald-500">{c.margin_pct}%</td></tr>

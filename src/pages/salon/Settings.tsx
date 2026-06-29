@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -73,6 +74,7 @@ const DAYS_OF_WEEK: { label: string; index: number }[] = [
 ];
 
 export default function SalonSettingsPage() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
@@ -476,7 +478,7 @@ export default function SalonSettingsPage() {
                       <Input id="salon-email" type="email" placeholder="Ex: contact@monstudio.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="salon-phone">Téléphone</Label>
+                      <Label htmlFor="salon-phone">{t("common.phone")}</Label>
                       <Input id="salon-phone" placeholder="Ex: +509 37 00 00 00" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div className="space-y-2">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -196,6 +197,7 @@ function DataTable<T>({ rows, columns }: { rows: T[]; columns: ColumnDef<T, unkn
 }
 
 export default function SuperAdminSubscriptionsPage() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
 
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -987,7 +989,7 @@ export default function SuperAdminSubscriptionsPage() {
                       <TableHead>Billing</TableHead>
                       <TableHead>Auto renew</TableHead>
                       <TableHead>Ends</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1342,7 +1344,7 @@ export default function SuperAdminSubscriptionsPage() {
                 <Input {...branchForm.register("phone")} />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t("common.email")}</Label>
                 <Input {...branchForm.register("email")} />
               </div>
             </div>

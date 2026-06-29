@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import type { SchoolFeeCategory, SchoolFee, SchoolClass, SchoolAcademicYear } from "@/modules/school/types";
 
 export default function SchoolFees() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
@@ -262,7 +264,7 @@ export default function SchoolFees() {
                   <DialogHeader><DialogTitle>{editingCat ? "Modifier" : "Nouvelle catégorie"}</DialogTitle></DialogHeader>
                   <form onSubmit={handleSaveCat} className="space-y-4 pt-4">
                     <div className="space-y-2">
-                      <Label>Nom</Label>
+                      <Label>{t("common.name")}</Label>
                       <Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Inscription, Scolarité" />
                     </div>
                     <div className="space-y-2">
@@ -288,7 +290,7 @@ export default function SchoolFees() {
                       </div>
                       <Switch checked={catMandatory} onCheckedChange={setCatMandatory} />
                     </div>
-                    <div className="flex justify-end pt-4"><Button type="submit">Enregistrer</Button></div>
+                    <div className="flex justify-end pt-4"><Button type="submit">{t("common.save")}</Button></div>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -299,11 +301,11 @@ export default function SchoolFees() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom</TableHead>
+                      <TableHead>{t("common.name")}</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Obligatoire</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -454,7 +456,7 @@ export default function SchoolFees() {
                         <Label>Montant</Label>
                         <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} />
                       </div>
-                      <div className="flex justify-end pt-4"><Button type="submit">Enregistrer</Button></div>
+                      <div className="flex justify-end pt-4"><Button type="submit">{t("common.save")}</Button></div>
                     </form>
                   </DialogContent>
                 </Dialog>
@@ -467,9 +469,9 @@ export default function SchoolFees() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Classe</TableHead>
-                      <TableHead>Catégorie</TableHead>
+                      <TableHead>{t("common.category")}</TableHead>
                       <TableHead>Montant</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

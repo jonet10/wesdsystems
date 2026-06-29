@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -16,6 +17,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsCategory } from "@/modules/auto-parts/types";
 
 export default function AutoPartsCategoriesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const [data, setData] = useState<AutoPartsCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +106,7 @@ export default function AutoPartsCategoriesPage() {
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvelle"} catégorie</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Nom</Label>
+              <Label>{t("common.name")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
@@ -117,8 +119,8 @@ export default function AutoPartsCategoriesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

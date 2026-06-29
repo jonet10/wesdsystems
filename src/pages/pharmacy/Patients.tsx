@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -17,6 +18,7 @@ import { setPharmacyBusinessId } from "@/modules/pharmacy/services/productServic
 import { glowupStore } from "@/lib/store";
 
 export default function PharmacyPatients() {
+  const { t } = useTranslation();
   const [data, setData] = useState<PharmacyCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -126,7 +128,7 @@ export default function PharmacyPatients() {
               </div>
             </div>
             <div>
-              <Label>Téléphone</Label>
+              <Label>{t("common.phone")}</Label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
             <div>
@@ -139,8 +141,8 @@ export default function PharmacyPatients() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={!form.first_name || !form.last_name}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={!form.first_name || !form.last_name}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -28,6 +29,7 @@ interface CreditSale {
 }
 
 export default function PharmacyCredits() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const [credits, setCredits] = useState<CreditSale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,7 +197,7 @@ export default function PharmacyCredits() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-center text-muted-foreground py-8">Chargement...</p>
+                <p className="text-center text-muted-foreground py-8">{t("common.loading")}</p>
               ) : filtered.length === 0 ? (
                 <div className="text-center py-12">
                   <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
@@ -208,11 +210,11 @@ export default function PharmacyCredits() {
                     <TableRow>
                       <TableHead>Reçu</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead>Téléphone</TableHead>
+                      <TableHead>{t("common.phone")}</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Solde Dû</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
                       <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -274,7 +276,7 @@ export default function PharmacyCredits() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelected(null)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setSelected(null)}>{t("common.cancel")}</Button>
             <Button onClick={handlePay} disabled={paying || !payAmount || Number(payAmount) <= 0}>
               {paying ? "Enregistrement..." : "Confirmer le paiement"}
             </Button>

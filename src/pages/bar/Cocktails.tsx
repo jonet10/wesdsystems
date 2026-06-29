@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -35,6 +36,7 @@ interface Ingredient {
 }
 
 export default function BarCocktails() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -196,7 +198,7 @@ export default function BarCocktails() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="py-8 text-center text-muted-foreground">Chargement...</div>
+                <div className="py-8 text-center text-muted-foreground">{t("common.loading")}</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredCocktails.map((c) => (
@@ -281,7 +283,7 @@ export default function BarCocktails() {
             </ScrollArea>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRecipeModalOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setRecipeModalOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={saveRecipe}>Enregistrer la recette</Button>
           </DialogFooter>
         </DialogContent>

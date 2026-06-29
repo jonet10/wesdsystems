@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -27,6 +28,7 @@ const statusBadge = (status: string) => {
 };
 
 export default function AutoPartsDeliveryNotesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const [notes, setNotes] = useState<DeliveryNote[]>([]);
   const [searchQ, setSearchQ] = useState("");
@@ -158,8 +160,8 @@ export default function AutoPartsDeliveryNotesPage() {
                     <th className="p-3 font-medium">Client</th>
                     <th className="p-3 font-medium">Date</th>
                     <th className="p-3 font-medium">Articles</th>
-                    <th className="p-3 font-medium">Statut</th>
-                    <th className="p-3 font-medium text-right">Actions</th>
+                    <th className="p-3 font-medium">{t("common.status")}</th>
+                    <th className="p-3 font-medium text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -214,7 +216,7 @@ export default function AutoPartsDeliveryNotesPage() {
                   )}
                 </div>
                 <div>
-                  <Label>Téléphone</Label>
+                  <Label>{t("common.phone")}</Label>
                   <Input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
                 </div>
                 <div className="col-span-2">
@@ -222,7 +224,7 @@ export default function AutoPartsDeliveryNotesPage() {
                   <Input value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} />
                 </div>
                 <div>
-                  <Label>Statut</Label>
+                  <Label>{t("common.status")}</Label>
                   <Select value={status} onValueChange={setStatus}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -269,7 +271,7 @@ export default function AutoPartsDeliveryNotesPage() {
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving}>{saving ? "Création..." : "Créer le BL"}</Button>
           </DialogFooter>
         </DialogContent>

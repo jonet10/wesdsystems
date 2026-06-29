@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { useParents, useCreateParent, useUpdateParent, useDeleteParent } from "@
 import type { SchoolParent } from "@/modules/school/types";
 
 export default function SchoolParents() {
+  const { t } = useTranslation();
   const { settings, activeAcademicYear } = useSchoolSettings();
 
   const { data: parents = [], isLoading } = useParents();
@@ -117,8 +119,8 @@ export default function SchoolParents() {
                   <div className="space-y-2"><Label>Nom de famille</Label><Input value={lastName} onChange={e => setLastName(e.target.value)} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Téléphone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.phone")}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.email")}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
                 </div>
                 <div className="space-y-2"><Label>Profession</Label><Input value={profession} onChange={e => setProfession(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Adresse</Label><Input value={address} onChange={e => setAddress(e.target.value)} /></div>
@@ -145,12 +147,12 @@ export default function SchoolParents() {
                   <TableHead>Parent / Tuteur</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Profession</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredParents.length === 0 ? (
                   <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucun parent trouvé.</TableCell></TableRow>
                 ) : (

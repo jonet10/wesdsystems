@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -61,6 +62,7 @@ const emptyForm = (): FormState => ({
 });
 
 export default function AutoPartsQuotesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [searchQ, setSearchQ] = useState("");
@@ -232,8 +234,8 @@ export default function AutoPartsQuotesPage() {
                     <th className="p-3 font-medium">Client</th>
                     <th className="p-3 font-medium">Date</th>
                     <th className="p-3 font-medium text-right">Total</th>
-                    <th className="p-3 font-medium">Statut</th>
-                    <th className="p-3 font-medium text-right">Actions</th>
+                    <th className="p-3 font-medium">{t("common.status")}</th>
+                    <th className="p-3 font-medium text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -383,7 +385,7 @@ export default function AutoPartsQuotesPage() {
             </div>
           </ScrollArea>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowForm(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave} disabled={saving}>{saving ? "Sauvegarde..." : "Enregistrer"}</Button>
           </DialogFooter>
         </DialogContent>

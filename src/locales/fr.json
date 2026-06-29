@@ -218,5 +218,27 @@
     "vsLastMonth": "vs mois dernier",
     "seeAll": "Voir tout",
     "today": "aujourd'hui"
+  },
+  "common": {
+    "search": "Rechercher...",
+    "actions": "Actions",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "add": "Ajouter",
+    "new": "Nouveau",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "status": "Statut",
+    "role": "Rôle",
+    "price": "Prix",
+    "duration": "Durée",
+    "category": "Catégorie",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "confirm": "Confirmer"
   }
 }

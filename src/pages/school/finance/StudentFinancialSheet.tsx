@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { exportToPDF, printDocument, type ExportColumn } from "@/lib/school-export";
 
 export default function StudentFinancialSheet() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
   const { settings, activeAcademicYear } = useSchoolSettings();
@@ -443,7 +445,7 @@ export default function StudentFinancialSheet() {
             <CardContent className="space-y-4">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+                <Input placeholder={t("common.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
               </div>
               <div className="space-y-1 max-h-[500px] overflow-y-auto">
                 {filteredStudents.map(s => (
@@ -544,7 +546,7 @@ export default function StudentFinancialSheet() {
                           <TableHead>Payé</TableHead>
                           <TableHead>Solde</TableHead>
                           <TableHead>Date d'échéance</TableHead>
-                          <TableHead>Statut</TableHead>
+                          <TableHead>{t("common.status")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -603,9 +605,9 @@ export default function StudentFinancialSheet() {
                           <TableHead>Total</TableHead>
                           <TableHead>Payé</TableHead>
                           <TableHead>Solde</TableHead>
-                          <TableHead>Statut</TableHead>
+                          <TableHead>{t("common.status")}</TableHead>
                           <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead className="text-right">{t("common.actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

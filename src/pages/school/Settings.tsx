@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -23,6 +24,7 @@ import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaym
 import type { SchoolSetting } from "@/modules/school/types";
 
 export default function SchoolSettingsPage() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
@@ -293,7 +295,7 @@ export default function SchoolSettingsPage() {
                       <Input id="email" type="email" placeholder="Ex: contact@ecole.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Téléphone</Label>
+                      <Label htmlFor="phone">{t("common.phone")}</Label>
                       <Input id="phone" placeholder="Ex: +509 37 00 00 00" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div className="space-y-2">

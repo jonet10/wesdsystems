@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -16,6 +17,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsBrand, AutoPartsModel } from "@/modules/auto-parts/types";
 
 export default function AutoPartsModelsPage() {
+  const { t } = useTranslation();
   const [data, setData] = useState<(AutoPartsModel & { brand: { name: string } })[]>([]);
   const [brands, setBrands] = useState<AutoPartsBrand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,8 +117,8 @@ export default function AutoPartsModelsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

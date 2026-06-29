@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -194,6 +195,7 @@ function statusMeta(status: SubscriptionStatus) {
 }
 
 export default function SalonsPage() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const [businesses, setBusinesses] = useState<BusinessRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
@@ -820,7 +822,7 @@ export default function SalonsPage() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="edit-establishment-name">Nom</Label>
+                <Label htmlFor="edit-establishment-name">{t("common.name")}</Label>
                 <Input id="edit-establishment-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               </div>
               <div className="space-y-2">

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -33,6 +34,7 @@ const PAYMENT_MAP: Record<string, string> = {
 };
 
 export default function AutoPartsInvoicesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
   const canViewAll = hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
@@ -121,8 +123,8 @@ export default function AutoPartsInvoicesPage() {
                     <th className="p-3 font-medium">Date</th>
                     <th className="p-3 font-medium text-right">Total</th>
                     <th className="p-3 font-medium">Paiement</th>
-                    <th className="p-3 font-medium">Statut</th>
-                    <th className="p-3 font-medium text-right">Actions</th>
+                    <th className="p-3 font-medium">{t("common.status")}</th>
+                    <th className="p-3 font-medium text-right">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>

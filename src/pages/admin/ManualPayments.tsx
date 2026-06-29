@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -74,6 +75,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function SuperAdminManualPaymentsPage() {
+  const { t } = useTranslation();
   const [payments, setPayments] = useState<PaymentWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -353,8 +355,8 @@ export default function SuperAdminManualPaymentsPage() {
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Numéro</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Référence</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Date</TableHead>
-                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Statut</TableHead>
-                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground text-right">Actions</TableHead>
+                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">{t("common.status")}</TableHead>
+                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -449,7 +451,7 @@ export default function SuperAdminManualPaymentsPage() {
                   <p className="text-sm font-bold">{Number(selectedPayment.amount).toLocaleString()} {selectedPayment.currency_code}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Statut</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("common.status")}</p>
                   <Badge variant={STATUS_COLORS[selectedPayment.status] || "outline"}>
                     {STATUS_LABELS[selectedPayment.status] || selectedPayment.status}
                   </Badge>

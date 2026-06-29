@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { useTeachers, useCreateTeacher, useUpdateTeacher, useDeleteTeacher } fro
 import type { SchoolTeacher } from "@/modules/school/types";
 
 export default function SchoolTeachers() {
+  const { t } = useTranslation();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const { format: formatAmount } = useCurrency();
 
@@ -146,8 +148,8 @@ export default function SchoolTeachers() {
                   <div className="space-y-2"><Label>Nom de famille</Label><Input value={lastName} onChange={e => setLastName(e.target.value)} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Téléphone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.phone")}</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.email")}</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
                 </div>
                 <div className="space-y-2">
                   <Label>Matières enseignées (séparées par une virgule)</Label>
@@ -203,13 +205,13 @@ export default function SchoolTeachers() {
                   <TableHead>Professeur</TableHead>
                   <TableHead>Matières</TableHead>
                   <TableHead>Salaire / Frais</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8">Chargement...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredTeachers.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun professeur trouvé.</TableCell></TableRow>
                 ) : (

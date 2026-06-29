@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -42,6 +43,7 @@ function generatePin(): string {
 }
 
 export default function AutoPartsStaffPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const [data, setData] = useState<AutoPartsStaff[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,16 +192,16 @@ export default function AutoPartsStaffPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Email</Label>
+                    <Label>{t("common.email")}</Label>
                     <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                   </div>
                   <div>
-                    <Label>Téléphone</Label>
+                    <Label>{t("common.phone")}</Label>
                     <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                   </div>
                 </div>
                 <div>
-                  <Label>Rôle</Label>
+                  <Label>{t("common.role")}</Label>
                   <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -221,7 +223,7 @@ export default function AutoPartsStaffPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>Annuler</Button>
+                <Button variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>{t("common.cancel")}</Button>
                 <Button onClick={handleSave}>{editing ? "Enregistrer" : "Créer"}</Button>
               </DialogFooter>
             </>
@@ -234,8 +236,8 @@ export default function AutoPartsStaffPage() {
           <DialogHeader><DialogTitle>Confirmer la suppression</DialogTitle></DialogHeader>
           <p>Supprimer l'employé <strong>{deleteConfirm?.name}</strong> ? Cette action est irréversible.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t("common.delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

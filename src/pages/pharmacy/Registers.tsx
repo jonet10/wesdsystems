@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -30,6 +31,7 @@ interface Register {
 }
 
 export default function PharmacyRegisters() {
+  const { t } = useTranslation();
   const { format } = useCurrency();
   const [registers, setRegisters] = useState<Register[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +183,7 @@ export default function PharmacyRegisters() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-center text-muted-foreground py-8">Chargement...</p>
+                <p className="text-center text-muted-foreground py-8">{t("common.loading")}</p>
               ) : registers.length === 0 ? (
                 <div className="text-center py-12">
                   <Monitor className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
@@ -193,13 +195,13 @@ export default function PharmacyRegisters() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nom</TableHead>
+                      <TableHead>{t("common.name")}</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Solde ouverture</TableHead>
                       <TableHead>Solde actuel</TableHead>
-                      <TableHead>Statut</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
                       <TableHead>Ouvert le</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead>{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -286,7 +288,7 @@ export default function PharmacyRegisters() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? "Enregistrement..." : editing ? "Modifier" : "Créer"}
             </Button>
@@ -300,8 +302,8 @@ export default function PharmacyRegisters() {
           <DialogHeader><DialogTitle>Confirmer la suppression</DialogTitle></DialogHeader>
           <p>Supprimer la caisse <strong>{deleteConfirm?.name}</strong> ? Cette action est irréversible.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t("common.delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -91,6 +92,7 @@ function StepDots({ step }: { step: ModalStep }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ProductsPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -324,7 +326,7 @@ export default function ProductsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher..."
+                  placeholder={t("common.search")}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-9 w-60"
@@ -362,11 +364,11 @@ export default function ProductsPage() {
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Produit</th>
-                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Catégorie</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.category")}</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Marque</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Conditionnement</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">SKU</th>
-                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">Actions</th>
+                      <th className="text-right p-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>

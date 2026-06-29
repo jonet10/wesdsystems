@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -24,6 +25,7 @@ const STATUS_LABELS: Record<string, string> = { draft: "Brouillon", pending: "En
 const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = { draft: "outline", pending: "secondary", confirmed: "default", preparing: "default", shipped: "default", delivered: "default", cancelled: "destructive" };
 
 export default function AutoPartsPurchasesPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
   const [data, setData] = useState<(AutoPartsPurchase & { items: AutoPartsPurchaseItem[] })[]>([]);
@@ -202,12 +204,12 @@ export default function AutoPartsPurchasesPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Articles</Label>
-                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" />Ajouter</Button>
+                <Button size="sm" variant="outline" onClick={addItem}><Plus className="h-4 w-4 mr-1" />{t("common.add")}</Button>
               </div>
               {form.items.map((item, i) => (
                 <div key={i} className="flex gap-2 items-end mb-2">
                   <div className="flex-1">
-                    <Input placeholder="Rechercher..." value={prodSearch} onChange={(e) => searchProd(e.target.value)} onFocus={() => searchProd("")} />
+                    <Input placeholder={t("common.search")} value={prodSearch} onChange={(e) => searchProd(e.target.value)} onFocus={() => searchProd("")} />
                     {prodResults.length > 0 && (
                       <div className="border rounded-md mt-1 max-h-24 overflow-y-auto absolute z-10 bg-background shadow-lg">
                         {prodResults.map((p) => (
@@ -227,7 +229,7 @@ export default function AutoPartsPurchasesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave}>{editing ? "Enregistrer" : "Créer la commande"}</Button>
           </DialogFooter>
         </DialogContent>
@@ -238,8 +240,8 @@ export default function AutoPartsPurchasesPage() {
           <DialogHeader><DialogTitle>Confirmer la suppression</DialogTitle></DialogHeader>
           <p>Supprimer la commande <strong>{deleteConfirm?.reference_number || deleteConfirm?.id}</strong> ? Cette action est irréversible.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>{t("common.cancel")}</Button>
+            <Button variant="destructive" onClick={handleDelete}>{t("common.delete")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

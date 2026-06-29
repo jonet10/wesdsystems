@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -23,6 +24,7 @@ import { Pencil, Trash2, Search } from "lucide-react";
 import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/types";
 
 export default function AutoPartsProductsPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { format } = useCurrency();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
@@ -139,10 +141,10 @@ export default function AutoPartsProductsPage() {
         <DialogContent className="max-w-xl">
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouveau"} produit</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
-            <div className="col-span-2"><Label>Nom</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="col-span-2"><Label>{t("common.name")}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div className="col-span-2"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div className="col-span-2">
-              <Label>Catégorie</Label>
+              <Label>{t("common.category")}</Label>
               <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>
@@ -164,8 +166,8 @@ export default function AutoPartsProductsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

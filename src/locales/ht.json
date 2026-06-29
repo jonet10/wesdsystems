@@ -218,5 +218,27 @@
     "vsLastMonth": "vs mwa pase",
     "seeAll": "Wè tout",
     "today": "jodia"
+  },
+  "common": {
+    "search": "Chèche...",
+    "actions": "Aksyon",
+    "edit": "Modifye",
+    "delete": "Efase",
+    "cancel": "Anile",
+    "save": "Sove",
+    "add": "Ajoute",
+    "new": "Nouvo",
+    "name": "Non",
+    "email": "Imèl",
+    "phone": "Telefòn",
+    "status": "Estati",
+    "role": "Wòl",
+    "price": "Pri",
+    "duration": "Dire",
+    "category": "Kategori",
+    "loading": "Chaje...",
+    "error": "Erè",
+    "success": "Siksè",
+    "confirm": "Konfime"
   }
 }

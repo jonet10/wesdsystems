@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -12,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 
 export default function ParentDashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
@@ -172,7 +174,7 @@ export default function ParentDashboard() {
                   <TableHead>Année</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Reste (Solde)</TableHead>
-                  <TableHead>Statut</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
                   <TableHead className="text-right">Reçu</TableHead>
                 </TableRow>
               </TableHeader>

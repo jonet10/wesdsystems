@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ const statusBadgeVariant: Record<PartnerStatus, "default" | "secondary" | "destr
 };
 
 export default function PartnerApplicationsPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const [applications, setApplications] = useState<PartnerApplicationRow[]>([]);
   const [search, setSearch] = useState("");
@@ -206,15 +208,15 @@ export default function PartnerApplicationsPage() {
                 <table className="w-full min-w-[1100px]">
                   <thead className="bg-muted/40">
                     <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-                      <th className="p-4">Nom</th>
-                      <th className="p-4">Email</th>
-                      <th className="p-4">Téléphone</th>
+                      <th className="p-4">{t("common.name")}</th>
+                      <th className="p-4">{t("common.email")}</th>
+                      <th className="p-4">{t("common.phone")}</th>
                       <th className="p-4">Ville</th>
                       <th className="p-4">Département</th>
                       <th className="p-4">Type partenaire</th>
                       <th className="p-4">Date demande</th>
-                      <th className="p-4">Statut</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="p-4">{t("common.status")}</th>
+                      <th className="p-4 text-right">{t("common.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -296,15 +298,15 @@ export default function PartnerApplicationsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <Label>Nom</Label>
+                  <Label>{t("common.name")}</Label>
                   <div className="mt-1 rounded-md border p-3">{selectedApplication.display_name || selectedApplication.full_name || "—"}</div>
                 </div>
                 <div>
-                  <Label>Email</Label>
+                  <Label>{t("common.email")}</Label>
                   <div className="mt-1 rounded-md border p-3">{selectedApplication.email || "—"}</div>
                 </div>
                 <div>
-                  <Label>Téléphone</Label>
+                  <Label>{t("common.phone")}</Label>
                   <div className="mt-1 rounded-md border p-3">{selectedApplication.phone || "—"}</div>
                 </div>
                 <div>

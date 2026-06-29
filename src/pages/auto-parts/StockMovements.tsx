@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -23,6 +24,7 @@ const TYPE_LABELS: Record<string, string> = { in: "Entrée", out: "Sortie", adju
 const TYPE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = { in: "default", out: "destructive", adjustment: "secondary", sale: "outline", return: "outline" };
 
 export default function AutoPartsStockMovementsPage() {
+  const { t } = useTranslation();
   const businessId = useAutoPartsBusinessId();
   const { hasAutoPartsPermission } = useAuth();
   const canManage = hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
@@ -133,8 +135,8 @@ export default function AutoPartsStockMovementsPage() {
             </div>
           </div>
           <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
-            <Button variant="ghost" className="rounded-xl h-11 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} className="rounded-xl h-11 flex-1 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-lg shadow-violet-500/25 border-0 font-medium transition-all">Enregistrer</Button>
+            <Button variant="ghost" className="rounded-xl h-11 flex-1 dark:text-slate-300 dark:hover:bg-white/5" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} className="rounded-xl h-11 flex-1 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-500 hover:to-cyan-400 text-white shadow-lg shadow-violet-500/25 border-0 font-medium transition-all">{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

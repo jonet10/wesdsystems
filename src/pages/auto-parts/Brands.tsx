@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -14,6 +15,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import type { AutoPartsBrand } from "@/modules/auto-parts/types";
 
 export default function AutoPartsBrandsPage() {
+  const { t } = useTranslation();
   const [data, setData] = useState<AutoPartsBrand[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -77,12 +79,12 @@ export default function AutoPartsBrandsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvelle"} marque</DialogTitle></DialogHeader>
           <div>
-            <Label>Nom</Label>
+            <Label>{t("common.name")}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave}>Enregistrer</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

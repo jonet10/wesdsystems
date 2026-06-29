@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -21,6 +22,7 @@ import { getBusinessSettings, upsertBusinessSettings } from "@/modules/auto-part
 import type { AutoPartsBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
 
 export default function AutoPartsSettingsPage() {
+  const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
@@ -250,7 +252,7 @@ export default function AutoPartsSettingsPage() {
                       <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Téléphone</Label>
+                      <Label htmlFor="phone">{t("common.phone")}</Label>
                       <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </div>
                     <div className="space-y-2">

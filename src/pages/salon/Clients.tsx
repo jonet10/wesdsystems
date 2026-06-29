@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -25,6 +26,7 @@ import { Printer, AlertCircle } from "lucide-react";
 import { SubscriptionGuard } from "@/components/subscription/SubscriptionGuard";
 
 export default function ClientsPage() {
+  const { t } = useTranslation();
   const { isAuthenticated, profile } = useAuth();
 
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -319,7 +321,7 @@ export default function ClientsPage() {
                       <DropdownMenuContent align="end" className="rounded-lg border border-border">
                         <DropdownMenuItem onClick={() => openEditModal(client)} className="flex items-center gap-2 cursor-pointer">
                           <Pencil className="h-3.5 w-3.5" />
-                          <span>Modifier</span>
+                          <span>{t("common.edit")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => navigate("/salon/appointments")} className="flex items-center gap-2 cursor-pointer">
                           <Calendar className="h-3.5 w-3.5" />
@@ -327,7 +329,7 @@ export default function ClientsPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openDeleteModal(client)} className="flex items-center gap-2 text-destructive hover:text-destructive cursor-pointer">
                           <Trash2 className="h-3.5 w-3.5" />
-                          <span>Supprimer</span>
+                          <span>{t("common.delete")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -398,7 +400,7 @@ export default function ClientsPage() {
                 <Input id="add-cli-phone" placeholder="Ex: 06 12 34 56 78" value={phone} onChange={(e) => setPhone(e.target.value)} required />
               </div>
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Annuler</Button>
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>{t("common.cancel")}</Button>
                 <Button type="submit" variant="hero">Créer la fiche</Button>
               </DialogFooter>
             </form>
@@ -428,7 +430,7 @@ export default function ClientsPage() {
                 <Input id="edit-cli-phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
               </div>
               <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Annuler</Button>
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>{t("common.cancel")}</Button>
                 <Button type="submit" variant="hero">Mettre à jour</Button>
               </DialogFooter>
             </form>
@@ -445,7 +447,7 @@ export default function ClientsPage() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-0 mt-4">
-              <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Annuler</Button>
+              <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>{t("common.cancel")}</Button>
               <Button type="button" variant="destructive" onClick={handleDeleteClient}>Supprimer définitivement</Button>
             </DialogFooter>
           </DialogContent>
