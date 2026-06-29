@@ -212,34 +212,39 @@ export const DashboardHeader = ({
           <span className="sr-only">Basculer le thème</span>
         </Button>
 
-        {/* Google Translate Widget */}
-        <div id="google_translate_element" className="scale-[0.8] origin-right max-h-9 overflow-hidden flex items-center"></div>
-
-        {/* Language Selector */}
-        <DropdownMenu open={showLangDropdown} onOpenChange={setShowLangDropdown}>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-9 gap-1 px-2">
-              <span className="text-lg">{currentLang.flag}</span>
-              <span className="hidden sm:inline text-sm">{currentLang.code.toUpperCase()}</span>
-              <ChevronDown className="h-3 w-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            {languages.map((lang) => (
-              <DropdownMenuItem
+        
+        {/* Segmented Language Selector */}
+        <div className="flex items-center bg-slate-900/50 border border-slate-800 rounded-full p-1 h-9">
+          {languages.map((lang) => {
+            const isActive = i18n.language.startsWith(lang.code);
+            return (
+              <button
                 key={lang.code}
                 onClick={() => {
                   i18n.changeLanguage(lang.code);
-                  setShowLangDropdown(false);
+                  
+                  // Trigger Google Translate
+                  setTimeout(() => {
+                    const select = document.querySelector('.goog-te-combo');
+                    if (select) {
+                      select.value = lang.code;
+                      select.dispatchEvent(new Event('change'));
+                    }
+                  }, 100);
                 }}
-                className={cn(i18n.language.startsWith(lang.code) && "bg-accent")}
+                className={cn(
+                  "px-3 py-1 text-xs font-bold rounded-full transition-all duration-200",
+                  isActive 
+                    ? "bg-white text-slate-900 shadow-sm" 
+                    : "text-slate-400 hover:text-slate-200"
+                )}
               >
-                <span className="mr-2">{lang.flag}</span>
-                {lang.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                {lang.code.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+
 
         {/* Currency Selector */}
         <DropdownMenu open={showCurrencyDropdown} onOpenChange={setShowCurrencyDropdown}>
