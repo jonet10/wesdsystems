@@ -42,7 +42,19 @@ export function LanguageSelector({ compact = false, className }: LanguageSelecto
         {languages.map((language) => (
           <DropdownMenuItem
             key={language.code}
-            onClick={() => i18n.changeLanguage(language.code)}
+            onClick={() => {
+    i18n.changeLanguage(language.code);
+    
+    // Trigger Google Translate
+    setTimeout(() => {
+      const select = document.querySelector('.goog-te-combo');
+      if (select) {
+        select.value = language.code;
+        select.dispatchEvent(new Event('change'));
+      }
+    }, 100);
+
+  }}
             className={cn(i18n.language.startsWith(language.code) && "bg-accent")}
           >
             <span className="mr-2">{language.flag}</span>
