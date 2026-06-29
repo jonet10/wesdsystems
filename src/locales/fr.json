@@ -4,7 +4,9 @@
     "features": "Fonctionnalités",
     "pricing": "Tarifs",
     "signIn": "Connexion",
-    "startTrial": "Essai gratuit"
+    "startTrial": "Essai gratuit",
+    "themeLight": "Mode jour",
+    "themeDark": "Mode nuit"
   },
   "hero": {
     "badge": "Utilisé par des entreprises dans {{count}} pays",
@@ -13,7 +15,11 @@
     "subtitle": "Un seul système pour gérer votre salon, pharmacie, restaurant, supermarché ou boutique. Caisse POS en temps réel, statistiques et gestion d'équipe incluses.",
     "cta": "Démarrer l'essai de 7 jours",
     "demo": "Voir le dashboard démo",
-    "noCreditCard": "Sans carte bancaire · Annulation à tout moment"
+    "noCreditCard": "Sans carte bancaire · Annulation à tout moment",
+    "modern": "La plateforme moderne",
+    "business": "de gestion",
+    "management": "pour",
+    "platform": "entreprises"
   },
   "businesses": {
     "salon": {
@@ -66,7 +72,22 @@
       "noAccount": "Pas encore de compte ?",
       "createAccount": "Créer un compte",
       "partnerHint": "Vous voulez rejoindre le programme partenaire ?",
-      "becomePartner": "Devenir partenaire"
+      "becomePartner": "Devenir partenaire",
+      "tabs": {
+        "admin": "Administrateur",
+        "school": "École",
+        "staff": "Caisse"
+      },
+      "staff": {
+        "username": "Identifiant (Username)",
+        "secret": "Code Secret",
+        "submit": "Ouvrir la caisse"
+      },
+      "school": {
+        "username": "Identifiant",
+        "password": "Mot de passe"
+      },
+      "remember": "Se souvenir de moi"
     }
   },
   "settings": {
@@ -102,5 +123,10 @@
     "unitCost": "Coût unitaire",
     "unitSellingPrice": "Prix de vente",
     "profitPreview": "Aperçu des marges"
+  },
+  "stats": {
+    "countries": "pays",
+    "verticals": "secteurs",
+    "starterFrom": "Starter dès"
   }
 }

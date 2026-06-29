@@ -4,7 +4,9 @@
     "features": "Features",
     "pricing": "Pricing",
     "signIn": "Sign in",
-    "startTrial": "Start free trial"
+    "startTrial": "Start free trial",
+    "themeLight": "Light mode",
+    "themeDark": "Dark mode"
   },
   "hero": {
     "badge": "Used by businesses in {{count}} countries",
@@ -13,7 +15,11 @@
     "subtitle": "One platform to run your salon, pharmacy, restaurant, grocery store, or boutique — with real-time POS, analytics, and team management built in.",
     "cta": "Start 7-day free trial",
     "demo": "View demo dashboard",
-    "noCreditCard": "No credit card required · Cancel anytime"
+    "noCreditCard": "No credit card required · Cancel anytime",
+    "modern": "The modern",
+    "business": "business",
+    "management": "management",
+    "platform": "platform"
   },
   "businesses": {
     "salon": {
@@ -66,7 +72,22 @@
       "noAccount": "Don't have an account yet?",
       "createAccount": "Create account",
       "partnerHint": "Want to join the partner program?",
-      "becomePartner": "Become a partner"
+      "becomePartner": "Become a partner",
+      "tabs": {
+        "admin": "Admin",
+        "school": "School",
+        "staff": "POS / Cashier"
+      },
+      "staff": {
+        "username": "Username",
+        "secret": "Secret Code",
+        "submit": "Open POS"
+      },
+      "school": {
+        "username": "School ID",
+        "password": "Password"
+      },
+      "remember": "Remember me"
     }
   },
   "settings": {
@@ -102,5 +123,10 @@
     "unitCost": "Unit cost",
     "unitSellingPrice": "Selling price",
     "profitPreview": "Margin preview"
+  },
+  "stats": {
+    "countries": "countries",
+    "verticals": "verticals",
+    "starterFrom": "Starter from"
   }
 }

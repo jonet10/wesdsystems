@@ -7,8 +7,26 @@ import fr from '../locales/fr.json';
 import es from '../locales/es.json';
 import ht from '../locales/ht.json';
 
+const timezoneDetector = {
+  name: 'timezoneDetector',
+  lookup(options: any) {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz === 'America/Port-au-Prince') return 'ht';
+      if (tz === 'America/Santo_Domingo' || tz === 'America/Havana') return 'es';
+      if (tz.includes('America/New_York') || tz.includes('America/Chicago')) return 'en';
+    } catch (e) {
+      // Ignore
+    }
+    return undefined;
+  }
+};
+
+const languageDetector = new LanguageDetector();
+languageDetector.addDetector(timezoneDetector);
+
 i18n
-  .use(LanguageDetector)
+  .use(languageDetector)
   .use(initReactI18next)
   .init({
     resources: {
@@ -25,7 +43,7 @@ i18n
       escapeValue: false, // React already safeguards from xss
     },
     detection: {
-      order: ['localStorage'], // Prioritize French (fallbackLng) unless user explicitly selects another language
+      order: ['localStorage', 'timezoneDetector', 'navigator'],
       caches: ['localStorage'],
     }
   });

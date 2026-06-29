@@ -4,7 +4,9 @@
     "features": "Fonksyonalite",
     "pricing": "Pri",
     "signIn": "Konekte",
-    "startTrial": "Kòmanse gratis"
+    "startTrial": "Kòmanse gratis",
+    "themeLight": "Mòd lajounen",
+    "themeDark": "Mòd lannwit"
   },
   "hero": {
     "badge": "Itilize pa biznis nan {{count}} peyi",
@@ -13,7 +15,11 @@
     "subtitle": "Yon sèl sistèm pou jere salon w, famasi, restoran, makèt oswa boutik. Kès POS rapid, estatistik, ak jesyon anplwaye yo enkli.",
     "cta": "Kòmanse esè 7 jou a",
     "demo": "Gade dashboard la",
-    "noCreditCard": "Ou pa bezwen kat kredi · Anile nenpòt kilè"
+    "noCreditCard": "Ou pa bezwen kat kredi · Anile nenpòt kilè",
+    "modern": "Platfòm modèn",
+    "business": "jesyon",
+    "management": "pou",
+    "platform": "biznis"
   },
   "businesses": {
     "salon": {
@@ -66,7 +72,22 @@
       "noAccount": "Ou pa gen kont ankò ?",
       "createAccount": "Kreye kont",
       "partnerHint": "Ou vle antre nan pwogram patnè a ?",
-      "becomePartner": "Vin patnè"
+      "becomePartner": "Vin patnè",
+      "tabs": {
+        "admin": "Administratè",
+        "school": "Lekòl",
+        "staff": "Kès"
+      },
+      "staff": {
+        "username": "Idantifyan (Username)",
+        "secret": "Kòd Sekrè",
+        "submit": "Ouvè kès la"
+      },
+      "school": {
+        "username": "Idantifyan",
+        "password": "Modpas"
+      },
+      "remember": "Sonje mwen"
     }
   },
   "settings": {
@@ -102,5 +123,10 @@
     "unitCost": "Kout inite",
     "unitSellingPrice": "Pri vann",
     "profitPreview": "Aperçu pwofi"
+  },
+  "stats": {
+    "countries": "peyi",
+    "verticals": "sektè",
+    "starterFrom": "Starter apati"
   }
 }

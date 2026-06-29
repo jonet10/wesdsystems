@@ -266,7 +266,7 @@ export default function Landing() {
                     }`}
                   >
                     {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                    {theme === "dark" ? "Mode jour" : "Mode nuit"}
+                    {theme === "dark" ? t("nav.themeLight") : t("nav.themeDark")}
                   </button>
 
                   {LANGUAGE_CODES.map((lang) => (
@@ -325,14 +325,14 @@ export default function Landing() {
             </div>
 
             <h1 className="text-balance text-5xl font-black tracking-tight sm:text-6xl lg:text-7xl lg:leading-[0.95]">
-              The modern
+              {t("hero.modern")}
               <br />
-              business
+              {t("hero.business")}
               <br />
               <span className="bg-gradient-to-r from-fuchsia-300 via-violet-300 to-cyan-300 bg-clip-text text-transparent">
-                management
+                {t("hero.management")}
               </span>{" "}
-              <span className="bg-gradient-to-r from-violet-200 to-cyan-300 bg-clip-text text-transparent">platform</span>
+              <span className="bg-gradient-to-r from-violet-200 to-cyan-300 bg-clip-text text-transparent">{t("hero.platform")}</span>
             </h1>
 
             <p className={`mt-6 max-w-xl text-lg leading-8 sm:text-xl ${pageMuted}`}>
@@ -362,13 +362,13 @@ export default function Landing() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
-                {countryCount} countries
+                {countryCount} {t("stats.countries")}
               </div>
               <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
-                {businessKeys.length} verticals
+                {businessKeys.length} {t("stats.verticals")}
               </div>
               <div className={`rounded-full border px-4 py-2 text-sm ${isDarkMode ? "border-white/10 bg-white/6 text-white/75" : "border-slate-900/10 bg-white text-slate-700"}`}>
-                Starter from {latestPriceLabel}
+                {t("stats.starterFrom")} {latestPriceLabel}
               </div>
             </div>
 

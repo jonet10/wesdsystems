@@ -242,9 +242,9 @@ export default function Login() {
 
             <Tabs value={loginMode} onValueChange={(v: any) => setLoginMode(v)} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="admin">Administrateur</TabsTrigger>
-                <TabsTrigger value="school">École</TabsTrigger>
-                <TabsTrigger value="staff">Caisse</TabsTrigger>
+                <TabsTrigger value="admin">{t("auth.login.tabs.admin")}</TabsTrigger>
+                <TabsTrigger value="school">{t("auth.login.tabs.school")}</TabsTrigger>
+                <TabsTrigger value="staff">{t("auth.login.tabs.staff")}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="admin">

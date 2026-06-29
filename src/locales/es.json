@@ -4,7 +4,9 @@
     "features": "Características",
     "pricing": "Precios",
     "signIn": "Iniciar sesión",
-    "startTrial": "Prueba gratuita"
+    "startTrial": "Prueba gratuita",
+    "themeLight": "Modo día",
+    "themeDark": "Modo noche"
   },
   "hero": {
     "badge": "Usado por empresas en {{count}} países",
@@ -13,7 +15,11 @@
     "subtitle": "Una sola plataforma para administrar su salón, farmacia, restaurante, supermercado o boutique. POS en tiempo real, análisis y gestión de personal.",
     "cta": "Comenzar prueba de 7 días",
     "demo": "Ver demo del dashboard",
-    "noCreditCard": "Sin tarjeta de crédito · Cancele en cualquier momento"
+    "noCreditCard": "Sin tarjeta de crédito · Cancele en cualquier momento",
+    "modern": "La plataforma",
+    "business": "moderna de",
+    "management": "gestión",
+    "platform": "empresarial"
   },
   "businesses": {
     "salon": {
@@ -66,7 +72,22 @@
       "noAccount": "¿Aún no tienes cuenta?",
       "createAccount": "Crear cuenta",
       "partnerHint": "¿Quieres unirte al programa de socios?",
-      "becomePartner": "Ser socio"
+      "becomePartner": "Ser socio",
+      "tabs": {
+        "admin": "Administrador",
+        "school": "Escuela",
+        "staff": "Caja"
+      },
+      "staff": {
+        "username": "Usuario",
+        "secret": "Código Secreto",
+        "submit": "Abrir caja"
+      },
+      "school": {
+        "username": "Usuario de escuela",
+        "password": "Password"
+      },
+      "remember": "Recordarme"
     }
   },
   "settings": {
@@ -102,5 +123,10 @@
     "unitCost": "Costo unitario",
     "unitSellingPrice": "Precio de venta",
     "profitPreview": "Vista previa del margen"
+  },
+  "stats": {
+    "countries": "países",
+    "verticals": "sectores",
+    "starterFrom": "Starter desde"
   }
 }
