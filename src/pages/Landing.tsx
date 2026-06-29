@@ -54,6 +54,7 @@ import { Logo } from "@/components/brand/Logo";
 import { CommunityActivitySection } from "@/components/home/CommunityActivitySection";
 import { Button } from "@/components/ui/button";
 import { usePricing } from "@/contexts/PricingContext";
+import { LanguageSelector } from "@/components/shared/LanguageSelector";
 
 const businessKeys = [
   { id: "salon", icon: Scissors },
@@ -180,23 +181,7 @@ export default function Landing() {
             </button>
 
             <div className={`flex items-center gap-1 rounded-full border p-1 ${panelBase}`}>
-              {LANGUAGE_CODES.map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => changeLanguage(lang)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider transition ${
-                    i18n.language.startsWith(lang)
-                      ? isDarkMode
-                        ? "bg-white text-slate-950"
-                        : "bg-slate-950 text-white"
-                      : isDarkMode
-                        ? "text-white/60 hover:bg-white/8 hover:text-white"
-                        : "text-slate-600 hover:bg-slate-950/5 hover:text-slate-950"
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
+              <LanguageSelector compact />
             </div>
 
             <Link to="/auth/login">
@@ -269,22 +254,7 @@ export default function Landing() {
                     {theme === "dark" ? t("nav.themeLight") : t("nav.themeDark")}
                   </button>
 
-                  {LANGUAGE_CODES.map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => {
-                        changeLanguage(lang);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold uppercase transition-colors ${
-                        isDarkMode
-                          ? "border-white/10 bg-white/5 text-white/80"
-                          : "border-slate-900/10 bg-slate-950/5 text-slate-700"
-                      }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
+                  <LanguageSelector compact className="w-full justify-start mt-2" />
                 </div>
                 <div className="flex gap-3 pt-2">
                   <Link to="/auth/login" className="flex-1">

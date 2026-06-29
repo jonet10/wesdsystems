@@ -26,6 +26,7 @@ import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { useActiveBranchId } from "@/lib/branch";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { Link } from "react-router-dom";
+import { LanguageSelector } from "@/components/shared/LanguageSelector";
 
 interface DashboardHeaderProps {
   title: string;
@@ -214,7 +215,7 @@ export const DashboardHeader = ({
 
         
         {/* Google Translate Native Widget */}
-        <div id="google_translate_element" className="flex items-center"></div>
+        <LanguageSelector compact />
 
 
         {/* Currency Selector */}
