@@ -1238,7 +1238,7 @@ export default function SuperAdminSubscriptionsPage() {
                 <Input {...planForm.register("name")} />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t("common.description")}</Label>
                 <Input {...planForm.register("description")} />
               </div>
               <div className="space-y-2">

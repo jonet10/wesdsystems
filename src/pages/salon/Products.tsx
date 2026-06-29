@@ -363,7 +363,7 @@ export default function ProductsPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">Produit</th>
+                      <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.product")}</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.category")}</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Marque</th>
                       <th className="text-left p-4 text-xs font-medium text-muted-foreground">Conditionnement</th>

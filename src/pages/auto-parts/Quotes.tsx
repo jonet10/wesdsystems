@@ -231,9 +231,9 @@ export default function AutoPartsQuotesPage() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="p-3 font-medium">N° Devis</th>
-                    <th className="p-3 font-medium">Client</th>
-                    <th className="p-3 font-medium">Date</th>
-                    <th className="p-3 font-medium text-right">Total</th>
+                    <th className="p-3 font-medium">{t("common.client")}</th>
+                    <th className="p-3 font-medium">{t("common.date")}</th>
+                    <th className="p-3 font-medium text-right">{t("common.total")}</th>
                     <th className="p-3 font-medium">{t("common.status")}</th>
                     <th className="p-3 font-medium text-right">{t("common.actions")}</th>
                   </tr>
@@ -278,7 +278,7 @@ export default function AutoPartsQuotesPage() {
               {/* Client */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <Label>Client</Label>
+                  <Label>{t("common.client")}</Label>
                   <Input value={form.client_name} onChange={(e) => { updateForm({ client_name: e.target.value }); searchClient(e.target.value); }} />
                   {clientResults.length > 0 && (
                     <div className="absolute z-10 w-full border rounded-md mt-1 bg-background shadow-lg max-h-32 overflow-y-auto">
@@ -344,14 +344,14 @@ export default function AutoPartsQuotesPage() {
               {/* Discount, Tax */}
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label>Remise</Label>
+                  <Label>{t("common.discount")}</Label>
                   <div className="flex gap-2">
                     <Select value={form.discount_type} onValueChange={(v: string) => updateForm({ discount_type: v, discount_value: 0 })}>
                       <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Aucune</SelectItem>
                         <SelectItem value="percentage">%</SelectItem>
-                        <SelectItem value="fixed">Montant</SelectItem>
+                        <SelectItem value="fixed">{t("common.amount")}</SelectItem>
                       </SelectContent>
                     </Select>
                     {form.discount_type !== "none" && (

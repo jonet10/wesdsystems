@@ -116,8 +116,8 @@ export default function SchoolExpenses() {
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Montant</Label><Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Date</Label><Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.amount")}</Label><Input type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+                  <div className="space-y-2"><Label>{t("common.date")}</Label><Input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} /></div>
                 </div>
                 <div className="space-y-2">
                   <Label>Description / Motif</Label>
@@ -151,10 +151,10 @@ export default function SchoolExpenses() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead>{t("common.date")}</TableHead>
                   <TableHead>{t("common.category")}</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Montant</TableHead>
+                  <TableHead>{t("common.description")}</TableHead>
+                  <TableHead>{t("common.amount")}</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>

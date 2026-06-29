@@ -268,7 +268,7 @@ export default function SchoolFees() {
                       <Input value={catName} onChange={e => setCatName(e.target.value)} placeholder="Ex: Inscription, Scolarité" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Description</Label>
+                      <Label>{t("common.description")}</Label>
                       <Input value={catDesc} onChange={e => setCatDesc(e.target.value)} />
                     </div>
                     <div className="space-y-2">
@@ -302,8 +302,8 @@ export default function SchoolFees() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("common.name")}</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>{t("common.description")}</TableHead>
+                      <TableHead>{t("common.type")}</TableHead>
                       <TableHead>Obligatoire</TableHead>
                       <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
@@ -321,7 +321,7 @@ export default function SchoolFees() {
                              c.fee_type === 'tuition' ? <Badge variant="outline">Scolarité</Badge> : 
                              <Badge variant="outline">Autre</Badge>}
                           </TableCell>
-                          <TableCell>{c.is_mandatory ? <Badge>Oui</Badge> : <Badge variant="secondary">Non</Badge>}</TableCell>
+                          <TableCell>{c.is_mandatory ? <Badge>{t("common.yes")}</Badge> : <Badge variant="secondary">{t("common.no")}</Badge>}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" onClick={() => handleEditCat(c)}><Pencil className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDeleteCat(c.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -453,7 +453,7 @@ export default function SchoolFees() {
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Montant</Label>
+                        <Label>{t("common.amount")}</Label>
                         <Input type="number" step="0.01" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} />
                       </div>
                       <div className="flex justify-end pt-4"><Button type="submit">{t("common.save")}</Button></div>
@@ -470,7 +470,7 @@ export default function SchoolFees() {
                     <TableRow>
                       <TableHead>Classe</TableHead>
                       <TableHead>{t("common.category")}</TableHead>
-                      <TableHead>Montant</TableHead>
+                      <TableHead>{t("common.amount")}</TableHead>
                       <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
                   </TableHeader>

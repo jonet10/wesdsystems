@@ -323,7 +323,7 @@ export default function BarPOS() {
               <Separator className="my-3" />
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between font-semibold text-lg pt-2 border-t">
-                  <span>Total</span>
+                  <span>{t("common.total")}</span>
                   <span className="text-primary">{format(totals.total)}</span>
                 </div>
               </div>

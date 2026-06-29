@@ -238,11 +238,11 @@ export default function SchoolReports() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead>Date</TableHead>
+                        <TableHead>{t("common.date")}</TableHead>
                         <TableHead>N° Reçu</TableHead>
                         <TableHead>Élève</TableHead>
                         <TableHead>Méthode</TableHead>
-                        <TableHead className="text-right">Montant</TableHead>
+                        <TableHead className="text-right">{t("common.amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -295,11 +295,11 @@ export default function SchoolReports() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead>Date</TableHead>
+                        <TableHead>{t("common.date")}</TableHead>
                         <TableHead>N° Reçu</TableHead>
                         <TableHead>Élève</TableHead>
                         <TableHead>Méthode</TableHead>
-                        <TableHead className="text-right">Montant</TableHead>
+                        <TableHead className="text-right">{t("common.amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -339,7 +339,7 @@ export default function SchoolReports() {
                   <Label className="text-xs">Statut de paiement</Label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={outstandingStatus} onChange={e => setOutstandingStatus(e.target.value)}>
                     <option value="all">Tous les statuts</option>
-                    <option value="pending">Non payé</option>
+                    <option value="pending">{t("common.unpaid")}</option>
                     <option value="partial">Paiement partiel</option>
                   </select>
                 </div>
@@ -371,8 +371,8 @@ export default function SchoolReports() {
                       <TableRow>
                         <TableHead>Élève</TableHead>
                         <TableHead>Facture</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Payé</TableHead>
+                        <TableHead>{t("common.total")}</TableHead>
+                        <TableHead>{t("common.paid")}</TableHead>
                         <TableHead className="text-right">Solde</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -429,10 +429,10 @@ export default function SchoolReports() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead>Date</TableHead>
+                        <TableHead>{t("common.date")}</TableHead>
                         <TableHead>{t("common.category")}</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Montant</TableHead>
+                        <TableHead>{t("common.description")}</TableHead>
+                        <TableHead className="text-right">{t("common.amount")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

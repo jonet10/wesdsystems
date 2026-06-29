@@ -326,8 +326,8 @@ export default function SchoolInvoices() {
                 <TableRow>
                   <TableHead>N° Facture</TableHead>
                   <TableHead>Élève</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Payé</TableHead>
+                  <TableHead>{t("common.total")}</TableHead>
+                  <TableHead>{t("common.paid")}</TableHead>
                   <TableHead>Reste (Balance)</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>

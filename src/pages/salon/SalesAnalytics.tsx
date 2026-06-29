@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
@@ -30,6 +31,7 @@ interface SaleItem {
 }
 
 export default function SalesAnalyticsPage() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const { data: branches = [] } = useBusinessBranches();
@@ -105,26 +107,26 @@ export default function SalesAnalyticsPage() {
   }, [items]);
 
   return (
-    <DashboardLayout role="salon_admin" title="Analytics Ventes" subtitle="Produits, services, revenus et tendances" userName="Admin Studio">
+    <DashboardLayout role="salon_admin" title={t("salonAnalytics.title")} subtitle={t("salonAnalytics.subtitle")} userName="Admin Studio">
       <SubscriptionGuard>
         <StaggerContainer className="space-y-6">
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title="Revenus jour" value={format(dailyRevenue)} icon={<Receipt className="h-6 w-6" />} />
-            <StatCard title="Revenus semaine" value={format(weeklyRevenue)} icon={<TrendingUp className="h-6 w-6" />} />
-            <StatCard title="Revenus mois" value={format(monthlyRevenue)} icon={<BarChart3 className="h-6 w-6" />} />
-            <StatCard title="Transactions" value={sales.length.toString()} icon={<Package className="h-6 w-6" />} />
+            <StatCard title={t("salonAnalytics.revenueDay")} value={format(dailyRevenue)} icon={<Receipt className="h-6 w-6" />} />
+            <StatCard title={t("salonAnalytics.revenueWeek")} value={format(weeklyRevenue)} icon={<TrendingUp className="h-6 w-6" />} />
+            <StatCard title={t("salonAnalytics.revenueMonth")} value={format(monthlyRevenue)} icon={<BarChart3 className="h-6 w-6" />} />
+            <StatCard title={t("salonAnalytics.transactions")} value={sales.length.toString()} icon={<Package className="h-6 w-6" />} />
           </div>
         </StaggerItem>
 
         <StaggerItem>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="font-semibold mb-2">Revenus Produits</h3>
+              <h3 className="font-semibold mb-2">{t("salonAnalytics.revenueProducts")}</h3>
               <p className="text-2xl font-bold">{format(productRevenue)}</p>
             </div>
             <div className="bg-card rounded-xl border border-border p-6">
-              <h3 className="font-semibold mb-2">Revenus Services</h3>
+              <h3 className="font-semibold mb-2">{t("salonAnalytics.revenueServices")}</h3>
               <p className="text-2xl font-bold">{format(serviceRevenue)}</p>
             </div>
           </div>
@@ -132,7 +134,7 @@ export default function SalesAnalyticsPage() {
 
         <StaggerItem>
           <div className="bg-card rounded-xl border border-border p-6">
-            <h3 className="font-semibold mb-4">Top produits/services vendus</h3>
+            <h3 className="font-semibold mb-4">{t("salonAnalytics.topProducts")}</h3>
             <div className="space-y-2">
               {topItems.length === 0 && <p className="text-sm text-muted-foreground">Aucune donnée vente.</p>}
               {topItems.map(([name, qty]) => (

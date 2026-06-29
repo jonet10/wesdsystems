@@ -155,7 +155,7 @@ export default function PharmacyPurchases() {
               {items.map((item, index) => (
                 <div key={index} className="grid grid-cols-12 gap-2 items-end border-b pb-4">
                   <div className="col-span-3">
-                    <Label className="text-xs">Produit</Label>
+                    <Label className="text-xs">{t("common.product")}</Label>
                     <Select value={item.product_id} onValueChange={(v) => updateItem(index, "product_id", v)}>
                       <SelectTrigger><SelectValue placeholder="Produit..." /></SelectTrigger>
                       <SelectContent>

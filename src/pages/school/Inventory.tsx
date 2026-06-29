@@ -172,7 +172,7 @@ export default function Inventory() {
             <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              <TableHead>Produit</TableHead>
+              <TableHead>{t("common.product")}</TableHead>
               <TableHead>{t("common.category")}</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Prix de vente</TableHead>
@@ -309,7 +309,7 @@ export default function Inventory() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Quantité</label>
+                <label className="text-sm font-medium">{t("common.quantity")}</label>
                 <Input 
                   type="number" 
                   min="0"

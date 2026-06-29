@@ -196,7 +196,7 @@ export default function PharmacyRegisters() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>{t("common.name")}</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead>{t("common.description")}</TableHead>
                       <TableHead>Solde ouverture</TableHead>
                       <TableHead>Solde actuel</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
@@ -266,7 +266,7 @@ export default function PharmacyRegisters() {
               />
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t("common.description")}</Label>
               <Input
                 value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}

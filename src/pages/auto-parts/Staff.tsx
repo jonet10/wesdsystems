@@ -171,7 +171,7 @@ export default function AutoPartsStaffPage() {
                 </div>
                 <p className="text-xs text-green-600 mt-3">Transmettez ces informations à l'employé.</p>
               </div>
-              <Button className="w-full" variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>Fermer</Button>
+              <Button className="w-full" variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>{t("common.close")}</Button>
             </div>
           ) : (
             <>

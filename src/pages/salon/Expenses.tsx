@@ -240,11 +240,11 @@ export default function ExpensesPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">Date</th>
+                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.date")}</th>
                     <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.category")}</th>
-                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">Description</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Paiement</th>
-                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">Montant</th>
+                    <th className="text-left p-4 text-xs font-medium text-muted-foreground">{t("common.description")}</th>
+                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">{t("common.payment")}</th>
+                    <th className="text-right p-4 text-xs font-medium text-muted-foreground">{t("common.amount")}</th>
                     <th className="text-right p-4 text-xs font-medium text-muted-foreground">{t("common.actions")}</th>
                   </tr>
                 </thead>

@@ -917,7 +917,7 @@ export default function SuperAdminPartnersPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>{t("common.description")}</Label>
               <Textarea rows={4} {...tierForm.register("description")} />
             </div>
             <DialogFooter>
@@ -981,7 +981,7 @@ export default function SuperAdminPartnersPage() {
                 <Select value={partnerForm.watch("status")} onValueChange={(value) => partnerForm.setValue("status", value as PartnerStatus)}>
                   <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">En attente</SelectItem>
+                    <SelectItem value="pending">{t("common.pending")}</SelectItem>
                     <SelectItem value="approved">Approuvé</SelectItem>
                     <SelectItem value="suspended">Suspendu</SelectItem>
                     <SelectItem value="rejected">Refusé</SelectItem>

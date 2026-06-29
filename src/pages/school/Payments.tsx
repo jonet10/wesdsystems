@@ -408,11 +408,11 @@ export default function SchoolPayments() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>N° Reçu</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead>{t("common.date")}</TableHead>
                       <TableHead>Élève</TableHead>
                       <TableHead>Facture</TableHead>
                       <TableHead>Méthode</TableHead>
-                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead className="text-right">{t("common.amount")}</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>

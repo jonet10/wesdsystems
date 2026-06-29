@@ -157,8 +157,8 @@ export default function AutoPartsDeliveryNotesPage() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="p-3 font-medium">N° BL</th>
-                    <th className="p-3 font-medium">Client</th>
-                    <th className="p-3 font-medium">Date</th>
+                    <th className="p-3 font-medium">{t("common.client")}</th>
+                    <th className="p-3 font-medium">{t("common.date")}</th>
                     <th className="p-3 font-medium">Articles</th>
                     <th className="p-3 font-medium">{t("common.status")}</th>
                     <th className="p-3 font-medium text-right">{t("common.actions")}</th>
@@ -202,7 +202,7 @@ export default function AutoPartsDeliveryNotesPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
-                  <Label>Client</Label>
+                  <Label>{t("common.client")}</Label>
                   <Input value={clientName} onChange={(e) => searchClient(e.target.value)} />
                   {clientResults.length > 0 && (
                     <div className="absolute z-10 w-full border rounded-md mt-1 bg-background shadow-lg max-h-32 overflow-y-auto">

@@ -487,22 +487,22 @@ export default function SalonDashboard() {
                 <div className="space-y-2">
                   <Link to="/salon/appointments">
                     <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <Calendar className="h-4 w-4" /> Nouveau rendez-vous
+                      <Calendar className="h-4 w-4" /> {t("salonDashboard.newAppointment")}
                     </Button>
                   </Link>
                   <Link to="/salon/pos">
                     <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <ShoppingBag className="h-4 w-4" /> Nouvelle vente POS
+                      <ShoppingBag className="h-4 w-4" /> {t("salonDashboard.newPosSale")}
                     </Button>
                   </Link>
                   <Link to="/salon/clients">
                     <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <Users className="h-4 w-4" /> Nouveau client
+                      <Users className="h-4 w-4" /> {t("salonDashboard.newClient")}
                     </Button>
                   </Link>
                   <Link to="/salon/products">
                     <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <Package className="h-4 w-4" /> Ajouter produit
+                      <Package className="h-4 w-4" /> {t("quickActions.addProduct")}
                     </Button>
                   </Link>
                 </div>

@@ -390,7 +390,7 @@ export default function SchoolStaffPage() {
                   ⚠️ Ce mot de passe n'est affiché qu'une seule fois. Notez-le bien.
                 </p>
               </div>
-              <Button className="w-full" onClick={() => { setOpen(false); setCreatedResult(null); }}>Fermer</Button>
+              <Button className="w-full" onClick={() => { setOpen(false); setCreatedResult(null); }}>{t("common.close")}</Button>
             </div>
           ) : (
             /* ── Form ── */

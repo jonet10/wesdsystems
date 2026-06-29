@@ -496,7 +496,7 @@ export default function AdminCatalogPage() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2"><Label>Description</Label><Textarea rows={4} {...categoryForm.register("description")} /></div>
+            <div className="space-y-2"><Label>{t("common.description")}</Label><Textarea rows={4} {...categoryForm.register("description")} /></div>
             <DialogFooter><Button variant="outline" type="button" onClick={() => setIsCategoryOpen(false)}>{t("common.cancel")}</Button><Button type="submit">{t("common.save")}</Button></DialogFooter>
           </form>
         </DialogContent>
@@ -507,7 +507,7 @@ export default function AdminCatalogPage() {
           <DialogHeader><DialogTitle>{editingBrand ? "Modifier la marque" : "Nouvelle marque"}</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={saveBrand}>
             <div className="space-y-2"><Label>{t("common.name")}</Label><Input {...brandForm.register("name")} /></div>
-            <div className="space-y-2"><Label>Description</Label><Textarea rows={4} {...brandForm.register("description")} /></div>
+            <div className="space-y-2"><Label>{t("common.description")}</Label><Textarea rows={4} {...brandForm.register("description")} /></div>
             <div className="flex items-center gap-3 rounded-md border p-3">
               <Switch checked={brandForm.watch("active")} onCheckedChange={(checked) => brandForm.setValue("active", checked)} />
               <span className="text-sm text-muted-foreground">Marque active</span>
@@ -563,7 +563,7 @@ export default function AdminCatalogPage() {
                 <Input {...beverageForm.register("image_url")} placeholder="https://..." />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Description</Label>
+                <Label>{t("common.description")}</Label>
                 <Textarea rows={4} {...beverageForm.register("description")} />
               </div>
               <div className="space-y-2">

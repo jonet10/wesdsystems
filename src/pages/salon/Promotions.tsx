@@ -294,7 +294,7 @@ export default function PromotionsPage() {
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: 3 Prestige = 500 Gdes" />
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t("common.description")}</Label>
               <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} />
             </div>
             <div>

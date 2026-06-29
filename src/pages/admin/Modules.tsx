@@ -458,7 +458,7 @@ export default function ModulesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="module-description">Description</Label>
+                <Label htmlFor="module-description">{t("common.description")}</Label>
                 <Textarea
                   id="module-description"
                   value={editDescription}

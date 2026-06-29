@@ -398,7 +398,7 @@ export default function InventoryPage() {
               <table className="w-full min-w-[960px]">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border">
-                    <th className="text-left p-3 text-xs">Produit</th>
+                    <th className="text-left p-3 text-xs">{t("common.product")}</th>
                     <th className="text-left p-3 text-xs">Marque</th>
                     <th className="text-left p-3 text-xs">{t("common.category")}</th>
                     <th className="text-left p-3 text-xs">Stock Total</th>
@@ -597,7 +597,7 @@ export default function InventoryPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setStockProduct(null)}>{t("common.cancel")}</Button>
-              <Button onClick={applyStock}>Valider</Button>
+              <Button onClick={applyStock}>{t("common.validate")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -611,9 +611,9 @@ export default function InventoryPage() {
               <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border">
-                    <th className="text-left p-3 text-xs">Date</th>
-                    <th className="text-left p-3 text-xs">Type</th>
-                    <th className="text-left p-3 text-xs">Produit</th>
+                    <th className="text-left p-3 text-xs">{t("common.date")}</th>
+                    <th className="text-left p-3 text-xs">{t("common.type")}</th>
+                    <th className="text-left p-3 text-xs">{t("common.product")}</th>
                     <th className="text-left p-3 text-xs">Delta</th>
                     <th className="text-left p-3 text-xs">Motif</th>
                   </tr>

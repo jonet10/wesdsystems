@@ -281,9 +281,9 @@ export default function AutoPartsPOSPage() {
           <Separator className="my-4" />
           <div className="space-y-1 text-sm">
             <div className="flex justify-between"><span>Sous-total</span><span>{format(subtotal)}</span></div>
-            {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Remise</span><span>-{format(discountAmount)}</span></div>}
+            {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>{t("common.discount")}</span><span>-{format(discountAmount)}</span></div>}
             {taxAmount > 0 && <div className="flex justify-between"><span>TVA ({taxRate}%)</span><span>{format(taxAmount)}</span></div>}
-            <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{format(total)}</span></div>
+            <div className="flex justify-between font-bold text-lg"><span>{t("common.total")}</span><span>{format(total)}</span></div>
           </div>
           <Button className="w-full mt-4" size="lg" disabled={cart.length === 0} onClick={() => setShowPayment(true)}>
             <CreditCard className="h-4 w-4 mr-2" /> Payer {format(total)}
@@ -301,7 +301,7 @@ export default function AutoPartsPOSPage() {
           </DialogHeader>
           <div className="space-y-5 mt-2">
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Remise</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("common.discount")}</Label>
               <div className="flex gap-3 mt-1.5">
                 <Select value={discountType} onValueChange={(v: any) => { setDiscountType(v); setDiscountValue(0); }}>
                   <SelectTrigger className="w-32 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-12">
@@ -310,7 +310,7 @@ export default function AutoPartsPOSPage() {
                   <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
                     <SelectItem value="none">Aucune</SelectItem>
                     <SelectItem value="percentage">%</SelectItem>
-                    <SelectItem value="fixed">Montant</SelectItem>
+                    <SelectItem value="fixed">{t("common.amount")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {discountType !== "none" && (
@@ -450,7 +450,7 @@ export default function AutoPartsPOSPage() {
                 />
               </div>
               <DialogFooter className="gap-2 mt-4">
-                <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); }}>Fermer</Button>
+                <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); }}>{t("common.close")}</Button>
                 <Button onClick={() => {
                   if (receiptRef.current) {
                     const data: ReceiptData = {

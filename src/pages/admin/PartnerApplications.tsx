@@ -155,7 +155,7 @@ export default function PartnerApplicationsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">En attente</CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">{t("common.pending")}</CardTitle>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
               <p className="text-2xl font-bold">{totals.pending}</p>

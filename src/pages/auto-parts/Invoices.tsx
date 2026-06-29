@@ -118,11 +118,11 @@ export default function AutoPartsInvoicesPage() {
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="p-3 font-medium">N° Facture</th>
-                    <th className="p-3 font-medium">Client</th>
+                    <th className="p-3 font-medium">{t("common.client")}</th>
                     {!isStrictlyCashier && <th className="p-3 font-medium">Caissier</th>}
-                    <th className="p-3 font-medium">Date</th>
-                    <th className="p-3 font-medium text-right">Total</th>
-                    <th className="p-3 font-medium">Paiement</th>
+                    <th className="p-3 font-medium">{t("common.date")}</th>
+                    <th className="p-3 font-medium text-right">{t("common.total")}</th>
+                    <th className="p-3 font-medium">{t("common.payment")}</th>
                     <th className="p-3 font-medium">{t("common.status")}</th>
                     <th className="p-3 font-medium text-right">{t("common.actions")}</th>
                   </tr>

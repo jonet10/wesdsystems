@@ -136,7 +136,7 @@ export default function PharmacyCategories() {
               </div>
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t("common.description")}</Label>
               <Textarea placeholder="Description de la famille de produits..." value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>

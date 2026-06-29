@@ -543,7 +543,7 @@ export default function StudentFinancialSheet() {
                         <TableRow>
                           <TableHead>Échéance</TableHead>
                           <TableHead>Montant dû</TableHead>
-                          <TableHead>Payé</TableHead>
+                          <TableHead>{t("common.paid")}</TableHead>
                           <TableHead>Solde</TableHead>
                           <TableHead>Date d'échéance</TableHead>
                           <TableHead>{t("common.status")}</TableHead>
@@ -602,11 +602,11 @@ export default function StudentFinancialSheet() {
                         <TableRow>
                           <TableHead>N° Facture</TableHead>
                           <TableHead>Année</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Payé</TableHead>
+                          <TableHead>{t("common.total")}</TableHead>
+                          <TableHead>{t("common.paid")}</TableHead>
                           <TableHead>Solde</TableHead>
                           <TableHead>{t("common.status")}</TableHead>
-                          <TableHead>Date</TableHead>
+                          <TableHead>{t("common.date")}</TableHead>
                           <TableHead className="text-right">{t("common.actions")}</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -662,10 +662,10 @@ export default function StudentFinancialSheet() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>N° Reçu</TableHead>
-                          <TableHead>Date</TableHead>
+                          <TableHead>{t("common.date")}</TableHead>
                           <TableHead>Facture</TableHead>
                           <TableHead>Méthode</TableHead>
-                          <TableHead className="text-right">Montant</TableHead>
+                          <TableHead className="text-right">{t("common.amount")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

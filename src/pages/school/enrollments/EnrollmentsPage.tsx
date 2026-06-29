@@ -367,7 +367,7 @@ export default function EnrollmentsPage() {
           <TabsList>
             <TabsTrigger value="nouvelle"><UserPlus className="h-4 w-4 mr-2" />Nouvelle Inscription</TabsTrigger>
             <TabsTrigger value="transfert"><RepeatIcon className="h-4 w-4 mr-2" />Transfert / Changement</TabsTrigger>
-            <TabsTrigger value="historique"><History className="h-4 w-4 mr-2" />Historique</TabsTrigger>
+            <TabsTrigger value="historique"><History className="h-4 w-4 mr-2" />{t("common.history")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="nouvelle" className="space-y-6">
@@ -889,7 +889,7 @@ export default function EnrollmentsPage() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-1">
-                  <Button variant="outline" size="sm" onClick={() => setPaymentSlipOpen(false)}>Fermer</Button>
+                  <Button variant="outline" size="sm" onClick={() => setPaymentSlipOpen(false)}>{t("common.close")}</Button>
                   <Button size="sm" onClick={() => window.print()}>
                     <Printer className="h-3.5 w-3.5 mr-2" />
                     Imprimer

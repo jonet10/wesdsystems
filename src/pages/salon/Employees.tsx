@@ -1145,7 +1145,7 @@ export default function EmployeesPage() {
               <Tabs defaultValue="rules" className="w-full">
                 <TabsList>
                   <TabsTrigger value="rules">Règles</TabsTrigger>
-                  <TabsTrigger value="history">Historique</TabsTrigger>
+                  <TabsTrigger value="history">{t("common.history")}</TabsTrigger>
                 </TabsList>
                 <TabsContent value="rules" className="pt-4">
                   <CommissionRules

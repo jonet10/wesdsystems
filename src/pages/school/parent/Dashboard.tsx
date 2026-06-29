@@ -172,7 +172,7 @@ export default function ParentDashboard() {
                   <TableHead>N° Facture</TableHead>
                   <TableHead>Élève</TableHead>
                   <TableHead>Année</TableHead>
-                  <TableHead>Total</TableHead>
+                  <TableHead>{t("common.total")}</TableHead>
                   <TableHead>Reste (Solde)</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead className="text-right">Reçu</TableHead>

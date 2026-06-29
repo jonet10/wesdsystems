@@ -217,7 +217,7 @@ export default function AutoPartsReportsPage() {
                 />
               </div>
               <table className="w-full text-sm mt-4">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Produit</th><th className="py-2 text-right">Qté</th><th className="py-2 text-right">CA</th><th className="py-2 text-right">Évolution</th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">{t("common.product")}</th><th className="py-2 text-right">Qté</th><th className="py-2 text-right">CA</th><th className="py-2 text-right">Évolution</th></tr></thead>
                 <tbody>
                   {topProducts.map((p, i) => (
                     <tr key={i} className="border-b">
@@ -253,7 +253,7 @@ export default function AutoPartsReportsPage() {
             <CardHeader><CardTitle className="text-base">Produits sans mouvement ({dormantDays} jours)</CardTitle></CardHeader>
             <CardContent>
               <table className="w-full text-sm">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Produit</th><th className="py-2">Stock</th><th className="py-2">Valeur</th><th className="py-2">Vente potentielle</th><th className="py-2">Marge potentielle</th><th className="py-2">Dernière vente</th><th className="py-2">Jours</th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">{t("common.product")}</th><th className="py-2">Stock</th><th className="py-2">Valeur</th><th className="py-2">Vente potentielle</th><th className="py-2">Marge potentielle</th><th className="py-2">Dernière vente</th><th className="py-2">Jours</th></tr></thead>
                 <tbody>
                   {dormant.map((d, i) => (
                     <tr key={i} className="border-b">
@@ -292,7 +292,7 @@ export default function AutoPartsReportsPage() {
             <CardHeader><CardTitle className="text-base">Prévisions de rupture de stock</CardTitle></CardHeader>
             <CardContent>
               <table className="w-full text-sm">
-                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Produit</th><th className="py-2">Stock</th><th className="py-2">Vente moy./jour</th><th className="py-2">Jours restants</th><th className="py-2">Risque</th></tr></thead>
+                <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">{t("common.product")}</th><th className="py-2">Stock</th><th className="py-2">Vente moy./jour</th><th className="py-2">Jours restants</th><th className="py-2">Risque</th></tr></thead>
                 <tbody>
                   {forecast.map((f, i) => (
                     <tr key={i} className="border-b">
@@ -359,7 +359,7 @@ export default function AutoPartsReportsPage() {
                     <CardHeader><CardTitle className="text-sm">Top produits rentables</CardTitle></CardHeader>
                     <CardContent className="max-h-60 overflow-y-auto">
                       <table className="w-full text-xs">
-                        <thead><tr className="border-b text-muted-foreground"><th className="py-1 text-left">Produit</th><th className="py-1 text-right">Profit</th><th className="py-1 text-right">Marge</th></tr></thead>
+                        <thead><tr className="border-b text-muted-foreground"><th className="py-1 text-left">{t("common.product")}</th><th className="py-1 text-right">Profit</th><th className="py-1 text-right">Marge</th></tr></thead>
                         <tbody>
                           {profit.top_products.map((p, i) => (
                             <tr key={i} className="border-b"><td className="py-1">{p.product_name}</td><td className="py-1 text-right font-medium">{format(p.profit)}</td><td className="py-1 text-right text-emerald-500">{p.margin_pct}%</td></tr>
@@ -422,7 +422,7 @@ export default function AutoPartsReportsPage() {
                 <CardHeader><CardTitle className="text-base">Classement</CardTitle></CardHeader>
                 <CardContent>
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">Employé</th><th className="py-2 text-right">Ventes</th><th className="py-2 text-right">CA</th><th className="py-2 text-right">Ticket moy.</th></tr></thead>
+                    <thead><tr className="border-b text-left text-muted-foreground"><th className="py-2">{t("common.employee")}</th><th className="py-2 text-right">Ventes</th><th className="py-2 text-right">CA</th><th className="py-2 text-right">Ticket moy.</th></tr></thead>
                     <tbody>
                       {employees.map((e, i) => (
                         <tr key={i} className="border-b">

@@ -209,10 +209,10 @@ export default function PharmacyCredits() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Reçu</TableHead>
-                      <TableHead>Client</TableHead>
+                      <TableHead>{t("common.client")}</TableHead>
                       <TableHead>{t("common.phone")}</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Total</TableHead>
+                      <TableHead>{t("common.date")}</TableHead>
+                      <TableHead>{t("common.total")}</TableHead>
                       <TableHead>Solde Dû</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
                       <TableHead>Action</TableHead>

@@ -733,7 +733,7 @@ export default function ServicesPage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="salon_admin" title="Services" subtitle="Chargement..." userName="Admin Studio">
+      <DashboardLayout role="salon_admin" title={t("salonServices.title")} subtitle="Chargement..." userName="Admin Studio">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
@@ -742,7 +742,7 @@ export default function ServicesPage() {
   }
 
   return (
-    <DashboardLayout role="salon_admin" title="Services" subtitle="Prestations indépendantes des produits" userName="Admin Studio">
+    <DashboardLayout role="salon_admin" title={t("salonServices.title")} subtitle={t("salonServices.subtitle")} userName="Admin Studio">
       <SubscriptionGuard>
         <StaggerContainer className="space-y-6">
         {/* ─── Totals & Category Counters ─── */}
@@ -790,7 +790,7 @@ export default function ServicesPage() {
               <div className="relative flex-1 max-w-md w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher par nom ou description..."
+                  placeholder={t("salonServices.searchDesc")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-full bg-background"
@@ -824,7 +824,7 @@ export default function ServicesPage() {
                         className="h-8 text-xs"
                         onClick={() => setStatusFilter(val)}
                       >
-                        {val === "all" ? "Tous" : val === "active" ? "Actifs" : "Inactifs"}
+                        {val === "all" ? t("salonServices.all") : val === "active" ? t("data.Actif") : t("data.Inactif")}
                       </Button>
                     ))}
                   </div>
@@ -864,7 +864,7 @@ export default function ServicesPage() {
                   className="rounded-lg gap-1.5"
                 >
                   <Layers className="h-3.5 w-3.5" />
-                  {cat}
+                  {cat === "Tous" ? t("salonServices.all") : t(`categories.${cat}`, { defaultValue: cat })}
                 </Button>
               );
             })}
@@ -878,12 +878,12 @@ export default function ServicesPage() {
               <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/20">
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Service</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.service")}</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.category")}</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.price")}</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Professionnel(le)s</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Employé</th>
-                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">Options</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("salonServices.professionals")}</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("salonServices.employee")}</th>
+                    <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("salonServices.options")}</th>
                     <th className="text-left p-4 text-sm font-semibold text-muted-foreground">{t("common.status")}</th>
                     <th className="text-right p-4 text-sm font-semibold text-muted-foreground"></th>
                   </tr>
@@ -911,7 +911,7 @@ export default function ServicesPage() {
                           {category?.name ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 whitespace-nowrap">
                               <Layers className="h-3 w-3" />
-                              {category.name}
+                              {t(`categories.${category.name}`, { defaultValue: category.name })}
                             </span>
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
@@ -930,7 +930,7 @@ export default function ServicesPage() {
                                   key={role}
                                   className="inline-flex px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap"
                                 >
-                                  {ROLE_LABELS[role] || role}
+                                  {t(`data.${ROLE_LABELS[role] || role}`, { defaultValue: ROLE_LABELS[role] || role })}
                                 </span>
                               ))
                             ) : (
@@ -942,12 +942,12 @@ export default function ServicesPage() {
                           {service.requires_employee !== false ? (
                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                               <UserCheck className="h-3.5 w-3.5" />
-                              Obligatoire
+                              {t("data.Obligatoire")}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <UserX className="h-3.5 w-3.5" />
-                              Optionnel
+                              {t("data.Optionnel")}
                             </span>
                           )}
                         </td>
@@ -973,12 +973,12 @@ export default function ServicesPage() {
                           {service.is_active ? (
                             <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 text-xs font-semibold">
                               <CheckCircle2 className="h-3.5 w-3.5" />
-                              Actif
+                              {t("data.Actif")}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 text-muted-foreground text-xs font-semibold">
                               <XCircle className="h-3.5 w-3.5" />
-                              Inactif
+                              {t("data.Inactif")}
                             </span>
                           )}
                         </td>
@@ -1015,7 +1015,7 @@ export default function ServicesPage() {
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogContent className="sm:max-w-[560px]">
             <DialogHeader>
-              <DialogTitle>Nouveau service</DialogTitle>
+              <DialogTitle>{t("salonServices.newService")}</DialogTitle>
               <DialogDescription>Créez une prestation indépendante du module Produits.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -1024,7 +1024,7 @@ export default function ServicesPage() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t("common.description")}</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1109,7 +1109,7 @@ export default function ServicesPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="font-semibold">Actif</Label>
+                  <Label className="font-semibold">{t("data.Actif")}</Label>
                   <p className="text-xs text-muted-foreground">Le service sera disponible pour la caisse et les rendez-vous</p>
                 </div>
                 <Switch checked={active} onCheckedChange={setActive} />
@@ -1135,7 +1135,7 @@ export default function ServicesPage() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label>{t("common.description")}</Label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1220,7 +1220,7 @@ export default function ServicesPage() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="font-semibold">Actif</Label>
+                  <Label className="font-semibold">{t("data.Actif")}</Label>
                   <p className="text-xs text-muted-foreground">Affiche ou masque la prestation</p>
                 </div>
                 <Switch checked={active} onCheckedChange={setActive} />

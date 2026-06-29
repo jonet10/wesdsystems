@@ -145,7 +145,7 @@ export default function BarInventory() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Produit</TableHead>
+                        <TableHead>{t("common.product")}</TableHead>
                         <TableHead className="text-center">Caisses</TableHead>
                         <TableHead className="text-center">Unités Restantes</TableHead>
                         <TableHead className="text-center">Total (Unités)</TableHead>

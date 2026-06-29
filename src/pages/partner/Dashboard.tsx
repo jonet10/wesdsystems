@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -156,6 +157,7 @@ const tabFromPath = (pathname: string): TabKey => {
 };
 
 export default function PartnerDashboard() {
+  const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
   const location = useLocation();
@@ -536,7 +538,7 @@ export default function PartnerDashboard() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Type</TableHead>
+                          <TableHead>{t("common.type")}</TableHead>
                           <TableHead>Source</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Status</TableHead>

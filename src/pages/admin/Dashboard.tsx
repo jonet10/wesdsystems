@@ -493,11 +493,11 @@ export default function SuperAdminDashboard() {
                     <thead>
                       <tr className="border-b border-border bg-muted/20">
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Salon</th>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Montant</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">{t("common.amount")}</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Méthode</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">Code</th>
                         <th className="text-left p-3 text-sm font-medium text-muted-foreground">{t("common.phone")}</th>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">Date</th>
+                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">{t("common.date")}</th>
                         <th className="text-right p-3 text-sm font-medium text-muted-foreground">{t("common.actions")}</th>
                       </tr>
                     </thead>
@@ -577,7 +577,7 @@ export default function SuperAdminDashboard() {
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Établissement</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">Plan</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">{t("common.status")}</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Date</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">{t("common.date")}</th>
                     <th className="text-right p-4 text-sm font-medium text-muted-foreground">{t("common.actions")}</th>
                   </tr>
                 </thead>

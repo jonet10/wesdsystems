@@ -93,7 +93,7 @@ export default function AutoPartsCompatibilitiesPage() {
           <DialogHeader><DialogTitle>Nouvelle compatibilité</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Produit</Label>
+              <Label>{t("common.product")}</Label>
               <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useMemo, useRef, useState } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { AlertCircle, ArrowRight, CheckCircle2, CreditCard, Loader2, Wallet } from "lucide-react";
@@ -10,6 +11,7 @@ import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
 const toText = (value: string | null) => (value && value.trim() ? value.trim() : "");
 
 export default function MonCashSubscriptionPayPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [loading, setLoading] = useState(false);
@@ -113,7 +115,7 @@ export default function MonCashSubscriptionPayPage() {
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <p className="text-xs uppercase tracking-wide text-white/50">Montant</p>
+                <p className="text-xs uppercase tracking-wide text-white/50">{t("common.amount")}</p>
                 <p className="mt-1 text-2xl font-semibold">
                   {amount > 0 ? `${amount.toLocaleString("fr-FR")} ${currencyCode}` : "Calculé au lancement"}
                 </p>

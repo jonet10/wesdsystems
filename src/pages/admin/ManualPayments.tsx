@@ -267,7 +267,7 @@ export default function SuperAdminManualPaymentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">Total</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground">{t("common.total")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{stats.total}</p>
@@ -275,7 +275,7 @@ export default function SuperAdminManualPaymentsPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-muted-foreground">En attente</CardTitle>
+                <CardTitle className="text-sm text-muted-foreground">{t("common.pending")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-warning">{stats.pending}</p>
@@ -325,7 +325,7 @@ export default function SuperAdminManualPaymentsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="pending">{t("common.pending")}</SelectItem>
                 <SelectItem value="approved">Approuvé</SelectItem>
                 <SelectItem value="rejected">Rejeté</SelectItem>
               </SelectContent>
@@ -351,10 +351,10 @@ export default function SuperAdminManualPaymentsPage() {
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Utilisateur</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Entreprise</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Méthode</TableHead>
-                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Montant</TableHead>
+                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">{t("common.amount")}</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Numéro</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Référence</TableHead>
-                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">Date</TableHead>
+                  <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">{t("common.date")}</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground">{t("common.status")}</TableHead>
                   <TableHead className="h-10 px-3 text-xs uppercase tracking-wide text-muted-foreground text-right">{t("common.actions")}</TableHead>
                 </TableRow>
@@ -447,7 +447,7 @@ export default function SuperAdminManualPaymentsPage() {
                   <p className="text-sm font-medium capitalize">{selectedPayment.payment_method}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Montant</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("common.amount")}</p>
                   <p className="text-sm font-bold">{Number(selectedPayment.amount).toLocaleString()} {selectedPayment.currency_code}</p>
                 </div>
                 <div className="space-y-1">

@@ -2338,7 +2338,7 @@ export default function POSPage() {
                         <span>-{format(paidOnTab)}</span>
                       </div>
                       <div className="flex justify-between font-bold text-sm pt-1 border-t border-dashed border-border/60 text-amber-600">
-                        <span>Reste à payer</span>
+                        <span>{t("common.balance")}</span>
                         <span>{format(remainingBalance)}</span>
                       </div>
                     </>
@@ -2615,7 +2615,7 @@ export default function POSPage() {
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowReceipt(false)}>Fermer</Button>
+              <Button variant="outline" onClick={() => setShowReceipt(false)}>{t("common.close")}</Button>
               <Button onClick={handlePrintReceipt}>
                 <Printer className="h-4 w-4 mr-2" />
                 Imprimer
@@ -3012,7 +3012,7 @@ export default function POSPage() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Produit</Label>
+              <Label>{t("common.product")}</Label>
               <Input value={productSetupItem?.name || ""} disabled />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -90,7 +90,7 @@ export default function AutoPartsStockMovementsPage() {
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Produit</Label>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("common.product")}</Label>
               <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" placeholder="Rechercher un produit..." value={productSearch} onChange={(e) => searchProd(e.target.value)} />
               {products.length > 0 && (
                 <div className="border border-slate-200 dark:border-white/10 rounded-xl mt-2 max-h-40 overflow-y-auto bg-white dark:bg-[#12121a] shadow-lg">
@@ -104,7 +104,7 @@ export default function AutoPartsStockMovementsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Type</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("common.type")}</Label>
                 <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
                   <SelectTrigger className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11"><SelectValue /></SelectTrigger>
                   <SelectContent className="dark:bg-[#12121a] dark:border-white/10 dark:text-white">
@@ -115,7 +115,7 @@ export default function AutoPartsStockMovementsPage() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">Quantité</Label>
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("common.quantity")}</Label>
                 <Input className="mt-1.5 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl h-11 dark:text-white" type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
               </div>
             </div>

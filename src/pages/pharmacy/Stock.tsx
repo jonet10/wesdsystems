@@ -192,11 +192,11 @@ export default function PharmacyStock() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Produit</TableHead>
+                      <TableHead>{t("common.date")}</TableHead>
+                      <TableHead>{t("common.type")}</TableHead>
+                      <TableHead>{t("common.product")}</TableHead>
                       <TableHead>Lot</TableHead>
-                      <TableHead>Quantité</TableHead>
+                      <TableHead>{t("common.quantity")}</TableHead>
                       <TableHead>Référence</TableHead>
                     </TableRow>
                   </TableHeader>
