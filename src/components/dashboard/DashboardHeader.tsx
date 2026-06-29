@@ -212,6 +212,9 @@ export const DashboardHeader = ({
           <span className="sr-only">Basculer le thème</span>
         </Button>
 
+        {/* Google Translate Widget */}
+        <div id="google_translate_element" className="scale-[0.8] origin-right max-h-9 overflow-hidden flex items-center"></div>
+
         {/* Language Selector */}
         <DropdownMenu open={showLangDropdown} onOpenChange={setShowLangDropdown}>
           <DropdownMenuTrigger asChild>
