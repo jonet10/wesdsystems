@@ -410,3 +410,27 @@
     display: block !important;
   }
 }
+
+/* Google Translate Widget Customization */
+.goog-te-gadget {
+  font-size: 0px !important;
+  color: transparent !important;
+}
+.goog-te-gadget .goog-te-combo {
+  font-size: 14px !important;
+  color: inherit !important;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  background-color: transparent !important;
+  border: 1px solid rgba(150, 150, 150, 0.2) !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+.goog-logo-link {
+  display: none !important;
+}
+.goog-te-gadget > span > a {
+  display: none !important;
+}
+
