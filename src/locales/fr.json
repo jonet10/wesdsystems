@@ -189,5 +189,15 @@
     "suppliesPos": "Caisse Fournitures",
     "users": "Utilisateurs",
     "logout": "Déconnexion"
+  },
+  "pos": {
+    "search": "Rechercher un service, produit ou scanner un code-barres...",
+    "cart": "Panier actuel",
+    "emptyCart": "Vider le panier",
+    "total": "Total",
+    "pay": "Encaisser",
+    "discount": "Appliquer Remise",
+    "cashier": "Caisse",
+    "noItems": "Aucun article dans le panier"
   }
 }

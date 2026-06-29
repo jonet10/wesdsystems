@@ -189,5 +189,15 @@
     "suppliesPos": "Supplies POS",
     "users": "Users",
     "logout": "Logout"
+  },
+  "pos": {
+    "search": "Search for a service, product, or scan a barcode...",
+    "cart": "Current Cart",
+    "emptyCart": "Empty Cart",
+    "total": "Total",
+    "pay": "Checkout",
+    "discount": "Apply Discount",
+    "cashier": "Cashier",
+    "noItems": "No items in the cart"
   }
 }

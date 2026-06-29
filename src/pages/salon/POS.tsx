@@ -2067,7 +2067,7 @@ export default function POSPage() {
                       <div className="space-y-1 bg-muted/40 p-3 rounded-lg border border-border/80">
                         <div className="flex justify-between items-center text-xs font-bold text-muted-foreground pb-1.5 border-b uppercase tracking-wider">
                           <span>Articles ({cart.length})</span>
-                          <span>Total</span>
+                          <span>{t("pos.total")}</span>
                         </div>
                         <div className="max-h-[140px] overflow-y-auto space-y-1.5 pr-1 mt-2">
                           {cart.map(item => (
@@ -2326,7 +2326,7 @@ export default function POSPage() {
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-sm pt-1.5 border-t border-border/40 text-foreground">
-                    <span>Total</span>
+                    <span>{t("pos.total")}</span>
                     <span className="text-primary text-base font-bold">{format(total)}</span>
                   </div>
                   {paidOnTab > 0 && (
@@ -2388,9 +2388,7 @@ export default function POSPage() {
                       <Button variant="outline" size="sm" onClick={() => setReturnOpen(true)} className="gap-1">
                         Retour
                       </Button>
-                      <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary font-semibold text-xs col-span-1">
-                        Encaisser
-                      </Button>
+                      <Button onClick={checkout} disabled={cart.length === 0} className="bg-primary font-semibold text-xs col-span-1">{t("pos.pay")}</Button>
                     </div>
                   </div>
                 )}

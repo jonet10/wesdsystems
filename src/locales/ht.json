@@ -189,5 +189,15 @@
     "suppliesPos": "Kès Founiti",
     "users": "Itilizatè",
     "logout": "Dekonekte"
+  },
+  "pos": {
+    "search": "Chèche yon sèvis, pwodwi, oswa eskane yon kòd-bar...",
+    "cart": "Panye Kounye a",
+    "emptyCart": "Vide Panye a",
+    "total": "Total",
+    "pay": "Peye",
+    "discount": "Fè Rabè",
+    "cashier": "Kès",
+    "noItems": "Pa gen anyen nan panye a"
   }
 }

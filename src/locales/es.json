@@ -189,5 +189,15 @@
     "suppliesPos": "POS Útiles",
     "users": "Usuarios",
     "logout": "Cerrar sesión"
+  },
+  "pos": {
+    "search": "Buscar servicio, producto o escanear código de barras...",
+    "cart": "Carrito Actual",
+    "emptyCart": "Vaciar Carrito",
+    "total": "Total",
+    "pay": "Cobrar",
+    "discount": "Aplicar Descuento",
+    "cashier": "Caja",
+    "noItems": "No hay artículos en el carrito"
   }
 }
