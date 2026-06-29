@@ -213,37 +213,8 @@ export const DashboardHeader = ({
         </Button>
 
         
-        {/* Segmented Language Selector */}
-        <div className="flex items-center bg-slate-900/50 border border-slate-800 rounded-full p-1 h-9">
-          {languages.map((lang) => {
-            const isActive = i18n.language.startsWith(lang.code);
-            return (
-              <button
-                key={lang.code}
-                onClick={() => {
-                  i18n.changeLanguage(lang.code);
-                  
-                  // Trigger Google Translate
-                  setTimeout(() => {
-                    const select = document.querySelector('.goog-te-combo');
-                    if (select) {
-                      select.value = lang.code;
-                      select.dispatchEvent(new Event('change'));
-                    }
-                  }, 100);
-                }}
-                className={cn(
-                  "px-3 py-1 text-xs font-bold rounded-full transition-all duration-200",
-                  isActive 
-                    ? "bg-white text-slate-900 shadow-sm" 
-                    : "text-slate-400 hover:text-slate-200"
-                )}
-              >
-                {lang.code.toUpperCase()}
-              </button>
-            );
-          })}
-        </div>
+        {/* Google Translate Native Widget */}
+        <div id="google_translate_element" className="flex items-center"></div>
 
 
         {/* Currency Selector */}
