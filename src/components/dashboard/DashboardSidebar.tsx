@@ -367,7 +367,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
               exit={{ opacity: 0, x: -10 }}
               className="text-sm truncate"
             >
-              {item.label}
+              {item.labelKey ? t(item.labelKey as any) : item.label}
             </motion.span>
           )}
         </AnimatePresence>
@@ -383,7 +383,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
       return (
         <Tooltip delayDuration={0}>
           <TooltipTrigger asChild>{content}</TooltipTrigger>
-          <TooltipContent side="right">{item.label}</TooltipContent>
+          <TooltipContent side="right">{item.labelKey ? t(item.labelKey as any) : item.label}</TooltipContent>
         </Tooltip>
       );
     }
