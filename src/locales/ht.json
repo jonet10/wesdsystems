@@ -199,5 +199,24 @@
     "discount": "Fè Rabè",
     "cashier": "Kès",
     "noItems": "Pa gen anyen nan panye a"
+  },
+  "salonDashboard": {
+    "title": "Dachbòd Salon",
+    "subtitle": "Apesi sou aktivite ou",
+    "todaySales": "Vant Jodia",
+    "todayAppointments": "Randevou Jodia",
+    "clients": "Kliyan yo",
+    "lowStock": "Stòk ki ba",
+    "revenue7Days": "Lajan ki antre (7 dènye jou)",
+    "appointmentsPerDay": "Randevou chak jou",
+    "appointmentsToday": "Randevou Jodia",
+    "noAppointmentsToday": "Pa gen randevou jodia",
+    "quickActions": "Aksyon Rapò",
+    "newAppointment": "Nouvo Randevou",
+    "newPosSale": "Nouvo Vant POS",
+    "newClient": "Nouvo Kliyan",
+    "vsLastMonth": "vs mwa pase",
+    "seeAll": "Wè tout",
+    "today": "jodia"
   }
 }

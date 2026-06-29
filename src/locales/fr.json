@@ -199,5 +199,24 @@
     "discount": "Appliquer Remise",
     "cashier": "Caisse",
     "noItems": "Aucun article dans le panier"
+  },
+  "salonDashboard": {
+    "title": "Dashboard Salon",
+    "subtitle": "Vue d'ensemble de votre activité",
+    "todaySales": "Ventes du jour",
+    "todayAppointments": "RDV aujourd'hui",
+    "clients": "Clients",
+    "lowStock": "Stock faible",
+    "revenue7Days": "Revenus des 7 derniers jours",
+    "appointmentsPerDay": "RDV par jour",
+    "appointmentsToday": "Rendez-vous du jour",
+    "noAppointmentsToday": "Aucun rendez-vous aujourd'hui",
+    "quickActions": "Actions rapides",
+    "newAppointment": "Nouveau rendez-vous",
+    "newPosSale": "Nouvelle vente POS",
+    "newClient": "Nouveau client",
+    "vsLastMonth": "vs mois dernier",
+    "seeAll": "Voir tout",
+    "today": "aujourd'hui"
   }
 }

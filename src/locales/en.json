@@ -199,5 +199,24 @@
     "discount": "Apply Discount",
     "cashier": "Cashier",
     "noItems": "No items in the cart"
+  },
+  "salonDashboard": {
+    "title": "Salon Dashboard",
+    "subtitle": "Overview of your business",
+    "todaySales": "Today's Sales",
+    "todayAppointments": "Today's Appointments",
+    "clients": "Clients",
+    "lowStock": "Low Stock",
+    "revenue7Days": "Revenue (Last 7 days)",
+    "appointmentsPerDay": "Appointments per day",
+    "appointmentsToday": "Today's Appointments",
+    "noAppointmentsToday": "No appointments today",
+    "quickActions": "Quick Actions",
+    "newAppointment": "New Appointment",
+    "newPosSale": "New POS Sale",
+    "newClient": "New Client",
+    "vsLastMonth": "vs last month",
+    "seeAll": "See all",
+    "today": "today"
   }
 }

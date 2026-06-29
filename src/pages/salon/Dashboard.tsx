@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ interface DashboardStat {
 }
 
 export default function SalonDashboard() {
+  const { t } = useTranslation();
   const { isAuthenticated, profile } = useAuth();
   const { formatCompact, format } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
@@ -229,21 +231,21 @@ export default function SalonDashboard() {
 
   const stats: DashboardStat[] = [
     {
-      title: "Ventes du jour", value: format(todayRevenue),
+      title: t("salonDashboard.todaySales"), value: format(todayRevenue),
       icon: <DollarSign className="h-5 w-5" />, color: "success",
       trend: { value: 12, isPositive: true },
     },
     {
-      title: "RDV aujourd'hui", value: todayApts.length.toString(),
+      title: t("salonDashboard.todayAppointments"), value: todayApts.length.toString(),
       icon: <Calendar className="h-5 w-5" />, color: "info",
     },
     {
-      title: "Clients", value: clients.length.toString(),
+      title: t("salonDashboard.clients"), value: clients.length.toString(),
       icon: <Users className="h-5 w-5" />, color: "primary",
       trend: { value: 8, isPositive: true },
     },
     {
-      title: "Stock faible", value: lowStockCount.toString(),
+      title: t("salonDashboard.lowStock"), value: lowStockCount.toString(),
       icon: <Package className="h-5 w-5" />, color: lowStockCount > 0 ? "warning" : "success",
     },
   ];
@@ -303,8 +305,8 @@ export default function SalonDashboard() {
   return (
     <DashboardLayout
       role="salon_admin"
-      title="Dashboard Salon"
-      subtitle="Vue d'ensemble de votre activité"
+      title={t("salonDashboard.title")}
+      subtitle={t("salonDashboard.subtitle")}
     >
       <SubscriptionGuard>
         <StaggerContainer className="space-y-6">
@@ -353,7 +355,7 @@ export default function SalonDashboard() {
                     {stat.trend && (
                       <p className={cn("text-xs font-medium flex items-center gap-1", stat.trend.isPositive ? "text-success" : "text-destructive")}>
                         <span>{stat.trend.isPositive ? "↑" : "↓"}</span>
-                        <span>{Math.abs(stat.trend.value)}% vs mois dernier</span>
+                        <span>{Math.abs(stat.trend.value)}% {t("salonDashboard.vsLastMonth")}</span>
                       </p>
                     )}
                   </div>
@@ -431,14 +433,14 @@ export default function SalonDashboard() {
             <div className="lg:col-span-2 bg-card rounded-xl border border-border">
               <div className="flex items-center justify-between p-4 border-b border-border">
                 <div>
-                  <h3 className="font-semibold text-sm">Rendez-vous du jour</h3>
+                  <h3 className="font-semibold text-sm">{t("salonDashboard.appointmentsToday")}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: dashboardTimeZone })}
                   </p>
                 </div>
                 <Link to="/salon/appointments">
                   <Button size="sm" variant="outline" className="gap-1">
-                    Voir tout <ArrowRight className="h-3 w-3" />
+                    {t("salonDashboard.seeAll")} <ArrowRight className="h-3 w-3" />
                   </Button>
                 </Link>
               </div>
@@ -473,7 +475,7 @@ export default function SalonDashboard() {
                 ))}
                 {formattedAppointments.length === 0 && (
                   <div className="p-8 text-center text-muted-foreground text-sm">
-                    Aucun rendez-vous aujourd'hui
+                    Aucun rendez-vous {t("salonDashboard.today")}
                   </div>
                 )}
               </div>
@@ -481,7 +483,7 @@ export default function SalonDashboard() {
 
             <div className="space-y-4">
               <div className="bg-card rounded-xl border border-border p-4">
-                <h3 className="font-semibold text-sm mb-3">Actions rapides</h3>
+                <h3 className="font-semibold text-sm mb-3">{t("salonDashboard.quickActions")}</h3>
                 <div className="space-y-2">
                   <Link to="/salon/appointments">
                     <Button variant="outline" className="w-full justify-start gap-2 h-10">
@@ -525,7 +527,7 @@ export default function SalonDashboard() {
                     </div>
                   ))}
                   {recentSales.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">Aucune vente aujourd'hui</p>
+                    <p className="text-xs text-muted-foreground text-center py-2">Aucune vente {t("salonDashboard.today")}</p>
                   )}
                 </div>
               </div>

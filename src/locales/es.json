@@ -199,5 +199,24 @@
     "discount": "Aplicar Descuento",
     "cashier": "Caja",
     "noItems": "No hay artículos en el carrito"
+  },
+  "salonDashboard": {
+    "title": "Dashboard de Salón",
+    "subtitle": "Resumen de su actividad",
+    "todaySales": "Ventas de hoy",
+    "todayAppointments": "Citas de hoy",
+    "clients": "Clientes",
+    "lowStock": "Stock bajo",
+    "revenue7Days": "Ingresos (Últimos 7 días)",
+    "appointmentsPerDay": "Citas por día",
+    "appointmentsToday": "Citas de hoy",
+    "noAppointmentsToday": "No hay citas hoy",
+    "quickActions": "Acciones Rápidas",
+    "newAppointment": "Nueva Cita",
+    "newPosSale": "Nueva Venta POS",
+    "newClient": "Nuevo Cliente",
+    "vsLastMonth": "vs mes pasado",
+    "seeAll": "Ver todo",
+    "today": "hoy"
   }
 }
