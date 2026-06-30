@@ -112,10 +112,10 @@ export default function AutoPartsProductsPage() {
               <Input placeholder="Rechercher par nom ou SKU..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
             </div>
             <Select value={catFilter} onValueChange={setCatFilter}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Toutes catégories" /></SelectTrigger>
+              <SelectTrigger className="w-48"><SelectValue placeholder="Toutes les catégories" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes catégories</SelectItem>
-                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                <SelectItem value="all"><span>Toutes les catégories</span></SelectItem>
+                {categories.map((c) => <SelectItem key={c.id} value={c.id}><span>{c.name}</span></SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -156,7 +156,7 @@ export default function AutoPartsProductsPage() {
               <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
                 <SelectContent>
-                  {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {categories.map((c) => <SelectItem key={c.id} value={c.id}><span>{c.name}</span></SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
