@@ -418,14 +418,18 @@
 }
 .goog-te-gadget .goog-te-combo {
   font-size: 14px !important;
-  color: inherit !important;
+  color: #1a1a1a !important; /* Force visible text */
   margin: 0 !important;
   padding: 4px 8px !important;
   border-radius: 6px !important;
-  background-color: transparent !important;
+  background-color: #ffffff !important;
   border: 1px solid rgba(150, 150, 150, 0.2) !important;
   outline: none !important;
   cursor: pointer !important;
+}
+.goog-te-gadget .goog-te-combo option {
+  color: #1a1a1a !important;
+  background-color: #ffffff !important;
 }
 .goog-logo-link {
   display: none !important;

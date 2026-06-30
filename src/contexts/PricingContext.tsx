@@ -14,15 +14,15 @@ import type { SubscriptionPlan, SubscriptionFeature } from "@/lib/saas";
 const STORAGE_REGION_KEY = "wesd_region_preference";
 const PLAN_ALIASES: Record<string, string[]> = {
   starter: ["starter", "basic", "démarreur", "demarreur", "start-up"],
-  pro: ["pro", "professionnel"],
+  pro: ["pro", "professionnel", "professional"],
   enterprise: ["enterprise", "premium", "entreprise"],
 };
 
 const FALLBACK_PRICING: Record<string, Record<string, { monthly: number; yearly: number; currency: string }>> = {
   HT: {
     starter: { monthly: 1500, yearly: 15000, currency: "HTG" },
-    pro: { monthly: 3000, yearly: 30000, currency: "HTG" },
-    enterprise: { monthly: 5000, yearly: 50000, currency: "HTG" },
+    pro: { monthly: 2500, yearly: 25000, currency: "HTG" },
+    enterprise: { monthly: 10000, yearly: 100000, currency: "HTG" },
   },
   DO: {
     starter: { monthly: 900, yearly: 9000, currency: "DOP" },
@@ -144,6 +144,7 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
     const normalizedPlan = planName.toLowerCase();
     const aliases = Object.entries(PLAN_ALIASES).find(([, names]) => names.includes(normalizedPlan))?.[1] || [normalizedPlan];
 
+    // 1. Try to find the exact localized price for the detected country in DB (subscription_plan_prices)
     const plan = prices.find(
       (p) =>
         p.enabled !== false &&
@@ -152,37 +153,36 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
     );
     if (plan) return plan;
 
-    const crossCountry = prices.find(
-      (p) => p.enabled !== false && aliases.includes((p.plan_name || "").toLowerCase())
-    );
-    if (crossCountry) return crossCountry;
-
+    // 2. If in Haiti, fallback to the base subscription_plans table (Admin Dashboard source of truth)
     const matchedPlan = plans.find((p) => aliases.includes(p.name.toLowerCase()));
-    if (matchedPlan) {
-      const country = countries.find((c) => c.country_code === detectedCountry);
+    if (matchedPlan && detectedCountry === 'HT') {
       return {
         plan_name: planName,
         monthly_price: matchedPlan.monthly_price,
         yearly_price: matchedPlan.yearly_price,
-        currency_code: country?.currency_code || "HTG",
+        currency_code: "HTG",
+        country_code: "HT",
+        enabled: true,
+      };
+    }
+
+    // 3. For other countries, fallback to hardcoded pricing dictionary, OR default to US ($)
+    const fallbackCountry = FALLBACK_PRICING[detectedCountry] || FALLBACK_PRICING.US;
+    const fallbackKey = Object.keys(PLAN_ALIASES).find((k) => PLAN_ALIASES[k].includes(normalizedPlan)) || "starter";
+    const fallbackValue = fallbackCountry[fallbackKey];
+    
+    if (fallbackValue) {
+      return {
+        plan_name: planName,
+        monthly_price: fallbackValue.monthly,
+        yearly_price: fallbackValue.yearly,
+        currency_code: fallbackValue.currency,
         country_code: detectedCountry,
         enabled: true,
       };
     }
 
-    const fallbackCountry = FALLBACK_PRICING[detectedCountry] || FALLBACK_PRICING.US;
-    const fallbackKey = Object.keys(PLAN_ALIASES).find((k) => PLAN_ALIASES[k].includes(normalizedPlan)) || "starter";
-    const fallbackValue = fallbackCountry[fallbackKey];
-    if (!fallbackValue) return null;
-
-    return {
-      plan_name: planName,
-      monthly_price: fallbackValue.monthly,
-      yearly_price: fallbackValue.yearly,
-      currency_code: fallbackValue.currency,
-      country_code: detectedCountry,
-      enabled: true,
-    };
+    return null;
   };
 
   const formatPrice = (amount: number, currencyCode: string): string => {

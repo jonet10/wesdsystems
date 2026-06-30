@@ -29,7 +29,10 @@ export const Logo = ({ className, size = "md", showText = true }: LogoProps) => 
         />
       </div>
       {showText && (
-        <span className={cn("font-sans font-bold text-foreground tracking-tight", textSizes[size])}>
+        <span 
+          translate="no" 
+          className={cn("notranslate font-sans font-bold text-foreground tracking-tight", textSizes[size])}
+        >
           Wesd Systems
         </span>
       )}
