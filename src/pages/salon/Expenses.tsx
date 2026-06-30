@@ -257,9 +257,11 @@ export default function ExpensesPage() {
                       </td>
                       <td className="p-4 text-sm">{e.description}</td>
                       <td className="p-4 text-right text-sm capitalize text-muted-foreground">
-                        {e.payment_method === "cash" ? "Espèces" :
-                         e.payment_method === "moncash" ? "MonCash" :
-                         e.payment_method === "natcash" ? "NatCash" : "Carte"}
+                        <span>
+                          {e.payment_method === "cash" ? "Espèces" :
+                           e.payment_method === "moncash" ? "MonCash" :
+                           e.payment_method === "natcash" ? "NatCash" : "Carte"}
+                        </span>
                       </td>
                       <td className="p-4 text-right font-semibold text-destructive">{format(e.amount)}</td>
                       <td className="p-4 text-right">

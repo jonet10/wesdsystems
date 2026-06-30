@@ -2259,7 +2259,7 @@ export default function POSPage() {
                           {paymentSplits.map((split) => (
                             <div key={split.method} className="space-y-1">
                               <Label className="text-[11px]">
-                                {split.method === "cash" ? "Espèces" : split.method}
+                                <span>{split.method === "cash" ? "Espèces" : split.method}</span>
                               </Label>
                               <Input
                                 type="number"

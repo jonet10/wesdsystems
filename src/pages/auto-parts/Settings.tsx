@@ -40,6 +40,7 @@ export default function AutoPartsSettingsPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [printerWidth, setPrinterWidth] = useState("58");
 
   const [invoicePrefix, setInvoicePrefix] = useState("INV-");
   const [quotePrefix, setQuotePrefix] = useState("DEV-");
@@ -102,6 +103,7 @@ export default function AutoPartsSettingsPage() {
       } catch { } finally { setLoading(false); }
     };
     load();
+    setPrinterWidth(localStorage.getItem('wesd_pos_printer_width') || '58');
   }, [isAuthenticated, user?.id]);
 
   const save = async (e: React.FormEvent) => {
@@ -355,6 +357,53 @@ export default function AutoPartsSettingsPage() {
                   </div>
                 </div>
               </StaggerItem>
+
+              <StaggerItem>
+                  <div className="bg-card rounded-xl border border-border p-6 shadow-card mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                        <Smartphone className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold font-display">Configuration du POS / Imprimante</h3>
+                        <p className="text-sm text-muted-foreground">Configurez le matériel d'impression connecté à votre caisse</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Largeur du papier</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: "58", label: "58 mm (Thermique Compact)" },
+                          { id: "80", label: "80 mm (Thermique Large)" },
+                          { id: "A4", label: "A4 (Facture Standard)" },
+                          { id: "custom", label: "Personnalisée (Futur)" },
+                        ].map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            disabled={w.id === "custom"}
+                            onClick={() => {
+                              setPrinterWidth(w.id);
+                              localStorage.setItem('wesd_pos_printer_width', w.id);
+                              toast.success(`Format d'impression mis à jour : ${w.label}`);
+                            }}
+                            className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all ${
+                              printerWidth === w.id
+                                ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                                : w.id === "custom"
+                                ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
+                                : "border-border hover:border-primary/40 hover:bg-muted/40"
+                            }`}
+                          >
+                            <span className="text-sm font-bold">{w.id.toUpperCase()}</span>
+                            <span className="text-[10px] text-muted-foreground mt-1">{w.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </StaggerItem>
             </TabsContent>
 
             <TabsContent value="stock" className="space-y-6">

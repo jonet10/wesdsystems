@@ -264,8 +264,12 @@ export const DashboardHeader = ({
                     key={branch.id}
                     onClick={() => {
                       setActiveBranchId(branch.id);
-                      if (branch.business_type && branch.business_type !== glowupStore.getActiveBusiness()) {
-                        glowupStore.setActiveBusiness(branch.business_type as any);
+                      
+                      // Fallback to profile.business_type for legacy branches without a type
+                      const targetBizType = branch.business_type || profile?.business_type;
+                      
+                      if (targetBizType && targetBizType !== glowupStore.getActiveBusiness()) {
+                        glowupStore.setActiveBusiness(targetBizType as any);
                         const routes: Record<string, string> = {
                           salon: "/salon",
                           pharmacie: "/pharmacie",
@@ -275,8 +279,9 @@ export const DashboardHeader = ({
                           boutique: "/boutique",
                           auto_parts: "/auto-parts",
                           school_payments: "/school",
+                          school: "/school"
                         };
-                        const targetPath = routes[branch.business_type as string] || "/salon";
+                        const targetPath = routes[targetBizType as string] || "/salon";
                         navigate(targetPath);
                       }
                     }}

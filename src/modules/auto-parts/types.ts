@@ -5,6 +5,7 @@ export interface AutoPartsCategory {
   icon?: string;
   sort_order: number;
   business_id?: string;
+  branch_id?: string | null;
   created_at: string;
 }
 
@@ -15,11 +16,17 @@ export interface AutoPartsProduct {
   category_id?: string;
   category?: AutoPartsCategory;
   sku?: string;
+  oem_code?: string;
   barcode?: string;
-  unit_price: number;
-  cost_price: number;
+  manufacturer?: string;
+  subcategory?: string;
+  compatible_vehicle?: string;
+  unit?: string;
+  unit_price?: number | null;
+  cost_price?: number | null;
   stock_quantity: number;
   reserved_quantity: number;
+  available_quantity?: number;
   min_stock: number;
   max_stock?: number;
   location?: string;
@@ -27,6 +34,7 @@ export interface AutoPartsProduct {
   notes?: string;
   active: boolean;
   business_id?: string;
+  branch_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +121,8 @@ export interface AutoPartsSale {
   discount_value: number;
   discount_amount: number;
   total: number;
+  amount_paid?: number;
+  balance_due?: number;
   payment_method: 'cash' | 'card' | 'transfer' | 'moncash' | 'natcash';
   payment_status: 'paid' | 'partial' | 'unpaid';
   staff_id?: string;

@@ -107,6 +107,10 @@ export default function AutoPartsPOSPage() {
       toast.error(`${p.name} — Stock épuisé`);
       return;
     }
+    if (p.unit_price == null) {
+      toast.error(`${p.name} — Prix de vente non renseigné`);
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((i) => i.product_id === p.id);
       if (existing) {
@@ -143,6 +147,13 @@ export default function AutoPartsPOSPage() {
     if (!businessId || cart.length === 0) return;
     const validStaffSession = autoPartsStaffSession && autoPartsStaffSession.business_id === businessId ? autoPartsStaffSession : undefined;
     const staffMember = staff.find(s => s.id === selectedStaff) || (validStaffSession ? { name: validStaffSession.name } as AutoPartsStaff : undefined);
+    const tendered = typeof amountTendered === "number" ? amountTendered : total;
+    const amountPaid = Math.min(Math.max(tendered, 0), total);
+    const balanceDue = Math.max(total - amountPaid, 0);
+    if (balanceDue > 0 && !selectedClient) {
+      toast.error("Sélectionnez un client pour enregistrer un paiement partiel.");
+      return;
+    }
     try {
       const sale = await createSale(businessId, {
         subtotal,
@@ -152,15 +163,16 @@ export default function AutoPartsPOSPage() {
         discount_value: discountValue,
         discount_amount: discountAmount,
         total,
+        amount_paid: amountPaid,
+        balance_due: balanceDue,
         payment_method: paymentMethod,
-        payment_status: typeof amountTendered === "number" && amountTendered < total ? "partial" : "paid",
+        payment_status: balanceDue > 0 ? "partial" : "paid",
         client_id: selectedClient?.id ?? null,
         client_name: selectedClient?.name ?? undefined,
         staff_id: selectedStaff || null,
         items: cart,
       });
-      const tendered = typeof amountTendered === "number" ? amountTendered : total;
-      const change = tendered - total;
+      const change = Math.max(tendered - total, 0);
       setReceiptSnapshot({
         cart: [...cart],
         subtotal,
@@ -218,7 +230,7 @@ export default function AutoPartsPOSPage() {
                 <Card key={p.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => addToCart(p)}>
                   <CardContent className="p-4">
                     <p className="font-medium text-sm truncate">{p.name}</p>
-                    <p className="text-lg font-bold text-primary">{format(Number(p.unit_price))}</p>
+                    <p className="text-lg font-bold text-primary">{p.unit_price == null ? "-" : format(Number(p.unit_price))}</p>
                     <Badge variant={Number(p.stock_quantity) <= 0 ? "destructive" : "secondary"} className="mt-1">
                       {p.stock_quantity} en stock
                     </Badge>
@@ -441,7 +453,7 @@ export default function AutoPartsPOSPage() {
                               receiptSnapshot.paymentMethod === "card" ? "CARTE" :
                               receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
                               receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
-                      amountReceived: receiptSnapshot.total,
+                      amountReceived: (receiptSnapshot as any).amountTendered ?? receiptSnapshot.total,
                       amountTendered: (receiptSnapshot as any).amountTendered,
                       changeGiven: (receiptSnapshot as any).changeGiven
                     },
@@ -486,7 +498,7 @@ export default function AutoPartsPOSPage() {
                                 receiptSnapshot.paymentMethod === "card" ? "CARTE" :
                                 receiptSnapshot.paymentMethod === "moncash" ? "MONCASH" :
                                 receiptSnapshot.paymentMethod === "natcash" ? "NATCASH" : "VIREMENT",
-                      amountReceived: receiptSnapshot.total,
+                        amountReceived: (receiptSnapshot as any).amountTendered ?? receiptSnapshot.total,
                         amountTendered: (receiptSnapshot as any).amountTendered,
                         changeGiven: (receiptSnapshot as any).changeGiven
                       },

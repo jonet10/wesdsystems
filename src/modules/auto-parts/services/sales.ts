@@ -25,6 +25,8 @@ export async function createSale(businessId: string, sale: {
   discount_value: number;
   discount_amount: number;
   total: number;
+  amount_paid?: number;
+  balance_due?: number;
   payment_method: string;
   payment_status: string;
   client_id?: string | null;
@@ -53,6 +55,8 @@ export async function createSale(businessId: string, sale: {
     p_discount_value: sale.discount_value,
     p_discount_amount: sale.discount_amount,
     p_total: sale.total,
+    p_amount_paid: sale.amount_paid ?? sale.total,
+    p_balance_due: sale.balance_due ?? 0,
     p_payment_method: sale.payment_method,
     p_payment_status: sale.payment_status,
     p_notes: sale.notes ?? null,

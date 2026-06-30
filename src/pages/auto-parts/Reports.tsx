@@ -66,7 +66,7 @@ export default function AutoPartsReportsPage() {
   const { format } = useCurrency();
   const { hasAutoPartsPermission } = useAuth();
   const canViewReports = hasAutoPartsPermission(PERMISSIONS.REPORTS_VIEW);
-  const canViewProfit = canViewReports && hasAutoPartsPermission(PERMISSIONS.PRODUCTS_MANAGE);
+  const canViewProfit = canViewReports && hasAutoPartsPermission(PERMISSIONS.PROFIT_VIEW);
   const canViewStaff = hasAutoPartsPermission(PERMISSIONS.STAFF_READ);
 
   const [period, setPeriod] = useState("month");

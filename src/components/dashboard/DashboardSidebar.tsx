@@ -221,7 +221,6 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: UserPlus, labelKey: "sidebar.enrollments", path: "/school/enrollments", role: "all", permission: PERMISSIONS.CLIENTS_MANAGE },
           { icon: Layers, labelKey: "sidebar.classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Calendar, labelKey: "sidebar.academicYears", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
-          { icon: UserIcon, labelKey: "sidebar.parents", path: "/school/parents", role: "all", permission: PERMISSIONS.CLIENTS_READ },
           { icon: UserCog, labelKey: "sidebar.teachers", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: BadgeDollarSign, labelKey: "sidebar.fees", path: "/school/fees", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: DollarSign, labelKey: "sidebar.studentFinance", path: "/school/finance/student", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },

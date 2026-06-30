@@ -138,7 +138,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (permission: Permission | Permission[]): boolean => {
       // Admins with Supabase Auth have all permissions only if they are super_admin or auto_parts business admins
       if (!!profile && isAuthenticated) {
-        if (profile.role === 'super_admin' || profile.business_type === 'auto_parts') {
+        if (
+          profile.role === 'super_admin' || 
+          profile.role === 'salon_admin' ||
+          profile.role === 'owner' ||
+          profile.business_type === 'auto_parts'
+        ) {
           return true;
         }
       }

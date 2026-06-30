@@ -14,6 +14,11 @@ import { Save, Printer, Shield, Bell } from "lucide-react";
 export default function PharmacySettings() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [printerWidth, setPrinterWidth] = useState("58");
+
+  useEffect(() => {
+    setPrinterWidth(localStorage.getItem('wesd_pos_printer_width') || '58');
+  }, []);
 
   // Simulated settings state
   const [settings, setSettings] = useState({
@@ -135,6 +140,39 @@ export default function PharmacySettings() {
                     <div className="space-y-2">
                       <Label>Pied de page (Mentions légales)</Label>
                       <Input value={settings.receiptFooter} onChange={e => handleChange("receiptFooter", e.target.value)} />
+                    </div>
+                    
+                    <div className="space-y-2 pt-4 border-t">
+                      <Label className="text-sm font-semibold">Largeur du papier</Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { id: "58", label: "58 mm (Thermique Compact)" },
+                          { id: "80", label: "80 mm (Thermique Large)" },
+                          { id: "A4", label: "A4 (Facture Standard)" },
+                          { id: "custom", label: "Personnalisée (Futur)" },
+                        ].map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            disabled={w.id === "custom"}
+                            onClick={() => {
+                              setPrinterWidth(w.id);
+                              localStorage.setItem('wesd_pos_printer_width', w.id);
+                              toast.success(`Format d'impression mis à jour : ${w.label}`);
+                            }}
+                            className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all ${
+                              printerWidth === w.id
+                                ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                                : w.id === "custom"
+                                ? "opacity-50 cursor-not-allowed border-border bg-muted/20"
+                                : "border-border hover:border-primary/40 hover:bg-muted/40"
+                            }`}
+                          >
+                            <span className="text-sm font-bold">{w.id.toUpperCase()}</span>
+                            <span className="text-[10px] text-muted-foreground mt-1">{w.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

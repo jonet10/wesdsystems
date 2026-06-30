@@ -55,7 +55,7 @@ export default function AutoPartsCategoriesPage() {
     if (!businessId) return;
     try {
       if (editing) {
-        await updateCategory(editing.id, form);
+        await updateCategory(editing.id, form, businessId);
         toast.success("Catégorie mise à jour");
       } else {
         await createCategory(businessId, form);
@@ -71,7 +71,7 @@ export default function AutoPartsCategoriesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer cette catégorie ?")) return;
     try {
-      await deleteCategory(id);
+      await deleteCategory(id, businessId);
       toast.success("Catégorie supprimée");
       load();
     } catch (e: any) {

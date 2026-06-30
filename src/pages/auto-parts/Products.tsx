@@ -29,6 +29,7 @@ export default function AutoPartsProductsPage() {
   const { format } = useCurrency();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
   const canManage = hasAutoPartsPermission(PERMISSIONS.PRODUCTS_MANAGE);
+  const canViewCost = hasAutoPartsPermission(PERMISSIONS.COST_VIEW);
   const [data, setData] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
   const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,13 +39,13 @@ export default function AutoPartsProductsPage() {
   const [editing, setEditing] = useState<AutoPartsProduct | null>(null);
   const [form, setForm] = useState({
     name: "", description: "", category_id: "", sku: "", barcode: "",
-    unit_price: 0, cost_price: 0, min_stock: 5, max_stock: "", location: "", notes: "", active: true,
+    unit_price: "" as number | string, cost_price: "" as number | string, min_stock: 0 as number | string, max_stock: "" as number | string, location: "", notes: "", active: true,
   });
 
   const load = async () => {
     setLoading(true);
     try {
-      setData(await (canManage ? listProductsFull(businessId, autoPartsStaffSession?.session_token) : listProducts(businessId)));
+      setData(await (canViewCost ? listProductsFull(businessId, autoPartsStaffSession?.session_token) : listProducts(businessId)));
       setCategories(await listCategories(businessId));
     } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
   };
@@ -58,7 +59,7 @@ export default function AutoPartsProductsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", description: "", category_id: "", sku: "", barcode: "", unit_price: 0, cost_price: 0, min_stock: 5, max_stock: "", location: "", notes: "", active: true });
+    setForm({ name: "", description: "", category_id: "", sku: "", barcode: "", unit_price: "", cost_price: "", min_stock: "0", max_stock: "", location: "", notes: "", active: true });
     setOpen(true);
   };
 
@@ -66,8 +67,8 @@ export default function AutoPartsProductsPage() {
     setEditing(p);
     setForm({
       name: p.name, description: p.description ?? "", category_id: p.category_id ?? "",
-      sku: p.sku ?? "", barcode: p.barcode ?? "", unit_price: Number(p.unit_price),
-      cost_price: Number(p.cost_price), min_stock: Number(p.min_stock), max_stock: p.max_stock?.toString() ?? "",
+      sku: p.sku ?? "", barcode: p.barcode ?? "", unit_price: p.unit_price?.toString() ?? "",
+      cost_price: p.cost_price?.toString() ?? "", min_stock: p.min_stock?.toString() ?? "0", max_stock: p.max_stock?.toString() ?? "",
       location: p.location ?? "", notes: p.notes ?? "", active: p.active,
     });
     setOpen(true);
@@ -79,9 +80,16 @@ export default function AutoPartsProductsPage() {
       const values = {
         ...form,
         category_id: form.category_id || null,
+        unit_price: form.unit_price === "" ? null : Number(form.unit_price),
+        min_stock: Number(form.min_stock) || 0,
         max_stock: form.max_stock ? Number(form.max_stock) : null,
       };
-      if (editing) { await updateProduct(editing.id, values); toast.success("Produit mis à jour"); }
+      if (canViewCost) {
+        (values as typeof values & { cost_price: number | null }).cost_price = form.cost_price === "" ? null : Number(form.cost_price);
+      } else {
+        delete (values as Partial<typeof values> & { cost_price?: unknown }).cost_price;
+      }
+      if (editing) { await updateProduct(editing.id, values, businessId); toast.success("Produit mis à jour"); }
       else { await createProduct(businessId, values); toast.success("Produit créé"); }
       setOpen(false); load();
     } catch (e: any) { toast.error(e.message); }
@@ -89,7 +97,7 @@ export default function AutoPartsProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer ce produit ?")) return;
-    try { await deleteProduct(id); toast.success("Produit supprimé"); load(); } catch (e: any) { toast.error(e.message); }
+    try { await deleteProduct(id, businessId); toast.success("Produit supprimé"); load(); } catch (e: any) { toast.error(e.message); }
   };
 
   return (
@@ -118,8 +126,8 @@ export default function AutoPartsProductsPage() {
               { key: "name", label: "Nom" },
               { key: "sku", label: "SKU", render: (r) => r.sku || "-" },
               { key: "category", label: "Catégorie", render: (r) => r.category?.name ?? "-" },
-              { key: "unit_price", label: "Prix vente", render: (r) => format(Number(r.unit_price)) },
-              ...(canManage ? [{ key: "cost_price", label: "Prix revient", render: (r: AutoPartsProduct) => format(Number(r.cost_price)) }] : []),
+              { key: "unit_price", label: "Prix vente", render: (r) => r.unit_price == null ? "-" : format(Number(r.unit_price)) },
+              ...(canViewCost ? [{ key: "cost_price", label: "Prix revient", render: (r: AutoPartsProduct) => r.cost_price == null ? "-" : format(Number(r.cost_price)) }] : []),
               { key: "stock_quantity", label: "Stock", render: (r) => (
                 <Badge variant={Number(r.stock_quantity) <= 0 ? "destructive" : Number(r.stock_quantity) <= Number(r.min_stock) ? "secondary" : "default"}>
                   {r.stock_quantity}
@@ -154,9 +162,9 @@ export default function AutoPartsProductsPage() {
             </div>
             <div><Label>SKU</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
             <div><Label>Code-barres</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
-            <div><Label>Prix de vente</Label><Input type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: Number(e.target.value) })} /></div>
-            {canManage && <div><Label>Prix de revient</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} /></div>}
-            <div><Label>Stock minimum</Label><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: Number(e.target.value) })} /></div>
+            <div><Label>Prix de vente</Label><Input type="number" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></div>
+            {canViewCost && <div><Label>Prix de revient</Label><Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} /></div>}
+            <div><Label>Stock minimum</Label><Input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: e.target.value })} /></div>
             <div><Label>Stock maximum</Label><Input type="number" value={form.max_stock} onChange={(e) => setForm({ ...form, max_stock: e.target.value })} /></div>
             <div className="col-span-2"><Label>Emplacement</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
             <div className="col-span-2"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
