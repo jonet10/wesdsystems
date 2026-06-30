@@ -81,9 +81,14 @@ export default function SalonBranchesPage() {
                     import("@/lib/store").then(({ glowupStore }) => {
                       glowupStore.setActiveBusiness(b.business_type as any);
                       const routes: Record<string, string> = {
-                        salon: "/salon", pharmacie: "/pharmacie", restaurant: "/bar",
-                        bar: "/bar", market: "/market", boutique: "/boutique",
-                        auto_parts: "/auto-parts", school_payments: "/school-payments",
+                        salon: "/salon",
+                        pharmacie: "/pharmacie",
+                        restaurant: "/bar",
+                        bar: "/bar",
+                        market: "/market",
+                        boutique: "/boutique",
+                        auto_parts: "/auto-parts",
+                        school_payments: "/school",
                       };
                       navigate(routes[b.business_type as string] || "/salon");
                     });
@@ -147,6 +152,7 @@ export default function SalonBranchesPage() {
                 <option value="restaurant">Restaurant/Bar</option>
                 <option value="market">Supermarché</option>
                 <option value="boutique">Boutique</option>
+                <option value="school_payments">École</option>
               </select>
             </div>
             <div>

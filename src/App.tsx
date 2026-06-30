@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
+import { ColorThemeProvider } from "@/contexts/ColorThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense, lazy } from "react";
@@ -131,6 +132,7 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="wesd-theme">
+        <ColorThemeProvider>
         <CurrencyProvider>
           <PricingProvider>
             <AuthProvider>
@@ -703,6 +705,7 @@ const App = () => (
             </AuthProvider>
           </PricingProvider>
         </CurrencyProvider>
+        </ColorThemeProvider>
       </ThemeProvider>
     </QueryClientProvider>
     <Suspense fallback={null}>

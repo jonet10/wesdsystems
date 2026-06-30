@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
 import { getSalonEmployeePermissions } from "@/config/permissions";
 import { hasPermission, type Permission } from "@/config/permissions";
+import { glowupStore } from "@/lib/store";
 
 type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent";
 
@@ -59,9 +60,9 @@ function isWrongModule(pathname: string, businessType?: string | null): boolean 
   if (!businessType) return false;
   const userPrefix = MODULE_PREFIXES[businessType];
   if (!userPrefix) return false;
-  // Check if the path belongs to any known module OTHER than the user's
-  return Object.entries(MODULE_PREFIXES).some(
-    ([biz, prefix]) => biz !== businessType && pathname.startsWith(prefix)
+  // Check if the path belongs to any known module prefix OTHER than the user's prefix
+  return Object.values(MODULE_PREFIXES).some(
+    (prefix) => prefix !== userPrefix && pathname.startsWith(prefix)
   );
 }
 
@@ -166,14 +167,16 @@ export function ProtectedRoute({
   }
 
   if (!normalizedAllowedRoles.includes(role)) {
-    return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
+    return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;
   }
 
   // Cross-module guard: prevent admins from accessing another business's module.
-  // e.g. a salon admin cannot navigate to /auto-parts, and vice-versa.
-  // super_admin is exempt from this restriction.
-  if (role !== "super_admin" && isWrongModule(location.pathname, profile.business_type)) {
-    return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
+  // We use the currently active business type (from store) to allow multi-branch companies
+  // to seamlessly switch between modules (e.g. from Salon to School).
+  const currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
+
+  if (role !== "super_admin" && isWrongModule(location.pathname, currentBizType)) {
+    return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;
   }
 
   // School permissions check
@@ -184,7 +187,7 @@ export function ProtectedRoute({
       
       const hasPerm = permsToCheck.some(p => userPerms.includes(p));
       if (!hasPerm) {
-        return <Navigate to={getDefaultRouteForRole(role, profile.business_type)} replace />;
+        return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;
       }
     }
   }

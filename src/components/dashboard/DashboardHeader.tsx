@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { glowupStore } from "@/lib/store";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { CURRENCY_LIST } from "@/lib/currency";
+import { ThemeColorSelector } from "@/components/shared/ThemeColorSelector";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -213,6 +214,8 @@ export const DashboardHeader = ({
           <span className="sr-only">Basculer le thème</span>
         </Button>
 
+        {/* Color Theme Selector */}
+        <ThemeColorSelector />
         
         {/* Google Translate Native Widget */}
         <LanguageSelector compact />
@@ -264,9 +267,14 @@ export const DashboardHeader = ({
                       if (branch.business_type && branch.business_type !== glowupStore.getActiveBusiness()) {
                         glowupStore.setActiveBusiness(branch.business_type as any);
                         const routes: Record<string, string> = {
-                          salon: "/salon", pharmacie: "/pharmacie", restaurant: "/bar",
-                          bar: "/bar", market: "/market", boutique: "/boutique",
-                          auto_parts: "/auto-parts", school_payments: "/school-payments",
+                          salon: "/salon",
+                          pharmacie: "/pharmacie",
+                          restaurant: "/bar",
+                          bar: "/bar",
+                          market: "/market",
+                          boutique: "/boutique",
+                          auto_parts: "/auto-parts",
+                          school_payments: "/school",
                         };
                         const targetPath = routes[branch.business_type as string] || "/salon";
                         navigate(targetPath);

@@ -108,12 +108,6 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
   const { user, profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
 
-  useEffect(() => {
-    const biz = glowupStore.getActiveBusiness();
-    if (profile?.business_type && profile.business_type !== biz) {
-      glowupStore.setActiveBusiness(profile.business_type as any);
-    }
-  }, [profile?.business_type]);
 
   useEffect(() => {
     const handleUpdate = () => setActiveBiz(glowupStore.getActiveBusiness());
@@ -293,7 +287,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
   const items = (() => {
     // School custom permissions filter
     if (profile && (activeBiz === "school" || activeBiz === "school_payments")) {
-      const isSchoolAdmin = profile.role === "school_admin" || profile.role === "super_admin";
+      const isSchoolAdmin = profile.role === "school_admin" || profile.role === "super_admin" || profile.role === "salon_admin";
       const customPerms = profile.permissions || [];
       const schoolItems = getBusinessAdminItems();
       

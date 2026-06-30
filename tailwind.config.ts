@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
+import { THEMES } from "./src/config/themes.config";
 
 export default {
   darkMode: ["class"],
@@ -18,15 +20,24 @@ export default {
         display: ['Playfair Display', 'Georgia', 'serif'],
       },
       colors: {
+        // Nouvelles couleurs basées sur thèmes.config.ts
+        primary: {
+          DEFAULT: "var(--primary)",
+          light: "var(--primary-light)",
+          dark: "var(--primary-dark)",
+          fg: "var(--primary-fg)",
+          foreground: "var(--primary-fg)", // Alias pour compatibilité
+        },
+        "bg-base": "var(--bg-base)",
+        "bg-surface": "var(--bg-surface)",
+        "bg-elevated": "var(--bg-elevated)",
+
+        // Anciennes couleurs conservées pour la compatibilité
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
+        ring: "var(--primary)", // Pointé sur la nouvelle variable
+        background: "var(--bg-base)", // Pointé sur la nouvelle variable
         foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -44,11 +55,11 @@ export default {
           foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
+          DEFAULT: "var(--bg-elevated)", // Pointé sur la nouvelle variable
           foreground: "hsl(var(--popover-foreground))",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
+          DEFAULT: "var(--bg-surface)", // Pointé sur la nouvelle variable
           foreground: "hsl(var(--card-foreground))",
         },
         success: {
@@ -64,14 +75,14 @@ export default {
           foreground: "hsl(var(--info-foreground))",
         },
         sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
+          DEFAULT: "var(--bg-base)",
           foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          primary: "var(--primary)",
+          "primary-foreground": "var(--primary-fg)",
           accent: "hsl(var(--sidebar-accent))",
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
+          ring: "var(--primary)",
         },
       },
       borderRadius: {
@@ -126,5 +137,35 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    plugin(function ({ addBase }) {
+      const themesBase: Record<string, any> = {};
+      Object.entries(THEMES).forEach(([key, config]) => {
+        // LIGHT MODE
+        themesBase[`[data-theme="${key}"]`] = {
+          "--primary": config.light.primary,
+          "--primary-light": config.light.primaryLight,
+          "--primary-dark": config.light.primaryDark,
+          "--primary-fg": config.light.primaryFg,
+          "--bg-base": config.light.bgBase,
+          "--bg-surface": config.light.bgSurface,
+          "--bg-elevated": config.light.bgElevated,
+        };
+        
+        // DARK MODE
+        // Cible à la fois .dark combiné sur le même élément, ou enfant de .dark
+        themesBase[`[data-theme="${key}"].dark, .dark [data-theme="${key}"]`] = {
+          "--primary": config.dark.primary,
+          "--primary-light": config.dark.primaryLight,
+          "--primary-dark": config.dark.primaryDark,
+          "--primary-fg": config.dark.primaryFg,
+          "--bg-base": config.dark.bgBase,
+          "--bg-surface": config.dark.bgSurface,
+          "--bg-elevated": config.dark.bgElevated,
+        };
+      });
+      addBase(themesBase);
+    }),
+  ],
 } satisfies Config;
