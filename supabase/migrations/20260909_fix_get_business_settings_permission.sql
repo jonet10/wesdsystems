@@ -10,11 +10,11 @@ AS $$
 DECLARE
   v_result JSONB;
 BEGIN
-  -- Permettre l'accès aux administrateurs (products.manage) ainsi qu'aux caissiers (sales.create, products.view)
+  -- Permettre l'accès aux administrateurs (products.manage) ainsi qu'aux caissiers (pos.sell, products.read)
   IF NOT (
     public.auto_parts_has_permission(p_session_token, 'products.manage', p_business_id) OR
-    public.auto_parts_has_permission(p_session_token, 'sales.create', p_business_id) OR
-    public.auto_parts_has_permission(p_session_token, 'products.view', p_business_id)
+    public.auto_parts_has_permission(p_session_token, 'pos.sell', p_business_id) OR
+    public.auto_parts_has_permission(p_session_token, 'products.read', p_business_id)
   ) THEN
     RETURN jsonb_build_object('error', 'Accès refusé');
   END IF;
