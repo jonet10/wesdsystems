@@ -155,6 +155,7 @@ export function ProtectedRoute({
   }
 
   const role = normalizeRole(profile.role_normalized ?? profile.role);
+  const currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
   const normalizedAllowedRoles = allowedRoles
     .map((r) => normalizeRole(r))
     .filter(Boolean) as AppRole[];
@@ -173,7 +174,6 @@ export function ProtectedRoute({
   // Cross-module guard: prevent admins from accessing another business's module.
   // We use the currently active business type (from store) to allow multi-branch companies
   // to seamlessly switch between modules (e.g. from Salon to School).
-  const currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
 
   if (role !== "super_admin" && isWrongModule(location.pathname, currentBizType)) {
     return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;

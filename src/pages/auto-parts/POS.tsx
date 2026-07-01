@@ -291,13 +291,13 @@ export default function AutoPartsPOSPage() {
           </ScrollArea>
 
           <Separator className="my-4" />
-          <div className="space-y-1 text-sm">
+          <div className="space-y-1 text-sm notranslate" translate="no">
             <div className="flex justify-between"><span>Sous-total</span><span>{format(subtotal)}</span></div>
             {discountAmount > 0 && <div className="flex justify-between text-green-600"><span>{t("common.discount")}</span><span>-{format(discountAmount)}</span></div>}
             {taxAmount > 0 && <div className="flex justify-between"><span>TVA ({taxRate}%)</span><span>{format(taxAmount)}</span></div>}
             <div className="flex justify-between font-bold text-lg"><span>{t("common.total")}</span><span>{format(total)}</span></div>
           </div>
-          <Button className="w-full mt-4" size="lg" disabled={cart.length === 0} onClick={() => setShowPayment(true)}>
+          <Button className="w-full mt-4 notranslate" size="lg" disabled={cart.length === 0} onClick={() => setShowPayment(true)} translate="no">
             <CreditCard className="h-4 w-4 mr-2" /> Payer {format(total)}
           </Button>
         </div>

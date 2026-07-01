@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,9 @@ export default function AutoPartsReturnsPage() {
   const [approveTarget, setApproveTarget] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const { profile } = useAuth();
 
   const load = async () => {
     setLoading(true);
@@ -173,13 +177,31 @@ export default function AutoPartsReturnsPage() {
   // ── Approve ─────────────────────────────────────────────────────────────────
   const handleApprove = async () => {
     if (!approveTarget) return;
+    if (!adminPassword.trim()) {
+      toast.error("Veuillez saisir votre mot de passe administrateur.");
+      return;
+    }
+    setVerifyingPassword(true);
     try {
-      const r = await approveReturn(approveTarget, autoPartsStaffSession?.id ?? null);
+      // Vérifier le mot de passe de l'admin
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || "",
+        password: adminPassword,
+      });
+      if (authError) {
+        toast.error("Mot de passe administrateur incorrect.");
+        setVerifyingPassword(false);
+        return;
+      }
+
+      const r = await approveReturn(approveTarget, autoPartsStaffSession?.id ?? profile?.id ?? null);
       if (!r.success) { toast.error(r.error || "Erreur"); }
       else { toast.success("Retour approuvé — stock réinjecté"); load(); }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
+      setVerifyingPassword(false);
+      setAdminPassword("");
       setApproveTarget(null);
     }
   };
@@ -188,7 +210,7 @@ export default function AutoPartsReturnsPage() {
   const handleReject = async () => {
     if (!rejectTarget) return;
     try {
-      const r = await rejectReturn(rejectTarget, autoPartsStaffSession?.id ?? null, rejectionReason || undefined);
+      const r = await rejectReturn(rejectTarget, autoPartsStaffSession?.id ?? profile?.id ?? null, rejectionReason || undefined);
       if (!r.success) { toast.error(r.error || "Erreur"); }
       else { toast.success("Demande de retour refusée"); load(); }
     } catch (e: any) {
@@ -438,27 +460,43 @@ export default function AutoPartsReturnsPage() {
       </Dialog>
 
       {/* ── Approve confirmation ─────────────────────────────────────────────── */}
-      <AlertDialog open={!!approveTarget} onOpenChange={(o) => { if (!o) setApproveTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+      <Dialog open={!!approveTarget} onOpenChange={(o) => { if (!o) { setApproveTarget(null); setAdminPassword(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-600" /> Approuver ce retour ?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
               Le stock sera réinjecté automatiquement et la facture sera marquée comme retournée. Cette action est irréversible.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-green-600 hover:bg-green-700"
+            </p>
+            <div className="space-y-1.5">
+              <Label>Mot de passe administrateur</Label>
+              <Input
+                type="password"
+                placeholder="Saisissez votre mot de passe pour confirmer"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleApprove()}
+                className="rounded-xl h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setApproveTarget(null); setAdminPassword(""); }} disabled={verifyingPassword}>
+              Annuler
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
               onClick={handleApprove}
+              disabled={verifyingPassword || !adminPassword}
             >
-              Confirmer l'approbation
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {verifyingPassword ? "Vérification..." : "Confirmer l'approbation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Reject dialog ───────────────────────────────────────────────────── */}
       <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectionReason(""); } }}>

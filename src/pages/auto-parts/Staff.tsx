@@ -163,13 +163,13 @@ export default function AutoPartsStaffPage() {
           <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvel"} employé</DialogTitle></DialogHeader>
           {createdResult ? (
             <div className="space-y-4 py-4">
-              <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center">
+              <div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center text-slate-900 dark:text-slate-900">
                 <p className="font-semibold text-green-800 mb-2">Employé créé avec succès !</p>
-                <div className="text-sm space-y-1">
-                  <p><strong>Identifiant :</strong> <code className="bg-green-100 px-2 py-0.5 rounded">{createdResult.username}</code></p>
-                  <p><strong>Code PIN :</strong> <code className="bg-green-100 px-2 py-0.5 rounded">{createdResult.pin}</code></p>
+                <div className="text-sm space-y-1 text-slate-800">
+                  <p><strong>Identifiant :</strong> <code className="bg-green-200 text-green-950 px-2 py-0.5 rounded font-mono">{createdResult.username}</code></p>
+                  <p><strong>Code PIN :</strong> <code className="bg-green-200 text-green-950 px-2 py-0.5 rounded font-mono">{createdResult.pin}</code></p>
                 </div>
-                <p className="text-xs text-green-600 mt-3">Transmettez ces informations à l'employé.</p>
+                <p className="text-xs text-green-700 mt-3 font-medium">Transmettez ces informations à l'employé.</p>
               </div>
               <Button className="w-full" variant="outline" onClick={() => { setOpen(false); setCreatedResult(null); }}>{t("common.close")}</Button>
             </div>
