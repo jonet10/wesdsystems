@@ -2,37 +2,55 @@ import { supabase } from "@/lib/supabase";
 import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsCategory } from "../types";
 
-const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
+const getBranch = (businessId: string, branchId?: string | null) =>
+  branchId ?? getStoredBranchId(businessId) ?? null;
 
 export async function listCategories(businessId: string, branchId?: string | null) {
-  const branch = getBranch(businessId, branchId);
-  const params: Record<string, any> = { p_business_id: businessId };
-  if (branch) params.p_branch_id = branch;
-  const { data, error } = await supabase.rpc("auto_parts_list_categories", params);
+  // Direct query — only categories belonging to this business (strict isolation)
+  const { data, error } = await supabase
+    .from("auto_parts_categories")
+    .select("id, name, description, icon, sort_order, business_id, branch_id")
+    .eq("business_id", businessId)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+
   if (error) throw error;
-  return data as AutoPartsCategory[];
+  return (data ?? []) as AutoPartsCategory[];
 }
 
-export async function createCategory(businessId: string, values: { name: string; description?: string; sort_order?: number }) {
-  const { data, error } = await supabase.rpc("upsert_auto_parts_category", {
-    p_category_id: null,
-    p_values: values,
-  });
+export async function createCategory(
+  businessId: string,
+  values: { name: string; description?: string; sort_order?: number; icon?: string }
+) {
+  const { data, error } = await supabase
+    .from("auto_parts_categories")
+    .insert({ ...values, business_id: businessId })
+    .select()
+    .single();
   if (error) throw error;
   return data as AutoPartsCategory;
 }
 
-export async function updateCategory(id: string, values: Partial<AutoPartsCategory>, businessId?: string) {
-  const { error } = await supabase.rpc("upsert_auto_parts_category", {
-    p_category_id: id,
-    p_values: values,
-  });
+export async function updateCategory(
+  id: string,
+  values: Partial<AutoPartsCategory>,
+  businessId?: string
+) {
+  let q = supabase
+    .from("auto_parts_categories")
+    .update(values)
+    .eq("id", id);
+  if (businessId) q = q.eq("business_id", businessId);
+  const { error } = await q;
   if (error) throw error;
 }
 
 export async function deleteCategory(id: string, businessId?: string) {
-  const { error } = await supabase.rpc("delete_auto_parts_category", {
-    p_category_id: id,
-  });
+  let q = supabase
+    .from("auto_parts_categories")
+    .delete()
+    .eq("id", id);
+  if (businessId) q = q.eq("business_id", businessId);
+  const { error } = await q;
   if (error) throw error;
 }
