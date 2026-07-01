@@ -14,6 +14,7 @@ interface BusinessProfile {
 export function PrintHeader() {
   const { user } = useAuth();
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
+  const [cacheBuster] = useState(() => Date.now());
 
   useEffect(() => {
     const fetchBusinessInfo = async () => {
@@ -43,7 +44,7 @@ export function PrintHeader() {
               phone: ext?.phone || "+33 6 12 34 56 78",
               email: ext?.email || "contact@glowup.com",
               address: ext?.address || "15 Rue de la Paix, 75002 Paris",
-              logo_url: biz.logo_url ? `${biz.logo_url}?t=${Date.now()}` : undefined,
+              logo_url: biz.logo_url ? `${biz.logo_url}?t=${cacheBuster}` : undefined,
               slogan: ext?.slogan || "L'excellence à votre service"
             });
           }

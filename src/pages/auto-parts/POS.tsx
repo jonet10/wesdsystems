@@ -229,7 +229,7 @@ export default function AutoPartsPOSPage() {
               {filtered.map((p) => (
                 <Card key={p.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => addToCart(p)}>
                   <CardContent className="p-4">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
+                    <p className="font-medium text-sm truncate notranslate" translate="no">{p.name}</p>
                     <p className="text-lg font-bold text-primary">{p.unit_price == null ? "-" : format(Number(p.unit_price))}</p>
                     <Badge variant={Number(p.stock_quantity) <= 0 ? "destructive" : "secondary"} className="mt-1">
                       {p.stock_quantity} en stock
@@ -275,7 +275,7 @@ export default function AutoPartsPOSPage() {
             {cart.map((item, idx) => (
               <div key={idx} className="flex items-center gap-2 py-2 border-b">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.product_name}</p>
+                  <p className="text-sm font-medium truncate notranslate" translate="no">{item.product_name}</p>
                   <p className="text-xs text-muted-foreground">{format(item.unit_price)}</p>
                 </div>
                 <div className="flex items-center gap-1">
