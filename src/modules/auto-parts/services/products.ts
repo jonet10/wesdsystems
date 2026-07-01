@@ -49,14 +49,25 @@ export async function listProducts(businessId: string, branchId?: string | null)
     .order("product(name)", { ascending: true });
 
   if (!invError && invData && invData.length > 0) {
-    // Filter by branch if needed
-    const filtered = branch
-      ? invData.filter((r: any) => !r.branch_id || r.branch_id === branch)
-      : invData;
+    // Filter:
+    // 1. Only rows explicitly owned by this business (not phantom CROSS JOIN rows)
+    //    Phantom rows have unit_price = NULL AND cost_price = NULL (auto-seeded, never managed)
+    // 2. Apply branch filter if needed
+    const filtered = invData.filter((r: any) => {
+      if (!r.product) return false;
+      // Keep only rows where this business explicitly set a price (even 0)
+      // Cross-join phantom rows have BOTH prices as null
+      const hasPrice = r.unit_price !== null || r.cost_price !== null;
+      if (!hasPrice) return false;
+      // Branch filter
+      if (branch && r.branch_id && r.branch_id !== branch) return false;
+      return true;
+    });
 
-    return filtered
-      .filter((r: any) => r.product)
-      .map((r: any) => mergeInventory(r.product, r)) as (AutoPartsProduct & { category: { name: string } | null })[];
+    // If after filtering we have results, return them
+    if (filtered.length > 0) {
+      return filtered.map((r: any) => mergeInventory(r.product, r)) as (AutoPartsProduct & { category: { name: string } | null })[];
+    }
   }
 
   // Fallback: direct query on auto_parts_products (old architecture)
