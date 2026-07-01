@@ -242,8 +242,20 @@ export default function InventoryPage() {
   const openStockDialog = (product: Product, mode: StockMode) => {
     setStockProduct(product);
     setStockMode(mode);
-    setStockCases("0");
-    setStockUnits("0");
+    
+    // Si ajustement manuel, pré-remplir avec la quantité en stock actuelle
+    if (mode === "adjustment") {
+      const qPerCase = normalizePackagingQuantity(product.package_quantity || 1);
+      const currentStock = product.quantity_in_stock || 0;
+      const currentCases = Math.floor(currentStock / qPerCase);
+      const currentUnits = currentStock % qPerCase;
+      
+      setStockCases(String(currentCases));
+      setStockUnits(String(currentUnits));
+    } else {
+      setStockCases("0");
+      setStockUnits("0");
+    }
   };
 
   const applyStock = async () => {
@@ -575,9 +587,18 @@ export default function InventoryPage() {
                 {stockMode === "entry" ? "Entrée de stock" : stockMode === "exit" ? "Sortie de stock" : "Ajustement manuel"} - {stockProduct?.name}
               </DialogTitle>
               <DialogDescription>
-                {stockMode === "adjustment"
-                  ? "Saisissez le stock final exact."
-                  : "Les caisses et unités seront converties automatiquement."}
+                {stockMode === "adjustment" ? (
+                  stockProduct ? (
+                    <>
+                      Saisissez le stock final exact. Stock actuel : {" "}
+                      <strong>
+                        {Math.floor((stockProduct.quantity_in_stock || 0) / normalizePackagingQuantity(stockProduct.package_quantity || 1))} caisses
+                        {" "}et{" "}
+                        {(stockProduct.quantity_in_stock || 0) % normalizePackagingQuantity(stockProduct.package_quantity || 1)} unités
+                      </strong>.
+                    </>
+                  ) : "Saisissez le stock final exact."
+                ) : "Les caisses et unités seront converties automatiquement."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
