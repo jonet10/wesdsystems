@@ -176,18 +176,35 @@ export default function AutoPartsReturnsPage() {
 
   // ── Approve ─────────────────────────────────────────────────────────────────
   const handleApprove = async () => {
-    if (!approveTarget) return;
+    if (!approveTarget || !businessId) return;
     if (!adminPassword.trim()) {
-      toast.error("Veuillez saisir votre mot de passe administrateur.");
+      toast.error("Veuillez saisir le mot de passe de l'administrateur de l'entreprise.");
       return;
     }
     setVerifyingPassword(true);
     try {
-      // Vérifier le mot de passe de l'admin
+      // 1. Récupérer l'e-mail de l'administrateur principal (salon_admin) de cette entreprise
+      const { data: adminProfile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("business_id", businessId)
+        .eq("role", "salon_admin")
+        .limit(1)
+        .maybeSingle();
+
+      const targetEmail = adminProfile?.email || profile?.email || "";
+      if (!targetEmail) {
+        toast.error("Impossible d'identifier l'administrateur de l'entreprise.");
+        setVerifyingPassword(false);
+        return;
+      }
+
+      // 2. Vérifier le mot de passe par rapport à cet e-mail
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: profile?.email || "",
+        email: targetEmail,
         password: adminPassword,
       });
+
       if (authError) {
         toast.error("Mot de passe administrateur incorrect.");
         setVerifyingPassword(false);
