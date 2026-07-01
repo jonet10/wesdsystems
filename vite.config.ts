@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
       registerType: "prompt",
       injectRegister: "script",
       devOptions: { enabled: true, type: "module" },
-      includeAssets: ["logo.png", "placeholder.svg", "favicon.ico"],
+      includeAssets: ["logo.png", "logo_square.png", "placeholder.svg", "favicon.ico"],
       manifest: {
         name: "Wesd Systems",
         short_name: "Wesd",
@@ -35,9 +35,9 @@ export default defineConfig(({ mode }) => ({
         start_url: "/auth/login",
         scope: "/",
         icons: [
-          { src: "/logo.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: "/logo.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/logo_square.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/logo_square.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/logo_square.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
