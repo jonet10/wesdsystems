@@ -58,7 +58,7 @@ export const DashboardHeader = ({
   const [notifications, setNotifications] = useState<Array<{id: string; title: string; message: string; read: boolean; created_at: string}>>([]);
   
   const { currency, setCurrency } = useCurrency();
-  const { profile, employeeSession, logoutEmployee } = useAuth();
+  const { profile, employeeSession, logoutEmployee, autoPartsStaffSession, logoutAutoPartsStaff } = useAuth();
   const { data: branches = [] } = useBusinessBranches();
   const { branchId, setActiveBranchId } = useActiveBranchId(profile?.business_id ?? null);
   const subscriptionReminder = useSubscriptionPaymentReminder();
@@ -112,6 +112,11 @@ export const DashboardHeader = ({
   const handleLogout = async () => {
     if (employeeSession && !profile) {
       logoutEmployee();
+      navigate("/auth/login");
+      return;
+    }
+    if (autoPartsStaffSession && !profile) {
+      logoutAutoPartsStaff();
       navigate("/auth/login");
       return;
     }
