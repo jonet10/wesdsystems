@@ -31,69 +31,28 @@ function mergeInventory(
 
 export async function listProducts(businessId: string, branchId?: string | null) {
   const branch = getBranch(businessId, branchId);
-
-  // Try inventory-based query first (new architecture after migration 20260901)
-  const { data: invData, error: invError } = await supabase
-    .from("auto_parts_product_inventory")
-    .select(`
-      id, business_id, branch_id, product_id,
-      unit_price, cost_price, stock_quantity, reserved_quantity,
-      min_stock, max_stock, location, notes, active,
-      product:auto_parts_products(
-        id, name, description, category_id, sku, barcode,
-        image_url, created_at, updated_at,
-        category:auto_parts_categories(name)
-      )
-    `)
-    .eq("business_id", businessId)
-    .order("product(name)", { ascending: true });
-
-  if (!invError && invData && invData.length > 0) {
-    // Filter:
-    // 1. Only rows explicitly owned by this business (not phantom CROSS JOIN rows)
-    //    Phantom rows have unit_price = NULL AND cost_price = NULL (auto-seeded, never managed)
-    // 2. Apply branch filter if needed
-    const filtered = invData.filter((r: any) => {
-      if (!r.product) return false;
-      // Keep only rows where this business explicitly set a price (even 0)
-      // Cross-join phantom rows have BOTH prices as null
-      const hasPrice = r.unit_price !== null || r.cost_price !== null;
-      if (!hasPrice) return false;
-      // Branch filter
-      if (branch && r.branch_id && r.branch_id !== branch) return false;
-      return true;
-    });
-
-    // If after filtering we have results, return them
-    if (filtered.length > 0) {
-      return filtered.map((r: any) => mergeInventory(r.product, r)) as (AutoPartsProduct & { category: { name: string } | null })[];
-    }
-  }
-
-  // Fallback: direct query on auto_parts_products (old architecture)
-  let query = supabase
-    .from("auto_parts_products")
-    .select(`
-      id, name, description, category_id, sku, barcode,
-      unit_price, cost_price, stock_quantity, reserved_quantity,
-      min_stock, max_stock, location, image_url, notes, active,
-      business_id, branch_id, created_at, updated_at,
-      category:auto_parts_categories(name)
-    `)
-    .eq("business_id", businessId)
-    .order("name", { ascending: true });
-
-  if (branch) {
-    query = query.or(`branch_id.is.null,branch_id.eq.${branch}`);
-  }
-
-  const { data, error } = await query;
+  const { data, error } = await supabase.rpc("auto_parts_list_products", {
+    p_business_id: businessId,
+    p_branch_id: branch,
+  });
   if (error) throw error;
-  return (data ?? []) as (AutoPartsProduct & { category: { name: string } | null })[];
+  
+  const list = (data ?? []) as any[];
+  // Keep only products that are configured by the business (having price)
+  return list.filter((r) => r.unit_price !== null || r.cost_price !== null) as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
 export async function listProductsFull(businessId: string, sessionToken?: string | null, branchId?: string | null) {
-  return listProducts(businessId, branchId);
+  const branch = getBranch(businessId, branchId);
+  const { data, error } = await supabase.rpc("auto_parts_list_products_full", {
+    p_business_id: businessId,
+    p_session_token: sessionToken || null,
+    p_branch_id: branch,
+  });
+  if (error) throw error;
+
+  const list = (data ?? []) as any[];
+  return list.filter((r) => r.unit_price !== null || r.cost_price !== null) as (AutoPartsProduct & { category: { name: string } | null })[];
 }
 
 export async function getProduct(id: string, businessId?: string) {
