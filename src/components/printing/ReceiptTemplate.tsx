@@ -463,14 +463,23 @@ export const ReceiptTemplate = forwardRef<HTMLDivElement, ReceiptTemplateProps>(
     // Resolve width from prop, or fallback to localStorage, defaulting to "58"
     const width = printerWidth || localStorage.getItem('wesd_pos_printer_width') || '58';
 
+    // Cache-bust the logo_url to force browser to load latest image from Supabase Storage
+    const enrichedData = {
+      ...data,
+      business: {
+        ...data.business,
+        logo_url: data.business.logo_url ? `${data.business.logo_url}?t=${Date.now()}` : undefined
+      }
+    };
+
     const renderTemplate = () => {
       switch (width) {
         case '80':
-          return <Receipt80Template data={data} formatAmount={formatAmount} />;
+          return <Receipt80Template data={enrichedData} formatAmount={formatAmount} />;
         case 'A4':
-          return <ReceiptA4Template data={data} formatAmount={formatAmount} />;
+          return <ReceiptA4Template data={enrichedData} formatAmount={formatAmount} />;
         default:
-          return <Receipt58Template data={data} formatAmount={formatAmount} />;
+          return <Receipt58Template data={enrichedData} formatAmount={formatAmount} />;
       }
     };
 

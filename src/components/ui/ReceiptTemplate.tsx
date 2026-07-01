@@ -67,7 +67,7 @@ export function ReceiptTemplate({
       {/* Header */}
       <div className="text-center mb-3 pb-3" style={{ borderBottom: "1px dashed #ccc" }}>
         {salon.logo_url && (
-          <img src={salon.logo_url} alt="Logo" className="h-14 mx-auto mb-2 object-contain" />
+          <img src={`${salon.logo_url}?t=${Date.now()}`} alt="Logo" className="h-14 mx-auto mb-2 object-contain" />
         )}
         <h3 className="font-bold text-sm uppercase tracking-wide">{salon.name}</h3>
         {salon.slogan && (

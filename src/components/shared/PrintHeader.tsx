@@ -43,7 +43,7 @@ export function PrintHeader() {
               phone: ext?.phone || "+33 6 12 34 56 78",
               email: ext?.email || "contact@glowup.com",
               address: ext?.address || "15 Rue de la Paix, 75002 Paris",
-              logo_url: biz.logo_url,
+              logo_url: biz.logo_url ? `${biz.logo_url}?t=${Date.now()}` : undefined,
               slogan: ext?.slogan || "L'excellence à votre service"
             });
           }
