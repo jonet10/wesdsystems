@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
-  FileSpreadsheet, FileText, Plus, Search, Save, Trash2, Printer, CheckCircle2, ChevronRight, GraduationCap, Award
+  FileSpreadsheet, FileText, Plus, Search, Save, Trash2, Printer, CheckCircle2, ChevronRight, GraduationCap, Award, RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import {
