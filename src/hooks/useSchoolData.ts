@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./useAuth";
-import { setBusinessId, studentService, parentService, teacherService, classService, enrollmentService, invoiceService, paymentService, expenseService } from "@/modules/school/services";
+import { setBusinessId, studentService, parentService, teacherService, classService, enrollmentService, invoiceService, paymentService, expenseService, payrollService, subjectService, assignmentService, attendanceService } from "@/modules/school/services";
 import { useSchoolSettings } from "./useSchoolSettings";
 
 function useBusinessId() {
@@ -268,5 +268,135 @@ export function useDeleteExpense() {
   return useMutation({
     mutationFn: expenseService.remove,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["school", "expenses"] }),
+  });
+}
+
+// Subjects
+export function useSubjects() {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "subjects"],
+    queryFn: subjectService.getAll,
+    enabled: !!businessId,
+  });
+}
+
+export function useFindOrCreateSubject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => subjectService.findOrCreate(name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["school", "subjects"] }),
+  });
+}
+
+// Teacher Assignments
+export function useTeacherAssignments(teacherId?: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "teacher-assignments", teacherId],
+    queryFn: () => assignmentService.getByTeacherId(teacherId!),
+    enabled: !!businessId && !!teacherId,
+  });
+}
+
+export function useSaveTeacherAssignments() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ teacherId, assignments, totalSalary }: {
+      teacherId: string;
+      assignments: Array<{
+        class_id: string;
+        subject_id: string;
+        pay_mode: 'hourly' | 'monthly';
+        hourly_rate: number;
+        hours_per_week: number;
+        monthly_salary: number;
+      }>;
+      totalSalary: number;
+    }) => {
+      const result = await assignmentService.saveTeacherAssignments(teacherId, assignments);
+      await teacherService.update(teacherId, { salary: totalSalary });
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "teacher-assignments", variables.teacherId] });
+      queryClient.invalidateQueries({ queryKey: ["school", "teachers"] });
+    },
+  });
+}
+
+// Payroll
+export function usePayroll(month: number, year: number) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "payroll", month, year],
+    queryFn: () => payrollService.getByMonth(month, year),
+    enabled: !!businessId,
+  });
+}
+
+export function useGeneratePayroll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ month, year }: { month: number; year: number }) =>
+      payrollService.generateForMonth(month, year),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "payroll", vars.month, vars.year] });
+    },
+  });
+}
+
+export function useUpdatePayroll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload, month, year }: {
+      id: string;
+      payload: { gross_salary?: number; absence_days?: number; deduction?: number };
+      month: number;
+      year: number;
+    }) => payrollService.update(id, payload),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "payroll", vars.month, vars.year] });
+    },
+  });
+}
+
+export function useMarkPayrollPaid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payMethod }: { id: string; payMethod: string; month: number; year: number }) =>
+      payrollService.markPaid(id, payMethod),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "payroll", vars.month, vars.year] });
+      queryClient.invalidateQueries({ queryKey: ["school", "expenses"] });
+    },
+  });
+}
+
+// Attendance
+export function useClassAttendance(classId: string, date: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "attendance", classId, date],
+    queryFn: () => attendanceService.getByClassAndDate(classId, date),
+    enabled: !!businessId && !!classId && !!date,
+  });
+}
+
+export function useSaveAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ classId, date, records }: {
+      classId: string;
+      date: string;
+      records: Array<{ student_id: string; status: 'present' | 'absent' | 'late' | 'excused'; note?: string | null }>;
+    }) => attendanceService.save(classId, date, records),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "attendance", vars.classId, vars.date] });
+    },
   });
 }

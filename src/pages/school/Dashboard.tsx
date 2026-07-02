@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight, Package } from "lucide-react";
+import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight, Package, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -17,7 +17,7 @@ export default function SchoolDashboard() {
 
   const [stats, setStats] = useState({
     totalStudents: 0,
-    totalParents: 0,
+    totalTeachers: 0,
     totalRevenue: 0,
     totalPending: 0,
     totalExpenses: 0,
@@ -31,13 +31,13 @@ export default function SchoolDashboard() {
       try {
         const [
           { count: studentsCount },
-          { count: parentsCount },
+          { count: teachersCount },
           { data: invoices },
           { data: expenses },
           { data: products }
         ] = await Promise.all([
           supabase.from("school_students").select("*", { count: "exact", head: true }).eq("business_id", businessId),
-          supabase.from("school_parents").select("*", { count: "exact", head: true }).eq("business_id", businessId),
+          supabase.from("school_teachers").select("*", { count: "exact", head: true }).eq("business_id", businessId),
           supabase.from("school_invoices").select("paid_amount, balance").eq("business_id", businessId),
           supabase.from("school_expenses").select("amount").eq("business_id", businessId),
           supabase.from("school_products").select("price, stock_quantity").eq("business_id", businessId).eq("active", true)
@@ -50,7 +50,7 @@ export default function SchoolDashboard() {
 
         setStats({
           totalStudents: studentsCount || 0,
-          totalParents: parentsCount || 0,
+          totalTeachers: teachersCount || 0,
           totalRevenue: revenue,
           totalPending: pending,
           totalExpenses: totalExp,
@@ -89,12 +89,12 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Parents / Tuteurs</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Professeurs</CardTitle>
+                <UserCog className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalParents}</div>
-                <p className="text-xs text-muted-foreground mt-1">Contacts enregistrés</p>
+                <div className="text-2xl font-bold">{stats.totalTeachers}</div>
+                <p className="text-xs text-muted-foreground mt-1">Membres du personnel enseignant</p>
               </CardContent>
             </Card>
           </StaggerItem>

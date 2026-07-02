@@ -6,6 +6,7 @@ import {
   Building2,
   Users,
   Calendar,
+  CalendarCheck,
   Scissors,
   CreditCard,
   Settings,
@@ -219,7 +220,9 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/school", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Users, labelKey: "sidebar.students", path: "/school/students", role: "all", permission: PERMISSIONS.CLIENTS_READ },
           { icon: UserPlus, labelKey: "sidebar.enrollments", path: "/school/enrollments", role: "all", permission: PERMISSIONS.CLIENTS_MANAGE },
+          { icon: CalendarCheck, labelKey: "sidebar.attendance", path: "/school/attendance", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Layers, labelKey: "sidebar.classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: BookOpen, labelKey: "sidebar.subjects", path: "/school/subjects", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Calendar, labelKey: "sidebar.academicYears", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: UserCog, labelKey: "sidebar.teachers", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: BadgeDollarSign, labelKey: "sidebar.fees", path: "/school/fees", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
@@ -227,6 +230,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: FileText, labelKey: "sidebar.invoices", path: "/school/invoices", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: ShoppingBag, labelKey: "sidebar.pos", path: "/school/payments", role: "all", permission: PERMISSIONS.POS_VIEW },
           { icon: Receipt, labelKey: "sidebar.expenses", path: "/school/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
+          { icon: Wallet, labelKey: "sidebar.payroll", path: "/school/payroll", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: Package, labelKey: "sidebar.supplies", path: "/school/inventory", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: ShoppingCart, labelKey: "sidebar.suppliesPos", path: "/school/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
           { icon: UserCog, labelKey: "sidebar.users", path: "/school/staff", role: "salon_admin", permission: PERMISSIONS.STAFF_MANAGE },
@@ -297,6 +301,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           "/school/students": "school:students",
           "/school/enrollments": "school:enrollments",
           "/school/classes": "school:classes",
+          "/school/subjects": "school:classes",
           "/school/academic-years": "school:academic-years",
           "/school/parents": "school:parents",
           "/school/teachers": "school:teachers",
@@ -453,7 +458,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
                 </div>
               )}
               {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
-              {items.filter(i => ["/school/students", "/school/enrollments", "/school/classes", "/school/academic-years", "/school/parents", "/school/teachers"].includes(i.path)).map(item => (
+              {items.filter(i => ["/school/students", "/school/enrollments", "/school/attendance", "/school/classes", "/school/subjects", "/school/academic-years", "/school/parents", "/school/teachers"].includes(i.path)).map(item => (
                 <NavItem key={item.path} item={item} />
               ))}
 
@@ -464,7 +469,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
                 </div>
               )}
               {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
-              {items.filter(i => ["/school/fees", "/school/finance/student", "/school/invoices", "/school/payments", "/school/expenses"].includes(i.path)).map(item => (
+              {items.filter(i => ["/school/fees", "/school/finance/student", "/school/invoices", "/school/payments", "/school/expenses", "/school/payroll"].includes(i.path)).map(item => (
                 <NavItem key={item.path} item={item} />
               ))}
 

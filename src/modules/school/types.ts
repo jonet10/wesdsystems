@@ -164,12 +164,34 @@ export interface SchoolTeacher {
   last_name: string;
   phone?: string | null;
   email?: string | null;
-  subjects?: string[] | null;
+  job_title?: string | null;  // Professeur, Secrétaire, Informaticien, etc.
+  subjects?: string[] | null; // uniquement pour les enseignants
   salary: number;
   hire_date?: string | null;
   photo_url?: string | null;
   active: boolean;
   created_at: string;
+}
+
+export interface SchoolPayroll {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  month: number;  // 1-12
+  year: number;
+  teacher_id: string;
+  gross_salary: number;
+  absence_days: number;
+  deduction: number;
+  net_salary: number;
+  status: 'pending' | 'paid';
+  paid_at?: string | null;
+  pay_method?: string | null;
+  expense_id?: string | null;
+  created_at: string;
+
+  // Relations
+  teacher?: SchoolTeacher;
 }
 
 export interface SchoolInvoice {
@@ -318,3 +340,31 @@ export interface SchoolSaleItem {
   
   product?: SchoolProduct;
 }
+
+export interface SchoolSubject {
+  id: string;
+  business_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface SchoolTeacherAssignment {
+  id: string;
+  business_id: string;
+  branch_id?: string | null;
+  teacher_id: string;
+  class_id: string;
+  subject_id: string;
+  pay_mode: 'hourly' | 'monthly';
+  hourly_rate: number;
+  hours_per_week: number;
+  monthly_salary: number;
+  currency: 'HTG' | 'USD';
+  schedule?: any | null;
+  created_at: string;
+
+  // Relations
+  school_class?: SchoolClass;
+  subject?: SchoolSubject;
+}
+
