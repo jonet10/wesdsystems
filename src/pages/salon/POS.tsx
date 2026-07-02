@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -125,6 +125,8 @@ const ROLE_LABELS: Record<string, string> = {
 interface EmployeeInfo {
   id: string;
   name: string;
+  first_name?: string;
+  last_name?: string;
   role: string;
   photo_url?: string;
 }
@@ -260,6 +262,7 @@ export default function POSPage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyPeriod, setHistoryPeriod] = useState<"day" | "week" | "month">("day");
   const [pendingTabs, setPendingTabs] = useState<PendingTabSummary[]>([]);
+  const [pendingTabSearch, setPendingTabSearch] = useState("");
   const [activePendingTab, setActivePendingTab] = useState<PendingTabDetail | null>(null);
   const [pendingTabDraftItems, setPendingTabDraftItems] = useState<CartItem[]>([]);
   const [pendingTabModalOpen, setPendingTabModalOpen] = useState(false);
@@ -313,6 +316,8 @@ export default function POSPage() {
     setEmployees((bundle.employees || []).map((row) => ({
       id: row.id,
       name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || "Employé",
+      first_name: row.first_name || "",
+      last_name: row.last_name || "",
       role: row.role || "cashier",
       photo_url: row.metadata?.photo_url || undefined,
     })));
@@ -417,6 +422,8 @@ export default function POSPage() {
         setEmployees((emp || []).map((row: any) => ({
           id: row.id,
           name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
+          first_name: row.first_name || "",
+          last_name: row.last_name || "",
           role: row.role || "cashier",
           photo_url: row.metadata?.photo_url || undefined,
         })));
@@ -669,6 +676,16 @@ export default function POSPage() {
 
     return groups;
   }, [filteredSalesHistory, historyPeriod]);
+
+  const filteredPendingTabs = useMemo(() => {
+    if (!pendingTabSearch.trim()) return pendingTabs;
+    const query = pendingTabSearch.toLowerCase();
+    return pendingTabs.filter(tab => 
+      (tab.label && tab.label.toLowerCase().includes(query)) ||
+      (tab.tab_number && tab.tab_number.toLowerCase().includes(query)) ||
+      (tab.guest_name && tab.guest_name.toLowerCase().includes(query))
+    );
+  }, [pendingTabs, pendingTabSearch]);
 
   const handleReprint = async (sale: any) => {
     const employeeObj = employees.find(e => e.id === sale.employee_id);
@@ -1728,15 +1745,27 @@ export default function POSPage() {
                 </div>
               )}
               <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold">Fiches en attente</h3>
                     <Badge variant="secondary">{pendingTabs.length} ouvertes</Badge>
                   </div>
+                  
+                  {/* Zone de recherche centrée au milieu */}
+                  <div className="relative flex-1 max-w-md mx-auto w-full sm:w-auto">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Rechercher une fiche..."
+                      value={pendingTabSearch}
+                      onChange={e => setPendingTabSearch(e.target.value)}
+                      className="pl-8 h-8 text-xs bg-background w-full"
+                    />
+                  </div>
+                  
                   <Button
                     size="sm"
                     variant="outline"
-                    className="gap-1"
+                    className="gap-1 h-8 text-xs shrink-0 self-end sm:self-auto"
                     onClick={() => {
                       setPendingTabLabel("");
                       setPendingTabClientQuery("");
@@ -1745,32 +1774,33 @@ export default function POSPage() {
                       setPendingTabModalOpen(true);
                     }}
                   >
-                    <Plus className="h-4 w-4" /> Nouvelle fiche
+                    <Plus className="h-3.5 w-3.5" /> Nouvelle fiche
                   </Button>
                 </div>
+
                 <ScrollArea className="w-full">
-                  <div className="flex gap-2 pb-1">
-                    {pendingTabs.map((tab: any) => {
+                  <div className="flex gap-2 pb-3">
+                    {filteredPendingTabs.map((tab: any) => {
                       const active = activePendingTab?.id === tab.id;
                       return (
                         <button
                           key={tab.id}
                           onClick={() => void loadPendingTabDetail(tab.id)}
                           className={cn(
-                            "min-w-[180px] max-w-[240px] rounded-xl border p-3 text-left transition-all",
+                            "min-w-[180px] max-w-[240px] rounded-xl border p-3 text-left transition-all shrink-0",
                             active
                               ? "border-primary bg-primary/5 shadow-sm"
                               : "border-border bg-background hover:border-primary/40 hover:bg-muted/40"
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold truncate">{tab.label}</p>
                               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                                 {tab.tab_number}
                               </p>
                             </div>
-                            <Badge variant={active ? "default" : "outline"} className={cn("text-[10px] h-5", (tab as any)._total_paid > 0 && "text-amber-600 border-amber-400")}>
+                            <Badge variant={active ? "default" : "outline"} className={cn("text-[10px] h-5 shrink-0", (tab as any)._total_paid > 0 && "text-amber-600 border-amber-400")}>
                               {(tab as any)._total_paid > 0
                                 ? `Solde: ${format(tab.total_amount - (tab as any)._total_paid)}`
                                 : format(tab.total_amount)}
@@ -1789,12 +1819,13 @@ export default function POSPage() {
                         </button>
                       );
                     })}
-                    {pendingTabs.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-border/60 px-4 py-5 text-sm text-muted-foreground">
-                        Aucune fiche ouverte aujourd'hui
+                    {filteredPendingTabs.length === 0 && (
+                      <div className="w-full rounded-xl border border-dashed border-border/60 px-4 py-5 text-sm text-muted-foreground text-center">
+                        {pendingTabSearch ? "Aucun résultat trouvé pour votre recherche" : "Aucune fiche ouverte aujourd'hui"}
                       </div>
                     )}
                   </div>
+                  <ScrollBar orientation="horizontal" className="h-2" />
                 </ScrollArea>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">

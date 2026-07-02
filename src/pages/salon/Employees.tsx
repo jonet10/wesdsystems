@@ -89,44 +89,44 @@ export default function EmployeesPage() {
     return () => window.removeEventListener("glowup-store-update", handleUpdate);
   }, []);
 
+  const loadRemoteData = async () => {
+    if (!isAuthenticated || !activeBranchId) {
+      setRemoteEmployees([]);
+      setRemoteServices([]);
+      return;
+    }
+
+    setRemoteLoading(true);
+    try {
+      const [employeeRes, servicesRes] = await Promise.all([
+        supabase
+          .from("salon_employees")
+          .select("id, first_name, last_name, email, phone, role, commission_percentage, is_active, metadata")
+          .eq("branch_id", activeBranchId)
+          .order("first_name"),
+        supabase
+          .from("salon_services")
+          .select("id, name, commission_percentage, is_active, branch_id")
+          .eq("branch_id", activeBranchId)
+          .eq("is_active", true)
+          .order("name"),
+      ]);
+
+      if (employeeRes.error) throw employeeRes.error;
+      if (servicesRes.error) throw servicesRes.error;
+
+      setRemoteEmployees(employeeRes.data || []);
+      setRemoteServices(servicesRes.data || []);
+    } catch (err) {
+      console.error("Erreur chargement employés:", err);
+      setRemoteEmployees([]);
+      setRemoteServices([]);
+    } finally {
+      setRemoteLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadRemoteData = async () => {
-      if (!isAuthenticated || !activeBranchId) {
-        setRemoteEmployees([]);
-        setRemoteServices([]);
-        return;
-      }
-
-      setRemoteLoading(true);
-      try {
-        const [employeeRes, servicesRes] = await Promise.all([
-          supabase
-            .from("salon_employees")
-            .select("id, first_name, last_name, email, phone, role, commission_percentage, is_active, metadata")
-            .eq("branch_id", activeBranchId)
-            .order("first_name"),
-          supabase
-            .from("salon_services")
-            .select("id, name, commission_percentage, is_active, branch_id")
-            .eq("branch_id", activeBranchId)
-            .eq("is_active", true)
-            .order("name"),
-        ]);
-
-        if (employeeRes.error) throw employeeRes.error;
-        if (servicesRes.error) throw servicesRes.error;
-
-        setRemoteEmployees(employeeRes.data || []);
-        setRemoteServices(servicesRes.data || []);
-      } catch (err) {
-        console.error("Erreur chargement employés:", err);
-        setRemoteEmployees([]);
-        setRemoteServices([]);
-      } finally {
-        setRemoteLoading(false);
-      }
-    };
-
     void loadRemoteData();
   }, [activeBranchId, isAuthenticated]);
 
@@ -141,7 +141,9 @@ export default function EmployeesPage() {
           services: Array.isArray(e.metadata?.services) ? e.metadata.services : [],
           color: e.metadata?.color || "bg-primary",
           status: e.is_active ? "active" : "inactive",
-          commission_rate: e.commission_percentage || 0,
+          commission_rate: e.commission_percentage !== null && e.commission_percentage !== undefined 
+            ? Number(e.commission_percentage) 
+            : undefined,
           permissions: e.metadata?.permissions || {
             canAccessPOS: true,
             canManageInventory: false,
@@ -348,6 +350,7 @@ export default function EmployeesPage() {
           });
         }
 
+        await loadRemoteData();
         toast.success(`L'employé "${fullName}" a été créé avec succès !`);
         setIsAddOpen(false);
         resetForm();
@@ -414,6 +417,7 @@ export default function EmployeesPage() {
             });
           }
 
+          await loadRemoteData();
           toast.success(`Les détails de "${fullName}" ont été mis à jour.`);
           setIsEditOpen(false);
           resetForm();
@@ -448,6 +452,7 @@ export default function EmployeesPage() {
             .update({ is_active: false })
             .eq("id", selectedEmployee.id);
           if (error) throw error;
+          await loadRemoteData();
           toast.success(`L'employé "${selectedEmployee.name}" a été retiré.`);
           setIsDeleteOpen(false);
           setSelectedEmployee(null);
@@ -483,7 +488,7 @@ export default function EmployeesPage() {
         canViewReports: false,
         canManageAppointments: false,
       },
-      commissionRate: emp.commission_rate || 40,
+      commissionRate: emp.commission_rate !== undefined ? emp.commission_rate : 40,
       services: emp.services || [],
     });
     setColor(emp.color || "bg-primary");
@@ -597,12 +602,14 @@ export default function EmployeesPage() {
                   )}
                   
                   {/* Commission */}
-                  {emp.commission_rate ? (
+                  {emp.commission_rate !== undefined ? (
                     <p className="text-xs text-muted-foreground">
                       Commission: <span className="font-medium">{emp.commission_rate}%</span>
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">Aucune commission définie</p>
+                    <p className="text-xs text-muted-foreground">
+                      Commission: <span className="font-medium">40%</span> <span className="text-[10px] text-muted-foreground/60 italic">(par défaut)</span>
+                    </p>
                   )}
                   
                   {/* Actions */}
