@@ -48,8 +48,9 @@ import {
   DollarSign,
   BookOpen,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
+import { SchoolContext } from "@/modules/school/providers/SchoolProvider";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { glowupStore } from "@/lib/store";
@@ -109,6 +110,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
   const [collapsed, setCollapsed] = useState(isMobile);
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
   const { user, profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
+  const schoolContext = useContext(SchoolContext);
 
 
   useEffect(() => {
@@ -217,6 +219,12 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
         ];
       case "school":
       case "school_payments":
+        if (schoolContext) {
+          return schoolContext.engine.navigation.getMenuItems(t).map(item => ({
+            ...item,
+            labelKey: undefined // bypass i18n lookup to display resolved term directly
+          })) as any;
+        }
         return [
           { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/school", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Users, labelKey: "sidebar.students", path: "/school/students", role: "all", permission: PERMISSIONS.CLIENTS_READ },

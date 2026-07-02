@@ -13,6 +13,7 @@ import { Search, UserPlus, RepeatIcon, History, ArrowRight, GraduationCap, Spark
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
+import { useSchool } from "@/hooks/useSchool";
 import { supabase } from "@/lib/supabase";
 import type { SchoolStudent, SchoolClass, SchoolAcademicYear, SchoolEnrollment } from "@/modules/school/types";
 import { enrollmentService } from "@/modules/school/services";
@@ -25,6 +26,7 @@ export default function EnrollmentsPage() {
   const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
+  const { engine } = useSchool();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [students, setStudents] = useState<SchoolStudent[]>([]);
@@ -360,7 +362,7 @@ export default function EnrollmentsPage() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gestion des Inscriptions</h1>
-          <p className="text-muted-foreground">Inscrivez, transférez et suivez les inscriptions des élèves</p>
+          <p className="text-muted-foreground">Inscrivez, transférez et suivez les inscriptions des {engine.terminology.get("students").toLowerCase()}</p>
         </div>
 
         <Tabs defaultValue="nouvelle" className="space-y-6">
@@ -377,7 +379,7 @@ export default function EnrollmentsPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
-                    Inscription rapide — Nouvel élève
+                    Inscription rapide — Nouveau {engine.terminology.get("student").toLowerCase()}
                   </CardTitle>
                   <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                     <DialogTrigger asChild>
@@ -536,17 +538,18 @@ export default function EnrollmentsPage() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Élève</Label>
+                    <Label>{engine.terminology.get("student")}</Label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={newStudentId} onChange={e => setNewStudentId(e.target.value)}>
-                      <option value="">Sélectionner un élève</option>
+                      <option value="">Sélectionner un {engine.terminology.get("student").toLowerCase()}</option>
                       {students.map(s => (
                         <option key={s.id} value={s.id}>{s.first_name} {s.last_name} {s.matricule ? `(${s.matricule})` : ""}</option>
                       ))}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Classe</Label>
+                    <Label>{engine.terminology.get("class")}</Label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={newClassId} onChange={e => setNewClassId(e.target.value)}>
-                      <option value="">Sélectionner une classe</option>
+                      <option value="">Sélectionner une {engine.terminology.get("class").toLowerCase()}</option>
                       {classes.filter(c => c.active !== false).map(c => (
                         <option key={c.id} value={c.id}>{c.code} {c.name} {c.section ? `- Sect. ${c.section}` : ""}</option>
                       ))}
@@ -674,7 +677,7 @@ export default function EnrollmentsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Élève</TableHead>
+                      <TableHead>{engine.terminology.get("student")}</TableHead>
                       <TableHead>Classe</TableHead>
                       <TableHead>Année Académique</TableHead>
                       <TableHead>Date d'inscription</TableHead>

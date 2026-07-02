@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
+import { useSchool } from "@/hooks/useSchool";
 import { supabase } from "@/lib/supabase";
 import { reportService, type PaymentReportRow, type OutstandingReportRow, type ExpenseReportRow } from "@/modules/school/services/reportService";
 import { classService } from "@/modules/school/services";
@@ -24,6 +25,7 @@ export default function SchoolReports() {
   const { user, profile, isAuthenticated } = useAuth();
   const { format: formatAmount } = useCurrency();
   const { settings, activeAcademicYear } = useSchoolSettings();
+  const { engine } = useSchool();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
   const userName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user?.email || "Système";
 
@@ -119,20 +121,20 @@ export default function SchoolReports() {
   };
 
   const loadClassList = async () => {
-    if (!selectedClassId) { toast.error("Veuillez sélectionner une classe"); return; }
+    if (!selectedClassId) { toast.error(`Veuillez sélectionner une ${engine.terminology.get("class").toLowerCase()}`); return; }
     setIsLoading(true);
     try {
-      const data = await reportService.getClassList(selectedClassId);
+      const data = await reportService.getClassListReport(selectedClassId);
       setClassList(data);
       const cls = classes.find(c => c.id === selectedClassId);
-      toast.success(`Liste de ${cls?.name || "classe"} générée (${data.length} élèves)`);
+      toast.success(`Liste de ${cls?.name || engine.terminology.get("class").toLowerCase()} générée (${data.length} ${engine.terminology.get("students").toLowerCase()})`);
     } catch (error: any) {
       toast.error("Erreur", { description: error.message });
     } finally { setIsLoading(false); }
   };
 
   const loadAttendanceReport = async () => {
-    if (!attendanceClassId) { toast.error("Veuillez sélectionner une classe"); return; }
+    if (!attendanceClassId) { toast.error(`Veuillez sélectionner une ${engine.terminology.get("class").toLowerCase()}`); return; }
     setIsLoading(true);
     try {
       const data = await reportService.getAttendanceReport(
@@ -142,7 +144,7 @@ export default function SchoolReports() {
       );
       setAttendanceReport(data);
       const cls = classes.find(c => c.id === attendanceClassId);
-      toast.success(`Rapport de présences pour ${cls?.name || "classe"} généré`);
+      toast.success(`Rapport de présences pour ${cls?.name || engine.terminology.get("class").toLowerCase()} généré`);
     } catch (error: any) {
       toast.error("Erreur", { description: error.message });
     } finally { setIsLoading(false); }
@@ -151,7 +153,7 @@ export default function SchoolReports() {
   const paymentColumns: ExportColumn[] = [
     { header: "Date", accessorKey: "date" },
     { header: "N° Reçu", accessorKey: "receipt_number" },
-    { header: "Élève", accessorKey: "student_name" },
+    { header: engine.terminology.get("student"), accessorKey: "student_name" },
     { header: "Facture", accessorKey: "invoice_number" },
     { header: "Méthode", accessorKey: "payment_method" },
     { header: "Montant", accessorKey: "amount", cell: (r: any) => formatAmount(r.amount) },
@@ -160,7 +162,7 @@ export default function SchoolReports() {
   const attendanceColumns: ExportColumn[] = [
     { header: "N°", accessorKey: "numero" },
     { header: "Matricule", accessorKey: "matricule" },
-    { header: "Élève", accessorKey: "student_name" },
+    { header: engine.terminology.get("student"), accessorKey: "student_name" },
     { header: "Sexe", accessorKey: "gender" },
     { header: "Présents", accessorKey: "present" },
     { header: "Absents", accessorKey: "absent" },
@@ -171,9 +173,9 @@ export default function SchoolReports() {
   ];
 
   const outstandingColumns: ExportColumn[] = [
-    { header: "Élève", accessorKey: "student_name" },
+    { header: engine.terminology.get("student"), accessorKey: "student_name" },
     { header: "Matricule", accessorKey: "matricule" },
-    { header: "Classe", accessorKey: "class_name" },
+    { header: engine.terminology.get("class"), accessorKey: "class_name" },
     { header: "Facture", accessorKey: "invoice_number" },
     { header: "Total", accessorKey: "total_amount", cell: (r: any) => formatAmount(r.total_amount) },
     { header: "Payé", accessorKey: "paid_amount", cell: (r: any) => formatAmount(r.paid_amount) },
@@ -197,7 +199,7 @@ export default function SchoolReports() {
     { key: "telephone_parent", header: "Téléphone parent", accessor: "telephone_parent" as const },
     { key: "date_naissance", header: "Date naissance", accessor: "date_naissance" as const },
     { key: "adresse", header: "Adresse", accessor: "adresse" as const },
-    { key: "telephone_eleve", header: "Téléphone élève", accessor: "telephone_eleve" as const },
+    { key: "telephone_eleve", header: `Téléphone ${engine.terminology.get("student").toLowerCase()}`, accessor: "telephone_eleve" as const },
     { key: "statut", header: "Statut", accessor: "statut" as const },
   ];
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["numero", "nom_complet", "sexe", "telephone_parent"]);
@@ -215,7 +217,7 @@ export default function SchoolReports() {
   const getFooterSummary = () => {
     const girls = classList.filter((s: any) => s.sexe === "F").length;
     const boys = classList.filter((s: any) => s.sexe === "M").length;
-    return `Nombre d'élèves: ${classList.length}  |  Filles: ${girls}  |  Garçons: ${boys}`;
+    return `Nombre d'${engine.terminology.get("students").toLowerCase()}: ${classList.length}  |  Filles: ${girls}  |  Garçons: ${boys}`;
   };
 
   return (
@@ -286,7 +288,7 @@ export default function SchoolReports() {
                       <TableRow>
                         <TableHead>{t("common.date")}</TableHead>
                         <TableHead>N° Reçu</TableHead>
-                        <TableHead>Élève</TableHead>
+                        <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead>Méthode</TableHead>
                         <TableHead className="text-right">{t("common.amount")}</TableHead>
                       </TableRow>
@@ -343,7 +345,7 @@ export default function SchoolReports() {
                       <TableRow>
                         <TableHead>{t("common.date")}</TableHead>
                         <TableHead>N° Reçu</TableHead>
-                        <TableHead>Élève</TableHead>
+                        <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead>Méthode</TableHead>
                         <TableHead className="text-right">{t("common.amount")}</TableHead>
                       </TableRow>
@@ -415,7 +417,7 @@ export default function SchoolReports() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead>Élève</TableHead>
+                        <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead>Facture</TableHead>
                         <TableHead>{t("common.total")}</TableHead>
                         <TableHead>{t("common.paid")}</TableHead>

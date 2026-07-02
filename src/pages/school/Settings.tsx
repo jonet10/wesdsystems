@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Building2, Save, Globe, Smartphone, FileText, Hash,
-  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays,
+  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -21,6 +21,8 @@ import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
+import { useSchool } from "@/hooks/useSchool";
+import { SchoolType } from "@/modules/school/engine/types";
 import type { SchoolSetting } from "@/modules/school/types";
 
 export default function SchoolSettingsPage() {
@@ -28,6 +30,10 @@ export default function SchoolSettingsPage() {
   const { user, profile, isAuthenticated } = useAuth();
   const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
+  
+  const { engine, schoolType, refetchConfig } = useSchool();
+  const [settingsTypeDialogOpen, setSettingsTypeDialogOpen] = useState(false);
+  const [newSettingsType, setNewSettingsType] = useState<SchoolType>(schoolType);
 
   // Profile fields
   const [schoolName, setSchoolName]   = useState("");
@@ -65,6 +71,23 @@ export default function SchoolSettingsPage() {
   const [isSaving, setIsSaving]       = useState(false);
   const [businessId, setBusinessId]   = useState<string | null>(null);
   const [settingsId, setSettingsId]   = useState<string | null>(null);
+
+  const handleUpdateType = async () => {
+    if (!businessId) return;
+    try {
+      const { error } = await supabase
+        .from("school_configurations")
+        .update({ school_type: newSettingsType })
+        .eq("business_id", businessId);
+      if (error) throw error;
+      toast.success("Type d'établissement mis à jour. Rechargement...");
+      setSettingsTypeDialogOpen(false);
+      await refetchConfig();
+      window.location.reload();
+    } catch (err: any) {
+      toast.error("Impossible de modifier", { description: err.message });
+    }
+  };
 
   // Persist logo / name directly to businesses table (same as salon & auto-parts)
   const persistBusinessPatch = useCallback(
@@ -410,6 +433,49 @@ export default function SchoolSettingsPage() {
                           </option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  {/* School Engine Type Configuration */}
+                  <div className="border-t border-border pt-6 mt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold">Type d'établissement</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Configuration active : <span className="font-bold text-primary">{engine.getActivePlugin().name}</span>
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {profile?.role === "super_admin" ? (
+                          <Dialog open={settingsTypeDialogOpen} onOpenChange={setSettingsTypeDialogOpen}>
+                            <DialogTrigger asChild>
+                              <Button type="button" variant="outline" size="sm">Modifier (Super Admin)</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Changer le type d'établissement</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 pt-4">
+                                <Label>Nouveau type</Label>
+                                <select
+                                  value={newSettingsType}
+                                  onChange={(e) => setNewSettingsType(e.target.value as SchoolType)}
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                >
+                                  <option value="CLASSIC">École Classique</option>
+                                  <option value="VOCATIONAL">École Professionnelle</option>
+                                  <option value="UNIVERSITY">Université</option>
+                                </select>
+                                <Button type="button" onClick={handleUpdateType} className="w-full mt-4">Confirmer le changement</Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        ) : (
+                          <Badge variant="secondary" className="flex items-center gap-1.5 py-1 px-3">
+                            <Lock className="h-3 w-3" /> Verrouillé
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

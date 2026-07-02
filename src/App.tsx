@@ -99,6 +99,7 @@ import ParentDashboard from "./pages/school/parent/Dashboard";
 import EnrollmentsPage from "./pages/school/enrollments/EnrollmentsPage";
 import StudentFinancialSheet from "./pages/school/finance/StudentFinancialSheet";
 import SchoolStaff from "./pages/school/Staff";
+import { SchoolProviderWrapper } from "./modules/school/providers/SchoolProvider";
 const AutoPartsPurchases = lazy(() => import("./pages/auto-parts/Purchases"));
 const AutoPartsStockMovements = lazy(() => import("./pages/auto-parts/StockMovements"));
 const AutoPartsSettings = lazy(() => import("./pages/auto-parts/Settings"));
@@ -540,8 +541,9 @@ const App = () => (
                 />
 
                 {/* School Routes */}
-                <Route
-                  path="/school"
+                <Route element={<SchoolProviderWrapper />}>
+                  <Route
+                    path="/school"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
@@ -724,6 +726,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                </Route>
 
                 {/* Pharmacy Routes */}
                 <Route path="/pharmacie" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyDashboard /></ProtectedRoute>} />

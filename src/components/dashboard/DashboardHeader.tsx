@@ -144,6 +144,15 @@ export const DashboardHeader = ({
   );
 
   useEffect(() => {
+    if (branches.length > 0 && branchId) {
+      const exists = branches.some(b => b.id === branchId);
+      if (!exists) {
+        setActiveBranchId(branches[0].id);
+      }
+    }
+  }, [branches, branchId, setActiveBranchId]);
+
+  useEffect(() => {
     if (!subscriptionReminder.shouldPrompt || !subscriptionReminder.storageKey) {
       setSubscriptionDialogOpen(false);
       return;

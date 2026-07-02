@@ -12,8 +12,8 @@ import { Plus, Pencil, Trash2, Search, GraduationCap, User as UserIcon, Lock, Un
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { ExportButtons } from "@/components/school/ExportButtons";
-import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useClasses } from "@/hooks/useSchoolData";
+import { useSchool } from "@/hooks/useSchool";
 import { supabase } from "@/lib/supabase";
 import type { SchoolStudent, SchoolAcademicYear } from "@/modules/school/types";
 
@@ -21,7 +21,12 @@ export default function SchoolStudents() {
   const { t } = useTranslation();
   const { user, profile, isAuthenticated } = useAuth();
   const { settings, activeAcademicYear } = useSchoolSettings();
+  const { engine } = useSchool();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
+
+  const studentFields = engine.forms.getStudentFormSchema();
+  const [extendedValues, setExtendedValues] = useState<Record<string, any>>({});
+  const [fieldOptions, setFieldOptions] = useState<Record<string, Array<{ value: string; label: string }>>>({});
 
   const { data: students = [], isLoading } = useStudents();
   const { data: classes = [] } = useClasses();
@@ -50,6 +55,23 @@ export default function SchoolStudents() {
       setFilterYear(activeAcademicYear.id);
     }
   }, [activeAcademicYear]);
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      const opts: Record<string, any> = {};
+      for (const field of studentFields) {
+        if (field.fetchOptions && businessId) {
+          try {
+            opts[field.name] = await field.fetchOptions(businessId, supabase);
+          } catch (err) {
+            console.error("Failed to load options for", field.name, err);
+          }
+        }
+      }
+      setFieldOptions(opts);
+    };
+    if (isDialogOpen) loadOptions();
+  }, [isDialogOpen, businessId]);
 
   // Form State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -106,6 +128,7 @@ export default function SchoolStudents() {
   const resetForm = () => {
     setEditingStudent(null);
     setFormData(initialFormState);
+    setExtendedValues({});
     setMatriculeEditable(false);
   };
 
@@ -168,6 +191,14 @@ export default function SchoolStudents() {
       scholarshipType: s.scholarship_type || "none",
       scholarshipNote: s.scholarship_note || ""
     });
+    
+    // Map extended fields from student DB columns
+    const ext: Record<string, any> = {};
+    studentFields.forEach(f => {
+      ext[f.name] = (s as any)[f.name] || "";
+    });
+    setExtendedValues(ext);
+
     setIsDialogOpen(true);
   };
 
@@ -225,6 +256,11 @@ export default function SchoolStudents() {
         scholarship_percentage: formData.scholarshipType === 'full' ? 100 : formData.scholarshipType === 'half' ? 50 : 0
       };
 
+      // Append extended fields to payload
+      studentFields.forEach(f => {
+        (payload as any)[f.name] = extendedValues[f.name] || null;
+      });
+
       if (editingStudent) {
         await updateStudent.mutateAsync({ id: editingStudent.id, data: payload });
         toast.success("Élève mis à jour");
@@ -260,10 +296,10 @@ export default function SchoolStudents() {
   ];
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cet élève ?")) return;
+    if (!confirm(`Voulez-vous vraiment supprimer cet ${engine.terminology.get("student").toLowerCase()} ?`)) return;
     try {
       await deleteStudent.mutateAsync(id);
-      toast.success("Élève supprimé");
+      toast.success(`${engine.terminology.get("student")} supprimé`);
     } catch (error: any) {
       toast.error("Impossible de supprimer");
     }
@@ -274,8 +310,8 @@ export default function SchoolStudents() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Dossiers des Élèves</h1>
-            <p className="text-muted-foreground">Base de données des élèves inscrits dans votre établissement</p>
+            <h1 className="text-2xl font-bold tracking-tight">Dossiers des {engine.terminology.get("students")}</h1>
+            <p className="text-muted-foreground">Base de données des {engine.terminology.get("students").toLowerCase()} inscrits dans votre établissement</p>
           </div>
 
           <Dialog open={isDialogOpen} onOpenChange={async (open) => {
@@ -294,7 +330,7 @@ export default function SchoolStudents() {
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold flex items-center gap-2">
                   <GraduationCap className="h-6 w-6" />
-                  {editingStudent ? "Modifier le dossier de l'élève" : "Ajouter un élève"}
+                  {editingStudent ? `Modifier le dossier de l'${engine.terminology.get("student").toLowerCase()}` : `Ajouter un ${engine.terminology.get("student").toLowerCase()}`}
                 </DialogTitle>
                 <p className="text-sm text-red-500">Tous les champs avec un astérisque (*) sont obligatoires</p>
               </DialogHeader>
@@ -497,6 +533,51 @@ export default function SchoolStudents() {
                   </div>
                 </div>
 
+                {/* 2.5 Dynamic Extended Fields Section */}
+                {studentFields.length > 0 && (
+                  <div className="space-y-4 pt-4 border-t border-muted/50 mt-4">
+                    <h3 className="text-lg font-semibold border-b pb-2 text-primary flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5" /> Informations spécifiques ({engine.getActivePlugin().name})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {studentFields.map((field) => (
+                        <div key={field.name} className="space-y-2">
+                          <Label className="flex items-center gap-1">
+                            {field.label} {field.required && <span className="text-destructive">*</span>}
+                          </Label>
+                          {field.type === "select" ? (
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                              value={extendedValues[field.name] || ""}
+                              onChange={(e) => setExtendedValues(p => ({ ...p, [field.name]: e.target.value }))}
+                              required={field.required}
+                            >
+                              <option value="">Sélectionner</option>
+                              {(fieldOptions[field.name] || field.options || []).map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                              ))}
+                            </select>
+                          ) : field.type === "textarea" ? (
+                            <textarea
+                              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={extendedValues[field.name] || ""}
+                              onChange={(e) => setExtendedValues(p => ({ ...p, [field.name]: e.target.value }))}
+                              required={field.required}
+                            />
+                          ) : (
+                            <Input
+                              type={field.type}
+                              value={extendedValues[field.name] || ""}
+                              onChange={(e) => setExtendedValues(p => ({ ...p, [field.name]: e.target.value }))}
+                              required={field.required}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
 
                 {/* 3. Adresse */}
                 <div className="space-y-4">
@@ -644,11 +725,11 @@ export default function SchoolStudents() {
                 onChange={(e) => setFilterClass(e.target.value)}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="all">Toutes les classes</option>
+                <option value="all">Toutes les {engine.terminology.get("classes").toLowerCase()}</option>
                 {classes.filter(c => c.active !== false).map(c => (
                   <option key={c.id} value={c.code || c.name}>
                     {c.code ? `${c.code} — ${c.name}` : c.name}
-                    {c.section ? ` (Section ${c.section})` : ""}
+                    {c.section ? ` (${engine.terminology.get("section")} ${c.section})` : ""}
                   </option>
                 ))}
               </select>
@@ -686,7 +767,7 @@ export default function SchoolStudents() {
             <ExportButtons
               data={filteredStudents}
               columns={exportColumns}
-              title="Liste des Élèves"
+              title={`Liste des ${engine.terminology.get("students")}`}
               schoolSettings={settings}
               academicYearName={years.find(y => y.id === filterYear)?.name || activeAcademicYear?.name || null}
             />
@@ -698,9 +779,9 @@ export default function SchoolStudents() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Élève</TableHead>
+                  <TableHead>{engine.terminology.get("student")}</TableHead>
                   <TableHead>Sexe</TableHead>
-                  <TableHead>Classe / Niveau</TableHead>
+                  <TableHead>{engine.terminology.get("class")} / {engine.terminology.get("level")}</TableHead>
                   <TableHead>Téléphone Resp.</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
@@ -709,7 +790,7 @@ export default function SchoolStudents() {
                 {isLoading ? (
                   <TableRow><TableCell colSpan={5} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredStudents.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun élève trouvé.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun {engine.terminology.get("student").toLowerCase()} trouvé.</TableCell></TableRow>
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>

@@ -8,6 +8,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { useSchool } from "@/hooks/useSchool";
+import { SchoolCapability } from "@/modules/school/engine/types";
+import { Library, School, Milestone } from "lucide-react";
 
 export default function SchoolDashboard() {
   const navigate = useNavigate();
@@ -15,13 +18,21 @@ export default function SchoolDashboard() {
   const { format: formatAmount } = useCurrency();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
-  const [stats, setStats] = useState({
+  const { engine } = useSchool();
+
+  const [stats, setStats] = useState<any>({
     totalStudents: 0,
     totalTeachers: 0,
     totalRevenue: 0,
     totalPending: 0,
     totalExpenses: 0,
-    totalStockValue: 0
+    totalStockValue: 0,
+    extraStats: {
+      totalClasses: 0,
+      totalFaculties: 0,
+      totalDepartments: 0,
+      totalPromotions: 0
+    }
   });
 
   useEffect(() => {
@@ -48,13 +59,21 @@ export default function SchoolDashboard() {
         const totalExp = expenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
         const stockValue = products?.reduce((sum, p) => sum + (Number(p.price) * Number(p.stock_quantity)), 0) || 0;
 
+        const extra = await engine.dashboard.getDashboardStatsQuery(businessId, supabase);
+
         setStats({
           totalStudents: studentsCount || 0,
           totalTeachers: teachersCount || 0,
           totalRevenue: revenue,
           totalPending: pending,
           totalExpenses: totalExp,
-          totalStockValue: stockValue
+          totalStockValue: stockValue,
+          extraStats: {
+            totalClasses: extra.totalClasses || 0,
+            totalFaculties: extra.totalFaculties || 0,
+            totalDepartments: extra.totalDepartments || 0,
+            totalPromotions: extra.totalPromotions || 0
+          }
         });
       } catch (error) {
         console.error("Error fetching stats:", error);
@@ -68,7 +87,7 @@ export default function SchoolDashboard() {
     <DashboardLayout role="salon_admin">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord École</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Tableau de bord - {engine.getActivePlugin().name}</h1>
           <p className="text-muted-foreground">Vue d'ensemble de l'établissement et des finances.</p>
         </div>
 
@@ -76,7 +95,7 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Élèves Inscrits</CardTitle>
+                <CardTitle className="text-sm font-medium">{engine.terminology.get("students")} Inscrits</CardTitle>
                 <GraduationCap className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -89,7 +108,7 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Professeurs</CardTitle>
+                <CardTitle className="text-sm font-medium">{engine.terminology.get("teachers")}</CardTitle>
                 <UserCog className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -98,6 +117,64 @@ export default function SchoolDashboard() {
               </CardContent>
             </Card>
           </StaggerItem>
+
+          <StaggerItem>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Nombre de {engine.terminology.get("classes")}</CardTitle>
+                <Layers className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.extraStats.totalClasses}</div>
+                <p className="text-xs text-muted-foreground mt-1">Nombre total de filières / groupes d'études</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          {engine.hasCapability(SchoolCapability.MANAGE_FACULTIES) && (
+            <StaggerItem>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Facultés</CardTitle>
+                  <School className="h-4 w-4 text-cyan-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.extraStats.totalFaculties}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Unités universitaires</p>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )}
+
+          {engine.hasCapability(SchoolCapability.MANAGE_DEPARTMENTS) && (
+            <StaggerItem>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Départements</CardTitle>
+                  <Library className="h-4 w-4 text-cyan-400" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.extraStats.totalDepartments}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Départements d'études</p>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )}
+
+          {engine.hasCapability(SchoolCapability.MANAGE_COHORTS) && (
+            <StaggerItem>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Promotions / Cohortes</CardTitle>
+                  <Milestone className="h-4 w-4 text-amber-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.extraStats.totalPromotions}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Groupes d'apprenants par promotion</p>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )}
 
           <StaggerItem>
             <Card>
@@ -179,7 +256,7 @@ export default function SchoolDashboard() {
                 </div>
                 <div>
                   <h4 className="font-medium">Nouveau Dossier</h4>
-                  <p className="text-sm text-muted-foreground">Inscrire un nouvel élève</p>
+                  <p className="text-sm text-muted-foreground">Inscrire un nouvel {engine.terminology.get("student").toLowerCase()}</p>
                 </div>
               </div>
               <div 

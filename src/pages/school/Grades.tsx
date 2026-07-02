@@ -16,10 +16,12 @@ import {
   useExamGrades, useSaveGrades, useClassReportCards
 } from "@/hooks/useSchoolData";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
+import { useSchool } from "@/hooks/useSchool";
 import { format } from "date-fns";
 
 export default function SchoolGrades() {
   const { settings, activeAcademicYear } = useSchoolSettings();
+  const { engine } = useSchool();
 
   const [activeTab, setActiveTab] = useState("grades");
 
@@ -172,10 +174,10 @@ export default function SchoolGrades() {
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <FileSpreadsheet className="h-6 w-6 text-primary" /> Carnet de Notes & Bulletins
-            </h1>
-            <p className="text-muted-foreground">Enregistrez les évaluations scolaires et dressez les bulletins de notes trimestriels</p>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-6 w-6 text-primary" /> Carnet de Notes & {engine.terminology.get("reportCards")}
+            </CardTitle>
+            <p className="text-muted-foreground">Enregistrez les évaluations scolaires et dressez les {engine.terminology.get("reportCards").toLowerCase()}</p>
           </div>
         </div>
 
@@ -186,7 +188,7 @@ export default function SchoolGrades() {
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Saisie des Notes
             </TabsTrigger>
             <TabsTrigger value="reports" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3" onClick={() => refetchReportCards()}>
-              <GraduationCap className="h-4 w-4 mr-2" /> Bulletins & Classements
+              <GraduationCap className="h-4 w-4 mr-2" /> {engine.terminology.get("reportCards")} & Classements
             </TabsTrigger>
           </TabsList>
 
@@ -195,7 +197,7 @@ export default function SchoolGrades() {
             <Card className="p-4 bg-muted/30">
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                 <div className="space-y-1.5">
-                  <Label>Classe</Label>
+                  <Label>{engine.terminology.get("class")}</Label>
                   <select
                     value={selectedClassId}
                     onChange={e => { setSelectedClassId(e.target.value); setSelectedExamId(""); setGradeInputs({}); }}
@@ -206,7 +208,7 @@ export default function SchoolGrades() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Matière</Label>
+                  <Label>{engine.terminology.get("subject")}</Label>
                   <select
                     value={selectedSubjectId}
                     onChange={e => { setSelectedSubjectId(e.target.value); setSelectedExamId(""); setGradeInputs({}); }}
@@ -328,7 +330,7 @@ export default function SchoolGrades() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-16">N°</TableHead>
-                        <TableHead>Élève</TableHead>
+                        <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead className="w-48 text-right">Note obtenues / {selectedExam?.max_points}</TableHead>
                         <TableHead>Remarques / Notes</TableHead>
                       </TableRow>
@@ -388,7 +390,7 @@ export default function SchoolGrades() {
             <Card className="p-4 bg-muted/30">
               <div className="flex flex-col sm:flex-row gap-4 items-end">
                 <div className="space-y-1.5 min-w-[200px]">
-                  <Label>Classe</Label>
+                  <Label>{engine.terminology.get("class")}</Label>
                   <select
                     value={selectedClassId}
                     onChange={e => setSelectedClassId(e.target.value)}
@@ -426,7 +428,7 @@ export default function SchoolGrades() {
                       <TableRow>
                         <TableHead className="w-16 text-center">Rang</TableHead>
                         <TableHead>Matricule</TableHead>
-                        <TableHead>Nom de l'élève</TableHead>
+                        <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead className="text-center">Sexe</TableHead>
                         <TableHead className="text-right font-bold text-primary">Moyenne Générale (/10)</TableHead>
                         <TableHead className="text-right">Action</TableHead>
@@ -446,7 +448,7 @@ export default function SchoolGrades() {
                           </TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="outline" onClick={() => setReportCardDialog({ open: true, student: card })}>
-                              <FileText className="h-3.5 w-3.5 mr-1" /> Bulletin PDF
+                              <FileText className="h-3.5 w-3.5 mr-1" /> {engine.terminology.get("reportCard")} PDF
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -474,15 +476,15 @@ export default function SchoolGrades() {
                       <p className="text-xs text-muted-foreground">Tél : {settings?.phone || ""}</p>
                     </div>
                     <div className="text-right">
-                      <h3 className="text-lg font-bold text-primary uppercase">Bulletin de Notes</h3>
+                      <h3 className="text-lg font-bold text-primary uppercase">{engine.terminology.get("reportCard")}</h3>
                       <p className="text-xs text-muted-foreground">Année Académique : {activeAcademicYear?.name || ""}</p>
-                      <p className="text-xs font-semibold text-foreground uppercase mt-1">Classe : {reportCardDialog.student.className}</p>
+                      <p className="text-xs font-semibold text-foreground uppercase mt-1">{engine.terminology.get("class")} : {reportCardDialog.student.className}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-muted/30 border text-sm font-sans">
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Nom de l'élève</p>
+                      <p className="text-xs text-muted-foreground">{engine.terminology.get("student")}</p>
                       <p className="font-bold text-base text-foreground">{reportCardDialog.student.student_name}</p>
                       <p className="text-xs text-muted-foreground">Matricule : {reportCardDialog.student.matricule}</p>
                     </div>
@@ -551,7 +553,7 @@ export default function SchoolGrades() {
                 <div className="flex justify-end gap-3 font-sans">
                   <Button variant="outline" onClick={() => setReportCardDialog({ open: false, student: null })}>Fermer</Button>
                   <Button onClick={() => window.print()}>
-                    <Printer className="h-4 w-4 mr-2" /> Imprimer le bulletin
+                    <Printer className="h-4 w-4 mr-2" /> Imprimer le {engine.terminology.get("reportCard").toLowerCase()}
                   </Button>
                 </div>
               </div>
