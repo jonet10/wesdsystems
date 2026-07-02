@@ -193,11 +193,14 @@ export default function SchoolReports() {
     { key: "matricule", header: "Matricule", accessor: "matricule" as const },
     { key: "nom_complet", header: "Nom complet", accessor: "nom_complet" as const },
     { key: "sexe", header: "Sexe", accessor: "sexe" as const },
+    { key: "nom_parent", header: "Parent / Tuteur", accessor: "nom_parent" as const },
     { key: "telephone_parent", header: "Téléphone parent", accessor: "telephone_parent" as const },
     { key: "date_naissance", header: "Date naissance", accessor: "date_naissance" as const },
     { key: "adresse", header: "Adresse", accessor: "adresse" as const },
+    { key: "telephone_eleve", header: "Téléphone élève", accessor: "telephone_eleve" as const },
+    { key: "statut", header: "Statut", accessor: "statut" as const },
   ];
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(["numero", "nom_complet", "sexe"]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(["numero", "nom_complet", "sexe", "telephone_parent"]);
 
   const toggleColumn = (key: string) => {
     setSelectedColumns(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);

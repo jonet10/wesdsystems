@@ -195,13 +195,45 @@ export const reportService = {
       .in("status", ["registered", "active"]);
     if (error) throw error;
 
-    return (data || []).map((enr: any, index: number) => ({
-      numero: index + 1,
-      matricule: enr.student?.matricule || '',
-      nom_complet: `${enr.student?.first_name || ''} ${enr.student?.last_name || ''}`,
-      sexe: enr.student?.gender || '',
-      telephone_parent: enr.student?.responsible_person_info?.phone || enr.student?.phone || '',
-    }));
+    return (data || []).map((enr: any, index: number) => {
+      const s = enr.student;
+      
+      // Determine parent/responsible person name
+      let parentName = "-";
+      if (s?.responsible_person_info?.first_name || s?.responsible_person_info?.last_name) {
+        parentName = `${s.responsible_person_info.first_name || ""} ${s.responsible_person_info.last_name || ""}`.trim();
+        if (s.responsible_person_info.relationship) {
+          parentName += ` (${s.responsible_person_info.relationship})`;
+        }
+      } else if (s?.mother_info?.first_name || s?.mother_info?.last_name) {
+        parentName = `${s.mother_info.first_name || ""} ${s.mother_info.last_name || ""} (Mère)`.trim();
+      } else if (s?.father_info?.first_name || s?.father_info?.last_name) {
+        parentName = `${s.father_info.first_name || ""} ${s.father_info.last_name || ""} (Père)`.trim();
+      }
+
+      // Format dob
+      let formattedDob = "-";
+      if (s?.dob) {
+        try {
+          formattedDob = format(new Date(s.dob), "dd/MM/yyyy");
+        } catch {
+          formattedDob = s.dob;
+        }
+      }
+
+      return {
+        numero: index + 1,
+        matricule: s?.matricule || '-',
+        nom_complet: `${s?.first_name || ''} ${s?.last_name || ''}`,
+        sexe: s?.gender || '-',
+        nom_parent: parentName,
+        telephone_parent: s?.responsible_person_info?.phone || s?.phone || '-',
+        date_naissance: formattedDob,
+        adresse: s?.address || '-',
+        telephone_eleve: s?.phone || '-',
+        statut: s?.status === 'active' ? 'Actif' : s?.status === 'registered' ? 'Inscrit' : s?.status || '-'
+      };
+    });
   },
 
   async getAttendanceReport(classId: string, startDate?: string, endDate?: string) {
