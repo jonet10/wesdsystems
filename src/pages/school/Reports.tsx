@@ -38,10 +38,20 @@ export default function SchoolReports() {
   const [expenses, setExpenses] = useState<ExpenseReportRow[]>([]);
   const [comparison, setComparison] = useState<any>(null);
   const [classList, setClassList] = useState<any[]>([]);
+  const [attendanceReport, setAttendanceReport] = useState<any[]>([]);
 
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Attendance Report Filters (default to 1st of current month to today)
+  const [attendanceClassId, setAttendanceClassId] = useState("");
+  const [attendanceDateStart, setAttendanceDateStart] = useState(
+    format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd")
+  );
+  const [attendanceDateEnd, setAttendanceDateEnd] = useState(
+    format(new Date(), "yyyy-MM-dd")
+  );
 
   useEffect(() => {
     if (businessId) {
@@ -121,6 +131,23 @@ export default function SchoolReports() {
     } finally { setIsLoading(false); }
   };
 
+  const loadAttendanceReport = async () => {
+    if (!attendanceClassId) { toast.error("Veuillez sélectionner une classe"); return; }
+    setIsLoading(true);
+    try {
+      const data = await reportService.getAttendanceReport(
+        attendanceClassId,
+        attendanceDateStart || undefined,
+        attendanceDateEnd || undefined
+      );
+      setAttendanceReport(data);
+      const cls = classes.find(c => c.id === attendanceClassId);
+      toast.success(`Rapport de présences pour ${cls?.name || "classe"} généré`);
+    } catch (error: any) {
+      toast.error("Erreur", { description: error.message });
+    } finally { setIsLoading(false); }
+  };
+
   const paymentColumns: ExportColumn[] = [
     { header: "Date", accessorKey: "date" },
     { header: "N° Reçu", accessorKey: "receipt_number" },
@@ -128,6 +155,19 @@ export default function SchoolReports() {
     { header: "Facture", accessorKey: "invoice_number" },
     { header: "Méthode", accessorKey: "payment_method" },
     { header: "Montant", accessorKey: "amount", cell: (r: any) => formatAmount(r.amount) },
+  ];
+
+  const attendanceColumns: ExportColumn[] = [
+    { header: "N°", accessorKey: "numero" },
+    { header: "Matricule", accessorKey: "matricule" },
+    { header: "Élève", accessorKey: "student_name" },
+    { header: "Sexe", accessorKey: "gender" },
+    { header: "Présents", accessorKey: "present" },
+    { header: "Absents", accessorKey: "absent" },
+    { header: "Retards", accessorKey: "late" },
+    { header: "Excusés", accessorKey: "excused" },
+    { header: "Total Appels", accessorKey: "total" },
+    { header: "Taux Présence", accessorKey: "rate" }
   ];
 
   const outstandingColumns: ExportColumn[] = [
@@ -202,6 +242,9 @@ export default function SchoolReports() {
             </TabsTrigger>
             <TabsTrigger value="classlist" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3">
               <BookOpen className="h-4 w-4 mr-2" />Liste de Classe
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3">
+              <Calendar className="h-4 w-4 mr-2" />Présences / Appel
             </TabsTrigger>
           </TabsList>
 
@@ -577,6 +620,91 @@ export default function SchoolReports() {
                   <div className="p-3 border-t bg-muted/30 text-sm font-medium text-center">
                     {getFooterSummary()}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="attendance" className="space-y-4">
+            <Card>
+              <CardContent className="p-4 flex flex-wrap gap-4 items-end">
+                <div className="space-y-1 min-w-[200px]">
+                  <Label className="text-xs">Sélectionner une classe</Label>
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={attendanceClassId} onChange={e => setAttendanceClassId(e.target.value)}>
+                    <option value="">-- Choisir une classe --</option>
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} {c.section ? `(${c.section})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date début</Label>
+                  <Input type="date" value={attendanceDateStart} onChange={e => setAttendanceDateStart(e.target.value)} className="h-9 w-40" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Date fin</Label>
+                  <Input type="date" value={attendanceDateEnd} onChange={e => setAttendanceDateEnd(e.target.value)} className="h-9 w-40" />
+                </div>
+                <Button onClick={loadAttendanceReport} disabled={isLoading || !attendanceClassId} size="sm">
+                  <Search className="h-4 w-4 mr-2" />Générer
+                </Button>
+              </CardContent>
+            </Card>
+
+            {attendanceReport.length > 0 && (
+              <Card>
+                <div className="p-4 border-b flex justify-between items-center flex-wrap gap-2">
+                  <div className="font-medium text-sm">
+                    Rapport de présence pour la classe : <span className="font-semibold text-primary">{classes.find(c => c.id === attendanceClassId)?.name || ""}</span> ({attendanceReport.length} élèves)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => printDocument(
+                      `Rapport des Présences - ${classes.find(c => c.id === attendanceClassId)?.name || ""}`,
+                      attendanceReport, attendanceColumns, settings, activeAcademicYear?.name || null, userName
+                    )}>
+                      <Printer className="h-4 w-4 mr-2" />Imprimer
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToPDF(
+                      `Rapport des Présences - ${classes.find(c => c.id === attendanceClassId)?.name || ""}`,
+                      attendanceReport, attendanceColumns, settings, activeAcademicYear?.name || null, userName
+                    )}>
+                      <Download className="h-4 w-4 mr-2" />PDF
+                    </Button>
+                  </div>
+                </div>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12 text-center">N°</TableHead>
+                        <TableHead>Matricule</TableHead>
+                        <TableHead>Élève</TableHead>
+                        <TableHead className="text-center">Sexe</TableHead>
+                        <TableHead className="text-center text-green-600 font-semibold bg-green-500/5">Présents</TableHead>
+                        <TableHead className="text-center text-destructive font-semibold bg-destructive/5">Absents</TableHead>
+                        <TableHead className="text-center text-yellow-600 font-semibold bg-yellow-500/5">Retards</TableHead>
+                        <TableHead className="text-center text-blue-600 font-semibold bg-blue-500/5">Excusés</TableHead>
+                        <TableHead className="text-center font-medium">Total</TableHead>
+                        <TableHead className="text-right font-bold text-primary">Taux de Présence</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceReport.map((row: any, i: number) => (
+                        <TableRow key={i}>
+                          <TableCell className="text-center text-muted-foreground">{row.numero}</TableCell>
+                          <TableCell className="font-mono text-xs">{row.matricule || "-"}</TableCell>
+                          <TableCell className="font-semibold">{row.student_name}</TableCell>
+                          <TableCell className="text-center">{row.gender || "-"}</TableCell>
+                          <TableCell className="text-center font-semibold text-green-600 bg-green-500/5">{row.present}</TableCell>
+                          <TableCell className="text-center font-semibold text-destructive bg-destructive/5">{row.absent}</TableCell>
+                          <TableCell className="text-center font-semibold text-yellow-600 bg-yellow-500/5">{row.late}</TableCell>
+                          <TableCell className="text-center font-semibold text-blue-600 bg-blue-500/5">{row.excused}</TableCell>
+                          <TableCell className="text-center font-medium">{row.total}</TableCell>
+                          <TableCell className="text-right font-bold text-primary">{row.rate}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             )}

@@ -202,5 +202,75 @@ export const reportService = {
       sexe: enr.student?.gender || '',
       telephone_parent: enr.student?.responsible_person_info?.phone || enr.student?.phone || '',
     }));
+  },
+
+  async getAttendanceReport(classId: string, startDate?: string, endDate?: string) {
+    const businessId = getBusinessId();
+    
+    // 1. Fetch active student enrollments
+    const { data: enrollments, error: enrollError } = await supabase
+      .from("school_enrollments")
+      .select("*, student:student_id(*)")
+      .eq("class_id", classId)
+      .in("status", ["registered", "active"]);
+    if (enrollError) throw enrollError;
+
+    if (!enrollments || enrollments.length === 0) return [];
+
+    // 2. Fetch attendance entries
+    let query = supabase
+      .from("school_attendance")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("class_id", classId)
+      .eq("type", "student");
+
+    if (startDate) query = query.gte("date", startDate);
+    if (endDate) query = query.lte("date", endDate);
+
+    const { data: attendance, error: attendanceError } = await query;
+    if (attendanceError) throw attendanceError;
+
+    // 3. Aggregate status counts
+    const statsMap = new Map<string, { present: number; absent: number; late: number; excused: number }>();
+    enrollments.forEach((enr: any) => {
+      if (enr.student) {
+        statsMap.set(enr.student.id, { present: 0, absent: 0, late: 0, excused: 0 });
+      }
+    });
+
+    (attendance || []).forEach((att: any) => {
+      const stats = statsMap.get(att.person_id);
+      if (stats) {
+        if (att.status === "present") stats.present++;
+        else if (att.status === "absent") stats.absent++;
+        else if (att.status === "late") stats.late++;
+        else if (att.status === "excused") stats.excused++;
+      }
+    });
+
+    // 4. Map results
+    return enrollments
+      .filter((enr: any) => enr.student)
+      .map((enr: any, index: number) => {
+        const student = enr.student;
+        const stats = statsMap.get(student.id) || { present: 0, absent: 0, late: 0, excused: 0 };
+        const total = stats.present + stats.absent + stats.late + stats.excused;
+        const rate = total > 0 ? Math.round(((stats.present + stats.late) / total) * 100) : 100;
+        
+        return {
+          numero: index + 1,
+          matricule: student.matricule || "",
+          student_name: `${student.first_name} ${student.last_name}`,
+          gender: student.gender || "",
+          present: stats.present,
+          absent: stats.absent,
+          late: stats.late,
+          excused: stats.excused,
+          total,
+          rate: `${rate}%`
+        };
+      })
+      .sort((a, b) => a.student_name.localeCompare(b.student_name));
   }
 };
