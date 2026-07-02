@@ -19,6 +19,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   FileText,
+  FileSpreadsheet,
   Layers,
   Package,
   BarChart3,
@@ -222,6 +223,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: UserPlus, labelKey: "sidebar.enrollments", path: "/school/enrollments", role: "all", permission: PERMISSIONS.CLIENTS_MANAGE },
           { icon: CalendarCheck, labelKey: "sidebar.attendance", path: "/school/attendance", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Layers, labelKey: "sidebar.classes", path: "/school/classes", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Calendar, labelKey: "sidebar.timetables", path: "/school/timetables", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: FileSpreadsheet, labelKey: "sidebar.grades", path: "/school/grades", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: BookOpen, labelKey: "sidebar.subjects", path: "/school/subjects", role: "all", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Calendar, labelKey: "sidebar.academicYears", path: "/school/academic-years", role: "all", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: UserCog, labelKey: "sidebar.teachers", path: "/school/teachers", role: "all", permission: PERMISSIONS.STAFF_MANAGE },
@@ -458,7 +461,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
                 </div>
               )}
               {collapsed && <div className="mt-3 mb-1 border-t border-border/40" />}
-              {items.filter(i => ["/school/students", "/school/enrollments", "/school/attendance", "/school/classes", "/school/subjects", "/school/academic-years", "/school/parents", "/school/teachers"].includes(i.path)).map(item => (
+              {items.filter(i => ["/school/students", "/school/enrollments", "/school/attendance", "/school/classes", "/school/timetables", "/school/grades", "/school/subjects", "/school/academic-years", "/school/parents", "/school/teachers"].includes(i.path)).map(item => (
                 <NavItem key={item.path} item={item} />
               ))}
 

@@ -1,0 +1,290 @@
+import { supabase } from "@/lib/supabase";
+import { getBusinessId } from "./utils";
+
+export interface SchoolExam {
+  id?: string;
+  business_id: string;
+  branch_id?: string | null;
+  class_id: string;
+  subject_id: string;
+  academic_year_id: string;
+  name: string;
+  max_points: number;
+  coefficient: number;
+  exam_date: string;
+  created_at?: string;
+  
+  // Relations
+  subject?: { name: string };
+  class?: { name: string };
+}
+
+export interface SchoolGrade {
+  id?: string;
+  business_id: string;
+  exam_id: string;
+  student_id: string;
+  points_obtained: number;
+  note?: string | null;
+  created_at?: string;
+}
+
+export const gradeService = {
+  async getExamsByClass(classId: string, academicYearId: string): Promise<SchoolExam[]> {
+    const businessId = getBusinessId();
+    const { data, error } = await supabase
+      .from("school_exams")
+      .select("*, subject:school_subjects(name)")
+      .eq("business_id", businessId)
+      .eq("class_id", classId)
+      .eq("academic_year_id", academicYearId)
+      .order("exam_date", { ascending: false });
+
+    if (error) throw error;
+    return data as any[];
+  },
+
+  async createExam(payload: Partial<SchoolExam>): Promise<SchoolExam> {
+    const businessId = getBusinessId();
+    const { data, error } = await supabase
+      .from("school_exams")
+      .insert([{ ...payload, business_id: businessId }])
+      .select("*, subject:school_subjects(name)")
+      .single();
+
+    if (error) throw error;
+    return data as any;
+  },
+
+  async removeExam(id: string): Promise<void> {
+    const { error } = await supabase
+      .from("school_exams")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  /** Get students in the class with their grade details for a specific exam */
+  async getGradesForExam(classId: string, examId: string): Promise<Array<{
+    student_id: string;
+    student_name: string;
+    matricule?: string;
+    points_obtained: number | string; // string allowed for empty input
+    note: string;
+  }>> {
+    const businessId = getBusinessId();
+
+    // 1. Get enrolled students in the class
+    const { data: enrollments, error: enrollError } = await supabase
+      .from("school_enrollments")
+      .select("*, student:student_id(*)")
+      .eq("class_id", classId)
+      .in("status", ["registered", "active"]);
+    if (enrollError) throw enrollError;
+
+    if (!enrollments || enrollments.length === 0) return [];
+
+    // 2. Get grades already registered for this exam
+    const { data: grades, error: gradeError } = await supabase
+      .from("school_grades")
+      .select("*")
+      .eq("exam_id", examId);
+    if (gradeError) throw gradeError;
+
+    const gradesMap = new Map(grades?.map(g => [g.student_id, g]) || []);
+
+    return enrollments
+      .filter(e => e.student)
+      .map(e => {
+        const student = e.student;
+        const g = gradesMap.get(student.id);
+        return {
+          student_id: student.id,
+          student_name: `${student.first_name} ${student.last_name}`,
+          matricule: student.matricule || undefined,
+          points_obtained: g ? g.points_obtained : "",
+          note: g?.note || "",
+        };
+      })
+      .sort((a, b) => a.student_name.localeCompare(b.student_name));
+  },
+
+  /** Save grade entries for an exam */
+  async saveGrades(examId: string, grades: Array<{
+    student_id: string;
+    points_obtained: number;
+    note?: string | null;
+  }>): Promise<void> {
+    const businessId = getBusinessId();
+
+    // Delete existing entries for this exam to prevent duplicate key violations
+    const { error: deleteError } = await supabase
+      .from("school_grades")
+      .delete()
+      .eq("exam_id", examId);
+    if (deleteError) throw deleteError;
+
+    if (grades.length === 0) return;
+
+    const toInsert = grades.map(g => ({
+      business_id: businessId,
+      exam_id: examId,
+      student_id: g.student_id,
+      points_obtained: g.points_obtained,
+      note: g.note || null,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("school_grades")
+      .insert(toInsert);
+
+    if (insertError) throw insertError;
+  },
+
+  /** Generate dynamic report card data for all students in a class */
+  async getClassReportCards(classId: string, academicYearId: string): Promise<any[]> {
+    const businessId = getBusinessId();
+
+    // 1. Fetch class details
+    const { data: classObj } = await supabase
+      .from("school_classes")
+      .select("name")
+      .eq("id", classId)
+      .single();
+
+    // 2. Fetch all student enrollments
+    const { data: enrollments } = await supabase
+      .from("school_enrollments")
+      .select("*, student:student_id(*)")
+      .eq("class_id", classId)
+      .in("status", ["registered", "active"]);
+
+    const activeStudents = enrollments?.filter(e => e.student).map(e => e.student) || [];
+    if (activeStudents.length === 0) return [];
+
+    // 3. Fetch all exams in the class for the academic year
+    const exams = await gradeService.getExamsByClass(classId, academicYearId);
+    if (exams.length === 0) return [];
+
+    const examIds = exams.map(e => e.id!);
+
+    // 4. Fetch all grades for these exams
+    const { data: allGrades } = await supabase
+      .from("school_grades")
+      .select("*")
+      .in("exam_id", examIds);
+
+    const gradesMap = new Map<string, SchoolGrade[]>(); // key: student_id
+    (allGrades || []).forEach(g => {
+      const list = gradesMap.get(g.student_id) || [];
+      list.push(g);
+      gradesMap.set(g.student_id, list);
+    });
+
+    // 5. Aggregate averages by student and subject
+    const subjectList = Array.from(new Set(exams.map(e => JSON.stringify({ id: e.subject_id, name: e.subject?.name }))));
+    const subjects = subjectList.map(s => JSON.parse(s));
+
+    const studentReportCards = activeStudents.map(student => {
+      const studentGrades = gradesMap.get(student.id) || [];
+      const sGradesMap = new Map(studentGrades.map(g => [g.exam_id, g.points_obtained]));
+
+      let totalWeightedScore = 0;
+      let totalCoefficient = 0;
+
+      const subjectDetails = subjects.map(sub => {
+        // Find exams of this subject
+        const subExams = exams.filter(e => e.subject_id === sub.id);
+        
+        let subWeightedSum = 0;
+        let subCoefSum = 0;
+
+        subExams.forEach(ex => {
+          const score = sGradesMap.get(ex.id!);
+          if (score !== undefined) {
+            // Normalize score to scale of 10
+            const scoreOutOf10 = (score / ex.max_points) * 10;
+            subWeightedSum += scoreOutOf10 * ex.coefficient;
+            subCoefSum += ex.coefficient;
+          }
+        });
+
+        const subjectAverage = subCoefSum > 0 ? Number((subWeightedSum / subCoefSum).toFixed(2)) : null;
+
+        if (subjectAverage !== null) {
+          totalWeightedScore += subjectAverage * subCoefSum; // we weight by sum of coefficients of exams taken
+          totalCoefficient += subCoefSum;
+        }
+
+        return {
+          subject_id: sub.id,
+          subject_name: sub.name,
+          average: subjectAverage,
+          coef: subCoefSum,
+        };
+      });
+
+      const overallAverage = totalCoefficient > 0 ? Number((totalWeightedScore / totalCoefficient).toFixed(2)) : null;
+
+      return {
+        student_id: student.id,
+        student_name: `${student.first_name} ${student.last_name}`,
+        matricule: student.matricule || "-",
+        gender: student.gender || "-",
+        subjects: subjectDetails,
+        overallAverage,
+      };
+    });
+
+    // Calculate class averages for each subject
+    const classSubjectAverages = subjects.map(sub => {
+      const studentAverages = studentReportCards
+        .map(card => card.subjects.find((s: any) => s.subject_id === sub.id)?.average)
+        .filter(avg => avg !== null && avg !== undefined) as number[];
+
+      const classAvg = studentAverages.length > 0
+        ? Number((studentAverages.reduce((a, b) => a + b, 0) / studentAverages.length).toFixed(2))
+        : null;
+
+      return {
+        subject_id: sub.id,
+        average: classAvg,
+      };
+    });
+
+    // Sort student cards to calculate ranks
+    const sortedReportCards = [...studentReportCards].sort((a, b) => {
+      const avgA = a.overallAverage ?? -1;
+      const avgB = b.overallAverage ?? -1;
+      return avgB - avgA; // Descending
+    });
+
+    // Assign ranks
+    const finalReportCards = sortedReportCards.map((card, index) => {
+      // Handle ties nicely
+      let rank = index + 1;
+      if (index > 0 && card.overallAverage === sortedReportCards[index - 1].overallAverage) {
+        // Find previous card's rank
+        rank = (sortedReportCards[index - 1] as any).rank;
+      }
+
+      // Add class averages to subjects
+      const enrichedSubjects = card.subjects.map((sub: any) => {
+        const classAvgObj = classSubjectAverages.find(c => c.subject_id === sub.subject_id);
+        return {
+          ...sub,
+          classAverage: classAvgObj?.average || null,
+        };
+      });
+
+      return {
+        ...card,
+        rank,
+        subjects: enrichedSubjects,
+        className: classObj?.name || "",
+      };
+    });
+
+    return finalReportCards;
+  }
+};

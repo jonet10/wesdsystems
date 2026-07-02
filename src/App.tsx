@@ -89,6 +89,8 @@ import SchoolInvoices from "./pages/school/Invoices";
 import SchoolPayments from "./pages/school/Payments";
 import SchoolPayroll from "./pages/school/Payroll";
 import SchoolAttendance from "./pages/school/Attendance";
+import SchoolTimetables from "./pages/school/Timetables";
+import SchoolGrades from "./pages/school/Grades";
 const SchoolExpenses = lazy(() => import("@/pages/school/Expenses"));
 const SchoolInventory = lazy(() => import("@/pages/school/Inventory"));
 const SchoolPOS = lazy(() => import("@/pages/school/POS"));
@@ -607,6 +609,22 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} requiredPermissions="students" allowAuthenticatedWithoutRole>
                       <SchoolAttendance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/timetables"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} requiredPermissions="classes" allowAuthenticatedWithoutRole>
+                      <SchoolTimetables />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/grades"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} requiredPermissions="classes" allowAuthenticatedWithoutRole>
+                      <SchoolGrades />
                     </ProtectedRoute>
                   }
                 />

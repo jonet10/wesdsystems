@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { useClasses, useClassAttendance, useSaveAttendance } from "@/hooks/useSchoolData";
 import { enrollmentService } from "@/modules/school/services/enrollmentService";
+import { smsService } from "@/modules/school/services/smsService";
 import { format } from "date-fns";
 
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
@@ -116,6 +117,23 @@ export default function SchoolAttendance() {
         classId: selectedClassId,
         date: selectedDate,
         records,
+      });
+
+      // Trigger SMS alerts for newly absent students
+      const prevAbsents = new Set((savedRecords || []).filter(r => r.status === "absent").map(r => r.person_id));
+      
+      studentStates.forEach(async (s) => {
+        if (s.status === "absent" && !prevAbsents.has(s.student_id)) {
+          const studentEnrollment = enrollments.find(e => e.student?.id === s.student_id);
+          const parentPhone = studentEnrollment?.student?.responsible_person_info?.phone || studentEnrollment?.student?.phone;
+          if (parentPhone) {
+            try {
+              await smsService.triggerAttendanceAlert(s.name, parentPhone, selectedDate);
+            } catch (err) {
+              console.error("Failed to send absence alert SMS for", s.name, err);
+            }
+          }
+        }
       });
 
       toast.success("Registre d'appel enregistré avec succès !");

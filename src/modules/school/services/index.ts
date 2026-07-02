@@ -11,4 +11,7 @@ export { reportService } from "./reportService";
 export { subjectService } from "./subjectService";
 export { assignmentService } from "./assignmentService";
 export { attendanceService } from "./attendanceService";
+export { timetableService } from "./timetableService";
+export { gradeService } from "./gradeService";
+export { smsService } from "./smsService";
 export { setBusinessId } from "./utils";

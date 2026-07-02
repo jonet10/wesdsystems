@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./useAuth";
-import { setBusinessId, studentService, parentService, teacherService, classService, enrollmentService, invoiceService, paymentService, expenseService, payrollService, subjectService, assignmentService, attendanceService } from "@/modules/school/services";
+import { setBusinessId, studentService, parentService, teacherService, classService, enrollmentService, invoiceService, paymentService, expenseService, payrollService, subjectService, assignmentService, attendanceService, timetableService, gradeService, smsService } from "@/modules/school/services";
 import { useSchoolSettings } from "./useSchoolSettings";
 
 function useBusinessId() {
@@ -398,5 +398,143 @@ export function useSaveAttendance() {
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["school", "attendance", vars.classId, vars.date] });
     },
+  });
+}
+
+// Timetables
+export function useTimetable(classId: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "timetable", classId],
+    queryFn: () => timetableService.getByClass(classId),
+    enabled: !!businessId && !!classId,
+  });
+}
+
+export function useCreateTimetableSlot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: timetableService.create,
+    onSuccess: (_, slot) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "timetable", slot.class_id] });
+    },
+  });
+}
+
+export function useUpdateTimetableSlot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => timetableService.update(id, data),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "timetable", vars.data.class_id] });
+    },
+  });
+}
+
+export function useDeleteTimetableSlot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, classId }: { id: string; classId: string }) => timetableService.remove(id),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "timetable", vars.classId] });
+    },
+  });
+}
+
+// Exams & Grades
+export function useExams(classId: string, academicYearId: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "exams", classId, academicYearId],
+    queryFn: () => gradeService.getExamsByClass(classId, academicYearId),
+    enabled: !!businessId && !!classId && !!academicYearId,
+  });
+}
+
+export function useCreateExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: gradeService.createExam,
+    onSuccess: (_, exam) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "exams", exam.class_id, exam.academic_year_id] });
+    },
+  });
+}
+
+export function useDeleteExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, classId, academicYearId }: { id: string; classId: string; academicYearId: string }) =>
+      gradeService.removeExam(id),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "exams", vars.classId, vars.academicYearId] });
+    },
+  });
+}
+
+export function useExamGrades(classId: string, examId: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "exam-grades", classId, examId],
+    queryFn: () => gradeService.getGradesForExam(classId, examId),
+    enabled: !!businessId && !!classId && !!examId,
+  });
+}
+
+export function useSaveGrades() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ examId, grades }: {
+      examId: string;
+      grades: Array<{ student_id: string; points_obtained: number; note?: string | null }>;
+      classId: string;
+    }) => gradeService.saveGrades(examId, grades),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["school", "exam-grades", vars.classId, vars.examId] });
+    },
+  });
+}
+
+export function useClassReportCards(classId: string, academicYearId: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "report-cards", classId, academicYearId],
+    queryFn: () => gradeService.getClassReportCards(classId, academicYearId),
+    enabled: !!businessId && !!classId && !!academicYearId,
+  });
+}
+
+// SMS Gateway Settings
+export function useSmsSettings() {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "sms-settings"],
+    queryFn: smsService.getSettings,
+    enabled: !!businessId,
+  });
+}
+
+export function useUpdateSmsSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: smsService.updateSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["school", "sms-settings"] });
+    },
+  });
+}
+
+export function useSmsLogs() {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "sms-logs"],
+    queryFn: smsService.getLogs,
+    enabled: !!businessId,
   });
 }

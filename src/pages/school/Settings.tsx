@@ -54,6 +54,14 @@ export default function SchoolSettingsPage() {
   // Stock
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
+  // SMS Gateway config & logs
+  const [smsProvider, setSmsProvider] = useState<'Twilio' | 'Mock'>("Mock");
+  const [smsApiKey, setSmsApiKey] = useState("");
+  const [smsSenderId, setSmsSenderId] = useState("");
+  const [smsAttendanceAlert, setSmsAttendanceAlert] = useState(false);
+  const [smsPaymentAlert, setSmsPaymentAlert] = useState(false);
+  const [smsLogs, setSmsLogs] = useState<any[]>([]);
+
   const [isSaving, setIsSaving]       = useState(false);
   const [businessId, setBusinessId]   = useState<string | null>(null);
   const [settingsId, setSettingsId]   = useState<string | null>(null);
@@ -124,6 +132,30 @@ export default function SchoolSettingsPage() {
             setCurrency(s.currency as any);
           }
         }
+
+        // 4. SMS Settings
+        const { data: smsData } = await supabase
+          .from("school_sms_settings")
+          .select("*")
+          .eq("business_id", bizId)
+          .maybeSingle();
+        if (smsData) {
+          setSmsProvider(smsData.provider);
+          setSmsApiKey(smsData.api_key || "");
+          setSmsSenderId(smsData.sender_id || "");
+          setSmsAttendanceAlert(smsData.enable_attendance_alert);
+          setSmsPaymentAlert(smsData.enable_payment_alert);
+        }
+
+        // 5. SMS Logs
+        const { data: logData } = await supabase
+          .from("school_sms_logs")
+          .select("*")
+          .eq("business_id", bizId)
+          .order("created_at", { ascending: false });
+        if (logData) {
+          setSmsLogs(logData);
+        }
       } catch (err) {
         console.error("Erreur chargement paramètres école:", err);
       }
@@ -178,6 +210,37 @@ export default function SchoolSettingsPage() {
         const { data, error } = await supabase.from("school_settings").insert([payload]).select().single();
         if (error) throw error;
         if (data) setSettingsId((data as any).id);
+      }
+
+      // Save SMS settings
+      const { data: existingSms } = await supabase
+        .from("school_sms_settings")
+        .select("id")
+        .eq("business_id", businessId)
+        .maybeSingle();
+
+      if (existingSms) {
+        await supabase
+          .from("school_sms_settings")
+          .update({
+            provider: smsProvider,
+            api_key: smsApiKey || null,
+            sender_id: smsSenderId || null,
+            enable_attendance_alert: smsAttendanceAlert,
+            enable_payment_alert: smsPaymentAlert,
+          })
+          .eq("id", existingSms.id);
+      } else {
+        await supabase
+          .from("school_sms_settings")
+          .insert([{
+            business_id: businessId,
+            provider: smsProvider,
+            api_key: smsApiKey || null,
+            sender_id: smsSenderId || null,
+            enable_attendance_alert: smsAttendanceAlert,
+            enable_payment_alert: smsPaymentAlert,
+          }]);
       }
 
       toast.success("Paramètres enregistrés avec succès.");
@@ -240,6 +303,9 @@ export default function SchoolSettingsPage() {
               </TabsTrigger>
               <TabsTrigger value="stock" className="gap-2">
                 <Package className="h-4 w-4" /> Stock
+              </TabsTrigger>
+              <TabsTrigger value="sms" className="gap-2">
+                <Smartphone className="h-4 w-4" /> SMS Gateway
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
@@ -509,6 +575,115 @@ export default function SchoolSettingsPage() {
             <TabsContent value="subscription" className="space-y-6">
               <SubscriptionPaymentCard />
               <SubscriptionDashboard />
+            </TabsContent>
+
+            {/* ── SMS GATEWAY ── */}
+            <TabsContent value="sms" className="space-y-6">
+              <StaggerItem>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* SMS Config Form */}
+                  <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                        <Smartphone className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold font-display">Passerelle SMS</h3>
+                        <p className="text-sm text-muted-foreground">Configurez votre fournisseur d'envoi de messages</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Fournisseur</Label>
+                      <select
+                        value={smsProvider}
+                        onChange={e => setSmsProvider(e.target.value as any)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
+                      >
+                        <option value="Mock">Simulateur Local (Gratuit / Test)</option>
+                        <option value="Twilio">Twilio Gateway (Production)</option>
+                      </select>
+                    </div>
+
+                    {smsProvider === "Twilio" && (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label>Twilio Account SID / API Key</Label>
+                          <Input
+                            type="password"
+                            placeholder="Entrez votre Account SID"
+                            value={smsApiKey}
+                            onChange={e => setSmsApiKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label>Twilio Sender ID / N° expéditeur</Label>
+                          <Input
+                            placeholder="Ex: +1234567890"
+                            value={smsSenderId}
+                            onChange={e => setSmsSenderId(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="space-y-4 pt-2 border-t">
+                      <h4 className="font-semibold text-sm">Alertes automatisées</h4>
+                      
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-medium">Notifications d'absences</Label>
+                          <p className="text-xs text-muted-foreground">Envoyer un SMS automatique aux parents lorsqu'un élève est marqué absent.</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={smsAttendanceAlert}
+                          onChange={e => setSmsAttendanceAlert(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-medium">Notifications financières</Label>
+                          <p className="text-xs text-muted-foreground">Envoyer un SMS automatique aux parents pour les factures émises et les reçus de paiement.</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={smsPaymentAlert}
+                          onChange={e => setSmsPaymentAlert(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SMS logs */}
+                  <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4 flex flex-col h-[400px]">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Journal des SMS Envoyés ({smsLogs.length})</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                      {smsLogs.length === 0 ? (
+                        <p className="text-xs text-center text-muted-foreground py-10">Aucun SMS envoyé pour le moment.</p>
+                      ) : smsLogs.map((log, index) => (
+                        <div key={index} className="p-3 rounded-lg border text-xs space-y-1 hover:bg-muted/10 transition-all">
+                          <div className="flex justify-between font-semibold text-muted-foreground">
+                            <span>Destinataire : {log.recipient}</span>
+                            <span className={log.status === 'sent' ? 'text-green-600' : 'text-destructive'}>
+                              {log.status === 'sent' ? '✓ Envoyé' : '✗ Échec'}
+                            </span>
+                          </div>
+                          <p className="text-foreground">{log.message}</p>
+                          <p className="text-[10px] text-muted-foreground text-right">{new Date(log.created_at).toLocaleString("fr-FR")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              </StaggerItem>
             </TabsContent>
           </Tabs>
 
