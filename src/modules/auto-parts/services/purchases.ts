@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsPurchase, AutoPartsPurchaseItem } from "../types";
 
-const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
+const getBranch = (businessId: string, branchId?: string | null) => branchId || getStoredBranchId(businessId) || null;
 
 export async function listPurchases(businessId: string, branchId?: string | null) {
   const branch = getBranch(businessId, branchId);

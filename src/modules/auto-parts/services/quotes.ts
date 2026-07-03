@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { getStoredBranchId } from "@/lib/branch";
 
-const getBranch = (businessId: string, branchId?: string | null) => branchId ?? getStoredBranchId(businessId) ?? null;
+const getBranch = (businessId: string, branchId?: string | null) => branchId || getStoredBranchId(businessId) || null;
 
 export interface QuoteItem {
   product_id?: string | null;

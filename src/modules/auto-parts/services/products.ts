@@ -3,7 +3,7 @@ import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsProduct } from "../types";
 
 const getBranch = (businessId: string, branchId?: string | null) =>
-  branchId ?? getStoredBranchId(businessId) ?? null;
+  branchId || getStoredBranchId(businessId) || null;
 
 // -------------------------------------------------------------------
 // Helper: merge product catalog row with its inventory row
@@ -351,23 +351,18 @@ export async function searchProducts(businessId: string, searchQuery: string, br
     .select(`
       business_id, branch_id, product_id, unit_price, cost_price,
       stock_quantity, reserved_quantity, min_stock, active,
-      product:auto_parts_products(
+      product:auto_parts_products!inner(
         id, name, description, category_id, sku, barcode,
         image_url, created_at, updated_at,
         category:auto_parts_categories(name)
       )
     `)
     .eq("business_id", businessId)
+    .ilike("product.name", `%${searchQuery}%`)
     .limit(50);
 
   if (!invError && invData && invData.length > 0) {
-    const q = searchQuery.toLowerCase();
-    return invData
-      .filter((r: any) => r.product && (
-        r.product.name?.toLowerCase().includes(q) ||
-        r.product.sku?.toLowerCase().includes(q)
-      ))
-      .map((r: any) => mergeInventory(r.product, r));
+    return invData.map((r: any) => mergeInventory(r.product, r));
   }
 
   // Fallback

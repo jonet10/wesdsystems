@@ -3,7 +3,7 @@ import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsCategory } from "../types";
 
 const getBranch = (businessId: string, branchId?: string | null) =>
-  branchId ?? getStoredBranchId(businessId) ?? null;
+  branchId || getStoredBranchId(businessId) || null;
 
 export async function listCategories(businessId: string, branchId?: string | null) {
   // Direct query — only categories belonging to this business (strict isolation)

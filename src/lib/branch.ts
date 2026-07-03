@@ -7,7 +7,7 @@ const getStorageKey = (businessId: string) => `wesd_active_branch_${businessId}`
 export function getStoredBranchId(businessId: string | null | undefined): string | null {
   if (!businessId) return null;
   try {
-    return localStorage.getItem(getStorageKey(businessId));
+    return localStorage.getItem(getStorageKey(businessId)) || null;
   } catch {
     return null;
   }

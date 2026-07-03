@@ -63,7 +63,7 @@ export async function createSale(businessId: string, sale: {
     p_staff_id: sale.staff_id ?? null,
     p_items: JSON.parse(JSON.stringify(items)),
   };
-  const branch = sale.branch_id ?? getStoredBranchId(businessId);
+  const branch = sale.branch_id || getStoredBranchId(businessId);
   if (branch) params.p_branch_id = branch;
   const { data, error } = await supabase.rpc("create_auto_parts_sale", params);
   if (error) {

@@ -3,7 +3,7 @@ import { getStoredBranchId } from "@/lib/branch";
 import type { AutoPartsStockMovement } from "../types";
 
 export async function listStockMovements(businessId: string, branchId?: string | null) {
-  const branch = branchId ?? getStoredBranchId(businessId) ?? null;
+  const branch = branchId || getStoredBranchId(businessId) || null;
   const { data, error } = await supabase.rpc("list_auto_parts_stock_movements", {
     p_business_id: businessId,
     p_branch_id: branch,
@@ -20,7 +20,7 @@ export async function createStockMovement(businessId: string, values: {
   reference?: string;
   notes?: string;
 }, branchId?: string | null) {
-  const branch = branchId ?? getStoredBranchId(businessId) ?? null;
+  const branch = branchId || getStoredBranchId(businessId) || null;
   const { data, error } = await supabase.rpc("record_auto_parts_stock_movement", {
     p_business_id: businessId,
     p_branch_id: branch,
