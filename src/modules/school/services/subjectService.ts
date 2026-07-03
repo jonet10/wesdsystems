@@ -7,7 +7,7 @@ export const subjectService = {
     const businessId = getBusinessId();
     const { data, error } = await supabase
       .from("school_subjects")
-      .select("*")
+      .select("*, school_subject_classes(class_id)")
       .eq("business_id", businessId)
       .order("name", { ascending: true });
     if (error) throw error;

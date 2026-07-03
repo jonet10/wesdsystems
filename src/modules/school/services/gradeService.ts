@@ -181,7 +181,23 @@ export const gradeService = {
       gradesMap.set(g.student_id, list);
     });
 
-    // 5. Aggregate averages by student and subject
+    // 5. Fetch class coefficients and domains
+    const { data: coeffData } = await supabase
+      .from("school_class_subject_coefficients")
+      .select("*, school_subject_domains(*)")
+      .eq("class_id", classId);
+
+    const coeffsMap = new Map<string, { coefficient: number; domain_id: string | null; domain_name: string | null; display_order: number }>();
+    (coeffData || []).forEach(c => {
+      coeffsMap.set(c.subject_id, {
+        coefficient: Number(c.coefficient),
+        domain_id: c.domain_id,
+        domain_name: c.school_subject_domains?.name || null,
+        display_order: c.school_subject_domains?.display_order || 0
+      });
+    });
+
+    // 6. Aggregate averages by student and subject
     const subjectList = Array.from(new Set(exams.map(e => JSON.stringify({ id: e.subject_id, name: e.subject?.name }))));
     const subjects = subjectList.map(s => JSON.parse(s));
 
@@ -202,29 +218,42 @@ export const gradeService = {
         subExams.forEach(ex => {
           const score = sGradesMap.get(ex.id!);
           if (score !== undefined) {
-            // Normalize score to scale of 10
-            const scoreOutOf10 = (score / ex.max_points) * 10;
-            subWeightedSum += scoreOutOf10 * ex.coefficient;
+            // Calculate percentage score (out of 1)
+            const scorePct = score / ex.max_points;
+            subWeightedSum += scorePct * ex.coefficient;
             subCoefSum += ex.coefficient;
           }
         });
 
-        const subjectAverage = subCoefSum > 0 ? Number((subWeightedSum / subCoefSum).toFixed(2)) : null;
+        const subjectPct = subCoefSum > 0 ? (subWeightedSum / subCoefSum) : null;
+        
+        // Load custom coefficient (acts as note max)
+        const customCoeff = coeffsMap.get(sub.id);
+        const subjectMax = customCoeff?.coefficient ?? 10; // Default max is 10
+        const domainId = customCoeff?.domain_id || null;
+        const domainName = customCoeff?.domain_name || null;
+        const displayOrder = customCoeff?.display_order || 0;
 
-        if (subjectAverage !== null) {
-          totalWeightedScore += subjectAverage * subCoefSum; // we weight by sum of coefficients of exams taken
-          totalCoefficient += subCoefSum;
+        const studentNote = subjectPct !== null ? Number((subjectPct * subjectMax).toFixed(2)) : null;
+
+        if (studentNote !== null) {
+          totalWeightedScore += studentNote;
+          totalCoefficient += subjectMax;
         }
 
         return {
           subject_id: sub.id,
           subject_name: sub.name,
-          average: subjectAverage,
-          coef: subCoefSum,
+          average: studentNote,
+          coef: subjectMax,
+          domain_id: domainId,
+          domain_name: domainName,
+          display_order: displayOrder
         };
       });
 
-      const overallAverage = totalCoefficient > 0 ? Number((totalWeightedScore / totalCoefficient).toFixed(2)) : null;
+      // Scale overall average to 10 base
+      const overallAverage = totalCoefficient > 0 ? Number(((totalWeightedScore / totalCoefficient) * 10).toFixed(2)) : null;
 
       return {
         student_id: student.id,
@@ -232,6 +261,8 @@ export const gradeService = {
         matricule: student.matricule || "-",
         gender: student.gender || "-",
         subjects: subjectDetails,
+        totalPoints: Number(totalWeightedScore.toFixed(2)),
+        totalCoefficients: totalCoefficient,
         overallAverage,
       };
     });

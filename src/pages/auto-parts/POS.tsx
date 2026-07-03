@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +41,7 @@ export default function AutoPartsPOSPage() {
   const businessId = useAutoPartsBusinessId();
   const { format, currencyCode } = useCurrency();
   const { autoPartsStaffSession } = useAuth();
-  const [products, setProducts] = useState<(AutoPartsProduct & { category: { name: string } | null })[]>([]);
-  const [categories, setCategories] = useState<AutoPartsCategory[]>([]);
+  
   const [searchQ, setSearchQ] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -53,12 +53,10 @@ export default function AutoPartsPOSPage() {
   const [discountType, setDiscountType] = useState<"none" | "percentage" | "fixed">("none");
   const [discountValue, setDiscountValue] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [lastSale, setLastSale] = useState<{ id: string; invoice_number: string } | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [amountTendered, setAmountTendered] = useState<number | "">("");
   const receiptRef = useRef<HTMLDivElement>(null);
-  const [staff, setStaff] = useState<AutoPartsStaff[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string>("");
   const [receiptSnapshot, setReceiptSnapshot] = useState<{
     cart: CartItem[]; subtotal: number; discountAmount: number;
@@ -68,30 +66,32 @@ export default function AutoPartsPOSPage() {
     companyName: string; logoUrl?: string; address?: string; phone?: string; nif?: string;
     receiptHeader?: string; receiptFooter?: string;
   } | null>(null);
-  const [bizSettings, setBizSettings] = useState<{
-    company_name: string; logo_url?: string; address?: string; phone?: string; nif?: string;
-    receipt_header?: string; receipt_footer?: string; invoice_prefix?: string;
-  } | null>(null);
+
+  const { data: posData, isLoading: loading, refetch } = useQuery({
+    queryKey: ["auto-parts-pos-data", businessId],
+    queryFn: async () => {
+      const [productsData, categoriesData, staffList, settings] = await Promise.all([
+        listProducts(businessId) as Promise<(AutoPartsProduct & { category: { name: string } | null })[]>,
+        listCategories(businessId),
+        listStaff(businessId),
+        getBusinessSettings(businessId).catch(() => null),
+      ]);
+      return { productsData, categoriesData, staffList, settings };
+    },
+    enabled: !!businessId,
+    staleTime: 5 * 60 * 1000, // 5 minutes Cache
+  });
+
+  const products = posData?.productsData || [];
+  const categories = posData?.categoriesData || [];
+  const staff = posData?.staffList || [];
+  const bizSettings = posData?.settings || null;
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [productsData, categoriesData, staffList, bizSettings] = await Promise.all([
-          listProducts(businessId) as any,
-          listCategories(businessId),
-          listStaff(businessId),
-          getBusinessSettings(businessId).catch(() => null),
-        ]);
-        setProducts(productsData);
-        setCategories(categoriesData);
-        setStaff(staffList);
-        setBizSettings(bizSettings);
-        if (autoPartsStaffSession && autoPartsStaffSession.business_id === businessId) {
-          setSelectedStaff(autoPartsStaffSession.id);
-        }
-      } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
-    })();
-  }, [businessId, autoPartsStaffSession]);
+    if (staff.length > 0 && autoPartsStaffSession && autoPartsStaffSession.business_id === businessId) {
+      setSelectedStaff(autoPartsStaffSession.id);
+    }
+  }, [staff, autoPartsStaffSession, businessId]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -411,7 +411,15 @@ export default function AutoPartsPOSPage() {
       </Dialog>
 
       {/* Receipt Dialog */}
-      <Dialog open={showReceipt} onOpenChange={(open) => { if (!open) setReceiptSnapshot(null); setShowReceipt(open); }}>
+      <Dialog open={showReceipt} onOpenChange={(open) => { 
+        if (!open) {
+          setReceiptSnapshot(null);
+          setShowReceipt(false);
+          refetch();
+        } else {
+          setShowReceipt(open);
+        }
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Vente enregistrée</DialogTitle></DialogHeader>
           {lastSale && receiptSnapshot && (
@@ -462,7 +470,7 @@ export default function AutoPartsPOSPage() {
                 />
               </div>
               <DialogFooter className="gap-2 mt-4">
-                <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); }}>{t("common.close")}</Button>
+                <Button variant="outline" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); refetch(); }}>{t("common.close")}</Button>
                 <Button onClick={() => {
                   if (receiptRef.current) {
                     const data: ReceiptData = {

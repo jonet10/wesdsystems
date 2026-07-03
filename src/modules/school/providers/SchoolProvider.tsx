@@ -12,6 +12,8 @@ import { Outlet } from "react-router-dom";
 
 interface SchoolContextType {
   schoolType: SchoolType;
+  evaluationPeriodType: 'steps' | 'trimestres';
+  bulletinModel: 'A' | 'B' | 'C' | 'CUSTOM';
   engine: SchoolEngine;
   isLoading: boolean;
   isConfigured: boolean;
@@ -25,6 +27,8 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const [schoolType, setSchoolType] = useState<SchoolType>("CLASSIC");
+  const [evaluationPeriodType, setEvaluationPeriodType] = useState<'steps' | 'trimestres'>('steps');
+  const [bulletinModel, setBulletinModel] = useState<'A' | 'B' | 'C' | 'CUSTOM'>('A');
   const [isConfigured, setIsConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,7 +47,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("school_configurations")
-        .select("school_type")
+        .select("school_type, evaluation_period_type, bulletin_model")
         .eq("business_id", businessId)
         .maybeSingle();
 
@@ -51,6 +55,8 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
 
       if (data) {
         setSchoolType(data.school_type as SchoolType);
+        setEvaluationPeriodType((data.evaluation_period_type || 'steps') as 'steps' | 'trimestres');
+        setBulletinModel(((data as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM');
         setIsConfigured(true);
       } else {
         setIsConfigured(false);
@@ -121,7 +127,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SchoolContext.Provider value={{ schoolType, engine, isLoading, isConfigured, refetchConfig: fetchConfig }}>
+    <SchoolContext.Provider value={{ schoolType, evaluationPeriodType, bulletinModel, engine, isLoading, isConfigured, refetchConfig: fetchConfig }}>
       {children}
 
       {/* Setup Wizard Overlay if not configured */}

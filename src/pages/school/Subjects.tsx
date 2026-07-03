@@ -11,6 +11,7 @@ import { Plus, Pencil, Trash2, Search, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { useClasses } from "@/hooks/useSchoolData";
 import type { SchoolSubject } from "@/modules/school/types";
 
 export default function SchoolSubjects() {
@@ -23,9 +24,12 @@ export default function SchoolSubjects() {
 
   // Form
   const [name, setName] = useState("");
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [selectedClassFilter, setSelectedClassFilter] = useState("all");
   const [isSaving, setIsSaving] = useState(false);
   const [search, setSearch] = useState("");
 
+  const { data: classes = [] } = useClasses();
   const businessId = profile?.business_id || user?.user_metadata?.business_id;
 
   const loadSubjects = async () => {
@@ -33,7 +37,7 @@ export default function SchoolSubjects() {
     try {
       const { data, error } = await supabase
         .from("school_subjects")
-        .select("*")
+        .select("*, school_subject_classes(class_id, school_classes(name))")
         .eq("business_id", businessId)
         .order("name", { ascending: true });
 
@@ -53,11 +57,18 @@ export default function SchoolSubjects() {
   const resetForm = () => {
     setEditingSubject(null);
     setName("");
+    setSelectedClassIds([]);
   };
 
   const handleEdit = (subject: SchoolSubject) => {
     setEditingSubject(subject);
     setName(subject.name);
+    
+    const linkedIds = subject.school_subject_classes?.map(sc => sc.class_id) || [];
+    if (linkedIds.length === 0 && subject.class_id) {
+      linkedIds.push(subject.class_id);
+    }
+    setSelectedClassIds(linkedIds);
     setIsDialogOpen(true);
   };
 
@@ -72,19 +83,61 @@ export default function SchoolSubjects() {
     setIsSaving(true);
     try {
       if (editingSubject) {
-        const { error } = await supabase
+        // 1. Update subject name
+        const { error: subjectError } = await supabase
           .from("school_subjects")
           .update({ name: name.trim() })
           .eq("id", editingSubject.id);
 
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+
+        // 2. Delete existing class relations
+        const { error: deleteError } = await supabase
+          .from("school_subject_classes")
+          .delete()
+          .eq("subject_id", editingSubject.id);
+
+        if (deleteError) throw deleteError;
+
+        // 3. Insert new class relations
+        if (selectedClassIds.length > 0) {
+          const insertPayload = selectedClassIds.map(cid => ({
+            business_id: businessId,
+            subject_id: editingSubject.id,
+            class_id: cid
+          }));
+          const { error: insertError } = await supabase
+            .from("school_subject_classes")
+            .insert(insertPayload);
+          
+          if (insertError) throw insertError;
+        }
+
         toast.success("Matière mise à jour");
       } else {
-        const { error } = await supabase
+        // 1. Insert subject
+        const { data: newSubject, error: subjectError } = await supabase
           .from("school_subjects")
-          .insert([{ business_id: businessId, name: name.trim() }]);
+          .insert([{ business_id: businessId, name: name.trim() }])
+          .select("id")
+          .single();
 
-        if (error) throw error;
+        if (subjectError) throw subjectError;
+
+        // 2. Insert class relations
+        if (selectedClassIds.length > 0 && newSubject) {
+          const insertPayload = selectedClassIds.map(cid => ({
+            business_id: businessId,
+            subject_id: newSubject.id,
+            class_id: cid
+          }));
+          const { error: insertError } = await supabase
+            .from("school_subject_classes")
+            .insert(insertPayload);
+          
+          if (insertError) throw insertError;
+        }
+
         toast.success("Matière ajoutée");
       }
       setIsDialogOpen(false);
@@ -113,9 +166,21 @@ export default function SchoolSubjects() {
     }
   };
 
-  const filteredSubjects = subjects.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredSubjects = subjects.filter(s => {
+    const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
+    
+    const subjectClassIds = s.school_subject_classes?.map(sc => sc.class_id) || [];
+    if (subjectClassIds.length === 0 && s.class_id) {
+      subjectClassIds.push(s.class_id);
+    }
+
+    const matchesClass = selectedClassFilter === "all"
+      ? true
+      : selectedClassFilter === "none"
+        ? subjectClassIds.length === 0
+        : subjectClassIds.includes(selectedClassFilter);
+    return matchesSearch && matchesClass;
+  });
 
   return (
     <DashboardLayout role="salon_admin">
@@ -144,6 +209,38 @@ export default function SchoolSubjects() {
                     autoFocus 
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Classes associées</Label>
+                  <div className="grid grid-cols-2 gap-2 max-h-[160px] overflow-y-auto border border-zinc-800 rounded-md p-3 bg-zinc-900/40">
+                    {classes.length === 0 ? (
+                      <p className="text-xs text-muted-foreground col-span-2">Aucune classe disponible</p>
+                    ) : (
+                      classes.map((cls: any) => {
+                        const isChecked = selectedClassIds.includes(cls.id);
+                        return (
+                          <div key={cls.id} className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox" 
+                              id={`class-${cls.id}`} 
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedClassIds(prev => [...prev, cls.id]);
+                                } else {
+                                  setSelectedClassIds(prev => prev.filter(id => id !== cls.id));
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-primary focus:ring-primary"
+                            />
+                            <label htmlFor={`class-${cls.id}`} className="text-xs select-none cursor-pointer font-medium leading-none text-zinc-300">
+                              {cls.name}
+                            </label>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
                 <div className="flex justify-end pt-4">
                   <Button type="submit" disabled={isSaving}>
                     {isSaving ? "Enregistrement..." : "Enregistrer"}
@@ -155,14 +252,27 @@ export default function SchoolSubjects() {
         </div>
 
         <Card className="p-4 bg-muted/30">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher une matière..." 
-              value={search} 
-              onChange={(e) => setSearch(e.target.value)} 
-              className="pl-9" 
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher une matière..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                className="pl-9" 
+              />
+            </div>
+            <select
+              value={selectedClassFilter}
+              onChange={e => setSelectedClassFilter(e.target.value)}
+              className="flex h-10 w-full sm:w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="all">Toutes les classes</option>
+              <option value="none">Générale / Non assignée</option>
+              {classes.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
         </Card>
 
@@ -172,14 +282,15 @@ export default function SchoolSubjects() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Matière</TableHead>
+                  <TableHead>Classe</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={2} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
                 ) : filteredSubjects.length === 0 ? (
-                  <TableRow><TableCell colSpan={2} className="text-center py-8 text-muted-foreground">Aucune matière trouvée.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Aucune matière trouvée.</TableCell></TableRow>
                 ) : (
                   filteredSubjects.map((subject) => (
                     <TableRow key={subject.id}>
@@ -188,6 +299,22 @@ export default function SchoolSubjects() {
                           <BookOpen className="h-4 w-4 text-primary" />
                         </div>
                         {subject.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {(() => {
+                          const linkedClasses = subject.school_subject_classes
+                            ?.map(sc => sc.school_classes?.name)
+                            .filter(Boolean) || [];
+                          
+                          if (linkedClasses.length === 0 && subject.class_id) {
+                            const legacyClass = classes.find((c: any) => c.id === subject.class_id);
+                            if (legacyClass) linkedClasses.push(legacyClass.name);
+                          }
+
+                          return linkedClasses.length > 0 
+                            ? linkedClasses.join(", ") 
+                            : "Générale / Non assignée";
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleEdit(subject)}><Pencil className="h-4 w-4" /></Button>

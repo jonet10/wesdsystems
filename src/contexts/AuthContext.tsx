@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { hasPermission as checkPermission, type Permission, type AutoPartsRole } from '@/config/permissions';
 import { supabase } from '@/lib/supabase';
 import { normalizeEmployeeRole } from '@/lib/employee-role';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import {
   loadEmployeeSession,
   revokeEmployeeSession,
@@ -381,12 +382,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const { target: impersonationTarget } = useImpersonation();
+
+  // When impersonating, override the profile with the target's data
+  const effectiveProfile = impersonationTarget
+    ? {
+        id: impersonationTarget.user_id,
+        full_name: impersonationTarget.user_name,
+        role: impersonationTarget.role,
+        role_normalized: impersonationTarget.role,
+        business_id: impersonationTarget.business_id,
+        business_type: impersonationTarget.business_type,
+      }
+    : profile;
+
   return (
     <AuthContext.Provider
       value={{
         user,
         session,
-        profile,
+        profile: effectiveProfile,
         isLoading,
         isAuthenticated: !!session,
         employeeSession,

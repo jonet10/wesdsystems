@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { useSchool } from "@/hooks/useSchool";
 import { SchoolCapability } from "@/modules/school/engine/types";
-import { Library, School, Milestone } from "lucide-react";
+import { Library, School, Milestone, Layers } from "lucide-react";
 
 export default function SchoolDashboard() {
   const navigate = useNavigate();
@@ -126,7 +126,13 @@ export default function SchoolDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.extraStats.totalClasses}</div>
-                <p className="text-xs text-muted-foreground mt-1">Nombre total de filières / groupes d'études</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {engine.getActivePlugin().id === "CLASSIC"
+                    ? "Classes actives dans l'établissement"
+                    : engine.getActivePlugin().id === "VOCATIONAL"
+                      ? "Modules de formation actifs"
+                      : "Nombre total de filières / groupes d'études"}
+                </p>
               </CardContent>
             </Card>
           </StaggerItem>

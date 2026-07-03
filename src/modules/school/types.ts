@@ -345,7 +345,12 @@ export interface SchoolSubject {
   id: string;
   business_id: string;
   name: string;
+  class_id?: string | null;
   created_at: string;
+  school_subject_classes?: Array<{
+    class_id: string;
+    school_classes?: { name: string } | null;
+  }>;
 }
 
 export interface SchoolTeacherAssignment {

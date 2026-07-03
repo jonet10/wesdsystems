@@ -463,12 +463,9 @@ const withLocalFallback = async <T>(
   apiCall: () => Promise<T>,
   localFallback: () => T
 ): Promise<T> => {
-  try {
-    return await apiCall();
-  } catch {
-    console.warn("[pending-tabs] API indisponible, utilisation du stockage local");
-    return localFallback();
-  }
+  // Le serveur d'API n'étant pas disponible dans cette architecture SPA (serverless Supabase),
+  // on utilise directement la gestion locale (qui se synchronise déjà avec Supabase).
+  return localFallback();
 };
 
 const tryLocalStorage = (): boolean => {

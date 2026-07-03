@@ -8,6 +8,8 @@ import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { PricingProvider } from "@/contexts/PricingContext";
 import { ColorThemeProvider } from "@/contexts/ColorThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ImpersonationProvider } from "@/contexts/ImpersonationContext";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { Suspense, lazy } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -78,6 +80,7 @@ const AutoPartsPOS = lazy(() => import("./pages/auto-parts/POS"));
 // School
 import SchoolDashboard from "./pages/school/Dashboard";
 import SchoolSettings from "./pages/school/Settings";
+import ReportBuilder from "./pages/school/builder/ReportBuilder";
 import SchoolAcademicYears from "./pages/school/AcademicYears";
 import SchoolClasses from "./pages/school/Classes";
 import SchoolSubjects from "./pages/school/Subjects";
@@ -141,10 +144,12 @@ const App = () => (
         <ColorThemeProvider>
         <CurrencyProvider>
           <PricingProvider>
-            <AuthProvider>
+            <ImpersonationProvider>
+              <AuthProvider>
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
+                <ImpersonationBanner />
                 <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center font-sans font-medium text-gray-500">Chargement de la plateforme...</div>}>
                     <Routes>
@@ -567,6 +572,14 @@ const App = () => (
                   }
                 />
                 <Route
+                  path="/school/settings/builder"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} requiredPermissions="settings" allowAuthenticatedWithoutRole>
+                      <ReportBuilder />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/school/academic-years"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} requiredPermissions="academic_years" allowAuthenticatedWithoutRole>
@@ -751,6 +764,7 @@ const App = () => (
             </BrowserRouter>
               </TooltipProvider>
             </AuthProvider>
+            </ImpersonationProvider>
           </PricingProvider>
         </CurrencyProvider>
         </ColorThemeProvider>

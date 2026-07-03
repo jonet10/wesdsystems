@@ -56,11 +56,32 @@ export async function listProductsFull(businessId: string, sessionToken?: string
 }
 
 export async function getProduct(id: string, businessId?: string) {
+  // If businessId is provided, try the new inventory architecture first
+  if (businessId) {
+    const { data: invRow } = await supabase
+      .from("auto_parts_product_inventory")
+      .select("*")
+      .eq("product_id", id)
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    if (invRow) {
+      const { data: prod, error: prodError } = await supabase
+        .from("auto_parts_products")
+        .select("*, category:auto_parts_categories(name)")
+        .eq("id", id)
+        .maybeSingle();
+      if (prodError) throw prodError;
+      if (prod) return mergeInventory(prod, invRow);
+    }
+  }
+
+  // Fallback: old architecture or no businessId
   const { data, error } = await supabase
     .from("auto_parts_products")
     .select("*, category:auto_parts_categories(name)")
     .eq("id", id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data as AutoPartsProduct & { category: { name: string } | null };
 }
@@ -164,13 +185,20 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
   if (!businessId) throw new Error("businessId is required");
   const branch = getBranch(businessId, values.branch_id);
 
-  // Check if inventory table is in use
-  const { data: invRow } = await supabase
+  // Check if inventory table is in use for this specific branch
+  let invQuery = supabase
     .from("auto_parts_product_inventory")
     .select("id")
     .eq("product_id", id)
-    .eq("business_id", businessId)
-    .maybeSingle();
+    .eq("business_id", businessId);
+
+  if (branch) {
+    invQuery = invQuery.eq("branch_id", branch);
+  } else {
+    invQuery = invQuery.is("branch_id", null);
+  }
+
+  const { data: invRow } = await invQuery.maybeSingle();
 
   if (invRow) {
     // Update product global fields (name, description, category)
@@ -189,7 +217,7 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     if (prodError) throw prodError;
 
     // Update inventory (business-specific fields)
-    const { error: invError } = await supabase
+    let invUpdate = supabase
       .from("auto_parts_product_inventory")
       .update({
         unit_price: Number(values.unit_price) || 0,
@@ -200,17 +228,69 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
         location: values.location ?? null,
         notes: values.notes ?? null,
         active: values.active ?? true,
-        branch_id: branch ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq("product_id", id)
       .eq("business_id", businessId);
+
+    if (branch) {
+      invUpdate = invUpdate.eq("branch_id", branch);
+    } else {
+      invUpdate = invUpdate.is("branch_id", null);
+    }
+
+    const { error: invError } = await invUpdate;
     if (invError) throw invError;
 
     return await getProduct(id, businessId);
   }
 
-  // Old architecture: direct update
+  // No inventory row found. Check if product is a global product (new arch, business_id=null)
+  // that was created without an inventory row. If so, create the inventory row now.
+  const { data: globalProd } = await supabase
+    .from("auto_parts_products")
+    .select("*, category:auto_parts_categories(name)")
+    .eq("id", id)
+    .is("business_id", null)
+    .maybeSingle();
+
+  if (globalProd) {
+    // Product is in the global catalog — create inventory row and update it
+    const { error: invCreateError } = await supabase
+      .from("auto_parts_product_inventory")
+      .insert({
+        business_id: businessId,
+        branch_id: branch ?? null,
+        product_id: id,
+        unit_price: Number(values.unit_price) || 0,
+        cost_price: Number(values.cost_price) || 0,
+        stock_quantity: Number(values.stock_quantity) || 0,
+        reserved_quantity: 0,
+        min_stock: Number(values.min_stock) || 0,
+        max_stock: values.max_stock ? Number(values.max_stock) : null,
+        location: values.location ?? null,
+        notes: values.notes ?? null,
+        active: values.active ?? true,
+      });
+    if (invCreateError) throw invCreateError;
+
+    // Also update the global product fields
+    await supabase
+      .from("auto_parts_products")
+      .update({
+        name: values.name,
+        description: values.description ?? null,
+        category_id: values.category_id || null,
+        sku: values.sku ?? null,
+        barcode: values.barcode ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    return await getProduct(id, businessId);
+  }
+
+  // Old architecture: product has business_id set directly on the products table
   const payload: Record<string, unknown> = {
     ...values,
     unit_price: Number(values.unit_price) || 0,
@@ -226,7 +306,7 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     .eq("id", id)
     .eq("business_id", businessId)
     .select("*, category:auto_parts_categories(name)")
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data as AutoPartsProduct & { category: { name: string } | null };
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import {
   Building2, Save, Globe, Smartphone, FileText, Hash,
   CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock
@@ -59,6 +60,11 @@ export default function SchoolSettingsPage() {
 
   // Stock
   const [lowStockThreshold, setLowStockThreshold] = useState(5);
+
+  // Period Type
+  const [evaluationPeriodType, setEvaluationPeriodType] = useState<'steps' | 'trimestres'>('steps');
+  // Bulletin Model
+  const [bulletinModel, setBulletinModel] = useState<'A' | 'B' | 'C' | 'CUSTOM'>('A');
 
   // SMS Gateway config & logs
   const [smsProvider, setSmsProvider] = useState<'Twilio' | 'Mock'>("Mock");
@@ -170,7 +176,18 @@ export default function SchoolSettingsPage() {
           setSmsPaymentAlert(smsData.enable_payment_alert);
         }
 
-        // 5. SMS Logs
+        // 5. School configurations
+        const { data: configData } = await supabase
+          .from("school_configurations")
+          .select("evaluation_period_type")
+          .eq("business_id", bizId)
+          .maybeSingle();
+        if (configData) {
+          setEvaluationPeriodType((configData.evaluation_period_type || 'steps') as 'steps' | 'trimestres');
+          setBulletinModel(((configData as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM');
+        }
+
+        // 6. SMS Logs
         const { data: logData } = await supabase
           .from("school_sms_logs")
           .select("*")
@@ -264,6 +281,21 @@ export default function SchoolSettingsPage() {
             enable_attendance_alert: smsAttendanceAlert,
             enable_payment_alert: smsPaymentAlert,
           }]);
+      }
+
+      // Save evaluation period type to school_configurations
+      // Only update if the row already exists (created by the school setup wizard)
+      const { data: existingConfig } = await supabase
+        .from("school_configurations")
+        .select("id")
+        .eq("business_id", businessId)
+        .maybeSingle();
+
+      if (existingConfig) {
+        await supabase
+          .from("school_configurations")
+          .update({ evaluation_period_type: evaluationPeriodType, bulletin_model: bulletinModel })
+          .eq("business_id", businessId);
       }
 
       toast.success("Paramètres enregistrés avec succès.");
@@ -478,8 +510,146 @@ export default function SchoolSettingsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Evaluation Period Configuration */}
+                  <div className="border-t border-border pt-6 mt-6 space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-sm font-semibold">Système d'évaluation (Périodes)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Détermine le découpage de l'année scolaire sur le carnet de notes.
+                        </p>
+                      </div>
+                      <select
+                        value={evaluationPeriodType}
+                        onChange={(e) => setEvaluationPeriodType(e.target.value as 'steps' | 'trimestres')}
+                        className="flex h-10 w-full sm:w-[240px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
+                      >
+                        <option value="steps">Par étapes (4 Périodes - Haïti)</option>
+                        <option value="trimestres">Par trimestres (3 Périodes)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* ── Bulletin Model Selector ── */}
+                  <div className="border-t border-border pt-6 mt-6 space-y-4">
+                    <div className="space-y-1 mb-4">
+                      <Label className="text-sm font-semibold">Modèle de bulletin scolaire</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Choisissez la mise en page utilisée pour imprimer les bulletins de vos élèves.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {/* Modèle A */}
+                      <button
+                        type="button"
+                        onClick={() => setBulletinModel('A')}
+                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 ${
+                          bulletinModel === 'A'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Modèle A</div>
+                        <div className="text-sm font-semibold">Portrait Simple</div>
+                        <div className="border border-gray-300 rounded p-2 text-[9px] bg-white text-black space-y-0.5">
+                          <div className="text-center font-bold border-b pb-0.5">École Nationale</div>
+                          <div className="text-center text-[8px]">Bulletin Scolaire</div>
+                          <div className="border border-gray-300 text-[8px]">
+                            <div className="flex border-b border-gray-200"><span className="flex-1">Math</span><span className="w-8 text-center">300</span><span className="w-8 text-center">200</span></div>
+                            <div className="flex border-b border-gray-200"><span className="flex-1">Français</span><span className="w-8 text-center">200</span><span className="w-8 text-center">130</span></div>
+                            <div className="flex font-bold"><span className="flex-1">Total</span><span className="w-8 text-center">500</span><span className="w-8 text-center">330</span></div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">1 bulletin / feuille — portrait</p>
+                      </button>
+
+                      {/* Modèle B */}
+                      <button
+                        type="button"
+                        onClick={() => setBulletinModel('B')}
+                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 ${
+                          bulletinModel === 'B'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Modèle B</div>
+                        <div className="text-sm font-semibold">Portrait Groupé</div>
+                        <div className="border border-gray-300 rounded p-2 text-[9px] bg-white text-black space-y-0.5">
+                          <div className="text-center font-bold border-b pb-0.5">École Diocésaine</div>
+                          <div className="border border-gray-300 text-[8px]">
+                            <div className="flex border-b border-gray-200"><span className="w-5 text-center font-bold">Fr.</span><span className="flex-1">Grammaire</span><span className="w-7 text-center">10</span><span className="w-7 text-center">8</span></div>
+                            <div className="flex border-b border-gray-200"><span className="w-5"></span><span className="flex-1">Dictée</span><span className="w-7 text-center">10</span><span className="w-7 text-center">7</span></div>
+                            <div className="flex bg-gray-100 italic"><span className="w-5"></span><span className="flex-1">Moyenne</span><span className="w-7"></span><span className="w-7 text-center font-bold">7.5</span></div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">1 bulletin / feuille — groupé par domaines</p>
+                      </button>
+
+                      {/* Modèle C */}
+                      <button
+                        type="button"
+                        onClick={() => setBulletinModel('C')}
+                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 ${
+                          bulletinModel === 'C'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Modèle C</div>
+                        <div className="text-sm font-semibold">Double Paysage</div>
+                        <div className="border border-gray-300 rounded p-2 text-[9px] bg-white text-black">
+                          <div className="flex gap-1">
+                            <div className="flex-1 border border-gray-300 p-1 space-y-0.5">
+                              <div className="text-center text-[7px] font-bold border-b">Bulletin — Élève A</div>
+                              <div className="text-[7px] flex"><span className="w-3 text-center">1</span><span className="flex-1">Math</span><span className="w-6 text-right">200</span><span className="w-6 text-right">140</span></div>
+                              <div className="text-[7px] flex"><span className="w-3 text-center">2</span><span className="flex-1">Fr.</span><span className="w-6 text-right">300</span><span className="w-6 text-right">210</span></div>
+                            </div>
+                            <div className="flex-1 border border-gray-300 p-1 space-y-0.5">
+                              <div className="text-center text-[7px] font-bold border-b">Bulletin — Élève A</div>
+                              <div className="text-[7px] flex"><span className="w-3 text-center">1</span><span className="flex-1">Math</span><span className="w-6 text-right">200</span><span className="w-6 text-right">140</span></div>
+                              <div className="text-[7px] flex"><span className="w-3 text-center">2</span><span className="flex-1">Fr.</span><span className="w-6 text-right">300</span><span className="w-6 text-right">210</span></div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">2 bulletins / feuille — paysage 8.5×11</p>
+                      </button>
+
+                      {/* Modèle Personnalisé (CUSTOM) */}
+                      <button
+                        type="button"
+                        onClick={() => setBulletinModel('CUSTOM')}
+                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 relative overflow-hidden ${
+                          bulletinModel === 'CUSTOM'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-xs font-bold uppercase tracking-wider text-primary flex items-center justify-between">
+                          <span>Sur Mesure</span>
+                          <Sparkles size={14} />
+                        </div>
+                        <div className="text-sm font-semibold">Modèle Personnalisé</div>
+                        <div className="border border-dashed border-gray-400 rounded p-4 text-center bg-gray-50 text-gray-400 flex flex-col items-center justify-center gap-2 h-[120px]">
+                          <FileText size={24} />
+                          <span className="text-xs font-medium">Construit via l'Éditeur Visuel</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Créez votre propre mise en page</p>
+                        
+                        <div className="mt-4 pt-2 border-t flex justify-center">
+                          <Link to="/school/settings/builder" onClick={(e) => e.stopPropagation()} className="w-full">
+                            <Button size="sm" variant={bulletinModel === 'CUSTOM' ? "default" : "outline"} className="w-full text-xs h-8">
+                              <FileText className="w-3 h-3 mr-2" /> Ouvrir l'Éditeur Visuel
+                            </Button>
+                          </Link>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </StaggerItem>
+
             </TabsContent>
 
             {/* ── DOCUMENTS ── */}

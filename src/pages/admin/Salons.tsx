@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { MONCASH_PUBLIC_URLS } from "@/lib/moncash";
+import { useImpersonation } from "@/contexts/ImpersonationContext";
+import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Ban,
@@ -20,6 +22,7 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
+  Eye,
   Pencil,
   RefreshCcw,
   Search,
@@ -197,6 +200,8 @@ function statusMeta(status: SubscriptionStatus) {
 export default function SalonsPage() {
   const { t } = useTranslation();
   const { format } = useCurrency();
+  const { startImpersonation } = useImpersonation();
+  const navigate = useNavigate();
   const [businesses, setBusinesses] = useState<BusinessRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [branches, setBranches] = useState<BranchRow[]>([]);
@@ -759,6 +764,38 @@ export default function SalonsPage() {
                     <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Modifier
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-violet-500/40 text-violet-400 hover:bg-violet-500/10 hover:text-violet-300"
+                      onClick={async () => {
+                        // Fetch the business owner profile
+                        const { data: profiles } = await supabase
+                          .from("profiles")
+                          .select("id, full_name, role, role_normalized, business_type")
+                          .eq("business_id", row.id)
+                          .limit(1);
+                        const owner = profiles?.[0];
+                        startImpersonation({
+                          business_id: row.id,
+                          business_name: row.name,
+                          business_type: owner?.business_type ?? "auto_parts",
+                          user_id: owner?.id ?? row.id,
+                          user_name: owner?.full_name ?? row.name,
+                          user_email: "",
+                          role: owner?.role_normalized ?? owner?.role ?? "salon_admin",
+                        });
+                        // Navigate to the appropriate dashboard
+                        const bizType = owner?.business_type;
+                        if (bizType === "auto_parts") navigate("/auto-parts");
+                        else if (bizType === "school") navigate("/school");
+                        else if (bizType === "pharmacy") navigate("/pharmacie");
+                        else navigate("/salon");
+                      }}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Accéder en tant que
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => window.open(buildMonCashPaymentLink(row), "_blank")}>
                       <Wallet className="mr-2 h-4 w-4" />

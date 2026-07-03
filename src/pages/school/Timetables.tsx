@@ -187,13 +187,18 @@ export default function SchoolTimetables() {
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 font-medium">
                     <Label>Salle de classe</Label>
-                    <Input
-                      placeholder="Ex: Salle 10A"
+                    <select
                       value={classroom}
                       onChange={e => setClassroom(e.target.value)}
-                    />
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
+                    >
+                      <option value="">-- Choisir une classe --</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

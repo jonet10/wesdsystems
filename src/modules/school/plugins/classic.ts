@@ -92,7 +92,13 @@ export class ClassicPlugin implements SchoolPlugin {
   }
 
   public async getDashboardStatsQuery(businessId: string, supabase: any): Promise<any> {
-    return {}; // No additional specific queries
+    const { count } = await supabase
+      .from("school_classes")
+      .select("id", { count: "exact", head: true })
+      .eq("business_id", businessId);
+    return {
+      totalClasses: count || 0
+    };
   }
 
   public getReportColumns(type: "classlist" | "attendance" | "grades"): any[] {

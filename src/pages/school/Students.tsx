@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ExportButtons } from "@/components/school/ExportButtons";
 import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useClasses } from "@/hooks/useSchoolData";
 import { useSchool } from "@/hooks/useSchool";
+import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import type { SchoolStudent, SchoolAcademicYear } from "@/modules/school/types";
 
@@ -41,6 +42,13 @@ export default function SchoolStudents() {
   const createStudent = useCreateStudent();
   const updateStudent = useUpdateStudent();
   const deleteStudent = useDeleteStudent();
+
+  // Form State
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<SchoolStudent | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingMatricule, setIsLoadingMatricule] = useState(false);
+  const [matriculeEditable, setMatriculeEditable] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -73,12 +81,6 @@ export default function SchoolStudents() {
     if (isDialogOpen) loadOptions();
   }, [isDialogOpen, businessId]);
 
-  // Form State
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingStudent, setEditingStudent] = useState<SchoolStudent | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingMatricule, setIsLoadingMatricule] = useState(false);
-  const [matriculeEditable, setMatriculeEditable] = useState(false);
 
   const initialFormState = {
     matricule: "",
