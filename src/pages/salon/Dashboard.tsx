@@ -46,16 +46,20 @@ interface DashboardStat {
 
 export default function SalonDashboard() {
   const { t } = useTranslation();
-  const { isAuthenticated, profile } = useAuth();
+  const { isAuthenticated, profile, employeeSession } = useAuth();
   const { formatCompact, format } = useCurrency();
   const subscriptionReminder = useSubscriptionPaymentReminder();
   const { data: branches = [], isFetching: branchesFetching } = useBusinessBranches();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const [dashboardTimeZone, setDashboardTimeZone] = useState(DEFAULT_PLATFORM_TIME_ZONE);
+  
+  const employeeBranchId = employeeSession?.branch_id || null;
+  
   const activeBranchId = useMemo(() => {
+    if (employeeBranchId) return employeeBranchId;
     const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
     return validBranchId || branches[0]?.id || null;
-  }, [branchId, branches]);
+  }, [branchId, branches, employeeBranchId]);
   const isBranchInitialising = Boolean(isAuthenticated && branchesFetching);
 
   const [activeBiz, setActiveBiz] = useState(glowupStore.getActiveBusiness());
