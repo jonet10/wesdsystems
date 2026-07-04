@@ -1,4 +1,4 @@
-﻿-- 1. Add admin_pin_hash to businesses
+-- 1. Add admin_pin_hash to businesses
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS admin_pin_hash TEXT;
 
 -- 2. Create function to set admin pin
@@ -74,9 +74,9 @@ BEGIN
   -- 5. Restituer le stock
   FOR v_item IN SELECT * FROM public.salon_sale_items WHERE sale_id = v_sale.id AND product_id IS NOT NULL LOOP
     INSERT INTO public.salon_inventory_movements (
-      branch_id, product_id, type, quantity, reason
+      branch_id, product_id, movement_type, quantity_change, reason
     ) VALUES (
-      v_sale.branch_id, v_item.product_id, 'in', v_item.quantity, 'Annulation de vente (Fiche supprimee)'
+      v_sale.branch_id, v_item.product_id, 'return', v_item.quantity, 'Annulation de vente (Fiche supprimée)'
     );
 
     UPDATE public.salon_products
