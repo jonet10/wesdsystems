@@ -97,6 +97,8 @@ export default function SalonSettingsPage() {
   const [receiptPolicyMessage, setReceiptPolicyMessage] = useState("Aucun échange ni remboursement après sortie du magasin.");
   const [showQrCode, setShowQrCode] = useState(true);
   const [showBarcode, setShowBarcode] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
+  const [isSavingPin, setIsSavingPin] = useState(false);
 
   const persistBusinessPatch = useCallback(
     async (patch: Partial<Omit<BusinessRow, "id">>) => {
@@ -137,6 +139,34 @@ export default function SalonSettingsPage() {
     setBusinessDays((prev) =>
       prev.map((day, idx) => (idx === index ? { ...day, isOpen: !day.isOpen } : day))
     );
+  };
+
+  const handleSaveAdminPin = async () => {
+    if (!adminPin || adminPin.length < 4) {
+      toast.error("Le code PIN doit contenir au moins 4 caractères");
+      return;
+    }
+    const targetBusinessId = profile?.business_id ?? businessId ?? user?.user_metadata?.business_id;
+    if (!targetBusinessId) return;
+
+    try {
+      setIsSavingPin(true);
+      const { data, error } = await supabase.rpc("set_business_admin_pin", {
+        p_business_id: targetBusinessId,
+        p_pin: adminPin
+      });
+      if (error) throw error;
+      const res = data as { success: boolean; error?: string };
+      if (!res.success) throw new Error(res.error || "Erreur inconnue");
+      
+      toast.success("Code PIN Maître défini avec succès");
+      setAdminPin(""); // clear after saving
+    } catch (err: any) {
+      console.error("Error setting admin pin:", err);
+      toast.error(err.message || "Erreur lors de la configuration du code PIN");
+    } finally {
+      setIsSavingPin(false);
+    }
   };
 
   const handleTimeChange = (index: number, field: "openTime" | "closeTime", value: string) => {
@@ -718,6 +748,44 @@ export default function SalonSettingsPage() {
                     >
                       <Printer className="h-4 w-4" />
                       Tester l'impression
+                    </Button>
+                  </div>
+                </div>
+              </StaggerItem>
+
+              {/* Code PIN Administrateur */}
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <h3 className="text-lg font-semibold font-display text-destructive">Sécurité & Code PIN Maître</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Le Code PIN Maître est utilisé par le propriétaire du compte pour outrepasser la sécurité sur la caisse (ex: Supprimer une fiche).
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                    <div className="space-y-2 flex-1 max-w-xs">
+                      <Label className="text-sm font-semibold">Nouveau Code PIN Maître</Label>
+                      <Input
+                        type="password"
+                        placeholder="Ex: 1234"
+                        value={adminPin}
+                        onChange={(e) => setAdminPin(e.target.value)}
+                        className="font-mono tracking-widest text-lg h-11"
+                        maxLength={6}
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSaveAdminPin} 
+                      disabled={isSavingPin || !adminPin}
+                      className="gap-2 h-11 w-full sm:w-auto"
+                    >
+                      {isSavingPin ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                      ) : (
+                        <Save className="h-4 w-4" />
+                      )}
+                      Enregistrer
                     </Button>
                   </div>
                 </div>

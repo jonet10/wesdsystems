@@ -761,7 +761,7 @@ export default function POSPage() {
   const handleDeleteSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deleteSaleId || !deleteAdminPin.trim()) {
-      toast.error("Veuillez entrer le code PIN administrateur");
+      toast.error("Veuillez entrer le Code PIN Maître");
       return;
     }
     
@@ -2475,9 +2475,9 @@ export default function POSPage() {
               </div>
             </>
           )}
-            </CardContent>
-          </Card>
-        </StaggerItem>
+          </CardContent>
+        </Card>
+      </StaggerItem>
       </StaggerContainer>
 
       <Dialog open={optionsModalOpen} onOpenChange={setOptionsModalOpen}>
@@ -3171,7 +3171,7 @@ export default function POSPage() {
           </DialogHeader>
           <div className="py-4 text-sm text-muted-foreground">
             <p>Cette action est irréversible. Les statistiques du client seront annulées et les articles seront remis en stock.</p>
-            <p className="mt-2 font-medium text-foreground">Veuillez entrer le code PIN Administrateur pour confirmer :</p>
+            <p className="mt-2 font-medium text-foreground">Veuillez entrer le Code PIN Maître pour confirmer :</p>
           </div>
           <form onSubmit={handleDeleteSale} className="space-y-4">
             <Input
