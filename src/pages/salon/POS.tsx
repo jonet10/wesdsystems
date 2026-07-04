@@ -2671,6 +2671,7 @@ export default function POSPage() {
                 placeholder="Ex : Jean, Table 3"
                 value={pendingTabLabel}
                 onChange={(e) => setPendingTabLabel(e.target.value)}
+                autoComplete="off"
               />
             </div>
             <div className="space-y-1.5">
@@ -2706,6 +2707,7 @@ export default function POSPage() {
                       placeholder="Rechercher un client..."
                       value={pendingTabClientQuery}
                       onChange={(e) => handlePendingTabClientQueryChange(e.target.value)}
+                      autoComplete="off"
                     />
                     {pendingTabClientLoading && (
                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
