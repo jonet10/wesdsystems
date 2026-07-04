@@ -225,6 +225,9 @@ export default function POSPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"catalogue" | "products" | "services">("products");
   const [showReceipt, setShowReceipt] = useState(false);
+  const [deleteSaleId, setDeleteSaleId] = useState<string | null>(null);
+  const [deleteAdminPin, setDeleteAdminPin] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [showDiscount, setShowDiscount] = useState(false);
@@ -754,6 +757,42 @@ export default function POSPage() {
     });
     setShowReceipt(true);
   };
+
+  const handleDeleteSale = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteSaleId || !deleteAdminPin.trim()) {
+      toast.error("Veuillez entrer le code PIN administrateur");
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.rpc("delete_salon_sale_with_pin", {
+        p_sale_id: deleteSaleId,
+        p_pin: deleteAdminPin.trim()
+      });
+
+      if (error) throw error;
+      
+      const res = data as { success: boolean; error?: string };
+      if (!res.success) {
+        toast.error(res.error || "Impossible de supprimer la fiche");
+        return;
+      }
+
+      toast.success("Fiche supprimée avec succès");
+      setDeleteSaleId(null);
+      setDeleteAdminPin("");
+      
+      void loadSalesHistory();
+    } catch (err: any) {
+      console.error("Error deleting sale:", err);
+      toast.error("Une erreur est survenue lors de la suppression");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   const loadPendingTabDetail = async (tabId: string) => {
     setPendingTabLoading(true);
@@ -1944,6 +1983,14 @@ export default function POSPage() {
                                           <Printer className="h-3.5 w-3.5" />
                                           Réimprimer
                                         </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="destructive"
+                                          className="h-8 text-xs gap-1.5 ml-2"
+                                          onClick={() => setDeleteSaleId(sale.id)}
+                                        >
+                                          Supprimer
+                                        </Button>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -3111,6 +3158,39 @@ export default function POSPage() {
               Créer la fiche en attente
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Sale Dialog */}
+      <Dialog open={!!deleteSaleId} onOpenChange={(open) => !open && setDeleteSaleId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              Supprimer cette fiche ?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-sm text-muted-foreground">
+            <p>Cette action est irréversible. Les statistiques du client seront annulées et les articles seront remis en stock.</p>
+            <p className="mt-2 font-medium text-foreground">Veuillez entrer le code PIN Administrateur pour confirmer :</p>
+          </div>
+          <form onSubmit={handleDeleteSale} className="space-y-4">
+            <Input
+              type="password"
+              placeholder="Code PIN"
+              value={deleteAdminPin}
+              onChange={(e) => setDeleteAdminPin(e.target.value)}
+              autoFocus
+              className="text-center text-lg tracking-[0.3em] font-mono"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDeleteSaleId(null)}>
+                Annuler
+              </Button>
+              <Button type="submit" variant="destructive" disabled={isDeleting}>
+                {isDeleting ? "Suppression..." : "Confirmer"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
