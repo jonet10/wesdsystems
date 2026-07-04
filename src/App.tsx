@@ -238,11 +238,11 @@ const App = () => (
                     <Route
                       key={`${prefix}/${route.path}`}
                       path={`/${prefix}${route.path}`}
-                      element={
-                        <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole>
-                          {route.element}
-                        </ProtectedRoute>
-                      }
+                        element={
+                          <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={route.permission}>
+                            {route.element}
+                          </ProtectedRoute>
+                        }
                     />
                   )).concat(
                     <Route

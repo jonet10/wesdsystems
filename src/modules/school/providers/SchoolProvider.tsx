@@ -17,6 +17,7 @@ interface SchoolContextType {
   engine: SchoolEngine;
   isLoading: boolean;
   isConfigured: boolean;
+  useDocumentEngine: boolean;
   refetchConfig: () => Promise<void>;
 }
 
@@ -30,6 +31,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   const [evaluationPeriodType, setEvaluationPeriodType] = useState<'steps' | 'trimestres'>('steps');
   const [bulletinModel, setBulletinModel] = useState<'A' | 'B' | 'C' | 'CUSTOM'>('A');
   const [isConfigured, setIsConfigured] = useState(false);
+  const [useDocumentEngine, setUseDocumentEngine] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Setup Wizard states
@@ -47,7 +49,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("school_configurations")
-        .select("school_type, evaluation_period_type, bulletin_model")
+        .select("school_type, evaluation_period_type, bulletin_model, use_document_engine")
         .eq("business_id", businessId)
         .maybeSingle();
 
@@ -57,6 +59,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
         setSchoolType(data.school_type as SchoolType);
         setEvaluationPeriodType((data.evaluation_period_type || 'steps') as 'steps' | 'trimestres');
         setBulletinModel(((data as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM');
+        setUseDocumentEngine((data as any).use_document_engine || false);
         setIsConfigured(true);
       } else {
         setIsConfigured(false);
@@ -127,7 +130,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SchoolContext.Provider value={{ schoolType, evaluationPeriodType, bulletinModel, engine, isLoading, isConfigured, refetchConfig: fetchConfig }}>
+    <SchoolContext.Provider value={{ schoolType, evaluationPeriodType, bulletinModel, engine, isLoading, isConfigured, useDocumentEngine, refetchConfig: fetchConfig }}>
       {children}
 
       {/* Setup Wizard Overlay if not configured */}

@@ -19,6 +19,10 @@ import {
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { useSchool } from "@/hooks/useSchool";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { DocumentEngineWrapper } from "@/modules/document-engine/ui/components/DocumentEngineWrapper";
+import { TemplateRepository } from "@/modules/document-engine/storage/TemplateRepository";
+import { supabase } from "@/lib/supabase";
 
 // ─── Periods helpers ─────────────────────────────────────────────────────────
 const STEPS_PERIODS = [
@@ -36,21 +40,32 @@ const TRIMESTRE_PERIODS = [
 
 export default function SchoolGrades() {
   const { settings, activeAcademicYear } = useSchoolSettings();
-  const { engine, evaluationPeriodType, bulletinModel } = useSchool();
+  const { profile } = useAuth();
+  const { engine, evaluationPeriodType, bulletinModel, useDocumentEngine } = useSchool();
+  const businessId = profile?.business_id;
 
   const periods = evaluationPeriodType === "trimestres" ? TRIMESTRE_PERIODS : STEPS_PERIODS;
 
   const [activeTab, setActiveTab] = useState("grades");
-  const [localBulletinModel, setLocalBulletinModel] = useState<'A' | 'B' | 'C' | 'CUSTOM'>(bulletinModel || 'A');
+  const [localBulletinModel, setLocalBulletinModel] = useState<string>(bulletinModel || 'A');
+  const [customTemplates, setCustomTemplates] = useState<any[]>([]);
 
-  // Load custom template if needed
-  const [customTemplate, setCustomTemplate] = useState<any[]>([]);
+  useEffect(() => {
+    if (useDocumentEngine && businessId) {
+      TemplateRepository.getTemplates(businessId, 'school').then(templates => {
+        setCustomTemplates(templates.filter(t => t.type === 'report_card'));
+      });
+    }
+  }, [useDocumentEngine, businessId]);
 
   useEffect(() => {
     if (bulletinModel) {
       setLocalBulletinModel(bulletinModel);
     }
   }, [bulletinModel]);
+
+  // Load custom template if needed
+  const [customTemplate, setCustomTemplate] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCustomTemplate = async () => {
@@ -1268,13 +1283,16 @@ export default function SchoolGrades() {
                   <Label>Modèle de bulletin</Label>
                   <select
                     value={localBulletinModel}
-                    onChange={(e) => setLocalBulletinModel(e.target.value as 'A' | 'B' | 'C')}
+                    onChange={(e) => setLocalBulletinModel(e.target.value)}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
                   >
                     <option value="A">Modèle A (Portrait Simple)</option>
                     <option value="B">Modèle B (Portrait Groupé)</option>
                     <option value="C">Modèle C (Double Paysage)</option>
                     <option value="CUSTOM">Modèle Personnalisé (Constructeur)</option>
+                    {customTemplates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} (Modèle Importé)</option>
+                    ))}
                   </select>
                 </div>
                 <Button onClick={() => refetchReportCards()}>
@@ -1375,7 +1393,16 @@ export default function SchoolGrades() {
               return (
                 <div className="space-y-4">
                   <div id="student-bulletin-printable">
-                    {renderBulletin(student)}
+                    {useDocumentEngine && !['A', 'B', 'C'].includes(localBulletinModel) ? (
+                      <DocumentEngineWrapper 
+                        moduleName="school" 
+                        contextId={student.id} 
+                        templateId={localBulletinModel !== 'CUSTOM' ? localBulletinModel : undefined}
+                        fallback={renderBulletin(student)} 
+                      />
+                    ) : (
+                      renderBulletin(student)
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-3 font-sans">

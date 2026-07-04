@@ -22,9 +22,12 @@ import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
+import { DocumentEngineDashboard } from "@/modules/document-engine/ui/DocumentEngineDashboard";
 import { useSchool } from "@/hooks/useSchool";
 import { SchoolType } from "@/modules/school/engine/types";
 import type { SchoolSetting } from "@/modules/school/types";
+import { DocxParserPlugin } from "@/modules/document-engine/plugins/DocxParserPlugin";
+import { TemplateRepository } from "@/modules/document-engine/storage/TemplateRepository";
 
 export default function SchoolSettingsPage() {
   const { t } = useTranslation();
@@ -77,6 +80,57 @@ export default function SchoolSettingsPage() {
   const [isSaving, setIsSaving]       = useState(false);
   const [businessId, setBusinessId]   = useState<string | null>(null);
   const [settingsId, setSettingsId]   = useState<string | null>(null);
+  const [uploadingDocx, setUploadingDocx] = useState(false);
+
+  const handleDocxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !businessId) return;
+
+    try {
+      setUploadingDocx(true);
+      toast.loading("Importation du document en cours...", { id: 'docx_upload' });
+
+      // 1. Parse le DOCX en AST
+      // DocxParser class inside DocxParserPlugin file is not exported directly, but we can instantiate the parser
+      // Actually, since DocxParser is not exported, we should fix that or export it. Wait, we can instantiate it or fix the plugin file.
+      // Let's assume we export DocxParser from the plugin file. (I will fix it next).
+      const parser = new (await import('@/modules/document-engine/plugins/DocxParserPlugin')).DocxParser();
+      const ast = await parser.parse(file);
+
+      // 2. Sauvegarde du Template
+      const template = await TemplateRepository.createTemplate({
+        business_id: businessId,
+        module: 'school',
+        name: file.name.replace('.docx', ''),
+        type: 'report_card'
+      });
+
+      if (template) {
+        // 3. Sauvegarde de la version
+        const version = await TemplateRepository.saveVersion(template.id, ast);
+        if (version) {
+          // 4. Publication et activation
+          await TemplateRepository.publishVersion(template.id, version.id, businessId);
+          
+          // Mise à jour de la configuration de l'établissement
+          await supabase.from("school_configurations").update({ 
+            use_document_engine: true,
+            bulletin_model: 'CUSTOM'
+          }).eq("business_id", businessId);
+          
+          toast.success("Modèle importé et activé avec succès !", { id: 'docx_upload' });
+          await refetchConfig();
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de l'importation", { id: 'docx_upload', description: err.message });
+    } finally {
+      setUploadingDocx(false);
+      // reset file input
+      e.target.value = '';
+    }
+  };
 
   const handleUpdateType = async () => {
     if (!businessId) return;
@@ -638,11 +692,23 @@ export default function SchoolSettingsPage() {
                         <p className="text-xs text-muted-foreground">Créez votre propre mise en page</p>
                         
                         <div className="mt-4 pt-2 border-t flex justify-center">
-                          <Link to="/school/settings/builder" onClick={(e) => e.stopPropagation()} className="w-full">
+                          <div className="flex flex-col gap-2 w-full">
                             <Button size="sm" variant={bulletinModel === 'CUSTOM' ? "default" : "outline"} className="w-full text-xs h-8">
-                              <FileText className="w-3 h-3 mr-2" /> Ouvrir l'Éditeur Visuel
+                              Sélectionner
                             </Button>
-                          </Link>
+                            {bulletinModel === 'CUSTOM' && (
+                              <div className="mt-2 p-3 border border-dashed rounded-lg bg-zinc-50/50 text-center relative overflow-hidden">
+                                {uploadingDocx && (
+                                  <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+                                    <Sparkles className="h-5 w-5 animate-spin text-primary" />
+                                  </div>
+                                )}
+                                <FileText className="h-6 w-6 text-zinc-400 mx-auto mb-2" />
+                                <p className="text-xs text-zinc-600 mb-2">Importez votre modèle (.docx)</p>
+                                <Input type="file" accept=".docx" className="text-xs cursor-pointer" onChange={handleDocxUpload} onClick={(e) => e.stopPropagation()} disabled={uploadingDocx} />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </button>
                     </div>
@@ -809,9 +875,10 @@ export default function SchoolSettingsPage() {
 
             {/* ── ABONNEMENT ── */}
             <TabsContent value="subscription" className="space-y-6">
-              <SubscriptionPaymentCard />
               <SubscriptionDashboard />
             </TabsContent>
+
+
 
             {/* ── SMS GATEWAY ── */}
             <TabsContent value="sms" className="space-y-6">

@@ -199,7 +199,12 @@ export default function Login() {
       }
 
       console.log("[Login] staff login result:", res);
-      if (res.staff_type === "auto_parts") glowupStore.setActiveBusiness("auto_parts");
+      if (res.staff_type === "auto_parts") {
+        glowupStore.setActiveBusiness("auto_parts");
+      } else if (res.staff_type === "salon") {
+        glowupStore.setActiveBusiness("salon");
+      }
+      
       const route = res.staff_type === "auto_parts" ? "/auto-parts/pos" : "/employee";
       navigate(route);
 
