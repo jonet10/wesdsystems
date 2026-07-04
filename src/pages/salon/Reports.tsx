@@ -38,14 +38,18 @@ import {
 const COLORS = ["#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#3b82f6", "#ec4899", "#14b8a6", "#f97316"];
 
 export default function ReportsPage() {
-  const { profile } = useAuth();
+  const { profile, employeeSession } = useAuth();
   const { format: fmt } = useCurrency();
   const { data: branches = [] } = useBusinessBranches();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  
+  const employeeBranchId = employeeSession?.branch_id || null;
+  
   const activeBranchId = useMemo(() => {
+    if (employeeBranchId) return employeeBranchId;
     const validBranchId = branchId && branches.some((branch) => branch.id === branchId) ? branchId : null;
     return validBranchId || branches[0]?.id || null;
-  }, [branchId, branches]);
+  }, [branchId, branches, employeeBranchId]);
   const [period, setPeriod] = useState("month");
   const [sales, setSales] = useState<any[]>([]);
   const [saleItems, setSaleItems] = useState<any[]>([]);
