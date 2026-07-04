@@ -23,11 +23,19 @@ const customFetch = (url: RequestInfo | URL, options?: RequestInit) => {
   }
 
   try {
-    const staffSession = localStorage.getItem('auto_parts_staff_session');
-    if (staffSession) {
-      const parsed = JSON.parse(staffSession);
+    const autoPartsSession = localStorage.getItem('auto_parts_staff_session');
+    const salonSession = localStorage.getItem('glowup_employee_session');
+    
+    // Prioritize auto_parts session if both exist (or adapt logic as needed)
+    const activeSessionStr = salonSession || autoPartsSession;
+    
+    if (activeSessionStr) {
+      const parsed = JSON.parse(activeSessionStr);
       if (parsed?.session_token) {
         headers.set('x-staff-session', parsed.session_token);
+      } else if (parsed?.token) {
+        // Handle salon session format if it differs
+        headers.set('x-staff-session', parsed.token);
       }
     }
   } catch (e) {
