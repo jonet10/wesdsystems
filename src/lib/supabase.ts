@@ -11,7 +11,7 @@ const customFetch = (url: RequestInfo | URL, options?: RequestInit) => {
   const headers = new Headers(options?.headers);
   
   try {
-    const empSession = localStorage.getItem('wesd_salon_employee');
+    const empSession = localStorage.getItem('glowup_employee_session');
     if (empSession) {
       const parsed = JSON.parse(empSession);
       if (parsed?.session_token) {
@@ -23,7 +23,7 @@ const customFetch = (url: RequestInfo | URL, options?: RequestInit) => {
   }
 
   try {
-    const staffSession = localStorage.getItem('wesd_staff_session');
+    const staffSession = localStorage.getItem('auto_parts_staff_session');
     if (staffSession) {
       const parsed = JSON.parse(staffSession);
       if (parsed?.session_token) {
