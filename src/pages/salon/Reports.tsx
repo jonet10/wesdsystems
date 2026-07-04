@@ -85,21 +85,36 @@ export default function ReportsPage() {
       }
       const salesStart = getDayRangeInTimeZone(dateRange.start, DEFAULT_PLATFORM_TIME_ZONE).start;
       const salesEnd = getDayRangeInTimeZone(dateRange.end, DEFAULT_PLATFORM_TIME_ZONE).end;
+      const employeeFilter = employeeSession && employeeSession.role !== "manager" && employeeSession.role !== "salon_admin" 
+        ? employeeSession.id 
+        : null;
+
+      let salesQuery = supabase
+        .from("salon_sales")
+        .select("id, total_amount, return_amount, discount_amount, tax_amount, payment_method, created_at")
+        .eq("branch_id", activeBranchId)
+        .gte("created_at", salesStart)
+        .lte("created_at", salesEnd)
+        .order("created_at");
+
+      let itemsQuery = supabase
+        .from("salon_sale_items")
+        .select("id, sale_id, product_id, service_id, quantity, unit_price, total_price, created_at")
+        .eq("branch_id", activeBranchId)
+        .gte("created_at", salesStart)
+        .lte("created_at", salesEnd)
+        .order("created_at");
+
+      if (employeeFilter) {
+        salesQuery = salesQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
+        // We cannot easily filter itemsQuery by cashier_id since it's on the sale table, 
+        // but we can filter it in JS after fetching sales, or we just fetch all items for the branch and filter locally.
+        // Or if salon_sale_items has employee_id, we filter by that. Let's just fetch them and filter locally based on salesRes.
+      }
+
       const [salesRes, itemsRes, productsRes, servicesRes, expensesRes] = await Promise.all([
-        supabase
-          .from("salon_sales")
-          .select("id, total_amount, return_amount, discount_amount, tax_amount, payment_method, created_at")
-          .eq("branch_id", activeBranchId)
-          .gte("created_at", salesStart)
-          .lte("created_at", salesEnd)
-          .order("created_at"),
-        supabase
-          .from("salon_sale_items")
-          .select("id, sale_id, product_id, service_id, quantity, unit_price, total_price, created_at")
-          .eq("branch_id", activeBranchId)
-          .gte("created_at", salesStart)
-          .lte("created_at", salesEnd)
-          .order("created_at"),
+        salesQuery,
+        itemsQuery,
         supabase.from("salon_products").select("id, name").eq("branch_id", activeBranchId),
         supabase.from("salon_services").select("id, name").eq("branch_id", activeBranchId),
         supabase
@@ -117,10 +132,17 @@ export default function ReportsPage() {
       if (servicesRes.error) throw servicesRes.error;
       if (expensesRes.error) throw expensesRes.error;
 
-      setSales(salesRes.data || []);
+      const filteredSales = salesRes.data || [];
+      setSales(filteredSales);
+      
+      const salesIds = new Set(filteredSales.map((s: any) => s.id));
+      const filteredItems = employeeFilter 
+        ? (itemsRes.data || []).filter((item: any) => salesIds.has(item.sale_id))
+        : (itemsRes.data || []);
+
       const productNames = new Map((productsRes.data || []).map((p: any) => [p.id, p.name]));
       const serviceNames = new Map((servicesRes.data || []).map((s: any) => [s.id, s.name]));
-      setSaleItems((itemsRes.data || []).map((item: any) => ({
+      setSaleItems(filteredItems.map((item: any) => ({
         ...item,
         product_name: item.product_id ? productNames.get(item.product_id) : undefined,
         service_name: item.service_id ? serviceNames.get(item.service_id) : undefined,

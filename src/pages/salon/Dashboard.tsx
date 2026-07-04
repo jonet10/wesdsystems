@@ -113,6 +113,26 @@ export default function SalonDashboard() {
         const todayRange = getDayRangeInTimeZone(todayKey, timeZone);
         const weekStartRange = getDayRangeInTimeZone(weekStartKey, timeZone);
 
+        const employeeFilter = employeeSession && employeeSession.role !== "manager" && employeeSession.role !== "salon_admin" 
+          ? employeeSession.id 
+          : null;
+
+        let clientsQuery = supabase.from("salon_customers").select("id, first_name, last_name, email, phone, total_spent, visit_count, last_visit").eq("is_active", true).eq("branch_id", activeBranchId);
+        let employeesQuery = supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId);
+        let appointmentsQuery = supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100);
+        let servicesQuery = supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId);
+        let salesTodayQuery = supabase.from("salon_sales").select("total_amount, return_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end);
+        let recentSalesQuery = supabase.from("salon_sales").select("id, total_amount, return_amount, refund_status, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10);
+        let productsQuery = supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true);
+        let weekSalesQuery = supabase.from("salon_sales").select("total_amount, return_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end);
+
+        if (employeeFilter) {
+          appointmentsQuery = appointmentsQuery.eq("employee_id", employeeFilter);
+          salesTodayQuery = salesTodayQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
+          recentSalesQuery = recentSalesQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
+          weekSalesQuery = weekSalesQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
+        }
+
         const [
           { data: clientsRes },
           { data: employeesRes },
@@ -123,14 +143,14 @@ export default function SalonDashboard() {
           { data: products },
           { data: weekSales },
         ] = await Promise.all([
-          supabase.from("salon_customers").select("id, first_name, last_name, email, phone, total_spent, visit_count, last_visit").eq("is_active", true).eq("branch_id", activeBranchId),
-          supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId),
-          supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100),
-          supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId),
-          supabase.from("salon_sales").select("total_amount, return_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end),
-          supabase.from("salon_sales").select("id, total_amount, return_amount, refund_status, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10),
-          supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true),
-          supabase.from("salon_sales").select("total_amount, return_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end),
+          clientsQuery,
+          employeesQuery,
+          appointmentsQuery,
+          servicesQuery,
+          salesTodayQuery,
+          recentSalesQuery,
+          productsQuery,
+          weekSalesQuery,
         ]);
 
         setClients((clientsRes || []).map((client: any) => ({
