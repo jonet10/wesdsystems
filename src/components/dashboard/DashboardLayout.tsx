@@ -1,28 +1,57 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { DashboardHeader } from "./DashboardHeader";
 import { useEnsureDefaultBranch } from "@/hooks/useEnsureDefaultBranch";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AlertTriangle, CreditCard, Lock, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  role: "super_admin" | "salon_admin" | "bar_admin" | "employee" | "partner";
+  role?: "super_admin" | "salon_admin" | "bar_admin" | "employee" | "partner" | string;
   title: string;
   subtitle?: string;
   userName?: string;
 }
 
-export const DashboardLayout = ({ children, role, title, subtitle, userName }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, role: explicitRole, title, subtitle, userName: explicitUserName }: DashboardLayoutProps) => {
   useEnsureDefaultBranch();
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const { profile, employeeSession, autoPartsStaffSession, isAuthenticated } = useAuth();
+  
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const subscriptionReminder = useSubscriptionPaymentReminder();
-  const isBusinessArea = role === "salon_admin" || role === "bar_admin";
+
+  const { effectiveRole, effectiveUserName } = useMemo(() => {
+    const isEmployeeContext = location.pathname.startsWith("/employee") || 
+                             (employeeSession && !isAuthenticated);
+                             
+    if (isEmployeeContext && employeeSession) {
+      return {
+        effectiveRole: "employee",
+        effectiveUserName: employeeSession.full_name
+      };
+    }
+    
+    if (autoPartsStaffSession && !isAuthenticated) {
+      return {
+        effectiveRole: "employee",
+        effectiveUserName: autoPartsStaffSession.name
+      };
+    }
+
+    return {
+      effectiveRole: explicitRole || profile?.role || "employee",
+      effectiveUserName: explicitUserName || profile?.full_name || "Utilisateur"
+    };
+  }, [explicitRole, explicitUserName, profile, employeeSession, autoPartsStaffSession, isAuthenticated, location.pathname]);
+
+  const isBusinessArea = effectiveRole === "salon_admin" || effectiveRole === "bar_admin";
   const isSubscriptionLocked = isBusinessArea && subscriptionReminder.isCritical;
 
   return (
@@ -30,7 +59,7 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
       {/* FOREGROUND CONTENT */}
       <div className="relative z-10 flex w-full h-full">
         <DashboardSidebar
-          role={role}
+          role={effectiveRole as any}
           mobileOpen={mobileSidebarOpen}
           onMobileToggle={() => setMobileSidebarOpen(false)}
         />
@@ -38,8 +67,8 @@ export const DashboardLayout = ({ children, role, title, subtitle, userName }: D
           <DashboardHeader
             title={title}
             subtitle={subtitle}
-            userName={userName}
-            userRole={role}
+            userName={effectiveUserName}
+            userRole={effectiveRole}
             onMenuToggle={isMobile ? () => setMobileSidebarOpen(true) : undefined}
           />
           <main className="relative flex-1 overflow-auto p-4 md:p-6">

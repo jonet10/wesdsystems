@@ -9,11 +9,15 @@ interface SubscriptionGuardProps {
 }
 
 export function SubscriptionGuard({ children, fallback }: SubscriptionGuardProps) {
-  const { profile } = useAuth();
+  const { profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
   const { data, isLoading, isFetching } = useBusinessSubscription();
   const isOwner = profile?.role === "salon_admin" || profile?.role === "bar_admin";
 
-  console.log(`[SubscriptionGuard] isLoading=${isLoading} isFetching=${isFetching} isActive=${data?.isActive} hasSubscription=${!!data?.subscription} status=${data?.subscription?.status} end_date=${data?.subscription?.end_date} hasPlan=${!!data?.plan}`);
+  const isEmployeeOnlySession = !isAuthenticated && (!!employeeSession || !!autoPartsStaffSession);
+
+  if (isEmployeeOnlySession) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (

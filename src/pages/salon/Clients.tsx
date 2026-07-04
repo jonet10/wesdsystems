@@ -239,10 +239,10 @@ export default function ClientsPage() {
   if ((isAuthenticated && branchesFetching) || (isAuthenticated && !activeBranchId)) {
     return (
       <DashboardLayout
-        role="salon_admin"
+
         title="Clients"
         subtitle="Initialisation du salon..."
-        userName="Marie Laurent"
+
       >
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
@@ -261,10 +261,10 @@ export default function ClientsPage() {
 
   return (
     <DashboardLayout
-      role="salon_admin"
+
       title="Clients"
       subtitle="Gérez votre base clients"
-      userName="Marie Laurent"
+
     >
       <SubscriptionGuard>
         <div className="print-header-container">

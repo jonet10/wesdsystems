@@ -363,7 +363,7 @@ export default function AppointmentsPage() {
 
   if ((isAuthenticated && branchesFetching) || (isAuthenticated && !activeBranchId)) {
     return (
-      <DashboardLayout role="salon_admin" title="Agenda" subtitle="Initialisation du salon...">
+      <DashboardLayout title="Agenda" subtitle="Initialisation du salon...">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="max-w-xl w-full rounded-2xl border border-border bg-card/95 p-8 text-center shadow-elevated">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
@@ -381,10 +381,10 @@ export default function AppointmentsPage() {
 
   return (
     <DashboardLayout
-      role="salon_admin"
+
       title="Agenda"
       subtitle="Gérez vos rendez-vous"
-      userName="Marie Laurent"
+
     >
       <SubscriptionGuard>
         <StaggerContainer className="space-y-6">
