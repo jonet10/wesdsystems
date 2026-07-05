@@ -186,6 +186,46 @@ export default function SchoolGrades() {
     setGradeInputs({});
   }, [selectedExamId]);
 
+  // Auto-sync missing exams: if current period has no exam, but another period does, auto-create it
+  useEffect(() => {
+    if (!allExams || !selectedSubjectId || !selectedPeriod || !selectedClassId || !activeAcademicYear) return;
+    
+    // Find all exams for the selected subject
+    const subjectExams = allExams.filter(e => e.subject_id === selectedSubjectId);
+    if (subjectExams.length === 0) return; // No exam exists for this subject at all
+    
+    // Check if the current period is missing an exam
+    const hasCurrentPeriodExam = subjectExams.some(e => (e as any).period_name === selectedPeriod);
+    
+    if (!hasCurrentPeriodExam && !isSavingExam) {
+      // Find a template exam from another period
+      const templateExam = subjectExams.find(e => (e as any).period_name === 'Etape 1') || subjectExams[0];
+      
+      if (templateExam) {
+        setIsSavingExam(true);
+        const baseName = templateExam.name.includes(' – ') ? templateExam.name.split(' – ')[1] : templateExam.name;
+        
+        createExamMutation.mutateAsync({
+          class_id: selectedClassId,
+          subject_id: selectedSubjectId,
+          academic_year_id: activeAcademicYear.id,
+          name: `${selectedPeriod} – ${baseName}`,
+          max_points: templateExam.max_points,
+          coefficient: templateExam.coefficient,
+          exam_date: templateExam.exam_date || format(new Date(), "yyyy-MM-dd"),
+          period_name: selectedPeriod,
+        } as any).then(() => {
+          toast.success(`Évaluation automatiquement synchronisée pour ${selectedPeriod}`);
+          refetchExams();
+        }).catch((err) => {
+          console.error("Auto-sync error:", err);
+        }).finally(() => {
+          setIsSavingExam(false);
+        });
+      }
+    }
+  }, [selectedPeriod, selectedSubjectId, allExams, selectedClassId, activeAcademicYear, isSavingExam]);
+
   // Pre-fill exam dialog fields based on current selections
   const openCreateExamDialog = () => {
     const selectedSubjectName = allSubjects.find(s => s.id === selectedSubjectId)?.name || "";
