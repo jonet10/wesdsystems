@@ -118,12 +118,22 @@ export default function SalonDashboard() {
           : null;
 
         // ── Données de ventes : RPC sécurisée pour les employés (bypass RLS) ──
+        console.log("[Dashboard] employeeSession:", JSON.stringify({
+          id: employeeSession?.id,
+          role: employeeSession?.role,
+          branch_id: employeeSession?.branch_id,
+          has_token: !!employeeSession?.session_token,
+          token_prefix: employeeSession?.session_token?.slice(0, 10),
+        }));
+
         if (employeeSession?.session_token) {
+          console.log("[Dashboard] Calling get_employee_dashboard_stats with branch:", activeBranchId);
           try {
             const { data: empData, error: empError } = await supabase.rpc(
               "get_employee_dashboard_stats",
               { p_session_token: employeeSession.session_token, p_branch_id: activeBranchId }
             );
+            console.log("[Dashboard] RPC result:", { empData, empError });
             if (!empError && empData) {
               // Revenus du jour depuis la RPC
               const dayRevenue = Number(empData?.day?.revenue || 0);
@@ -134,15 +144,12 @@ export default function SalonDashboard() {
                 setRecentSales(empData.today_sales);
               }
 
-              // Graphique semaine: on utilise week revenue comme total
-              // On reconstruit un dayMap simple avec le revenue de la semaine
-              const weekRevenue = Number(empData?.week?.revenue || 0);
+              // Graphique semaine
               const todayKey2 = getDateKeyInTimeZone(new Date(), timeZone);
               const weekStartKey2 = shiftDateKey(todayKey2, -6);
               const dayMap = new Map<string, { revenue: number; appointments: number }>();
               const dateKeys = Array.from({ length: 7 }, (_, i) => shiftDateKey(weekStartKey2, i));
               for (const dk of dateKeys) dayMap.set(dk, { revenue: 0, appointments: 0 });
-              // Put today's revenue on today's key
               if (dayMap.has(todayKey2)) {
                 dayMap.get(todayKey2)!.revenue = dayRevenue;
               }
@@ -151,11 +158,13 @@ export default function SalonDashboard() {
                 ...data,
               })));
             } else if (empError) {
-              console.warn("[Dashboard] RPC employee stats error:", empError.message);
+              console.error("[Dashboard] RPC employee stats error:", empError);
             }
           } catch (err: any) {
-            console.warn("[Dashboard] RPC employee stats failed:", err.message);
+            console.error("[Dashboard] RPC employee stats failed:", err);
           }
+        } else {
+          console.warn("[Dashboard] No session_token on employeeSession — RPC skipped. Session keys:", Object.keys(employeeSession || {}));
         }
 
         let clientsQuery = supabase.from("salon_customers").select("id, first_name, last_name, email, phone, total_spent, visit_count, last_visit").eq("is_active", true).eq("branch_id", activeBranchId);
