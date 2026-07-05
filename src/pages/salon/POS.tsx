@@ -1225,7 +1225,7 @@ export default function POSPage() {
 
   const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
   const { subtotal, totalDiscount, total } = totals;
-  const paidOnTab = activePendingTab ? Number((activePendingTab as any)._total_paid || 0) : 0;
+  const paidOnTab = activePendingTab ? Number((activePendingTab as any).total_paid || 0) : 0;
   const remainingBalance = activePendingTab && paidOnTab > 0 ? Math.max(0, total - paidOnTab) : total;
   const resolvedPaymentSplits = useMemo(
     () => buildPaymentSplits(paymentMethod, total, paymentSplits),
@@ -1839,9 +1839,9 @@ export default function POSPage() {
                                 {tab.tab_number}
                               </p>
                             </div>
-                            <Badge variant={active ? "default" : "outline"} className={cn("text-[10px] h-5 shrink-0", (tab as any)._total_paid > 0 && "text-amber-600 border-amber-400")}>
-                              {(tab as any)._total_paid > 0
-                                ? `Solde: ${format(tab.total_amount - (tab as any)._total_paid)}`
+                            <Badge variant={active ? "default" : "outline"} className={cn("text-[10px] h-5 shrink-0", (tab as any).total_paid > 0 && "text-amber-600 border-amber-400")}>
+                              {(tab as any).total_paid > 0
+                                ? `Solde: ${format(tab.total_amount - (tab as any).total_paid)}`
                                 : format(tab.total_amount)}
                             </Badge>
                           </div>

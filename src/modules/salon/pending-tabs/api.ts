@@ -374,3 +374,23 @@ export async function findClientOptions(query: string, branchId?: string | null)
     visit_count: row.visit_count || 0,
   }));
 }
+export async function recordTabPayment(tabId: string, amount: number) {
+  const { data: tab, error: fetchError } = await supabase
+    .from("salon_pending_tabs")
+    .select("total_paid")
+    .eq("id", tabId)
+    .single();
+
+  if (fetchError) throw new Error(fetchError.message);
+
+  const newTotalPaid = Number(tab.total_paid || 0) + amount;
+
+  const { error: updateError } = await supabase
+    .from("salon_pending_tabs")
+    .update({ total_paid: newTotalPaid, updated_at: new Date().toISOString() })
+    .eq("id", tabId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  return { success: true };
+}
