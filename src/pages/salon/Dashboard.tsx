@@ -117,20 +117,46 @@ export default function SalonDashboard() {
           ? employeeSession.id 
           : null;
 
+        // ── Données de ventes : RPC sécurisée pour les employés (bypass RLS) ──
+        if (employeeSession?.session_token) {
+          try {
+            const { data: empData, error: empError } = await supabase.rpc(
+              "get_employee_dashboard_data",
+              { p_session_token: employeeSession.session_token, p_branch_id: activeBranchId }
+            );
+            if (!empError && empData) {
+              setTodayRevenue(Number(empData.today_revenue || 0));
+              if (Array.isArray(empData.week_sales)) {
+                const dayMap = new Map<string, { revenue: number; appointments: number }>();
+                const dateKeys = Array.from({ length: 7 }, (_, i) => shiftDateKey(weekStartKey, i));
+                for (const dk of dateKeys) dayMap.set(dk, { revenue: 0, appointments: 0 });
+                for (const s of empData.week_sales as any[]) {
+                  const dk = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
+                  if (dayMap.has(dk)) {
+                    dayMap.get(dk)!.revenue += Number(s.total_amount || 0) - Number(s.return_amount || 0);
+                  }
+                }
+                setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
+                  day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
+                  ...data,
+                })));
+              }
+            } else if (empError) {
+              console.warn("[Dashboard] RPC employee data error:", empError.message);
+            }
+          } catch (err: any) {
+            console.warn("[Dashboard] RPC employee data failed:", err.message);
+          }
+        }
+
         let clientsQuery = supabase.from("salon_customers").select("id, first_name, last_name, email, phone, total_spent, visit_count, last_visit").eq("is_active", true).eq("branch_id", activeBranchId);
         let employeesQuery = supabase.from("salon_employees").select("id, first_name, last_name, role").eq("is_active", true).eq("branch_id", activeBranchId);
         let appointmentsQuery = supabase.from("salon_appointments").select("id, customer_id, employee_id, service_id, appointment_date, appointment_time, duration_minutes, status").eq("branch_id", activeBranchId).order("appointment_date", { ascending: false }).limit(100);
         let servicesQuery = supabase.from("salon_services").select("id, name").eq("is_active", true).eq("branch_id", activeBranchId);
-        let salesTodayQuery = supabase.from("salon_sales").select("total_amount, return_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end);
-        let recentSalesQuery = supabase.from("salon_sales").select("id, total_amount, return_amount, refund_status, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10);
         let productsQuery = supabase.from("salon_products").select("id, quantity_in_stock, reorder_level").eq("branch_id", activeBranchId).eq("is_active", true);
-        let weekSalesQuery = supabase.from("salon_sales").select("total_amount, return_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end);
 
         if (employeeFilter) {
           appointmentsQuery = appointmentsQuery.eq("employee_id", employeeFilter);
-          salesTodayQuery = salesTodayQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
-          recentSalesQuery = recentSalesQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
-          weekSalesQuery = weekSalesQuery.or(`cashier_id.eq.${employeeFilter},employee_id.eq.${employeeFilter}`);
         }
 
         const [
@@ -138,19 +164,13 @@ export default function SalonDashboard() {
           { data: employeesRes },
           { data: appointmentsRes },
           { data: servicesRes },
-          { data: salesToday },
-          { data: recent },
           { data: products },
-          { data: weekSales },
         ] = await Promise.all([
           clientsQuery,
           employeesQuery,
           appointmentsQuery,
           servicesQuery,
-          salesTodayQuery,
-          recentSalesQuery,
           productsQuery,
-          weekSalesQuery,
         ]);
 
         setClients((clientsRes || []).map((client: any) => ({
@@ -169,35 +189,45 @@ export default function SalonDashboard() {
         })));
         setServices(servicesRes || []);
 
-        if (salesToday) {
-          setTodayRevenue(salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0) - Number(sale.return_amount || 0), 0));
-        }
-        if (recent) setRecentSales(recent);
         if (products) setLowStockCount(products.filter((product: any) => Number(product.quantity_in_stock || 0) <= Number(product.reorder_level || 0)).length);
 
-        if (weekSales) {
-          const dayMap = new Map<string, { revenue: number; appointments: number }>();
-          const dateKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStartKey, index));
-          for (const dateKey of dateKeys) {
-            dayMap.set(dateKey, { revenue: 0, appointments: 0 });
+        // ── Données de ventes pour les comptes admin (via requêtes directes) ──
+        if (!employeeSession?.session_token) {
+          const salesTodayQuery = supabase.from("salon_sales").select("total_amount, return_amount").eq("branch_id", activeBranchId).gte("created_at", todayRange.start).lte("created_at", todayRange.end);
+          const recentSalesQuery = supabase.from("salon_sales").select("id, total_amount, return_amount, refund_status, payment_method, created_at").eq("branch_id", activeBranchId).order("created_at", { ascending: false }).limit(10);
+          const weekSalesQuery = supabase.from("salon_sales").select("total_amount, return_amount, created_at").eq("branch_id", activeBranchId).gte("created_at", weekStartRange.start).lte("created_at", todayRange.end);
+
+          const [{ data: salesToday }, { data: recent }, { data: weekSales }] = await Promise.all([salesTodayQuery, recentSalesQuery, weekSalesQuery]);
+
+          if (salesToday) {
+            setTodayRevenue(salesToday.reduce((sum: number, sale: any) => sum + Number(sale.total_amount || 0) - Number(sale.return_amount || 0), 0));
           }
-          weekSales.forEach((sale: any) => {
-            const day = getDateKeyInTimeZone(new Date(sale.created_at), timeZone);
-            if (dayMap.has(day)) {
-              dayMap.get(day)!.revenue += Number(sale.total_amount || 0) - Number(sale.return_amount || 0);
+          if (recent) setRecentSales(recent);
+          if (weekSales) {
+            const dayMap = new Map<string, { revenue: number; appointments: number }>();
+            const dateKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(weekStartKey, index));
+            for (const dateKey of dateKeys) {
+              dayMap.set(dateKey, { revenue: 0, appointments: 0 });
             }
-          });
-          appointmentsRes?.forEach((appointment: any) => {
-            const day = appointment.appointment_date;
-            if (dayMap.has(day)) {
-              dayMap.get(day)!.appointments += 1;
-            }
-          });
-          setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
-            day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
-            ...data,
-          })));
+            weekSales.forEach((sale: any) => {
+              const day = getDateKeyInTimeZone(new Date(sale.created_at), timeZone);
+              if (dayMap.has(day)) {
+                dayMap.get(day)!.revenue += Number(sale.total_amount || 0) - Number(sale.return_amount || 0);
+              }
+            });
+            appointmentsRes?.forEach((appointment: any) => {
+              const day = appointment.appointment_date;
+              if (dayMap.has(day)) {
+                dayMap.get(day)!.appointments += 1;
+              }
+            });
+            setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
+              day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
+              ...data,
+            })));
+          }
         }
+
       } catch (err) {
         console.error("Dashboard data error:", err);
       } finally {
