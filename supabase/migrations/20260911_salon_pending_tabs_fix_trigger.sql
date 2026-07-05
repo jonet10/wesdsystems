@@ -1,10 +1,10 @@
-﻿-- Function to sync salon_id for salon_pending_tab_items
+-- Function to sync salon_id for salon_pending_tab_items
 CREATE OR REPLACE FUNCTION public.sync_salon_pending_tab_item_salon_id()
   RETURNS TRIGGER
   LANGUAGE plpgsql
   SECURITY DEFINER
   SET search_path = public
-  AS $body
+  AS $$
   DECLARE
     v_salon_id UUID;
   BEGIN
@@ -18,7 +18,7 @@ CREATE OR REPLACE FUNCTION public.sync_salon_pending_tab_item_salon_id()
     END IF;
     RETURN NEW;
   END;
-  $body;
+  $$;
 
 -- Update the trigger
 DROP TRIGGER IF EXISTS trg_salon_pending_tab_items_sync_salon_id ON public.salon_pending_tab_items;
