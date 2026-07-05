@@ -205,18 +205,40 @@ export default function SchoolGrades() {
 
     setIsSavingExam(true);
     try {
-      await createExamMutation.mutateAsync({
-        class_id: selectedClassId,
-        subject_id: selectedSubjectId,
-        academic_year_id: activeAcademicYear!.id,
-        name: examName.trim(),
-        max_points: parseFloat(maxPoints) || 100,
-        coefficient: parseFloat(coefficient) || 1,
-        exam_date: examDate,
-        period_name: selectedPeriod,
-      } as any);
+      // Create exams for all periods that don't have one yet for this subject
+      const isTrimestre = settings.evaluation_period_type === 'trimester';
+      const allPeriods = isTrimestre ? TRIMESTER_PERIODS : STEPS_PERIODS;
+      
+      const existingPeriods = (allExams || [])
+        .filter(ex => ex.subject_id === selectedSubjectId)
+        .map(ex => (ex as any).period_name);
 
-      toast.success("Évaluation créée avec succès !");
+      const periodsToCreate = allPeriods.filter(p => !existingPeriods.includes(p));
+      
+      // If the current period is somehow not in the periodsToCreate (shouldn't happen), add it
+      if (!existingPeriods.includes(selectedPeriod) && !periodsToCreate.includes(selectedPeriod)) {
+        periodsToCreate.push(selectedPeriod);
+      }
+
+      const selectedSubjectName = allSubjects.find(s => s.id === selectedSubjectId)?.name || "";
+      const baseName = examName.includes(' – ') ? examName.split(' – ')[1] : selectedSubjectName;
+
+      const promises = periodsToCreate.map(period => 
+        createExamMutation.mutateAsync({
+          class_id: selectedClassId,
+          subject_id: selectedSubjectId,
+          academic_year_id: activeAcademicYear!.id,
+          name: `${period} – ${baseName}`,
+          max_points: parseFloat(maxPoints) || 100,
+          coefficient: parseFloat(coefficient) || 1,
+          exam_date: examDate,
+          period_name: period,
+        } as any)
+      );
+
+      await Promise.all(promises);
+
+      toast.success("Évaluation créée pour toutes les périodes !");
       setIsCreateExamDialogOpen(false);
       refetchExams();
     } catch (error: any) {
