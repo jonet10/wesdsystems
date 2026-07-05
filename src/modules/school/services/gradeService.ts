@@ -241,7 +241,7 @@ export const gradeService = {
         
         // Load custom coefficient (acts as note max)
         const customCoeff = coeffsMap.get(sub.id);
-        const subjectMax = customCoeff?.coefficient ?? 10; // Default max is 10
+        const subjectMax = customCoeff?.coefficient ?? (subCoefSum > 0 ? subCoefSum : 100); // Default max is 10
         const domainId = customCoeff?.domain_id || null;
         const domainName = customCoeff?.domain_name || null;
         const displayOrder = customCoeff?.display_order || 0;

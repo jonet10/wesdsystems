@@ -124,7 +124,7 @@ export default function SchoolReports() {
     if (!selectedClassId) { toast.error(`Veuillez sélectionner une ${engine.terminology.get("class").toLowerCase()}`); return; }
     setIsLoading(true);
     try {
-      const data = await reportService.getClassListReport(selectedClassId);
+      const data = await reportService.getClassList(selectedClassId);
       setClassList(data);
       const cls = classes.find(c => c.id === selectedClassId);
       toast.success(`Liste de ${cls?.name || engine.terminology.get("class").toLowerCase()} générée (${data.length} ${engine.terminology.get("students").toLowerCase()})`);
