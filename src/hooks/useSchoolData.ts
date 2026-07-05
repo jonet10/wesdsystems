@@ -463,6 +463,21 @@ export function useCreateExam() {
   });
 }
 
+export function useUpdateExam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<any> }) =>
+      gradeService.updateExam(id, payload),
+    onSuccess: (_, { payload }) => {
+      if (payload.class_id && payload.academic_year_id) {
+        queryClient.invalidateQueries({ queryKey: ["school", "exams", payload.class_id, payload.academic_year_id] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["school", "exams"] });
+      }
+    },
+  });
+}
+
 export function useDeleteExam() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -56,6 +56,18 @@ export const gradeService = {
     return data as any;
   },
 
+  async updateExam(id: string, payload: Partial<SchoolExam>): Promise<SchoolExam> {
+    const { data, error } = await supabase
+      .from("school_exams")
+      .update(payload)
+      .eq("id", id)
+      .select("*, subject:school_subjects(name)")
+      .single();
+
+    if (error) throw error;
+    return data as any;
+  },
+
   async removeExam(id: string): Promise<void> {
     const { error } = await supabase
       .from("school_exams")

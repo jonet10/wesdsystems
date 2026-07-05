@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  FileSpreadsheet, FileText, Plus, Save, Trash2, Printer, GraduationCap, Award, RefreshCw,
-  ChevronRight, BookOpen, AlertCircle, CheckCircle2
+  FileSpreadsheet, FileText, Plus, Save, Trash2, Edit2, Download, Printer, Settings, CheckCircle2, 
+  ChevronDown, ChevronRight, Calculator, Lock, AlertCircle, RefreshCw, AlertTriangle, PlayCircle, 
+  GraduationCap, Award, BookOpen
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  useClasses, useSubjects, useExams, useCreateExam, useDeleteExam,
+  useClasses, useSubjects, useExams, useCreateExam, useDeleteExam, useUpdateExam,
   useExamGrades, useSaveGrades, useClassReportCards, usePalmares
 } from "@/hooks/useSchoolData";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
@@ -141,11 +142,13 @@ export default function SchoolGrades() {
 
   // Mutations
   const createExamMutation = useCreateExam();
+  const updateExamMutation = useUpdateExam();
   const deleteExamMutation = useDeleteExam();
   const saveGradesMutation = useSaveGrades();
 
   // ── New Exam dialog state (auto-prefilled) ────────────────────────────────
   const [isCreateExamDialogOpen, setIsCreateExamDialogOpen] = useState(false);
+  const [isEditExamDialogOpen, setIsEditExamDialogOpen] = useState(false);
   const [examName, setExamName] = useState("");
   const [maxPoints, setMaxPoints] = useState("100");
   const [coefficient, setCoefficient] = useState("1");
@@ -290,6 +293,39 @@ export default function SchoolGrades() {
       refetchExams();
     } catch (error: any) {
       toast.error("Erreur de création", { description: error.message });
+    } finally {
+      setIsSavingExam(false);
+    }
+  };
+
+  const openEditExamDialog = () => {
+    if (matchingExam) {
+      setExamName(matchingExam.name);
+      setCoefficient(String(matchingExam.coefficient));
+      setExamDate(matchingExam.exam_date || format(new Date(), "yyyy-MM-dd"));
+      setIsEditExamDialogOpen(true);
+    }
+  };
+
+  const handleEditExam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!matchingExam) return;
+    setIsSavingExam(true);
+    try {
+      await updateExamMutation.mutateAsync({
+        id: matchingExam.id,
+        payload: {
+          name: examName,
+          coefficient: parseFloat(coefficient) || 1,
+          max_points: parseFloat(coefficient) || 1,
+          exam_date: examDate,
+        }
+      });
+      toast.success("Évaluation mise à jour avec succès !");
+      setIsEditExamDialogOpen(false);
+      refetchExams();
+    } catch (error: any) {
+      toast.error("Erreur de modification", { description: error.message });
     } finally {
       setIsSavingExam(false);
     }
@@ -1253,7 +1289,10 @@ export default function SchoolGrades() {
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
                       Saisie / {matchingExam.coefficient} pts
                     </span>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={handleDeleteExam}>
+                    <Button variant="ghost" size="icon" className="text-primary" onClick={openEditExamDialog} title="Modifier l'évaluation">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={handleDeleteExam} title="Supprimer l'évaluation">
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1459,6 +1498,54 @@ export default function SchoolGrades() {
         </Tabs>
 
 
+        {/* ══════════════ DIALOG: Modifier Évaluation ══════════════ */}
+        <Dialog open={isEditExamDialogOpen} onOpenChange={setIsEditExamDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Modifier l'évaluation</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditExam} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Nom de l'évaluation</Label>
+                <Input
+                  value={examName}
+                  onChange={(e) => setExamName(e.target.value)}
+                  placeholder="Ex: Étape 1 – Anglais"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Coefficient (Sur combien ?)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={coefficient}
+                  onChange={(e) => setCoefficient(e.target.value)}
+                  placeholder="Ex: 200"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Date de l'évaluation</Label>
+                <Input
+                  type="date"
+                  value={examDate}
+                  onChange={(e) => setExamDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" type="button" onClick={() => setIsEditExamDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={isSavingExam}>
+                  {isSavingExam ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* ══════════════ DIALOG: Créer Évaluation ══════════════ */}
         <Dialog open={isCreateExamDialogOpen} onOpenChange={setIsCreateExamDialogOpen}>
