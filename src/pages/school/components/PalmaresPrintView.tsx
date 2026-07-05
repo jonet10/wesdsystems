@@ -30,7 +30,10 @@ export const PalmaresPrintView: React.FC<PalmaresPrintViewProps> = ({ palmaresDa
     <div className="w-full bg-white text-black p-8 font-serif" id="palmares-print-area">
       <style type="text/css" media="print">
         {`
-          @page { size: landscape; margin: 10mm; }
+          @page { 
+            size: ${students.length > 35 ? '8.5in 14in' : '8.5in 11in'}; 
+            margin: 10mm; 
+          }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           #palmares-print-area { width: 100%; }
         `}
