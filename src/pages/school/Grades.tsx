@@ -848,6 +848,7 @@ export default function SchoolGrades() {
       const decision = grandAvg !== null && grandAvg >= 5.0 ? "Admis(e)" : "Ajourné(e)";
       return (
         <div className="font-sans text-sm text-black bg-white">
+          <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
           {/* En-tête école */}
           <div className="bg-amber-50 border border-gray-300 text-center p-3 mb-0">
             <p className="font-extrabold text-base">{settings?.name || "Établissement Scolaire"}</p>
@@ -958,6 +959,7 @@ export default function SchoolGrades() {
 
     return (
       <div className="flex gap-0 font-sans text-sm text-black bg-white border border-gray-400">
+        <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
         {/* ── Tableau principal gauche ── */}
         <div className="flex-1">
           <table className="w-full border-collapse text-[12px]">
