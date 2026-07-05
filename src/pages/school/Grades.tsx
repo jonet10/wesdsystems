@@ -186,6 +186,8 @@ export default function SchoolGrades() {
     setGradeInputs({});
   }, [selectedExamId]);
 
+  const syncAttemptedRef = useRef<Record<string, boolean>>({});
+
   // Auto-sync missing exams: if current period has no exam, but another period does, auto-create it
   useEffect(() => {
     if (!exams || !selectedSubjectId || !selectedPeriod || !selectedClassId || !activeAcademicYear) return;
@@ -197,7 +199,12 @@ export default function SchoolGrades() {
     // Check if the current period is missing an exam
     const hasCurrentPeriodExam = subjectExams.some(e => (e as any).period_name === selectedPeriod);
     
-    if (!hasCurrentPeriodExam && !isSavingExam) {
+    const syncKey = `${selectedClassId}_${selectedSubjectId}_${selectedPeriod}`;
+
+    if (!hasCurrentPeriodExam && !isSavingExam && !syncAttemptedRef.current[syncKey]) {
+      // Mark as attempted so we don't loop
+      syncAttemptedRef.current[syncKey] = true;
+      
       // Find a template exam from another period
       const templateExam = subjectExams.find(e => (e as any).period_name === 'Etape 1') || subjectExams[0];
       
@@ -216,7 +223,7 @@ export default function SchoolGrades() {
           period_name: selectedPeriod,
         } as any).then(() => {
           toast.success(`Évaluation automatiquement synchronisée pour ${selectedPeriod}`);
-          refetchExams();
+          return refetchExams();
         }).catch((err) => {
           console.error("Auto-sync error:", err);
         }).finally(() => {
