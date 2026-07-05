@@ -42,10 +42,19 @@ CREATE TRIGGER trg_salon_pending_tab_items_sync_salon_id
   BEFORE INSERT OR UPDATE ON public.salon_pending_tab_items
   FOR EACH ROW EXECUTE FUNCTION public.sync_branch_salon_id();
 
+-- Function to auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION public.update_salon_pending_tabs_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Triggers for updated_at
 CREATE TRIGGER set_salon_pending_tabs_updated_at
   BEFORE UPDATE ON public.salon_pending_tabs
-  FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_salon_pending_tabs_updated_at();
 
 -- Enable RLS
 ALTER TABLE public.salon_pending_tabs ENABLE ROW LEVEL SECURITY;
