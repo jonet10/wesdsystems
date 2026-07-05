@@ -340,12 +340,19 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
       console.log("[Sidebar] autoPartsStaffSession permissions:", autoPartsStaffSession.permissions, "filtered items:", filtered.map(i => i.label));
       return filtered;
     }
-    // Employee session without Supabase Auth → show filtered menu
+    // Employee session without Supabase Auth → show filtered menu with correct employee routes
     if (employeeSession && !profile && !isAuthenticated) {
       const empRole = normalizeEmployeeRole(employeeSession.role);
       const empPerms = empRole ? getSalonEmployeePermissions(empRole) : null;
       if (empPerms) {
-        const filtered = filterMenuByPermissions(getBusinessAdminItems(), empPerms);
+        // Build employee-specific menu with correct routes
+        const employeeMenuItems: SidebarItem[] = [
+          { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/employee", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Users, labelKey: "sidebar.clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: ShoppingBag, labelKey: "sidebar.pos", path: "/salon/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: TrendingUp, labelKey: "sidebar.reports", path: "/salon/reports", permission: PERMISSIONS.REPORTS_VIEW },
+        ];
+        const filtered = filterMenuByPermissions(employeeMenuItems, empPerms);
         console.log("[Sidebar] employeeSession permissions:", empPerms, "filtered items:", filtered.map(i => i.label));
         return filtered;
       }

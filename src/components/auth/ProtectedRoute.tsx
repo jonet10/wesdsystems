@@ -116,12 +116,28 @@ export function ProtectedRoute({
     const routePath = location.pathname;
     const isEmployeeRoute = routePath.startsWith("/employee");
 
+    // Allow /employee/* routes always
     if (isEmployeeRoute) {
       return <>{children}</>;
     }
 
+    // Build employee permissions
+    const empPerms = employeeRole ? getSalonEmployeePermissions(employeeRole) : [];
+
+    // Allow specific salon routes that employees can access
+    const allowedSalonRoutes = ["/salon/clients", "/salon/pos", "/salon/reports", "/salon/appointments"];
+    const isAllowedSalonRoute = allowedSalonRoutes.some(r => routePath.startsWith(r));
+    if (isAllowedSalonRoute) {
+      // Still check required permissions if specified
+      if (requiredPermissions) {
+        const permsToCheck = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
+        const hasPerm = permsToCheck.some(p => empPerms.includes(p));
+        if (!hasPerm) return <Navigate to="/employee" replace />;
+      }
+      return <>{children}</>;
+    }
+
     if (requiredPermissions && employeeRole) {
-      const empPerms = getSalonEmployeePermissions(employeeRole);
       const permsToCheck = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
       const hasPerm = permsToCheck.some(p => empPerms.includes(p));
       
