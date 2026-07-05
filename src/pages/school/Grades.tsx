@@ -1453,6 +1453,67 @@ export default function SchoolGrades() {
 
 
 
+        {/* ══════════════ DIALOG: Créer Évaluation ══════════════ */}
+        <Dialog open={isCreateExamDialogOpen} onOpenChange={setIsCreateExamDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Créer une évaluation</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateExam} className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Nom de l'évaluation</Label>
+                <Input
+                  value={examName}
+                  onChange={(e) => setExamName(e.target.value)}
+                  placeholder="Ex: Étape 1 – Anglais"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Notes sur (Max pts)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    value={maxPoints}
+                    onChange={(e) => setMaxPoints(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Coefficient</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={coefficient}
+                    onChange={(e) => setCoefficient(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Date de l'évaluation</Label>
+                <Input
+                  type="date"
+                  value={examDate}
+                  onChange={(e) => setExamDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" type="button" onClick={() => setIsCreateExamDialogOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={isSavingExam}>
+                  {isSavingExam ? "Création..." : "Créer l'évaluation"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
         {/* ══════════════ DIALOG: Bulletin ══════════════ */}
         <Dialog
           open={reportCardDialog.open}
