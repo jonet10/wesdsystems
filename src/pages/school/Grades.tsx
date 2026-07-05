@@ -188,10 +188,10 @@ export default function SchoolGrades() {
 
   // Auto-sync missing exams: if current period has no exam, but another period does, auto-create it
   useEffect(() => {
-    if (!allExams || !selectedSubjectId || !selectedPeriod || !selectedClassId || !activeAcademicYear) return;
+    if (!exams || !selectedSubjectId || !selectedPeriod || !selectedClassId || !activeAcademicYear) return;
     
     // Find all exams for the selected subject
-    const subjectExams = allExams.filter(e => e.subject_id === selectedSubjectId);
+    const subjectExams = exams.filter(e => e.subject_id === selectedSubjectId);
     if (subjectExams.length === 0) return; // No exam exists for this subject at all
     
     // Check if the current period is missing an exam
@@ -224,7 +224,7 @@ export default function SchoolGrades() {
         });
       }
     }
-  }, [selectedPeriod, selectedSubjectId, allExams, selectedClassId, activeAcademicYear, isSavingExam]);
+  }, [selectedPeriod, selectedSubjectId, exams, selectedClassId, activeAcademicYear, isSavingExam]);
 
   // Pre-fill exam dialog fields based on current selections
   const openCreateExamDialog = () => {
@@ -249,7 +249,7 @@ export default function SchoolGrades() {
       const isTrimestre = settings.evaluation_period_type === 'trimester';
       const allPeriods = isTrimestre ? TRIMESTER_PERIODS : STEPS_PERIODS;
       
-      const existingPeriods = (allExams || [])
+      const existingPeriods = (exams || [])
         .filter(ex => ex.subject_id === selectedSubjectId)
         .map(ex => (ex as any).period_name);
 
