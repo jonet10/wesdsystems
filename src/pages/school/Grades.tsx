@@ -276,7 +276,7 @@ export default function SchoolGrades() {
           subject_id: selectedSubjectId,
           academic_year_id: activeAcademicYear!.id,
           name: `${period} – ${baseName}`,
-          max_points: parseFloat(maxPoints) || 100,
+          max_points: parseFloat(coefficient) || 1,
           coefficient: parseFloat(coefficient) || 1,
           exam_date: examDate,
           period_name: period,
@@ -324,7 +324,7 @@ export default function SchoolGrades() {
   const handleSaveGrades = async () => {
     if (!selectedExamId) return;
 
-    const maxVal = matchingExam?.max_points || 100;
+    const maxVal = matchingExam?.coefficient || 100;
 
     const gradesPayload = studentGrades
       .map((sg) => {
@@ -1251,7 +1251,7 @@ export default function SchoolGrades() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                      Saisie / {matchingExam.max_points} pts
+                      Saisie / {matchingExam.coefficient} pts
                     </span>
                     <Button variant="ghost" size="icon" className="text-destructive" onClick={handleDeleteExam}>
                       <Trash2 className="h-4 w-4" />
@@ -1266,7 +1266,7 @@ export default function SchoolGrades() {
                         <TableHead className="w-12">N°</TableHead>
                         <TableHead>{engine.terminology.get("student")}</TableHead>
                         <TableHead className="w-48 text-right">
-                          Note / {matchingExam.max_points}
+                          Note / {matchingExam.coefficient}
                         </TableHead>
                         <TableHead>Remarques</TableHead>
                       </TableRow>
@@ -1302,7 +1302,7 @@ export default function SchoolGrades() {
                                   type="number"
                                   step="0.1"
                                   min="0"
-                                  max={matchingExam.max_points}
+                                  max={matchingExam.coefficient}
                                   placeholder="Note"
                                   value={pointsVal}
                                   onChange={(e) =>
@@ -1476,29 +1476,17 @@ export default function SchoolGrades() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Notes sur (Max pts)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    value={maxPoints}
-                    onChange={(e) => setMaxPoints(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Coefficient</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={coefficient}
-                    onChange={(e) => setCoefficient(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Coefficient (Sur combien ?)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={coefficient}
+                  onChange={(e) => setCoefficient(e.target.value)}
+                  placeholder="Ex: 200"
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label>Date de l'évaluation</Label>

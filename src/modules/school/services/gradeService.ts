@@ -372,7 +372,7 @@ export const gradeService = {
     if (examsError) throw examsError;
 
     // Use max points from the most recent exam or default to 100
-    const maxPoints = exams && exams.length > 0 ? exams[0].max_points : 100;
+    const maxPoints = exams && exams.length > 0 ? exams[0].coefficient : 100;
 
     const examIds = (exams || []).map(e => e.id);
 
