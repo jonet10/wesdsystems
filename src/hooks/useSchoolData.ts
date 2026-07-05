@@ -508,6 +508,16 @@ export function useClassReportCards(classId: string, academicYearId: string) {
   });
 }
 
+export function usePalmares(classId: string, subjectId: string, academicYearId: string) {
+  const businessId = useBusinessId();
+  if (businessId) setBusinessId(businessId);
+  return useQuery({
+    queryKey: ["school", "palmares", classId, subjectId, academicYearId],
+    queryFn: () => gradeService.getPalmaresForSubject(classId, subjectId, academicYearId),
+    enabled: !!businessId && !!classId && !!subjectId && !!academicYearId,
+  });
+}
+
 // SMS Gateway Settings
 export function useSmsSettings() {
   const businessId = useBusinessId();

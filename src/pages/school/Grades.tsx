@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import {
   useClasses, useSubjects, useExams, useCreateExam, useDeleteExam,
-  useExamGrades, useSaveGrades, useClassReportCards
+  useExamGrades, useSaveGrades, useClassReportCards, usePalmares
 } from "@/hooks/useSchoolData";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { useSchool } from "@/hooks/useSchool";
@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DocumentEngineWrapper } from "@/modules/document-engine/ui/components/DocumentEngineWrapper";
 import { TemplateRepository } from "@/modules/document-engine/storage/TemplateRepository";
 import { supabase } from "@/lib/supabase";
+import { PalmaresPrintView } from "./components/PalmaresPrintView";
 
 // ─── Periods helpers ─────────────────────────────────────────────────────────
 const STEPS_PERIODS = [
@@ -156,6 +157,14 @@ export default function SchoolGrades() {
 
   // Report Card Dialog
   const [reportCardDialog, setReportCardDialog] = useState<{ open: boolean; student: any }>({ open: false, student: null });
+
+  // Palmares
+  const [isPalmaresDialogOpen, setIsPalmaresDialogOpen] = useState(false);
+  const { data: palmaresData, isFetching: isFetchingPalmares } = usePalmares(
+    selectedClassId, 
+    selectedSubjectId, 
+    activeAcademicYear?.id || ""
+  );
 
   // ── Default selects ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -1251,7 +1260,11 @@ export default function SchoolGrades() {
                   </Table>
                 </CardContent>
 
-                <div className="p-4 border-t flex justify-end">
+                <div className="p-4 border-t flex justify-end gap-3">
+                  <Button variant="outline" size="lg" onClick={() => setIsPalmaresDialogOpen(true)}>
+                    <Printer className="h-4 w-4 mr-2" />
+                    Télécharger Palmarès
+                  </Button>
                   <Button size="lg" onClick={handleSaveGrades} disabled={saveGradesMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
                     {saveGradesMutation.isPending ? "Enregistrement..." : "Enregistrer les notes"}
@@ -1420,6 +1433,35 @@ export default function SchoolGrades() {
                 </div>
               );
             })()}
+          </DialogContent>
+        </Dialog>
+
+        {/* ══════════════ DIALOG: Palmarès ══════════════ */}
+        <Dialog open={isPalmaresDialogOpen} onOpenChange={setIsPalmaresDialogOpen}>
+          <DialogContent className="max-w-6xl w-[90vw] h-[90vh] flex flex-col p-0 bg-white border-zinc-300">
+            <DialogHeader className="p-6 pb-2 shrink-0 flex flex-row items-center justify-between border-b bg-gray-50">
+              <DialogTitle className="text-xl">Aperçu du Palmarès</DialogTitle>
+              <div className="flex gap-2">
+                <Button onClick={() => window.print()} className="print:hidden">
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimer / PDF
+                </Button>
+                <Button variant="outline" onClick={() => setIsPalmaresDialogOpen(false)} className="print:hidden">
+                  Fermer
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto bg-gray-200 p-8 print:p-0 print:bg-white print:overflow-visible flex justify-center">
+              {isFetchingPalmares ? (
+                <div className="text-center py-20 text-gray-500">Chargement des données du palmarès...</div>
+              ) : palmaresData ? (
+                <div className="bg-white shadow-lg print:shadow-none print:m-0 w-full max-w-5xl">
+                  <PalmaresPrintView palmaresData={palmaresData} academicYearName={activeAcademicYear?.name || ""} />
+                </div>
+              ) : (
+                <div className="text-center py-20 text-gray-500">Aucune donnée disponible.</div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

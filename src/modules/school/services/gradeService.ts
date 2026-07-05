@@ -317,5 +317,109 @@ export const gradeService = {
     });
 
     return finalReportCards;
+  },
+
+  /** Generate Palmares data for a specific subject across all periods */
+  async getPalmaresForSubject(classId: string, subjectId: string, academicYearId: string): Promise<any> {
+    const businessId = getBusinessId();
+
+    // 1. Fetch class details
+    const { data: classObj } = await supabase
+      .from("school_classes")
+      .select("name")
+      .eq("id", classId)
+      .single();
+
+    // 2. Fetch subject details
+    const { data: subjectObj } = await supabase
+      .from("school_subjects")
+      .select("name")
+      .eq("id", subjectId)
+      .single();
+
+    // 3. Fetch Teacher for this class and subject 
+    // Usually mapped via school_subject_classes or school_assignments.
+    // For simplicity, we'll try to find the assignment or fallback to empty string
+    const { data: assignmentData } = await supabase
+      .from("school_assignments")
+      .select("*, teacher:teacher_id(first_name, last_name)")
+      .eq("class_id", classId)
+      .eq("subject_id", subjectId)
+      .maybeSingle();
+
+    const teacherName = assignmentData?.teacher 
+      ? `${assignmentData.teacher.first_name} ${assignmentData.teacher.last_name}` 
+      : "Non assigné";
+
+    // 4. Fetch all enrollments for this class
+    const { data: enrollments } = await supabase
+      .from("school_enrollments")
+      .select("*, student:student_id(*)")
+      .eq("class_id", classId)
+      .in("status", ["registered", "active"]);
+
+    const activeStudents = enrollments?.filter(e => e.student).map(e => e.student) || [];
+
+    // 5. Fetch exams for this specific subject & class
+    const { data: exams, error: examsError } = await supabase
+      .from("school_exams")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("class_id", classId)
+      .eq("subject_id", subjectId)
+      .eq("academic_year_id", academicYearId);
+
+    if (examsError) throw examsError;
+
+    // Use max points from the most recent exam or default to 100
+    const maxPoints = exams && exams.length > 0 ? exams[0].max_points : 100;
+
+    const examIds = (exams || []).map(e => e.id);
+
+    // 6. Fetch grades for these exams
+    const { data: grades } = await supabase
+      .from("school_grades")
+      .select("*")
+      .in("exam_id", examIds.length > 0 ? examIds : ['00000000-0000-0000-0000-000000000000']);
+
+    // Map grades by student
+    const studentGradesMap = new Map<string, any[]>();
+    (grades || []).forEach(g => {
+      const list = studentGradesMap.get(g.student_id) || [];
+      list.push(g);
+      studentGradesMap.set(g.student_id, list);
+    });
+
+    // Structure data for Palmares
+    const studentsData = activeStudents.map(student => {
+      const sGrades = studentGradesMap.get(student.id) || [];
+      const periodScores: Record<string, string | number> = {};
+
+      (exams || []).forEach(exam => {
+        const gradeForExam = sGrades.find(g => g.exam_id === exam.id);
+        const periodName = (exam as any).period_name || "N/A";
+        periodScores[periodName] = gradeForExam ? gradeForExam.points_obtained : "";
+      });
+
+      return {
+        student_id: student.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        matricule: student.matricule || "-",
+        period_scores: periodScores
+      };
+    });
+
+    // Sort students alphabetically
+    studentsData.sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+
+    return {
+      className: classObj?.name || "",
+      subjectName: subjectObj?.name || "",
+      teacherName,
+      maxPoints,
+      students: studentsData,
+      periodsFound: Array.from(new Set((exams || []).map(e => (e as any).period_name).filter(Boolean)))
+    };
   }
 };
