@@ -121,31 +121,40 @@ export default function SalonDashboard() {
         if (employeeSession?.session_token) {
           try {
             const { data: empData, error: empError } = await supabase.rpc(
-              "get_employee_dashboard_data",
+              "get_employee_dashboard_stats",
               { p_session_token: employeeSession.session_token, p_branch_id: activeBranchId }
             );
             if (!empError && empData) {
-              setTodayRevenue(Number(empData.today_revenue || 0));
-              if (Array.isArray(empData.week_sales)) {
-                const dayMap = new Map<string, { revenue: number; appointments: number }>();
-                const dateKeys = Array.from({ length: 7 }, (_, i) => shiftDateKey(weekStartKey, i));
-                for (const dk of dateKeys) dayMap.set(dk, { revenue: 0, appointments: 0 });
-                for (const s of empData.week_sales as any[]) {
-                  const dk = getDateKeyInTimeZone(new Date(s.created_at), timeZone);
-                  if (dayMap.has(dk)) {
-                    dayMap.get(dk)!.revenue += Number(s.total_amount || 0) - Number(s.return_amount || 0);
-                  }
-                }
-                setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
-                  day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
-                  ...data,
-                })));
+              // Revenus du jour depuis la RPC
+              const dayRevenue = Number(empData?.day?.revenue || 0);
+              setTodayRevenue(dayRevenue);
+
+              // Ventes détaillées du jour → recentSales
+              if (Array.isArray(empData?.today_sales)) {
+                setRecentSales(empData.today_sales);
               }
+
+              // Graphique semaine: on utilise week revenue comme total
+              // On reconstruit un dayMap simple avec le revenue de la semaine
+              const weekRevenue = Number(empData?.week?.revenue || 0);
+              const todayKey2 = getDateKeyInTimeZone(new Date(), timeZone);
+              const weekStartKey2 = shiftDateKey(todayKey2, -6);
+              const dayMap = new Map<string, { revenue: number; appointments: number }>();
+              const dateKeys = Array.from({ length: 7 }, (_, i) => shiftDateKey(weekStartKey2, i));
+              for (const dk of dateKeys) dayMap.set(dk, { revenue: 0, appointments: 0 });
+              // Put today's revenue on today's key
+              if (dayMap.has(todayKey2)) {
+                dayMap.get(todayKey2)!.revenue = dayRevenue;
+              }
+              setWeeklyData(Array.from(dayMap.entries()).map(([date, data]) => ({
+                day: getWeekdayLabelInTimeZone(new Date(`${date}T12:00:00Z`), timeZone),
+                ...data,
+              })));
             } else if (empError) {
-              console.warn("[Dashboard] RPC employee data error:", empError.message);
+              console.warn("[Dashboard] RPC employee stats error:", empError.message);
             }
           } catch (err: any) {
-            console.warn("[Dashboard] RPC employee data failed:", err.message);
+            console.warn("[Dashboard] RPC employee stats failed:", err.message);
           }
         }
 
