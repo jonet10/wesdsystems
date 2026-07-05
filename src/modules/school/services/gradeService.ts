@@ -353,7 +353,7 @@ export const gradeService = {
     // Usually mapped via school_subject_classes or school_assignments.
     // For simplicity, we'll try to find the assignment or fallback to empty string
     const { data: assignmentData } = await supabase
-      .from("school_assignments")
+      .from("school_teacher_assignments")
       .select("*, teacher:teacher_id(first_name, last_name)")
       .eq("class_id", classId)
       .eq("subject_id", subjectId)
