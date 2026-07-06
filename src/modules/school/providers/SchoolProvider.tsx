@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { SchoolEngine, SchoolType, schoolPluginRegistry } from "../engine";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -137,6 +137,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
       {isAuthenticated && businessId && !isConfigured && (
         <Dialog open={true} onOpenChange={() => {}}>
           <DialogContent className="max-w-2xl p-0 overflow-hidden border border-zinc-800 bg-zinc-950 text-white shadow-2xl rounded-2xl">
+            <DialogTitle className="sr-only">Configuration de l'établissement</DialogTitle>
             <div className="p-6 md:p-8 space-y-6">
               
               {/* ── STEP 1: WELCOME ── */}
