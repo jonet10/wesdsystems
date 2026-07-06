@@ -37,9 +37,16 @@ export function applyPromotions(cartItems: CartItem[], promotions: Promotion[]):
     if (applicablePromo.promotion_type === "percentage" && applicablePromo.discount_percentage) {
       discount = lineTotal * (applicablePromo.discount_percentage / 100);
     } else if (applicablePromo.discount_value) {
-      discount = applicablePromo.promotion_type === "combo"
-        ? applicablePromo.discount_value / Math.max(1, cartItems.length)
-        : applicablePromo.discount_value;
+      if (applicablePromo.promotion_type === "bundle" && applicablePromo.minimum_quantity) {
+        const bundleCount = Math.floor(item.quantity / applicablePromo.minimum_quantity);
+        const totalNormalPriceForBundles = item.unit_price * applicablePromo.minimum_quantity * bundleCount;
+        const totalBundlePrice = applicablePromo.discount_value * bundleCount;
+        discount = Math.max(0, totalNormalPriceForBundles - totalBundlePrice);
+      } else {
+        discount = applicablePromo.promotion_type === "combo"
+          ? applicablePromo.discount_value / Math.max(1, cartItems.length)
+          : applicablePromo.discount_value;
+      }
     }
 
     return {
