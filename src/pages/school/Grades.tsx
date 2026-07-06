@@ -53,12 +53,12 @@ export default function SchoolGrades() {
   const [customTemplates, setCustomTemplates] = useState<any[]>([]);
 
   useEffect(() => {
-    if (useDocumentEngine && businessId) {
+    if (businessId) {
       TemplateRepository.getTemplates(businessId, 'school').then(templates => {
         setCustomTemplates(templates.filter(t => t.type === 'report_card'));
       });
     }
-  }, [useDocumentEngine, businessId]);
+  }, [businessId]);
 
   useEffect(() => {
     if (bulletinModel) {
