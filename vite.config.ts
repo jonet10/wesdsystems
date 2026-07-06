@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: "prompt",
+      registerType: "autoUpdate",
       injectRegister: "script",
       devOptions: { enabled: true, type: "module" },
       includeAssets: ["logo.png", "logo_square.png", "placeholder.svg", "favicon.ico"],

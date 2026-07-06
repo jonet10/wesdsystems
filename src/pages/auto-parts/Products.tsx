@@ -20,7 +20,7 @@ import { listCategories } from "@/modules/auto-parts/services/categories";
 import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
-import { Pencil, Trash2, Search } from "lucide-react";
+import { Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import type { AutoPartsProduct, AutoPartsCategory } from "@/modules/auto-parts/types";
 
 export default function AutoPartsProductsPage() {
@@ -36,6 +36,7 @@ export default function AutoPartsProductsPage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<AutoPartsProduct | null>(null);
   const [form, setForm] = useState({
     name: "", description: "", category_id: "", sku: "", barcode: "",
@@ -77,6 +78,7 @@ export default function AutoPartsProductsPage() {
   const handleSave = async () => {
     if (!businessId) return;
     try {
+      setSaving(true);
       const values = {
         ...form,
         category_id: form.category_id || null,
@@ -92,7 +94,7 @@ export default function AutoPartsProductsPage() {
       if (editing) { await updateProduct(editing.id, values, businessId); toast.success("Produit mis à jour"); }
       else { await createProduct(businessId, values); toast.success("Produit créé"); }
       setOpen(false); load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
@@ -174,8 +176,17 @@ export default function AutoPartsProductsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave}>{t("common.save")}</Button>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Veuillez patienter...
+                </>
+              ) : (
+                t("common.save")
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

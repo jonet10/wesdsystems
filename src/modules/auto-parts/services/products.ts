@@ -63,14 +63,18 @@ export async function getProduct(id: string, businessId?: string) {
       .select("*")
       .eq("product_id", id)
       .eq("business_id", businessId)
-      .maybeSingle();
+      .limit(1);
+    
+    const invRow = invData?.[0] || null;
 
     if (invRow) {
       const { data: prod, error: prodError } = await supabase
         .from("auto_parts_products")
         .select("*, category:auto_parts_categories(name)")
         .eq("id", id)
-        .maybeSingle();
+        .limit(1);
+      
+      const prod = prodData?.[0] || null;
       if (prodError) throw prodError;
       if (prod) return mergeInventory(prod, invRow);
     }
@@ -81,9 +85,9 @@ export async function getProduct(id: string, businessId?: string) {
     .from("auto_parts_products")
     .select("*, category:auto_parts_categories(name)")
     .eq("id", id)
-    .maybeSingle();
+    .limit(1);
   if (error) throw error;
-  return data as AutoPartsProduct & { category: { name: string } | null };
+  return (data?.[0] || null) as AutoPartsProduct & { category: { name: string } | null };
 }
 
 export async function createProduct(businessId: string, values: Partial<AutoPartsProduct>) {
@@ -120,9 +124,10 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
         reserved_quantity: 0,
         min_stock: 0,
       })
-      .select("*, category:auto_parts_categories(name)")
-      .single();
+      .select("*, category:auto_parts_categories(name)");
     if (prodError) throw prodError;
+    const prod = prodData?.[0];
+    if (!prod) throw new Error("Erreur lors de la création du produit");
 
     // 2. Create inventory row for this business
     const { error: invError } = await supabase
@@ -175,10 +180,9 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
   const { data, error } = await supabase
     .from("auto_parts_products")
     .insert(payload)
-    .select("*, category:auto_parts_categories(name)")
-    .single();
+    .select("*, category:auto_parts_categories(name)");
   if (error) throw error;
-  return data as AutoPartsProduct & { category: { name: string } | null };
+  return (data?.[0] || null) as AutoPartsProduct & { category: { name: string } | null };
 }
 
 export async function updateProduct(id: string, values: Partial<AutoPartsProduct>, businessId?: string) {
@@ -198,7 +202,8 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     invQuery = invQuery.is("branch_id", null);
   }
 
-  const { data: invRow } = await invQuery.maybeSingle();
+  const { data: invRows } = await invQuery.limit(1);
+  const invRow = invRows?.[0] || null;
 
   if (invRow) {
     // Update product global fields (name, description, category)
@@ -252,7 +257,9 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     .select("*, category:auto_parts_categories(name)")
     .eq("id", id)
     .is("business_id", null)
-    .maybeSingle();
+    .limit(1);
+    
+  const globalProd = globalProdData?.[0] || null;
 
   if (globalProd) {
     // Product is in the global catalog — create inventory row and update it
@@ -305,10 +312,9 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     .update(payload)
     .eq("id", id)
     .eq("business_id", businessId)
-    .select("*, category:auto_parts_categories(name)")
-    .maybeSingle();
+    .select("*, category:auto_parts_categories(name)");
   if (error) throw error;
-  return data as AutoPartsProduct & { category: { name: string } | null };
+  return (data?.[0] || null) as AutoPartsProduct & { category: { name: string } | null };
 }
 
 export async function deleteProduct(id: string, businessId?: string) {
@@ -320,7 +326,8 @@ export async function deleteProduct(id: string, businessId?: string) {
     .select("id")
     .eq("product_id", id)
     .eq("business_id", businessId)
-    .maybeSingle();
+    .limit(1);
+  const invRow = invData?.[0] || null;
 
   if (invRow) {
     // Soft-delete: deactivate in inventory only
