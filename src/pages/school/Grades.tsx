@@ -773,57 +773,90 @@ export default function SchoolGrades() {
     if (effectiveModel === 'C') {
       const decision = grandAvg !== null && grandAvg >= 5.0 ? "Admis(e)" : "Ajourné(e)";
       const singleBulletin = (
-        <div className="flex-1 border border-gray-400 font-sans text-sm text-black bg-white">
-          {/* En-tête compact */}
-          <div className="bg-amber-50 border-b border-gray-300 text-center py-1.5 px-2">
-            <p className="font-extrabold text-xs">{settings?.name || "Établissement Scolaire"}</p>
-            {settings?.address && <p className="text-[9px]">{settings.address}</p>}
-            {settings?.phone && <p className="text-[9px]">Tél : {settings.phone}</p>}
+        <div className="flex-1 border border-gray-300 font-sans text-xs text-black bg-white flex flex-col">
+          {/* En-tête structuré */}
+          <div className="flex flex-col items-center justify-center p-2 text-center border-b-[3px] border-double border-gray-800 bg-gray-50">
+            <h1 className="font-black text-sm uppercase tracking-wider">{settings?.name || "Établissement Scolaire"}</h1>
+            {settings?.slogan && <p className="text-[9px] italic mb-0.5">{settings.slogan}</p>}
+            <p className="text-[9px]">{settings?.address || ""} {settings?.phone ? `| Tél: ${settings.phone}` : ""}</p>
           </div>
-          <div className="text-center border-b border-gray-300 py-1 px-2 text-[10px]">
-            <p><strong>{student.student_name}</strong> — Classe : <strong>{student.className}</strong></p>
-            <p>Année : <strong>{activeAcademicYear?.name || ""}</strong></p>
+
+          <div className="px-2 py-1.5 border-b border-gray-400 flex justify-between items-start text-[9px]">
+            <div>
+              <p><span className="font-bold text-gray-500 uppercase">Élève:</span> <span className="font-black text-xs uppercase">{student.student_name}</span></p>
+              <p><span className="font-bold text-gray-500 uppercase">Classe:</span> {student.className}</p>
+            </div>
+            <div className="text-right">
+              <p><span className="font-bold text-gray-500 uppercase">Année:</span> {activeAcademicYear?.name || ""}</p>
+              <p><span className="font-bold text-gray-500 uppercase">Période:</span> <span className="font-bold text-primary">{selectedPeriod}</span></p>
+            </div>
           </div>
-          <div className="text-center border-b border-gray-400 py-1">
-            <hr className="border-black border-t mx-3 mb-0.5" />
-            <p className="font-extrabold text-xs tracking-wide">Bulletin Scolaire</p>
-            <hr className="border-black border-t mx-3 mt-0.5" />
+          
+          <div className="text-center py-1">
+            <h2 className="font-black text-[10px] uppercase tracking-widest text-gray-800">Bulletin Scolaire</h2>
           </div>
+
           {/* Tableau compact */}
-          <table className="w-full border-collapse text-[11px]">
-            <thead>
-              <tr className="border-b border-gray-400">
-                <th className="border-r border-gray-300 text-center p-1 font-bold w-6">No.</th>
-                <th className="border-r border-gray-300 text-left p-1 font-bold">Disciplines</th>
-                <th className="border-r border-gray-300 text-center p-1 font-bold w-20">Coefficients</th>
-                <th className="text-center p-1 font-bold w-16">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subjectsList.map((sub, idx) => (
-                <tr key={sub.subject_id} className="border-b border-gray-200">
-                  <td className="border-r border-gray-300 text-center p-1">{idx + 1}</td>
-                  <td className="border-r border-gray-300 p-1 uppercase text-[10px] font-medium">{sub.subject_name}</td>
-                  <td className="border-r border-gray-300 text-center p-1 font-semibold">{sub.coef}</td>
-                  <td className="text-center p-1 font-bold">{sub.average !== null ? sub.average : "-"}</td>
+          <div className="px-2 flex-1">
+            <table className="w-full border-collapse border border-gray-800 text-[9px]">
+              <thead>
+                <tr className="bg-gray-200 border-b border-gray-800 uppercase">
+                  <th className="p-1 text-left border-r border-gray-800 font-black">Disciplines</th>
+                  <th className="p-1 text-center border-r border-gray-800 font-black w-10">Coef.</th>
+                  <th className="p-1 text-center font-black w-12">Notes</th>
                 </tr>
-              ))}
-              <tr className="border-t border-gray-400 font-bold bg-gray-50 text-[11px]">
-                <td colSpan={2} className="border-r border-gray-400 p-1">Total</td>
-                <td className="border-r border-gray-400 text-center p-1">{grandTotalCoef}</td>
-                <td className="text-center p-1">{Number(grandTotalNote.toFixed(1))}</td>
-              </tr>
-              <tr className="font-bold bg-gray-50 text-[11px]">
-                <td colSpan={2} className="border-r border-gray-400 p-1">Moyenne</td>
-                <td className="border-r border-gray-400 text-center p-1"></td>
-                <td className="text-center p-1 font-extrabold">{grandAvg ?? "-"}</td>
-              </tr>
-            </tbody>
-          </table>
-          {/* Signature compacte */}
-          <div className="p-3 text-[10px] space-y-2">
-            <div>La direction : <span className="inline-block border-b border-gray-400 w-32">&nbsp;</span></div>
-            <div>Responsable : <span className="inline-block border-b border-gray-400 w-32">&nbsp;</span></div>
+              </thead>
+              <tbody>
+                {subjectsList.map((sub, idx) => (
+                  <tr key={sub.subject_id} className={`border-b border-gray-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className="p-1 border-r border-gray-800 font-medium">{sub.subject_name}</td>
+                    <td className="p-1 border-r border-gray-800 text-center font-semibold text-gray-600">{sub.coef}</td>
+                    <td className="p-1 text-center font-bold">{sub.average !== null ? sub.average : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-[3px] border-gray-800">
+                <tr className="bg-gray-100 font-bold text-[10px]">
+                  <td className="p-1 text-right border-r border-gray-800 uppercase">Grand Total</td>
+                  <td className="p-1 text-center border-r border-gray-800">{grandTotalCoef}</td>
+                  <td className="p-1 text-center">{Number(grandTotalNote.toFixed(1))}</td>
+                </tr>
+                <tr className="bg-gray-200 font-black text-[11px]">
+                  <td className="p-1 text-right border-r border-gray-800 uppercase">Moyenne Générale</td>
+                  <td className="p-1 text-center border-r border-gray-800 text-[8px] font-bold text-gray-500">/ 10</td>
+                  <td className="p-1 text-center">{grandAvg ?? "-"}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {/* Section Résultats */}
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[9px]">
+              <div className="border border-gray-800 p-1.5 space-y-0.5 bg-gray-50 rounded-sm">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Mention:</span> <span className="font-bold">{mention}</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Conduite:</span> <span className="font-bold">{conductGrade}/10</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Décision:</span> <span className="font-black text-primary uppercase">{decision}</span></p>
+              </div>
+              <div className="border border-gray-800 p-1.5 space-y-0.5 bg-white rounded-sm">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences:</span> <span className="font-bold">{absences} j.</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards:</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
+              </div>
+            </div>
+
+            {/* Signature compacte */}
+            <div className="mt-3 mb-2 flex justify-between px-2 text-[9px]">
+              <div className="text-center">
+                <p className="font-bold mb-6 text-gray-600">Direction</p>
+                <div className="border-t border-gray-800 w-16 mx-auto"></div>
+              </div>
+              <div className="text-center">
+                <p className="font-bold mb-6 text-gray-600">Titulaire</p>
+                <div className="border-t border-gray-800 w-16 mx-auto"></div>
+              </div>
+              <div className="text-center">
+                <p className="font-bold mb-6 text-gray-600">Parents</p>
+                <div className="border-t border-gray-800 w-16 mx-auto"></div>
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -833,7 +866,7 @@ export default function SchoolGrades() {
           <style>{`@media print { @page { size: landscape; margin: 8mm; } }`}</style>
           <div className="flex gap-4">
             {singleBulletin}
-            <div className="w-px bg-gray-400 border-l border-dashed border-gray-400 mx-1" />
+            <div className="w-px bg-gray-400 border-l border-dashed border-gray-400 mx-1 print:border-gray-300" />
             {singleBulletin}
           </div>
           <p className="text-center text-xs text-gray-400 mt-2 print:hidden">← Trait de coupe au milieu →</p>
@@ -842,94 +875,96 @@ export default function SchoolGrades() {
     }
 
     // ════════════════════════════════════════════════
-    // MODÈLE A : PLAT (École Nationale de Sempera)
+    // MODÈLE A : PLAT (Portrait Simple - 5.5 x 8.5)
     // ════════════════════════════════════════════════
     if (effectiveModel === 'A') {
       const decision = grandAvg !== null && grandAvg >= 5.0 ? "Admis(e)" : "Ajourné(e)";
       return (
-        <div className="font-sans text-sm text-black bg-white">
+        <div className="font-sans text-xs text-black bg-white mx-auto border border-gray-300 print:border-none">
           <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
-          {/* En-tête école */}
-          <div className="bg-amber-50 border border-gray-300 text-center p-3 mb-0">
-            <p className="font-extrabold text-base">{settings?.name || "Établissement Scolaire"}</p>
-            {settings?.address && <p className="text-xs">{settings.address}</p>}
-            {settings?.phone && <p className="text-xs">Téléphones : {settings.phone}</p>}
+          
+          {/* HEADER */}
+          <div className="flex flex-col items-center justify-center p-4 text-center border-b-[3px] border-double border-gray-800 bg-gray-50">
+            <h1 className="font-black text-lg uppercase tracking-wider">{settings?.name || "Établissement Scolaire"}</h1>
+            {settings?.slogan && <p className="text-[10px] italic mb-1">{settings.slogan}</p>}
+            <p className="text-[10px]">{settings?.address || ""} {settings?.phone ? `| Tél: ${settings.phone}` : ""}</p>
           </div>
 
-          {/* Infos élève */}
-          <div className="text-center border-x border-gray-300 py-2 px-4">
-            <p className="text-sm font-medium">
-              Nom et Prénom : <strong>{student.student_name}</strong>
-              {"  "}Classe : <strong>{student.className}</strong>
-            </p>
-            <p className="text-sm">Année académique : <strong>{activeAcademicYear?.name || ""}</strong></p>
+          <div className="px-4 py-3 border-b border-gray-400 flex justify-between items-start">
+            <div className="space-y-1">
+              <p><span className="font-bold text-gray-500 uppercase">Élève:</span> <span className="font-black text-sm uppercase">{student.student_name}</span></p>
+              <p><span className="font-bold text-gray-500 uppercase">Classe:</span> {student.className}</p>
+            </div>
+            <div className="space-y-1 text-right">
+              <p><span className="font-bold text-gray-500 uppercase">Année:</span> {activeAcademicYear?.name || ""}</p>
+              <p><span className="font-bold text-gray-500 uppercase">Période:</span> <span className="font-bold text-primary">{selectedPeriod}</span></p>
+            </div>
           </div>
 
-          {/* Titre */}
-          <div className="text-center border-x border-t border-gray-300 py-2">
-            <hr className="border-black border-t-2 mb-1 mx-4" />
-            <p className="text-lg font-extrabold tracking-wide">Bulletin Scolaire</p>
-            <hr className="border-black border-t-2 mt-1 mx-4" />
+          <div className="text-center py-2 bg-white">
+            <h2 className="font-black text-sm uppercase tracking-widest text-gray-800">Bulletin Scolaire</h2>
           </div>
 
-          {/* Tableau */}
-          <table className="w-full border-collapse border border-gray-400">
-            <thead>
-              <tr className="border-b border-gray-400">
-                <th className="border-r border-gray-400 text-left p-2 font-bold text-base" rowSpan={2}>
-                  Matières
-                </th>
-                <th className="text-center p-2 font-bold" colSpan={2}>
-                  {selectedPeriod}
-                </th>
-              </tr>
-              <tr className="border-b border-gray-400">
-                <th className="border-r border-l border-gray-400 text-center p-1.5 font-bold w-32">
-                  Coefficient
-                </th>
-                <th className="text-center p-1.5 font-bold w-28">
-                  Note
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {subjectsList.map((sub) => (
-                <tr key={sub.subject_id} className="border-b border-gray-300">
-                  <td className="border-r border-gray-300 p-2" style={{ color: "#8B0000" }}>{sub.subject_name}</td>
-                  <td className="border-r border-gray-300 text-center p-2 font-semibold">{sub.coef}</td>
-                  <td className="text-center p-2 font-bold" style={{ color: "#8B0000" }}>
-                    {sub.average !== null ? sub.average : "-"}
-                  </td>
+          {/* CORPS DU BULLETIN */}
+          <div className="px-4 pb-4">
+            <table className="w-full border-collapse border border-gray-800 text-[11px]">
+              <thead>
+                <tr className="bg-gray-200 border-b border-gray-800 uppercase">
+                  <th className="p-1.5 text-left border-r border-gray-800 font-black w-1/2">Disciplines</th>
+                  <th className="p-1.5 text-center border-r border-gray-800 font-black w-16">Coef.</th>
+                  <th className="p-1.5 text-center font-black w-20">Note</th>
                 </tr>
-              ))}
-              <tr className="border-b border-gray-400 font-bold">
-                <td className="border-r border-gray-400 p-2">Total</td>
-                <td className="border-r border-gray-400 text-center p-2">{grandTotalCoef}</td>
-                <td className="text-center p-2">{Number(grandTotalNote.toFixed(1))}</td>
-              </tr>
-              <tr className="border-b border-gray-400 font-bold">
-                <td className="border-r border-gray-400 p-2">Moyenne</td>
-                <td className="border-r border-gray-400 text-center p-2">10</td>
-                <td className="text-center p-2 font-extrabold">{grandAvg ?? "-"}</td>
-              </tr>
-              <tr className="font-bold">
-                <td className="border-r border-gray-400 p-2">Décision de fin d'année</td>
-                <td className="text-center p-2 font-extrabold" colSpan={2}>{decision}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {subjectsList.map((sub, idx) => (
+                  <tr key={sub.subject_id} className={`border-b border-gray-300 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className="p-1.5 border-r border-gray-800 font-medium">{sub.subject_name}</td>
+                    <td className="p-1.5 border-r border-gray-800 text-center font-semibold text-gray-600">{sub.coef}</td>
+                    <td className="p-1.5 text-center font-bold">{sub.average !== null ? sub.average : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-[3px] border-gray-800">
+                <tr className="bg-gray-100 font-bold">
+                  <td className="p-2 text-right border-r border-gray-800 uppercase text-[10px]">Grand Total</td>
+                  <td className="p-2 text-center border-r border-gray-800">{grandTotalCoef}</td>
+                  <td className="p-2 text-center">{Number(grandTotalNote.toFixed(1))}</td>
+                </tr>
+                <tr className="bg-gray-200 font-black text-[13px]">
+                  <td className="p-2 text-right border-r border-gray-800 uppercase">Moyenne Générale</td>
+                  <td className="p-2 text-center border-r border-gray-800 text-[9px] font-bold text-gray-500">SUR 10</td>
+                  <td className="p-2 text-center">{grandAvg ?? "-"}</td>
+                </tr>
+              </tfoot>
+            </table>
 
-          {/* Signatures */}
-          <div className="border border-t-0 border-gray-300 p-8 space-y-8 text-sm">
-            <p className="text-center font-semibold">Signatures</p>
-            <div className="flex flex-col gap-6">
-              <div>
-                <span className="font-semibold">La direction : </span>
-                <span className="inline-block border-b border-gray-500 w-72">&nbsp;</span>
+            {/* SECTION RÉSULTATS & OBSERVATIONS */}
+            <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
+              <div className="border border-gray-800 p-2 space-y-1 bg-gray-50 rounded-sm">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Mention:</span> <span className="font-bold">{mention}</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Conduite:</span> <span className="font-bold">{conductGrade} / 10</span></p>
+                <div className="border-t border-gray-300 my-1 pt-1 flex justify-between">
+                  <span className="font-semibold text-gray-600">Décision:</span> <span className="font-black text-primary uppercase">{decision}</span>
+                </div>
               </div>
-              <div>
-                <span className="font-semibold">Personne Responsable : </span>
-                <span className="inline-block border-b border-gray-500 w-64">&nbsp;</span>
+              <div className="border border-gray-800 p-2 space-y-1 bg-white rounded-sm">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences:</span> <span className="font-bold">{absences} jour(s)</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards:</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-between px-2 text-[10px]">
+              <div className="text-center">
+                <p className="font-bold mb-8 text-gray-600">La Direction</p>
+                <div className="border-t border-gray-800 w-20 mx-auto"></div>
+              </div>
+              <div className="text-center">
+                <p className="font-bold mb-8 text-gray-600">Le Titulaire</p>
+                <div className="border-t border-gray-800 w-20 mx-auto"></div>
+              </div>
+              <div className="text-center">
+                <p className="font-bold mb-8 text-gray-600">Les Parents</p>
+                <div className="border-t border-gray-800 w-20 mx-auto"></div>
               </div>
             </div>
           </div>
@@ -938,154 +973,137 @@ export default function SchoolGrades() {
     }
 
     // ════════════════════════════════════════════════
-    // MODÈLE 1 : GROUPÉ (École Diocésaine St Vincent de Paul)
+    // MODÈLE B : GROUPÉ (Portrait Groupé par Domaines - 5.5 x 8.5)
     // ════════════════════════════════════════════════
-    const domainGroups: Record<string, { name: string; display_order: number; subjects: any[] }> = {};
-    subjectsList.forEach((sub) => {
-      const dName = sub.domain_name || "Autres";
-      if (!domainGroups[dName]) {
-        domainGroups[dName] = { name: dName, display_order: sub.display_order ?? 99, subjects: [] };
-      }
-      domainGroups[dName].subjects.push(sub);
-    });
-    const sortedDomains = Object.values(domainGroups).sort((a, b) => a.display_order - b.display_order);
+    if (effectiveModel === 'B') {
+        const domainGroups: Record<string, { name: string; display_order: number; subjects: any[] }> = {};
+        subjectsList.forEach((sub) => {
+          const dName = sub.domain_name || "Autres";
+          if (!domainGroups[dName]) {
+            domainGroups[dName] = { name: dName, display_order: sub.display_order ?? 99, subjects: [] };
+          }
+          domainGroups[dName].subjects.push(sub);
+        });
+        const sortedDomains = Object.values(domainGroups).sort((a, b) => a.display_order - b.display_order);
 
-    const getDomainTotals = (subs: any[]) => {
-      let noteSum = 0; let coefSum = 0;
-      subs.forEach((s) => { if (s.average !== null) { noteSum += Number(s.average); coefSum += Number(s.coef); } });
-      const avg = coefSum > 0 ? Number(((noteSum / coefSum) * 10).toFixed(2)) : null;
-      return { noteSum: Number(noteSum.toFixed(0)), coefSum: Number(coefSum.toFixed(0)), avg };
-    };
+        const getDomainTotals = (subs: any[]) => {
+          let noteSum = 0; let coefSum = 0;
+          subs.forEach((s) => { if (s.average !== null) { noteSum += Number(s.average); coefSum += Number(s.coef); } });
+          const avg = coefSum > 0 ? Number(((noteSum / coefSum) * 10).toFixed(2)) : null;
+          return { noteSum: Number(noteSum.toFixed(1)), coefSum: Number(coefSum.toFixed(0)), avg };
+        };
 
-    return (
-      <div className="flex gap-0 font-sans text-sm text-black bg-white border border-gray-400">
-        <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
-        {/* ── Tableau principal gauche ── */}
-        <div className="flex-1">
-          <table className="w-full border-collapse text-[12px]">
-            <thead>
-              <tr className="border-b border-gray-400">
-                <th className="border-r border-gray-400 text-center p-1.5 font-bold" colSpan={2}>Matières</th>
-                <th className="border-r border-gray-400 text-center p-1.5 font-bold w-20">Coefficient</th>
-                <th className="text-center p-1.5 font-bold w-20">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedDomains.map((dom) => {
-                const { noteSum, coefSum, avg } = getDomainTotals(dom.subjects);
-                return [
-                  /* Subject rows */
-                  ...dom.subjects.map((sub, idx) => (
-                    <tr key={sub.subject_id} className="border-b border-gray-200">
-                      {idx === 0 && (
-                        <td
-                          rowSpan={dom.subjects.length + 2}
-                          className="border-r border-gray-400 text-center align-middle font-bold text-[10px] uppercase p-1 bg-gray-50 w-16"
-                          style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
-                        >
-                          {dom.name}
-                        </td>
-                      )}
-                      <td className="border-r border-gray-300 p-1.5">{sub.subject_name}</td>
-                      <td className="border-r border-gray-300 text-center p-1.5 font-semibold">{sub.coef}</td>
-                      <td className="text-center p-1.5 font-bold text-red-700">
-                        {sub.average !== null ? sub.average : "-"}
-                      </td>
-                    </tr>
-                  )),
-                  /* Total row */
-                  <tr key={`${dom.name}-t`} className="border-b border-gray-400 bg-gray-50 font-bold text-[11px]">
-                    <td className="border-r border-gray-300 p-1 pl-2">Total</td>
-                    <td className="border-r border-gray-300 text-center p-1">{coefSum}</td>
-                    <td className="text-center p-1 text-red-700">{noteSum}</td>
-                  </tr>,
-                  /* Moyenne row */
-                  <tr key={`${dom.name}-m`} className="border-b border-gray-400 bg-gray-50 font-bold text-[11px]">
-                    <td className="border-r border-gray-300 p-1 pl-2">Moyenne</td>
-                    <td className="border-r border-gray-300 text-center p-1">10</td>
-                    <td className="text-center p-1 text-red-700 font-extrabold">{avg ?? "-"}</td>
-                  </tr>,
-                ];
-              })}
+        const decision = grandAvg !== null && grandAvg >= 5.0 ? "Admis(e)" : "Ajourné(e)";
 
-              {/* Grand Total */}
-              <tr className="border-t-2 border-gray-500 bg-gray-100 font-bold text-[11px]">
-                <td className="border-r border-gray-400 p-1 pl-2 uppercase italic" colSpan={2}>Grand Total</td>
-                <td className="border-r border-gray-400 text-center p-1">{grandTotalCoef}</td>
-                <td className="text-center p-1 text-red-700">{Number(grandTotalNote.toFixed(0))}</td>
-              </tr>
-              <tr className="bg-gray-100 font-bold text-[11px]">
-                <td className="border-r border-gray-400 p-1 pl-2 uppercase italic" colSpan={2}>Moyenne</td>
-                <td className="border-r border-gray-400 text-center p-1">10</td>
-                <td className="text-center p-1 text-red-700 font-extrabold">{grandAvg ?? "-"}</td>
-              </tr>
-              <tr className="border-t border-gray-400 text-[11px]">
-                <td className="border-r border-gray-400 p-1 pl-2 font-semibold" colSpan={2}>Conduite</td>
-                <td className="border-r border-gray-400 text-center p-1"></td>
-                <td className="text-center p-1 font-bold">{conductGrade}</td>
-              </tr>
-              <tr className="text-[11px]">
-                <td className="border-r border-gray-400 p-1 pl-2 font-semibold" colSpan={2}>Mention</td>
-                <td className="border-r border-gray-400 text-center p-1 font-bold text-primary" colSpan={2}>{mention}</td>
-              </tr>
-              <tr className="border-t border-gray-300 text-[11px]">
-                <td className="border-r border-gray-400 p-1 pl-2 font-semibold" colSpan={2}>Moyenne Générale</td>
-                <td className="border-r border-gray-400 text-center p-1">10</td>
-                <td className="text-center p-1 font-extrabold text-red-700">{grandAvg ?? "-"}</td>
-              </tr>
-              <tr className="border-t border-gray-300 text-[11px] font-bold">
-                <td className="border-r border-gray-400 p-1 pl-2" colSpan={2}>Décision de fin d'année</td>
-                <td className="text-center p-1 font-extrabold text-red-700 italic" colSpan={2}>{decision}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Colonnes latérales (signatures, absences, retards) ── */}
-        <div className="flex border-l border-gray-400 text-[10px]">
-          {/* Colonne Personne Responsable */}
-          <div className="w-10 border-r border-gray-400 flex items-center justify-center p-1">
-            <span className="font-bold uppercase" style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>
-              Personne Responsable
-            </span>
-          </div>
-          {/* Colonne Nombre d'absences */}
-          <div className="w-10 border-r border-gray-400 flex flex-col">
-            <div className="flex-1 flex items-center justify-center p-1 border-b border-gray-300">
-              <span className="font-bold uppercase" style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>
-                Nombre d'absences
-              </span>
+        return (
+          <div className="font-sans text-xs text-black bg-white mx-auto border border-gray-300 print:border-none">
+            <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
+            
+            {/* HEADER */}
+            <div className="flex flex-col items-center justify-center p-3 text-center border-b-[3px] border-double border-gray-800 bg-gray-50">
+              <h1 className="font-black text-base uppercase tracking-wider">{settings?.name || "Établissement Scolaire"}</h1>
+              {settings?.slogan && <p className="text-[9px] italic mb-1">{settings.slogan}</p>}
+              <p className="text-[9px]">{settings?.address || ""} {settings?.phone ? `| Tél: ${settings.phone}` : ""}</p>
             </div>
-            <div className="p-1 text-center">
-              <p className="font-bold">{absences}</p>
+
+            <div className="px-3 py-2 border-b border-gray-400 flex justify-between items-center text-[10px]">
+              <div>
+                <p><span className="font-bold text-gray-500 uppercase">Élève:</span> <span className="font-black text-sm uppercase ml-1">{student.student_name}</span></p>
+                <p><span className="font-bold text-gray-500 uppercase">Classe:</span> <span className="ml-1">{student.className}</span></p>
+              </div>
+              <div className="text-right">
+                <p><span className="font-bold text-gray-500 uppercase">Année:</span> <span className="ml-1">{activeAcademicYear?.name || ""}</span></p>
+                <p><span className="font-bold text-gray-500 uppercase">Période:</span> <span className="font-bold text-primary ml-1">{selectedPeriod}</span></p>
+              </div>
             </div>
-          </div>
-          {/* Colonne Signatures */}
-          <div className="w-10 border-r border-gray-400 flex items-center justify-center p-1">
-            <span className="font-bold uppercase" style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>
-              Signatures
-            </span>
-          </div>
-          {/* Colonne La direction */}
-          <div className="w-10 border-r border-gray-400 flex items-center justify-center p-1">
-            <span className="font-bold uppercase" style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>
-              La direction
-            </span>
-          </div>
-          {/* Colonne Nombre de Retards */}
-          <div className="w-10 flex flex-col">
-            <div className="flex-1 flex items-center justify-center p-1 border-b border-gray-300">
-              <span className="font-bold uppercase" style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}>
-                Nombre de Retards
-              </span>
-            </div>
-            <div className="p-1 text-center">
-              <p className="font-bold">{tardiness}</p>
+
+            {/* CORPS DU BULLETIN */}
+            <div className="p-3">
+              <table className="w-full border-collapse border border-gray-800 text-[10px]">
+                <thead>
+                  <tr className="bg-gray-200 border-b border-gray-800 uppercase">
+                    <th className="p-1 text-left border-r border-gray-800 font-black">Disciplines</th>
+                    <th className="p-1 text-center border-r border-gray-800 font-black w-14">Coef.</th>
+                    <th className="p-1 text-center font-black w-16">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedDomains.map((dom) => {
+                    const { noteSum, coefSum, avg } = getDomainTotals(dom.subjects);
+                    return (
+                      <React.Fragment key={dom.name}>
+                        {/* DOMAIN HEADER */}
+                        <tr className="bg-gray-100 border-b border-gray-400 border-t border-gray-400">
+                          <td colSpan={3} className="p-1 px-2 font-bold uppercase text-gray-700 tracking-wider">
+                            {dom.name}
+                          </td>
+                        </tr>
+                        {/* SUBJECTS */}
+                        {dom.subjects.map((sub: any) => (
+                          <tr key={sub.subject_id} className="border-b border-gray-200">
+                            <td className="p-1 px-3 border-r border-gray-800 font-medium">{sub.subject_name}</td>
+                            <td className="p-1 border-r border-gray-800 text-center font-semibold text-gray-600">{sub.coef}</td>
+                            <td className="p-1 text-center font-bold">{sub.average !== null ? sub.average : "-"}</td>
+                          </tr>
+                        ))}
+                        {/* DOMAIN TOTALS */}
+                        <tr className="border-b border-gray-800 bg-gray-50/80">
+                          <td className="p-1 px-3 text-right font-bold text-[9px] border-r border-gray-800 uppercase italic">S/Total {dom.name}</td>
+                          <td className="p-1 text-center border-r border-gray-800 font-bold">{coefSum}</td>
+                          <td className="p-1 text-center font-bold text-primary">{noteSum}</td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="border-t-[3px] border-gray-800">
+                  <tr className="bg-gray-100 font-bold text-[11px]">
+                    <td className="p-1.5 text-right border-r border-gray-800 uppercase">Grand Total</td>
+                    <td className="p-1.5 text-center border-r border-gray-800">{grandTotalCoef}</td>
+                    <td className="p-1.5 text-center">{Number(grandTotalNote.toFixed(1))}</td>
+                  </tr>
+                  <tr className="bg-gray-200 font-black text-[12px]">
+                    <td className="p-1.5 text-right border-r border-gray-800 uppercase">Moyenne Générale</td>
+                    <td className="p-1.5 text-center border-r border-gray-800 text-[9px] font-bold text-gray-500">SUR 10</td>
+                    <td className="p-1.5 text-center">{grandAvg ?? "-"}</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* SECTION RÉSULTATS & OBSERVATIONS */}
+              <div className="mt-3 grid grid-cols-2 gap-3 text-[10px]">
+                <div className="border border-gray-800 p-2 space-y-1 bg-gray-50 rounded-sm">
+                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Mention :</span> <span className="font-bold">{mention}</span></p>
+                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Conduite :</span> <span className="font-bold">{conductGrade} / 10</span></p>
+                  <div className="border-t border-gray-300 my-1 pt-1 flex justify-between">
+                    <span className="font-semibold text-gray-600">Décision :</span> <span className="font-black text-primary uppercase">{decision}</span>
+                  </div>
+                </div>
+                <div className="border border-gray-800 p-2 space-y-1 bg-white rounded-sm">
+                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences :</span> <span className="font-bold">{absences} jour(s)</span></p>
+                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards :</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
+                </div>
+              </div>
+
+              {/* SIGNATURES */}
+              <div className="mt-6 flex justify-between px-2 text-[10px]">
+                <div className="text-center">
+                  <p className="font-bold mb-8 text-gray-600">La Direction</p>
+                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold mb-8 text-gray-600">Le Titulaire</p>
+                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
+                </div>
+                <div className="text-center">
+                  <p className="font-bold mb-8 text-gray-600">Les Parents</p>
+                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    );
+        );
+    }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
