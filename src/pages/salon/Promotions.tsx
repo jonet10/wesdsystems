@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -67,17 +69,38 @@ export default function PromotionsPage() {
   const [validFrom, setValidFrom] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   const loadPromotions = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from("salon_promotions")
-        .select("*");
-      if (branchScope) query = query.eq("branch_id", branchScope);
-      const { data, error } = await query.order("created_at", { ascending: false });
+      let query = supabase.from("salon_promotions").select("*");
+      let pQuery = supabase.from("salon_products").select("id, name").eq("is_active", true);
+      let sQuery = supabase.from("salon_services").select("id, name").eq("is_active", true);
+
+      if (branchScope) {
+        query = query.eq("branch_id", branchScope);
+        pQuery = pQuery.eq("branch_id", branchScope);
+        sQuery = sQuery.eq("branch_id", branchScope);
+      } else if (profile?.business_id) {
+        query = query.eq("salon_id", profile.business_id);
+        pQuery = pQuery.eq("salon_id", profile.business_id);
+        sQuery = sQuery.eq("salon_id", profile.business_id);
+      }
+
+      const [{ data, error }, { data: pData }, { data: sData }] = await Promise.all([
+        query.order("created_at", { ascending: false }),
+        pQuery.order("name"),
+        sQuery.order("name")
+      ]);
       if (error) throw error;
+      
       setPromotions((data || []) as Promotion[]);
+      setProducts(pData || []);
+      setServices(sData || []);
     } catch (err: any) {
       toast.error("Erreur chargement promotions");
     } finally {
@@ -92,6 +115,7 @@ export default function PromotionsPage() {
     setName(""); setDescription(""); setPromotionType("percentage");
     setDiscountValue("0"); setDiscountPercentage("0");
     setMinQuantity("0"); setValidFrom(""); setValidUntil(""); setIsActive(true);
+    setSelectedProducts([]); setSelectedServices([]);
   };
 
   const openCreate = () => { resetForm(); setOpen(true); };
@@ -104,6 +128,8 @@ export default function PromotionsPage() {
     setMinQuantity(String(p.minimum_quantity || 0));
     setValidFrom(p.valid_from || ""); setValidUntil(p.valid_until || "");
     setIsActive(p.is_active);
+    setSelectedProducts(p.items_config?.products || []);
+    setSelectedServices(p.items_config?.services || []);
     setOpen(true);
   };
 
@@ -115,7 +141,7 @@ export default function PromotionsPage() {
       promotion_type: promotionType,
       discount_value: promotionType === "fixed_amount" ? Number(discountValue || 0) : null,
       discount_percentage: promotionType === "percentage" ? Number(discountPercentage || 0) : null,
-      items_config: {},
+      items_config: { products: selectedProducts, services: selectedServices },
       minimum_quantity: Number(minQuantity || 0) || null,
       valid_from: validFrom || null,
       valid_until: validUntil || null,
@@ -322,6 +348,52 @@ export default function PromotionsPage() {
                 <Input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} />
               </div>
             )}
+            {(promotionType === "bundle" || promotionType === "combo") && (
+              <div className="space-y-4 border p-3 rounded-md bg-muted/20 mt-4 mb-4">
+                <Label className="font-semibold text-primary">Sélection des articles pour cette promotion</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Produits</Label>
+                    <ScrollArea className="h-[150px] border rounded-md p-2 bg-background">
+                      {products.map(p => (
+                        <div key={p.id} className="flex items-center space-x-2 mb-2">
+                          <Checkbox 
+                            id={`prod-${p.id}`} 
+                            checked={selectedProducts.includes(p.id)}
+                            onCheckedChange={(c) => {
+                              if(c) setSelectedProducts([...selectedProducts, p.id]);
+                              else setSelectedProducts(selectedProducts.filter(id => id !== p.id));
+                            }}
+                          />
+                          <Label htmlFor={`prod-${p.id}`} className="text-xs font-normal leading-tight cursor-pointer">{p.name}</Label>
+                        </div>
+                      ))}
+                      {products.length === 0 && <span className="text-xs text-muted-foreground">Aucun produit</span>}
+                    </ScrollArea>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-2 block">Services</Label>
+                    <ScrollArea className="h-[150px] border rounded-md p-2 bg-background">
+                      {services.map(s => (
+                        <div key={s.id} className="flex items-center space-x-2 mb-2">
+                          <Checkbox 
+                            id={`serv-${s.id}`} 
+                            checked={selectedServices.includes(s.id)}
+                            onCheckedChange={(c) => {
+                              if(c) setSelectedServices([...selectedServices, s.id]);
+                              else setSelectedServices(selectedServices.filter(id => id !== s.id));
+                            }}
+                          />
+                          <Label htmlFor={`serv-${s.id}`} className="text-xs font-normal leading-tight cursor-pointer">{s.name}</Label>
+                        </div>
+                      ))}
+                      {services.length === 0 && <span className="text-xs text-muted-foreground">Aucun service</span>}
+                    </ScrollArea>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {(promotionType === "bundle" || promotionType === "combo") && (
               <div>
                 <Label>Quantité minimum</Label>
