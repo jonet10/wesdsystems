@@ -364,7 +364,7 @@ export default function POSPage() {
       let productsQuery = supabase.from("salon_products").select("id, name, unit_price, category, quantity_in_stock, barcode").eq("is_active", true);
       let servicesQuery = supabase.from("salon_services").select("id, name, price_htg, category_id, requires_employee, metadata").eq("is_active", true);
       const todayKey = getDateKeyInTimeZone(new Date(), DEFAULT_PLATFORM_TIME_ZONE);
-      let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).lte("valid_from", todayKey).gte("valid_until", todayKey);
+      let promotionsQuery = supabase.from("salon_promotions").select("*").eq("is_active", true).or(`valid_from.is.null,valid_from.lte.${todayKey}`).or(`valid_until.is.null,valid_until.gte.${todayKey}`);
       const roleReqQuery = supabase.from("service_role_requirements").select("service_id, role");
 
       productsQuery = productsQuery.eq("branch_id", branchIdToUse);
