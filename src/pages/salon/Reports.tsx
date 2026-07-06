@@ -190,8 +190,12 @@ export default function ReportsPage() {
       const method = sale.payment_method || "cash";
       map.set(method, (map.get(method) || 0) + Number(sale.total_amount || 0) - Number(sale.return_amount || 0));
     });
+    expenses.forEach(exp => {
+      const method = exp.payment_method || "cash";
+      map.set(method, (map.get(method) || 0) - Number(exp.amount || 0));
+    });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [sales]);
+  }, [sales, expenses]);
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; revenue: number }>();
