@@ -1529,7 +1529,6 @@ export default function POSPage() {
       const { data: sale, error: saleError } = await supabase
         .from("salon_sales")
         .insert([{
-          business_id: businessId,
           branch_id: activeBranchId,
           customer_name: selectedClient?.name || null,
           customer_id: selectedClient?.id || null,

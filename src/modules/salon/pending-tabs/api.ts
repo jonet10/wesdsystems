@@ -197,7 +197,6 @@ export async function checkoutPendingTab(tabId: string, input: PendingTabCheckou
   const { data: sale, error: saleError } = await supabase
     .from("salon_sales")
     .insert({
-      business_id: businessId,
       branch_id: tab.branch_id,
       customer_id: tab.client_id || input.employee_id || null, 
       employee_id: input.employee_id || null, 
