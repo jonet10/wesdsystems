@@ -1049,8 +1049,11 @@ export default function POSPage() {
           discount = item.unit_price * item.quantity * (applicablePromo.discount_percentage / 100);
         } else if (applicablePromo.promotion_type === "fixed_amount" && applicablePromo.discount_value) {
           discount = applicablePromo.discount_value;
-        } else if (applicablePromo.promotion_type === "bundle" && applicablePromo.discount_value) {
-          discount = applicablePromo.discount_value;
+        } else if (applicablePromo.promotion_type === "bundle" && applicablePromo.discount_value && applicablePromo.minimum_quantity) {
+          const bundleCount = Math.floor(item.quantity / applicablePromo.minimum_quantity);
+          const totalNormalPriceForBundles = item.unit_price * applicablePromo.minimum_quantity * bundleCount;
+          const totalBundlePrice = applicablePromo.discount_value * bundleCount;
+          discount = totalNormalPriceForBundles - totalBundlePrice;
         }
         return { ...item, promotion_applied: true, promotion_name: applicablePromo.name, discount };
       }

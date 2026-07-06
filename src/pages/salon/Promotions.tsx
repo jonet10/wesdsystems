@@ -139,7 +139,7 @@ export default function PromotionsPage() {
       name: name.trim(),
       description: description.trim() || null,
       promotion_type: promotionType,
-      discount_value: promotionType === "fixed_amount" ? Number(discountValue || 0) : null,
+      discount_value: (promotionType === "fixed_amount" || promotionType === "bundle" || promotionType === "combo") ? Number(discountValue || 0) : null,
       discount_percentage: promotionType === "percentage" ? Number(discountPercentage || 0) : null,
       items_config: { products: selectedProducts, services: selectedServices },
       minimum_quantity: Number(minQuantity || 0) || null,
@@ -395,9 +395,15 @@ export default function PromotionsPage() {
             )}
             
             {(promotionType === "bundle" || promotionType === "combo") && (
-              <div>
-                <Label>Quantité minimum</Label>
-                <Input type="number" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Quantité minimum</Label>
+                  <Input type="number" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Prix final du lot (Gdes)</Label>
+                  <Input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} />
+                </div>
               </div>
             )}
 
