@@ -1950,9 +1950,16 @@ export default function POSPage() {
                                             Enregistré à {dateStr} par {cashierName}
                                           </p>
                                         </div>
-                                        <Badge className="font-semibold">
-                                          {format(sale.total_amount)}
-                                        </Badge>
+                                        <div className="text-right">
+                                          <Badge className="font-semibold">
+                                            {format(sale.total_amount)}
+                                          </Badge>
+                                          {sale.discount_amount > 0 && (
+                                            <p className="text-[10px] text-success font-medium mt-1">
+                                              Réd: {format(sale.discount_amount)}
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
 
                                       <div className="text-xs text-muted-foreground space-y-1 bg-muted/40 p-2 rounded-lg">
