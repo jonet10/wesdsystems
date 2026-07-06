@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useActiveBranchId, resolveBranchScope } from "@/lib/branch";
+import { useBusinessBranches } from "@/hooks/useBusinessBranches";
 import { toast } from "sonner";
 import {
   Tag, Search, Plus, Pencil, Trash2, Gift,
@@ -53,6 +54,13 @@ export default function PromotionsPage() {
   const { format } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
   const branchScope = resolveBranchScope(profile?.business_id, branchId);
+  const { data: branches = [] } = useBusinessBranches();
+
+  const activeBranchId = useMemo(() => {
+    const validBranchId = branchId && branches.some((b) => b.id === branchId) ? branchId : null;
+    return validBranchId || branches[0]?.id || null;
+  }, [branchId, branches]);
+
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("Tous");
@@ -81,14 +89,24 @@ export default function PromotionsPage() {
       let pQuery = supabase.from("salon_products").select("id, name").eq("is_active", true);
       let sQuery = supabase.from("salon_services").select("id, name").eq("is_active", true);
 
-      if (branchScope) {
+      const isBusinessScope = branchScope === profile?.business_id;
+
+      if (branchScope && !isBusinessScope) {
         query = query.eq("branch_id", branchScope);
         pQuery = pQuery.eq("branch_id", branchScope);
         sQuery = sQuery.eq("branch_id", branchScope);
       } else if (profile?.business_id) {
-        query = query.eq("salon_id", profile.business_id);
-        pQuery = pQuery.eq("salon_id", profile.business_id);
-        sQuery = sQuery.eq("salon_id", profile.business_id);
+        const { data: branches } = await supabase.from("salon_branches").select("id").eq("business_id", profile.business_id);
+        const branchIds = branches?.map(b => b.id) || [];
+        if (branchIds.length > 0) {
+          query = query.in("branch_id", branchIds);
+          pQuery = pQuery.in("branch_id", branchIds);
+          sQuery = sQuery.in("branch_id", branchIds);
+        } else {
+          query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+          pQuery = pQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+          sQuery = sQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+        }
       }
 
       const [{ data, error }, { data: pData }, { data: sData }] = await Promise.all([
@@ -154,8 +172,9 @@ export default function PromotionsPage() {
         if (error) throw error;
         toast.success("Promotion modifiée");
       } else {
+        if (!activeBranchId) throw new Error("Aucune succursale sélectionnée");
         const { error } = await supabase.from("salon_promotions").insert([{
-          ...payload, branch_id: branchScope,
+          ...payload, branch_id: activeBranchId,
         }]);
         if (error) throw error;
         toast.success("Promotion créée");
