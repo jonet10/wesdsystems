@@ -58,7 +58,7 @@ export async function listProductsFull(businessId: string, sessionToken?: string
 export async function getProduct(id: string, businessId?: string) {
   // If businessId is provided, try the new inventory architecture first
   if (businessId) {
-    const { data: invRow } = await supabase
+    const { data: invData } = await supabase
       .from("auto_parts_product_inventory")
       .select("*")
       .eq("product_id", id)
@@ -68,7 +68,7 @@ export async function getProduct(id: string, businessId?: string) {
     const invRow = invData?.[0] || null;
 
     if (invRow) {
-      const { data: prod, error: prodError } = await supabase
+      const { data: prodData, error: prodError } = await supabase
         .from("auto_parts_products")
         .select("*, category:auto_parts_categories(name)")
         .eq("id", id)
@@ -105,7 +105,7 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
   if (usingInventory) {
     // New architecture: create global product + inventory row
     // 1. Insert product into global catalog (no business_id)
-    const { data: prod, error: prodError } = await supabase
+    const { data: prodData, error: prodError } = await supabase
       .from("auto_parts_products")
       .insert({
         name: values.name,
@@ -252,7 +252,7 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
 
   // No inventory row found. Check if product is a global product (new arch, business_id=null)
   // that was created without an inventory row. If so, create the inventory row now.
-  const { data: globalProd } = await supabase
+  const { data: globalProdData } = await supabase
     .from("auto_parts_products")
     .select("*, category:auto_parts_categories(name)")
     .eq("id", id)
@@ -321,7 +321,7 @@ export async function deleteProduct(id: string, businessId?: string) {
   if (!businessId) throw new Error("businessId is required");
 
   // Check if using inventory architecture
-  const { data: invRow } = await supabase
+  const { data: invData } = await supabase
     .from("auto_parts_product_inventory")
     .select("id")
     .eq("product_id", id)
