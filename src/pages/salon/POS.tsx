@@ -47,6 +47,7 @@ import {
   removeCartItem,
   updateCartQuantity,
   validatePayment,
+  applyPromotions,
 } from "@/modules/salon/pos";
 import type { PaymentMethod } from "@/modules/salon/types";
 import type { PaymentSplit } from "@/modules/salon/pos";
@@ -801,7 +802,7 @@ export default function POSPage() {
       setActivePendingTab(tab as PendingTabDetail);
       setActiveTab("catalogue");
       const mappedItems = (tab?.items || []).map((item: any) => mapPendingItemToCart(item));
-      setCart(mappedItems);
+      setCart(applyPromotions(mappedItems, promotions));
       setPendingTabDraftItems(mappedItems);
       setDiscountPercent(0);
       setPaymentMethod("cash");
@@ -896,7 +897,7 @@ export default function POSPage() {
       const refreshed = await getPendingTab(activePendingTab.id);
       setActivePendingTab(refreshed as PendingTabDetail);
       const mappedItems = (refreshed?.items || []).map((item: any) => mapPendingItemToCart(item));
-      setCart(mappedItems);
+      setCart(applyPromotions(mappedItems, promotions));
       setPendingTabDraftItems(mappedItems);
       await loadPendingTabs();
       toast.success("Fiche mise à jour");
@@ -1115,10 +1116,10 @@ export default function POSPage() {
             ...next[existingIndex],
             quantity: next[existingIndex].quantity + 1,
           };
-          return next;
+          return applyPromotions(next, promotions);
         }
 
-        return [...prev, {
+        return applyPromotions([...prev, {
           key: `${type}-${item.id}-${Date.now()}`,
           type,
           item_id: item.id,
@@ -1131,7 +1132,7 @@ export default function POSPage() {
           discount: 0,
           pending_item_id: null,
           requires_employee: type === "service",
-        }];
+        }], promotions);
       }
 
       return addItemToCart(prev, item, type, promotions, customOptions);
@@ -1187,13 +1188,14 @@ export default function POSPage() {
   const updateQuantity = (key: string, delta: number) => {
     setCart((prev) => {
       if (activePendingTab) {
-        return prev
+        const next = prev
           .map((item) => {
             if (item.key !== key) return item;
             const quantity = Math.max(0, item.quantity + delta);
             return quantity === 0 ? null : { ...item, quantity };
           })
           .filter(Boolean) as CartItem[];
+        return applyPromotions(next, promotions);
       }
       return updateCartQuantity(prev, key, delta, promotions);
     });
@@ -1202,7 +1204,7 @@ export default function POSPage() {
   const removeFromCart = (key: string) => {
     setCart((prev) => {
       if (activePendingTab) {
-        return prev.filter((item) => item.key !== key);
+        return applyPromotions(prev.filter((item) => item.key !== key), promotions);
       }
       return removeCartItem(prev, key, promotions);
     });
