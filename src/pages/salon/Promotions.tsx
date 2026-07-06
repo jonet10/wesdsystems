@@ -348,8 +348,7 @@ export default function PromotionsPage() {
                 <Input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} />
               </div>
             )}
-            {(promotionType === "bundle" || promotionType === "combo") && (
-              <div className="space-y-4 border p-3 rounded-md bg-muted/20 mt-4 mb-4">
+            <div className="space-y-4 border p-3 rounded-md bg-muted/20 mt-4 mb-4">
                 <Label className="font-semibold text-primary">Sélection des articles pour cette promotion</Label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -392,7 +391,6 @@ export default function PromotionsPage() {
                   </div>
                 </div>
               </div>
-            )}
             
             {(promotionType === "bundle" || promotionType === "combo") && (
               <div className="grid grid-cols-2 gap-4">
