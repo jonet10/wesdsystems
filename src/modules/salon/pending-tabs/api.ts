@@ -191,7 +191,7 @@ export async function checkoutPendingTab(tabId: string, input: PendingTabCheckou
 
   const businessId = await getBusinessIdForBranch(tab.branch_id);
   const saleItems = tab.items || [];
-  const totalAmount = tab.total_amount;
+  const totalAmount = input.total_amount ?? tab.total_amount;
   const now = new Date().toISOString();
 
   const { data: sale, error: saleError } = await supabase
@@ -202,7 +202,7 @@ export async function checkoutPendingTab(tabId: string, input: PendingTabCheckou
       employee_id: input.employee_id || null, 
       total_amount: totalAmount,
       tax_amount: 0,
-      discount_amount: 0,
+      discount_amount: input.discount_amount ?? 0,
       payment_method: input.payment_splits && input.payment_splits.length > 0 ? "split" : input.payment_method,
       payment_status: "completed",
       customer_name: tab.client_id ? undefined : tab.guest_name || tab.label,

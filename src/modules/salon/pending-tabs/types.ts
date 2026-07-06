@@ -55,6 +55,8 @@ export interface PendingTabItemInput {
 export interface PendingTabCheckoutInput {
   payment_method: string;
   amount_paid: number;
+  total_amount?: number;
+  discount_amount?: number;
   cashier_id?: string | null;
   cashier_name?: string | null;
   employee_id?: string | null;

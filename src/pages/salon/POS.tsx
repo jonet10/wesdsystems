@@ -1319,6 +1319,8 @@ export default function POSPage() {
         const checkoutResult = await checkoutPendingTab(activePendingTab.id, {
           payment_method: "cash",
           amount_paid: paidAmount,
+          total_amount: total,
+          discount_amount: totalDiscount,
           cashier_id: cashierId,
           cashier_name: cashierName,
           employee_id: selectedEmployee || activePendingTab.employee_id || null,
@@ -1466,6 +1468,8 @@ export default function POSPage() {
         const checkoutResult = await checkoutPendingTab(activePendingTab.id, {
           payment_method: paymentMethod,
           amount_paid: paymentValidation.paid || total,
+          total_amount: total,
+          discount_amount: totalDiscount,
           cashier_id: cashierId,
           cashier_name: cashierName,
           employee_id: selectedEmployee || null,
