@@ -13,7 +13,7 @@ import { useAutoPartsBusinessId } from "@/modules/auto-parts/hooks/useAutoPartsB
 import { useAutoPartsBranch } from "@/modules/auto-parts/hooks/useAutoPartsBranch";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Plus, Building2, Check, X } from "lucide-react";
+import { Plus, Building2, Check, Trash2, Loader2, X } from "lucide-react";
 
 export default function AutoPartsBranchesPage() {
   const { t } = useTranslation();
@@ -28,6 +28,9 @@ export default function AutoPartsBranchesPage() {
   const [address, setAddress] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [saving, setSaving] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState<any>(null);
+  const [password, setPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (branches.length > 0) setLocalBranches(branches);
@@ -53,6 +56,45 @@ export default function AutoPartsBranchesPage() {
         .order("created_at");
       setLocalBranches(updated || []);
     } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!branchToDelete || !password) return;
+    setDeleting(true);
+    try {
+      // Vérifier le mot de passe
+      const { data: userData } = await supabase.auth.getUser();
+      const email = userData.user?.email;
+      if (!email) throw new Error("Utilisateur non trouvé");
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        toast.error("Mot de passe incorrect");
+        setDeleting(false);
+        return;
+      }
+
+      // Supprimer la branche
+      const { error: deleteError } = await supabase
+        .from("business_branches")
+        .delete()
+        .eq("id", branchToDelete.id);
+
+      if (deleteError) throw deleteError;
+
+      toast.success("Établissement supprimé");
+      setLocalBranches(localBranches.filter(b => b.id !== branchToDelete.id));
+      setBranchToDelete(null);
+      setPassword("");
+    } catch (e: any) {
+      toast.error(e.message || "Erreur lors de la suppression");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -98,7 +140,22 @@ export default function AutoPartsBranchesPage() {
                       <Building2 className="h-5 w-5 text-muted-foreground" />
                       <CardTitle className="text-base">{b.name}</CardTitle>
                     </div>
-                    {b.id === branchId && <Badge><Check className="h-3 w-3 mr-1" /> Active</Badge>}
+                    <div className="flex items-center gap-2">
+                      {b.id === branchId && <Badge><Check className="h-3 w-3 mr-1" /> Active</Badge>}
+                      {b.id !== branchId && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBranchToDelete(b);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-1">
@@ -160,6 +217,40 @@ export default function AutoPartsBranchesPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleCreate} disabled={saving}>{saving ? "Création..." : "Créer"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!branchToDelete} onOpenChange={(open) => {
+        if (!open) { setBranchToDelete(null); setPassword(""); }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Supprimer l'établissement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Êtes-vous sûr de vouloir supprimer <strong>{branchToDelete?.name}</strong> ? Cette action est irréversible et supprimera toutes les données associées (ventes, inventaire, etc.).
+            </p>
+            <div>
+              <Label>Mot de passe requis pour confirmer</Label>
+              <Input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                placeholder="Votre mot de passe"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBranchToDelete(null)} disabled={deleting}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting || !password}>
+              {deleting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Suppression...</>
+              ) : "Confirmer la suppression"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
