@@ -118,7 +118,6 @@ export default function SchoolSettingsPage() {
       
       // Mise à jour de la configuration de l'établissement
       await supabase.from("school_configurations").update({ 
-        use_document_engine: true,
         bulletin_model: 'CUSTOM'
       }).eq("business_id", businessId);
       
