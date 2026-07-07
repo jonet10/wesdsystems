@@ -81,7 +81,6 @@ export default function SchoolSettingsPage() {
   const [businessId, setBusinessId]   = useState<string | null>(null);
   const [settingsId, setSettingsId]   = useState<string | null>(null);
   const [uploadingDocx, setUploadingDocx] = useState(false);
-  const [geminiKey, setGeminiKey]     = useState("");
 
   const handleDocxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,7 +95,7 @@ export default function SchoolSettingsPage() {
       // Actually, since DocxParser is not exported, we should fix that or export it. Wait, we can instantiate it or fix the plugin file.
       // Let's assume we export DocxParser from the plugin file. (I will fix it next).
       const parser = new (await import('@/modules/document-engine/plugins/DocxParserPlugin')).DocxParser();
-      const ast = await parser.parse(file, geminiKey);
+      const ast = await parser.parse(file);
 
       // 2. Sauvegarde du Template
       const template = await TemplateRepository.createTemplate({
@@ -707,17 +706,6 @@ export default function SchoolSettingsPage() {
                                     <span className="text-xs ml-2 font-medium">Analyse par l'IA...</span>
                                   </div>
                                 )}
-                                <div className="space-y-1">
-                                  <Label className="text-[10px] text-left block">Clé API Gemini (Optionnel, si vous avez la vôtre)</Label>
-                                  <Input 
-                                    type="password" 
-                                    className="text-xs h-7" 
-                                    placeholder="AIzaSy..." 
-                                    value={geminiKey}
-                                    onChange={(e) => setGeminiKey(e.target.value)}
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </div>
                                 <div>
                                   <FileText className="h-6 w-6 text-zinc-400 mx-auto mb-1" />
                                   <p className="text-[10px] text-zinc-600 mb-2">Importez votre modèle (.docx)</p>
