@@ -86,15 +86,13 @@ export default function SchoolSettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !businessId) return;
 
+    const toastId = toast.loading("Importation du document en cours...");
     try {
       setUploadingDocx(true);
-      toast.loading("Importation du document en cours...", { id: 'docx_upload' });
 
       // 1. Parse le DOCX en AST
-      // DocxParser class inside DocxParserPlugin file is not exported directly, but we can instantiate the parser
-      // Actually, since DocxParser is not exported, we should fix that or export it. Wait, we can instantiate it or fix the plugin file.
-      // Let's assume we export DocxParser from the plugin file. (I will fix it next).
-      const parser = new (await import('@/modules/document-engine/plugins/DocxParserPlugin')).DocxParser();
+      const { DocxParser } = await import('@/modules/document-engine/plugins/DocxParserPlugin');
+      const parser = new DocxParser();
       const ast = await parser.parse(file);
 
       // 2. Sauvegarde du Template
@@ -105,26 +103,30 @@ export default function SchoolSettingsPage() {
         type: 'report_card'
       });
 
-      if (template) {
-        // 3. Sauvegarde de la version
-        const version = await TemplateRepository.saveVersion(template.id, ast);
-        if (version) {
-          // 4. Publication et activation
-          await TemplateRepository.publishVersion(template.id, version.id, businessId);
-          
-          // Mise à jour de la configuration de l'établissement
-          await supabase.from("school_configurations").update({ 
-            use_document_engine: true,
-            bulletin_model: 'CUSTOM'
-          }).eq("business_id", businessId);
-          
-          toast.success("Modèle importé et activé avec succès !", { id: 'docx_upload' });
-          await refetchConfig();
-        }
+      if (!template) {
+        throw new Error("Impossible d'enregistrer le modèle dans la base de données.");
       }
+
+      // 3. Sauvegarde de la version
+      const version = await TemplateRepository.saveVersion(template.id, ast);
+      if (!version) {
+        throw new Error("Impossible d'enregistrer la version du modèle.");
+      }
+
+      // 4. Publication et activation
+      await TemplateRepository.publishVersion(template.id, version.id, businessId);
+      
+      // Mise à jour de la configuration de l'établissement
+      await supabase.from("school_configurations").update({ 
+        use_document_engine: true,
+        bulletin_model: 'CUSTOM'
+      }).eq("business_id", businessId);
+      
+      toast.success("Modèle importé et activé avec succès !", { id: toastId });
+      await refetchConfig();
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erreur lors de l'importation", { id: 'docx_upload', description: err.message });
+      console.error("Erreur docx_upload:", err);
+      toast.error("Erreur lors de l'importation", { id: toastId, description: err.message });
     } finally {
       setUploadingDocx(false);
       // reset file input
