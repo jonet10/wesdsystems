@@ -1,6 +1,7 @@
 import { DocumentParser, DocumentEngine, DocumentPlugin } from '../core/interfaces';
 import { DocumentAST, ASTNode, BlockNode, TextNode, ImageNode, TableNode, TableRowNode, TableCellNode } from '../types/ast';
 import mammoth from 'mammoth';
+import { GeminiTranslationService } from './geminiTranslationService';
 
 export class DocxParserPlugin implements DocumentPlugin {
   name = 'DocxParserPlugin';
@@ -14,7 +15,7 @@ export class DocxParserPlugin implements DocumentPlugin {
 export class DocxParser implements DocumentParser {
   sourceFormat = 'docx';
 
-  async parse(fileData: ArrayBuffer | Buffer | Blob): Promise<DocumentAST> {
+  async parse(fileData: ArrayBuffer | Buffer | Blob, apiKey?: string): Promise<DocumentAST> {
     let arrayBuffer: ArrayBuffer;
     
     if (fileData instanceof Blob) {
@@ -25,157 +26,19 @@ export class DocxParser implements DocumentParser {
       arrayBuffer = fileData;
     }
 
-    // Convert DOCX to HTML
+    // Convert DOCX to HTML using mammoth
     const result = await mammoth.convertToHtml({ arrayBuffer });
     const htmlString = result.value; 
 
-    // Convert HTML to DocumentAST
-    const ast = this.htmlToAST(htmlString);
-    return ast;
-  }
-
-  private htmlToAST(htmlString: string): DocumentAST {
-    // Basic DOM Parser in browser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlString, 'text/html');
+    // Use the Gemini Translation Service
+    const finalApiKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+    if (!finalApiKey) {
+      throw new Error("Clé API Gemini manquante. Veuillez la configurer.");
+    }
     
-    const root: DocumentAST = {
-      id: crypto.randomUUID(),
-      type: 'document',
-      children: []
-    };
-
-    const parseNode = (htmlNode: ChildNode): ASTNode | ASTNode[] | null => {
-      if (htmlNode.nodeType === Node.TEXT_NODE) {
-        const content = htmlNode.textContent;
-        if (!content || content.trim() === '') return null;
-        
-        // Match {{variable_name}}
-        const variableRegex = /{{([^}]+)}}/g;
-        let match;
-        let lastIndex = 0;
-        const nodes: ASTNode[] = [];
-
-        while ((match = variableRegex.exec(content)) !== null) {
-          // Add preceding text if any
-          if (match.index > lastIndex) {
-            nodes.push({
-              id: crypto.randomUUID(),
-              type: 'text',
-              content: content.substring(lastIndex, match.index)
-            } as TextNode);
-          }
-          // Add the variable node
-          nodes.push({
-            id: crypto.randomUUID(),
-            type: 'variable',
-            variableId: match[1].trim()
-          } as VariableNode);
-          
-          lastIndex = variableRegex.lastIndex;
-        }
-
-        // Add remaining text
-        if (lastIndex < content.length) {
-          nodes.push({
-            id: crypto.randomUUID(),
-            type: 'text',
-            content: content.substring(lastIndex)
-          } as TextNode);
-        }
-
-        // If only one node was created, return it directly, otherwise return the array
-        if (nodes.length === 1) return nodes[0];
-        if (nodes.length === 0) return null;
-        return nodes;
-      }
-
-      if (htmlNode.nodeType === Node.ELEMENT_NODE) {
-        const el = htmlNode as HTMLElement;
-        const tagName = el.tagName.toLowerCase();
-        
-        const childrenNodes: ASTNode[] = [];
-        el.childNodes.forEach(child => {
-          const parsedChild = parseNode(child);
-          if (parsedChild) {
-            if (Array.isArray(parsedChild)) {
-              childrenNodes.push(...parsedChild);
-            } else {
-              childrenNodes.push(parsedChild);
-            }
-          }
-        });
-
-        if (tagName === 'p' || tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
-          return {
-            id: crypto.randomUUID(),
-            type: 'paragraph',
-            children: childrenNodes,
-            style: { 
-              fontWeight: tagName.startsWith('h') ? 'bold' : 'normal',
-              fontSize: tagName === 'h1' ? '24px' : tagName === 'h2' ? '20px' : '16px',
-              textAlign: el.style.textAlign || undefined
-            }
-          } as BlockNode;
-        }
-
-        if (tagName === 'img') {
-          const imgEl = el as HTMLImageElement;
-          return {
-            id: crypto.randomUUID(),
-            type: 'image',
-            src: imgEl.src,
-            alt: imgEl.alt
-          } as ImageNode;
-        }
-
-        if (tagName === 'table') {
-          return {
-            id: crypto.randomUUID(),
-            type: 'table',
-            columnsCount: 1, 
-            children: childrenNodes
-          } as TableNode;
-        }
-
-        if (tagName === 'tr') {
-          return {
-            id: crypto.randomUUID(),
-            type: 'table_row',
-            children: childrenNodes
-          } as TableRowNode;
-        }
-
-        if (tagName === 'td' || tagName === 'th') {
-          return {
-            id: crypto.randomUUID(),
-            type: 'table_cell',
-            children: childrenNodes
-          } as TableCellNode;
-        }
-
-        if (childrenNodes.length > 0) {
-           return {
-             id: crypto.randomUUID(),
-             type: 'section',
-             children: childrenNodes
-           } as BlockNode;
-        }
-      }
-      return null;
-    };
-
-    doc.body.childNodes.forEach(child => {
-      const parsed = parseNode(child);
-      if (parsed) {
-        if (Array.isArray(parsed)) {
-          root.children.push(...parsed);
-        } else {
-          root.children.push(parsed);
-        }
-      }
-    });
-
-    return root;
+    const translationService = new GeminiTranslationService(finalApiKey);
+    const ast = await translationService.translateHtmlToAST(htmlString);
+    
+    return ast as DocumentAST;
   }
 }

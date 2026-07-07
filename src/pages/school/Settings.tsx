@@ -81,6 +81,7 @@ export default function SchoolSettingsPage() {
   const [businessId, setBusinessId]   = useState<string | null>(null);
   const [settingsId, setSettingsId]   = useState<string | null>(null);
   const [uploadingDocx, setUploadingDocx] = useState(false);
+  const [geminiKey, setGeminiKey]     = useState("");
 
   const handleDocxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,7 +96,7 @@ export default function SchoolSettingsPage() {
       // Actually, since DocxParser is not exported, we should fix that or export it. Wait, we can instantiate it or fix the plugin file.
       // Let's assume we export DocxParser from the plugin file. (I will fix it next).
       const parser = new (await import('@/modules/document-engine/plugins/DocxParserPlugin')).DocxParser();
-      const ast = await parser.parse(file);
+      const ast = await parser.parse(file, geminiKey);
 
       // 2. Sauvegarde du Template
       const template = await TemplateRepository.createTemplate({
@@ -697,15 +698,29 @@ export default function SchoolSettingsPage() {
                               Sélectionner
                             </Button>
                             {bulletinModel === 'CUSTOM' && (
-                              <div className="mt-2 p-3 border border-dashed rounded-lg bg-zinc-50/50 text-center relative overflow-hidden">
+                              <div className="mt-2 p-3 border border-dashed rounded-lg bg-zinc-50/50 text-center relative overflow-hidden flex flex-col gap-3">
                                 {uploadingDocx && (
                                   <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
                                     <Sparkles className="h-5 w-5 animate-spin text-primary" />
+                                    <span className="text-xs ml-2 font-medium">Analyse par l'IA...</span>
                                   </div>
                                 )}
-                                <FileText className="h-6 w-6 text-zinc-400 mx-auto mb-2" />
-                                <p className="text-xs text-zinc-600 mb-2">Importez votre modèle (.docx)</p>
-                                <Input type="file" accept=".docx" className="text-xs cursor-pointer" onChange={handleDocxUpload} onClick={(e) => e.stopPropagation()} disabled={uploadingDocx} />
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-left block">Clé API Gemini (Optionnel, si vous avez la vôtre)</Label>
+                                  <Input 
+                                    type="password" 
+                                    className="text-xs h-7" 
+                                    placeholder="AIzaSy..." 
+                                    value={geminiKey}
+                                    onChange={(e) => setGeminiKey(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div>
+                                  <FileText className="h-6 w-6 text-zinc-400 mx-auto mb-1" />
+                                  <p className="text-[10px] text-zinc-600 mb-2">Importez votre modèle (.docx)</p>
+                                  <Input type="file" accept=".docx" className="text-xs cursor-pointer" onChange={handleDocxUpload} onClick={(e) => e.stopPropagation()} disabled={uploadingDocx} />
+                                </div>
                               </div>
                             )}
                           </div>
