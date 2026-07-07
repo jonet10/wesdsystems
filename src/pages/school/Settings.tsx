@@ -672,10 +672,12 @@ export default function SchoolSettingsPage() {
                       </button>
 
                       {/* Modèle Personnalisé (CUSTOM) */}
-                      <button
-                        type="button"
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setBulletinModel('CUSTOM')}
-                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 relative overflow-hidden ${
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setBulletinModel('CUSTOM') }}
+                        className={`border-2 rounded-xl p-4 text-left transition-all space-y-2 relative overflow-hidden cursor-pointer ${
                           bulletinModel === 'CUSTOM'
                             ? 'border-primary bg-primary/5'
                             : 'border-border hover:border-primary/50'
@@ -725,7 +727,7 @@ export default function SchoolSettingsPage() {
                             )}
                           </div>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
