@@ -58,8 +58,9 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
       if (data) {
         setSchoolType(data.school_type as SchoolType);
         setEvaluationPeriodType((data.evaluation_period_type || 'steps') as 'steps' | 'trimestres');
-        setBulletinModel(((data as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM');
-        setUseDocumentEngine((data as any).use_document_engine || false);
+        const bm = ((data as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM';
+        setBulletinModel(bm);
+        setUseDocumentEngine(((data as any).use_document_engine || false) || bm === 'CUSTOM');
         setIsConfigured(true);
       } else {
         setIsConfigured(false);
