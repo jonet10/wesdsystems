@@ -10,7 +10,7 @@ export class GeminiTranslationService {
 
   async translateHtmlToAST(html: string): Promise<DocumentNode> {
     const model = this.genAI.getGenerativeModel({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.0-flash",
       generationConfig: {
         responseMimeType: "application/json",
       }
