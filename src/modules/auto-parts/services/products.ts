@@ -124,7 +124,7 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
         reserved_quantity: 0,
         min_stock: 0,
       })
-      .select("*, category:auto_parts_categories(name)");
+      .select();
     if (prodError) throw prodError;
     const prod = prodData?.[0];
     if (!prod) throw new Error("Erreur lors de la création du produit");
@@ -180,9 +180,9 @@ export async function createProduct(businessId: string, values: Partial<AutoPart
   const { data, error } = await supabase
     .from("auto_parts_products")
     .insert(payload)
-    .select("*, category:auto_parts_categories(name)");
+    .select();
   if (error) throw error;
-  return (data?.[0] || null) as AutoPartsProduct & { category: { name: string } | null };
+  return await getProduct(data?.[0]?.id, businessId);
 }
 
 export async function updateProduct(id: string, values: Partial<AutoPartsProduct>, businessId?: string) {
@@ -222,19 +222,25 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     if (prodError) throw prodError;
 
     // Update inventory (business-specific fields)
+    const invUpdateData: any = {
+      unit_price: values.unit_price === null ? null : (Number(values.unit_price) || 0),
+      cost_price: values.cost_price === null ? null : (Number(values.cost_price) || 0),
+      min_stock: Number(values.min_stock) || 0,
+      max_stock: values.max_stock ? Number(values.max_stock) : null,
+      location: values.location ?? null,
+      notes: values.notes ?? null,
+      active: values.active ?? true,
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Only update stock_quantity if it was explicitly provided in values
+    if (values.stock_quantity !== undefined) {
+      invUpdateData.stock_quantity = Number(values.stock_quantity) || 0;
+    }
+
     let invUpdate = supabase
       .from("auto_parts_product_inventory")
-      .update({
-        unit_price: Number(values.unit_price) || 0,
-        cost_price: Number(values.cost_price) || 0,
-        stock_quantity: Number(values.stock_quantity) || 0,
-        min_stock: Number(values.min_stock) || 0,
-        max_stock: values.max_stock ? Number(values.max_stock) : null,
-        location: values.location ?? null,
-        notes: values.notes ?? null,
-        active: values.active ?? true,
-        updated_at: new Date().toISOString(),
-      })
+      .update(invUpdateData)
       .eq("product_id", id)
       .eq("business_id", businessId);
 
@@ -307,14 +313,13 @@ export async function updateProduct(id: string, values: Partial<AutoPartsProduct
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("auto_parts_products")
     .update(payload)
     .eq("id", id)
-    .eq("business_id", businessId)
-    .select("*, category:auto_parts_categories(name)");
+    .eq("business_id", businessId);
   if (error) throw error;
-  return (data?.[0] || null) as AutoPartsProduct & { category: { name: string } | null };
+  return await getProduct(id, businessId);
 }
 
 export async function deleteProduct(id: string, businessId?: string) {
