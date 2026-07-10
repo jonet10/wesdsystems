@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Building2, Save, Globe, Smartphone, FileText, Hash,
-  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock
+  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock, GraduationCap
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -66,8 +67,11 @@ export default function SchoolSettingsPage() {
 
   // Period Type
   const [evaluationPeriodType, setEvaluationPeriodType] = useState<'steps' | 'trimestres'>('steps');
-  // Bulletin Model
+  // Bulletin Model & Settings
   const [bulletinModel, setBulletinModel] = useState<'A' | 'B' | 'C' | 'CUSTOM'>('A');
+  const [signatory1, setSignatory1] = useState("La Direction");
+  const [signatory2, setSignatory2] = useState("Le Titulaire");
+  const [showRank, setShowRank] = useState(true);
 
   // SMS Gateway config & logs
   const [smsProvider, setSmsProvider] = useState<'Twilio' | 'Mock'>("Mock");
@@ -234,12 +238,19 @@ export default function SchoolSettingsPage() {
         // 5. School configurations
         const { data: configData } = await supabase
           .from("school_configurations")
-          .select("evaluation_period_type")
+          .select("evaluation_period_type, bulletin_model, document_engine_settings")
           .eq("business_id", bizId)
           .maybeSingle();
         if (configData) {
           setEvaluationPeriodType((configData.evaluation_period_type || 'steps') as 'steps' | 'trimestres');
           setBulletinModel(((configData as any).bulletin_model || 'A') as 'A' | 'B' | 'C' | 'CUSTOM');
+          
+          if ((configData as any).document_engine_settings) {
+            const docSettings = (configData as any).document_engine_settings;
+            if (docSettings.signatory_1) setSignatory1(docSettings.signatory_1);
+            if (docSettings.signatory_2) setSignatory2(docSettings.signatory_2);
+            if (docSettings.show_rank !== undefined) setShowRank(docSettings.show_rank);
+          }
         }
 
         // 6. SMS Logs
@@ -347,10 +358,21 @@ export default function SchoolSettingsPage() {
         .maybeSingle();
 
       if (existingConfig) {
-        await supabase
+        const docSettings = {
+          signatory_1: signatory1,
+          signatory_2: signatory2,
+          show_rank: showRank
+        };
+
+        const { error } = await supabase
           .from("school_configurations")
-          .update({ evaluation_period_type: evaluationPeriodType, bulletin_model: bulletinModel })
+          .update({ 
+            evaluation_period_type: evaluationPeriodType, 
+            bulletin_model: bulletinModel,
+            document_engine_settings: docSettings
+          })
           .eq("business_id", businessId);
+        if (error) throw error;
       }
 
       toast.success("Paramètres enregistrés avec succès.");
@@ -753,6 +775,56 @@ export default function SchoolSettingsPage() {
                         <Input className="pl-9" value={receiptPrefix} onChange={(e) => setReceiptPrefix(e.target.value)} placeholder="REC-" />
                       </div>
                     </div>
+                  </div>
+                </div>
+              </StaggerItem>
+
+              {/* Configuration du Bulletin */}
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <GraduationCap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Paramètres d'impression des bulletins</h3>
+                      <p className="text-sm text-muted-foreground">Personnalisez les signataires et les options d'affichage</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-sm mb-6 flex items-start gap-2">
+                    <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
+                    <p><strong>Logo de l'école :</strong> Le logo affiché sur les bulletins est celui que vous avez téléversé dans l'onglet "Profil".</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Nom du Signataire 1 (Gauche)</Label>
+                      <Input 
+                        value={signatory1} 
+                        onChange={(e) => setSignatory1(e.target.value)} 
+                        placeholder="Ex: La Direction" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nom du Signataire 2 (Droite)</Label>
+                      <Input 
+                        value={signatory2} 
+                        onChange={(e) => setSignatory2(e.target.value)} 
+                        placeholder="Ex: Le Titulaire" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label>Afficher le rang de l'élève</Label>
+                      <p className="text-sm text-muted-foreground">Si désactivé, le classement (1er, 2e...) n'apparaîtra pas sur le bulletin.</p>
+                    </div>
+                    <Switch
+                      checked={showRank}
+                      onCheckedChange={setShowRank}
+                    />
                   </div>
                 </div>
               </StaggerItem>

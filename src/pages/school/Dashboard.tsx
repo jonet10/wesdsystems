@@ -45,19 +45,48 @@ export default function SchoolDashboard() {
           { count: teachersCount },
           { data: invoices },
           { data: expenses },
-          { data: products }
+          { data: products },
+          { data: teachers }
         ] = await Promise.all([
           supabase.from("school_students").select("*", { count: "exact", head: true }).eq("business_id", businessId),
           supabase.from("school_teachers").select("*", { count: "exact", head: true }).eq("business_id", businessId),
           supabase.from("school_invoices").select("paid_amount, balance").eq("business_id", businessId),
           supabase.from("school_expenses").select("amount").eq("business_id", businessId),
-          supabase.from("school_products").select("price, stock_quantity").eq("business_id", businessId).eq("active", true)
+          supabase.from("school_products").select("price, stock_quantity").eq("business_id", businessId).eq("active", true),
+          supabase.from("school_teachers").select("salary").eq("business_id", businessId).eq("active", true)
         ]);
 
         const revenue = invoices?.reduce((sum, inv) => sum + Number(inv.paid_amount), 0) || 0;
         const pending = invoices?.reduce((sum, inv) => sum + Number(inv.balance), 0) || 0;
         const totalExp = expenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
         const stockValue = products?.reduce((sum, p) => sum + (Number(p.price) * Number(p.stock_quantity)), 0) || 0;
+        const expectedPayroll = teachers?.reduce((sum, t) => sum + (Number(t.salary) || 0), 0) || 0;
+
+        const netBalance = revenue - totalExp;
+
+        // Notification Logic for Payroll
+        if (expectedPayroll > 0 && netBalance < expectedPayroll && user) {
+          const alertId = `payroll-alert-${new Date().getFullYear()}-${new Date().getMonth()}`;
+          const { data: existingAlert } = await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("title", "Alerte Paie")
+            .contains("metadata", { alert_id: alertId })
+            .limit(1);
+
+          if (!existingAlert || existingAlert.length === 0) {
+            await supabase.from("notifications").insert({
+              user_id: user.id,
+              recipient_role: "salon_admin",
+              type: "warning",
+              title: "Alerte Paie",
+              message: `Le solde en caisse (${revenue - totalExp} G) est inférieur à la masse salariale estimée de ce mois (${expectedPayroll} G).`,
+              metadata: { alert_id: alertId, business_id: businessId }
+            });
+            toast.warning(`Attention : Le solde en caisse est inférieur au montant estimé des salaires (${expectedPayroll} G).`);
+          }
+        }
 
         const extra = await engine.dashboard.getDashboardStatsQuery(businessId, supabase);
 
@@ -185,14 +214,27 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Revenus (Encaissés)</CardTitle>
-                <Wallet className="h-4 w-4 text-success" />
+                <CardTitle className="text-sm font-medium">Revenus Bruts</CardTitle>
+                <ArrowUpRight className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-success">{formatAmount(stats.totalRevenue)}</div>
                 <div className="text-xs text-muted-foreground mt-1 flex items-center">
-                  <ArrowUpRight className="h-3 w-3 mr-1 text-success" /> Entrées confirmées
+                  <ArrowUpRight className="h-3 w-3 mr-1 text-success" /> Entrées totales encaissées
                 </div>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-primary">Solde en Caisse</CardTitle>
+                <Wallet className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary">{formatAmount(stats.totalRevenue - stats.totalExpenses)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Revenus bruts moins dépenses</p>
               </CardContent>
             </Card>
           </StaggerItem>

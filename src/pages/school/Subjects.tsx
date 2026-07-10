@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search, BookOpen } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Pencil, Trash2, Search, BookOpen, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useClasses } from "@/hooks/useSchoolData";
 import type { SchoolSubject } from "@/modules/school/types";
+import { DomainsTab } from "./components/DomainsTab";
 
 export default function SchoolSubjects() {
   const { t } = useTranslation();
@@ -251,82 +253,99 @@ export default function SchoolSubjects() {
           </Dialog>
         </div>
 
-        <Card className="p-4 bg-muted/30">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Rechercher une matière..." 
-                value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
-                className="pl-9" 
-              />
-            </div>
-            <select
-              value={selectedClassFilter}
-              onChange={e => setSelectedClassFilter(e.target.value)}
-              className="flex h-10 w-full sm:w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <option value="all">Toutes les classes</option>
-              <option value="none">Générale / Non assignée</option>
-              {classes.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </Card>
+        <Tabs defaultValue="subjects" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="subjects">
+              <BookOpen className="h-4 w-4 mr-2" /> Matières
+            </TabsTrigger>
+            <TabsTrigger value="domains">
+              <Layers className="h-4 w-4 mr-2" /> Domaines de Compétences
+            </TabsTrigger>
+          </TabsList>
 
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Matière</TableHead>
-                  <TableHead>Classe</TableHead>
-                  <TableHead className="text-right">{t("common.actions")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow><TableCell colSpan={3} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
-                ) : filteredSubjects.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Aucune matière trouvée.</TableCell></TableRow>
-                ) : (
-                  filteredSubjects.map((subject) => (
-                    <TableRow key={subject.id}>
-                      <TableCell className="font-semibold flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <BookOpen className="h-4 w-4 text-primary" />
-                        </div>
-                        {subject.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {(() => {
-                          const linkedClasses = subject.school_subject_classes
-                            ?.map(sc => sc.school_classes?.name)
-                            .filter(Boolean) || [];
-                          
-                          if (linkedClasses.length === 0 && subject.class_id) {
-                            const legacyClass = classes.find((c: any) => c.id === subject.class_id);
-                            if (legacyClass) linkedClasses.push(legacyClass.name);
-                          }
+          <TabsContent value="subjects" className="space-y-4">
+            <Card className="p-4 bg-muted/30">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Rechercher une matière..." 
+                    value={search} 
+                    onChange={(e) => setSearch(e.target.value)} 
+                    className="pl-9" 
+                  />
+                </div>
+                <select
+                  value={selectedClassFilter}
+                  onChange={e => setSelectedClassFilter(e.target.value)}
+                  className="flex h-10 w-full sm:w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="all">Toutes les classes</option>
+                  <option value="none">Générale / Non assignée</option>
+                  {classes.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            </Card>
 
-                          return linkedClasses.length > 0 
-                            ? linkedClasses.join(", ") 
-                            : "Générale / Non assignée";
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(subject)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(subject.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </TableCell>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Matière</TableHead>
+                      <TableHead>Classe</TableHead>
+                      <TableHead className="text-right">{t("common.actions")}</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8">{t("common.loading")}</TableCell></TableRow>
+                    ) : filteredSubjects.length === 0 ? (
+                      <TableRow><TableCell colSpan={3} className="text-center py-8 text-muted-foreground">Aucune matière trouvée.</TableCell></TableRow>
+                    ) : (
+                      filteredSubjects.map((subject) => (
+                        <TableRow key={subject.id}>
+                          <TableCell className="font-semibold flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <BookOpen className="h-4 w-4 text-primary" />
+                            </div>
+                            {subject.name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {(() => {
+                              const linkedClasses = subject.school_subject_classes
+                                ?.map(sc => sc.school_classes?.name)
+                                .filter(Boolean) || [];
+                              
+                              if (linkedClasses.length === 0 && subject.class_id) {
+                                const legacyClass = classes.find((c: any) => c.id === subject.class_id);
+                                if (legacyClass) linkedClasses.push(legacyClass.name);
+                              }
+
+                              return linkedClasses.length > 0 
+                                ? linkedClasses.join(", ") 
+                                : "Générale / Non assignée";
+                            })()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(subject)}><Pencil className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(subject.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="domains">
+            <DomainsTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

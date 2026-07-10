@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Layers, Users, EyeOff, Eye, Loader2, Landmark, Library, Milestone, CalendarClock } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, Users, EyeOff, Eye, Loader2, Landmark, Library, Milestone, CalendarClock, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,7 @@ import { classService } from "@/modules/school/services/classService";
 import { DEFAULT_CLASSES, CYCLES } from "@/modules/school/defaultClasses";
 import { setBusinessId } from "@/modules/school/services/utils";
 import type { SchoolClass } from "@/modules/school/types";
+import { ClassCurriculumDialog } from "./components/ClassCurriculumDialog";
 
 export default function SchoolClasses() {
   const { t } = useTranslation();
@@ -45,6 +46,10 @@ export default function SchoolClasses() {
   const [editingClass, setEditingClass] = useState<SchoolClass | null>(null);
   const [cycleFilter, setCycleFilter] = useState<string>("");
   const [showInactive, setShowInactive] = useState(false);
+  
+  // Curriculum Dialog
+  const [isCurriculumDialogOpen, setIsCurriculumDialogOpen] = useState(false);
+  const [selectedClassForCurriculum, setSelectedClassForCurriculum] = useState<SchoolClass | null>(null);
 
   // Group Form Fields
   const [name, setName] = useState("");
@@ -668,6 +673,9 @@ export default function SchoolClasses() {
                             <Badge variant={cls.active !== false ? "success" : "outline"}>{cls.active !== false ? "Active" : "Inactive"}</Badge>
                           </TableCell>
                           <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" title="Programme" onClick={() => { setSelectedClassForCurriculum(cls); setIsCurriculumDialogOpen(true); }}>
+                              <BookOpen className="h-4 w-4 text-blue-500" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleEditGroup(cls)}><Pencil className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" onClick={() => handleToggleActive(cls)}>{cls.active !== false ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteClass(cls.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -811,6 +819,17 @@ export default function SchoolClasses() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* CURRICULUM DIALOG */}
+        {selectedClassForCurriculum && (
+          <ClassCurriculumDialog
+            open={isCurriculumDialogOpen}
+            onOpenChange={setIsCurriculumDialogOpen}
+            classId={selectedClassForCurriculum.id}
+            className={selectedClassForCurriculum.name}
+            businessId={businessId!}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

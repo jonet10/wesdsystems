@@ -25,6 +25,7 @@ import { DocumentEngineWrapper } from "@/modules/document-engine/ui/components/D
 import { TemplateRepository } from "@/modules/document-engine/storage/TemplateRepository";
 import { supabase } from "@/lib/supabase";
 import { PalmaresPrintView } from "./components/PalmaresPrintView";
+import { BulkGradesGrid } from "./components/BulkGradesGrid";
 
 // ─── Periods helpers ─────────────────────────────────────────────────────────
 const STEPS_PERIODS = [
@@ -66,28 +67,7 @@ export default function SchoolGrades() {
     }
   }, [bulletinModel]);
 
-  // Load custom template if needed
-  const [customTemplate, setCustomTemplate] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchCustomTemplate = async () => {
-      const { data: profile } = await supabase.from('profiles').select('business_id').eq('id', (await supabase.auth.getUser()).data.user?.id).single();
-      if (!profile?.business_id) return;
-      
-      const { data } = await supabase
-        .from('school_report_templates')
-        .select('layout_json')
-        .eq('business_id', profile.business_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (data && data.layout_json) {
-        setCustomTemplate(data.layout_json);
-      }
-    };
-    fetchCustomTemplate();
-  }, []);
 
 
   // ── Workflow selection: Period → Class → Subject ──────────────────────────
@@ -1129,7 +1109,13 @@ export default function SchoolGrades() {
               value="grades"
               className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3"
             >
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Saisie des Notes
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Saisie Classique
+            </TabsTrigger>
+            <TabsTrigger
+              value="bulk"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Saisie Groupée (Excel)
             </TabsTrigger>
             <TabsTrigger
               value="reports"
@@ -1403,6 +1389,45 @@ export default function SchoolGrades() {
           </TabsContent>
 
           {/* ══════════════ TAB 2: BULLETINS & CLASSEMENTS ══════════════ */}
+          <TabsContent value="bulk" className="space-y-4">
+            <Card className="p-4 bg-muted/30">
+              <div className="flex flex-col sm:flex-row gap-4 items-end">
+                <div className="space-y-1.5 min-w-[200px]">
+                  <Label>Classe</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                  >
+                    {classes.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5 min-w-[200px]">
+                  <Label>Période d'évaluation</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                  >
+                    {periods.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </Card>
+            {businessId && activeAcademicYear?.id && selectedClassId && selectedPeriod && (
+              <BulkGradesGrid 
+                businessId={businessId} 
+                academicYearId={activeAcademicYear.id} 
+                classId={selectedClassId} 
+                periodName={selectedPeriod} 
+              />
+            )}
+          </TabsContent>
+
           <TabsContent value="reports" className="space-y-4">
             <Card className="p-4 bg-muted/30">
               <div className="flex flex-col sm:flex-row gap-4 items-end">
