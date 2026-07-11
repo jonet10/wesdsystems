@@ -3,10 +3,11 @@ import { supabase } from "@/lib/supabase";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, FileSpreadsheet, RefreshCw, AlertCircle, Upload, Download, Settings } from "lucide-react";
+import { Save, FileSpreadsheet, RefreshCw, AlertCircle, Upload, Download, Settings, Printer } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { ClassCurriculumDialog } from "./ClassCurriculumDialog";
+import { PrintablePalmares } from "./PrintablePalmares";
 
 interface BulkGradesGridProps {
   businessId: string;
@@ -115,8 +116,24 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
         .eq("class_id", classId)
         .eq("academic_year_id", academicYearId)
         .eq("name", periodName);
-      
-      setExams(existingExams || []);
+      // 4.1 Auto-sync if curriculum changed
+      const examsToUpdate: any[] = [];
+      const syncedExams = (existingExams || []).map((exam: any) => {
+        const subject = subjs.find(s => s.id === exam.subject_id);
+        if (subject && (exam.max_points !== subject.coefficient || exam.coefficient !== subject.coefficient)) {
+          const updatedExam = { ...exam, max_points: subject.coefficient, coefficient: subject.coefficient };
+          examsToUpdate.push(updatedExam);
+          return updatedExam;
+        }
+        return exam;
+      });
+
+      if (examsToUpdate.length > 0) {
+        // Run async without blocking if needed, but safer to await
+        await supabase.from("school_exams").upsert(examsToUpdate);
+      }
+
+      setExams(syncedExams);
 
       // 5. Fetch grades
       const examIds = (existingExams || []).map((e: any) => e.id);
@@ -160,7 +177,7 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
         subject_id: s.id,
         academic_year_id: academicYearId,
         name: periodName,
-        max_points: s.coefficient * 10,
+        max_points: s.coefficient,
         coefficient: s.coefficient,
         exam_date: new Date().toISOString().split('T')[0]
       }));
@@ -177,6 +194,19 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
   };
 
   const handleGradeChange = (studentId: string, examId: string, value: string) => {
+    if (value !== "") {
+      const numValue = Number(value);
+      const exam = exams.find(e => e.id === examId);
+      if (exam && numValue > exam.max_points) {
+        toast.warning(`La note saisie (${numValue}) dépasse le maximum autorisé (${exam.max_points}).`);
+        return; // Prevent update
+      }
+      if (numValue < 0) {
+        toast.warning("La note ne peut pas être négative.");
+        return;
+      }
+    }
+
     setGradesMap(prev => ({
       ...prev,
       [studentId]: {
@@ -420,10 +450,14 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
   let flatColIndex = 0;
 
   return (
-    <div className="space-y-4 mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/30 p-4 rounded-lg border border-border">
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportExcel} disabled={exams.length === 0}>
+    <div className="mt-6">
+      <div className="space-y-4 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/30 p-4 rounded-lg border border-border">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.print()} disabled={students.length === 0 || exams.length === 0}>
+              <Printer className="mr-2 h-4 w-4" /> Imprimer Palmarès
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} disabled={exams.length === 0}>
             <Download className="mr-2 h-4 w-4" /> Exporter Modèle Excel
           </Button>
           <div className="relative">
@@ -462,7 +496,7 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
           </div>
         </div>
       ) : (
-        <div className="border rounded-lg overflow-x-auto bg-card shadow-sm">
+        <div className="border rounded-lg overflow-x-auto bg-card shadow-sm print:hidden">
           <Table id="bulk-grades-table">
             <TableHeader className="bg-muted/50">
               <TableRow>
@@ -532,6 +566,16 @@ export function BulkGradesGrid({ businessId, academicYearId, classId, periodName
         classId={classId}
         className={className}
         businessId={businessId}
+      />
+      </div>
+      <PrintablePalmares 
+        schoolName={schoolName}
+        className={className}
+        periodName={periodName}
+        students={students}
+        groupedExams={groupedExams}
+        subjects={subjects}
+        gradesMap={gradesMap}
       />
     </div>
   );

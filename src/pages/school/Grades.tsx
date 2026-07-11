@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -976,109 +976,134 @@ export default function SchoolGrades() {
         const decision = grandAvg !== null && grandAvg >= 5.0 ? "Admis(e)" : "Ajourné(e)";
 
         return (
-          <div className="font-sans text-xs text-black bg-white mx-auto border border-gray-300 print:border-none">
-            <style>{`@media print { @page { size: 5.5in 8.5in; margin: 0.2in; } }`}</style>
+          <div className="font-sans text-[11px] text-black bg-white mx-auto border border-gray-300 print:border-none p-4 max-w-[21cm]">
+            <style>{`@media print { @page { size: A4 portrait; margin: 0.5cm; } }`}</style>
             
             {/* HEADER */}
-            <div className="flex flex-col items-center justify-center p-3 text-center border-b-[3px] border-double border-gray-800 bg-gray-50">
-              <h1 className="font-black text-base uppercase tracking-wider">{settings?.name || "Établissement Scolaire"}</h1>
-              {settings?.slogan && <p className="text-[9px] italic mb-1">{settings.slogan}</p>}
-              <p className="text-[9px]">{settings?.address || ""} {settings?.phone ? `| Tél: ${settings.phone}` : ""}</p>
+            <div className="flex justify-between items-center mb-2">
+              <div className="w-16 h-16 border border-gray-300 rounded flex items-center justify-center bg-gray-50">
+                <span className="text-gray-400 text-[8px] uppercase">Logo G.</span>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+                <h1 className="font-black text-lg text-primary tracking-wide">{settings?.name || "Établissement Scolaire"}</h1>
+                <p className="text-[10px] text-gray-600">{settings?.address || ""} | Tél: {settings?.phone || ""}</p>
+                <div className="mt-2 font-bold text-sm">
+                  Année académique: {activeAcademicYear?.name || ""}
+                </div>
+                <div className="font-black text-md">Bulletin Scolaire</div>
+              </div>
+              <div className="w-16 h-16 border border-gray-300 rounded flex items-center justify-center bg-gray-50">
+                <span className="text-gray-400 text-[8px] uppercase">Logo D.</span>
+              </div>
             </div>
 
-            <div className="px-3 py-2 border-b border-gray-400 flex justify-between items-center text-[10px]">
-              <div>
-                <p><span className="font-bold text-gray-500 uppercase">Élève:</span> <span className="font-black text-sm uppercase ml-1">{student.student_name}</span></p>
-                <p><span className="font-bold text-gray-500 uppercase">Classe:</span> <span className="ml-1">{student.className}</span></p>
-              </div>
-              <div className="text-right">
-                <p><span className="font-bold text-gray-500 uppercase">Année:</span> <span className="ml-1">{activeAcademicYear?.name || ""}</span></p>
-                <p><span className="font-bold text-gray-500 uppercase">Période:</span> <span className="font-bold text-primary ml-1">{selectedPeriod}</span></p>
-              </div>
+            <div className="mb-2 flex justify-between items-center text-[11px] font-bold">
+              <div>Nom et Prénom : <span className="text-[13px] ml-1">{student.student_name}</span></div>
+              <div>Classe : <span className="ml-1">{student.className}</span></div>
             </div>
 
             {/* CORPS DU BULLETIN */}
-            <div className="p-3">
-              <table className="w-full border-collapse border border-gray-800 text-[10px]">
-                <thead>
-                  <tr className="bg-gray-200 border-b border-gray-800 uppercase">
-                    <th className="p-1 text-left border-r border-gray-800 font-black">Disciplines</th>
-                    <th className="p-1 text-center border-r border-gray-800 font-black w-14">Coef.</th>
-                    <th className="p-1 text-center font-black w-16">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedDomains.map((dom) => {
-                    const { noteSum, coefSum, avg } = getDomainTotals(dom.subjects);
-                    return (
-                      <React.Fragment key={dom.name}>
-                        {/* DOMAIN HEADER */}
-                        <tr className="bg-gray-100 border-b border-gray-400 border-t border-gray-400">
-                          <td colSpan={3} className="p-1 px-2 font-bold uppercase text-gray-700 tracking-wider">
-                            {dom.name}
-                          </td>
+            <table className="w-full border-collapse border border-gray-800 text-[11px]">
+              <thead>
+                <tr className="border-b-[2px] border-gray-800">
+                  <th colSpan={2} className="p-1.5 text-center border-r border-gray-800 font-black text-[12px]">Matières</th>
+                  <th className="p-1.5 text-center border-r border-gray-800 font-black w-24 text-[12px]">Coefficient</th>
+                  <th className="p-1.5 text-center font-black w-24 text-[12px]">
+                    <div className="border-b border-gray-800 pb-0.5 mb-0.5">{selectedPeriod}</div>
+                    Notes
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedDomains.map((dom) => {
+                  const { noteSum, coefSum, avg } = getDomainTotals(dom.subjects);
+                  return (
+                    <React.Fragment key={dom.name}>
+                      {/* SUBJECTS */}
+                      {dom.subjects.map((sub: any, idx: number) => (
+                        <tr key={sub.subject_id} className="border-b border-gray-800">
+                          {idx === 0 && (
+                            <td 
+                              rowSpan={dom.subjects.length + 2} 
+                              className="p-1 px-2 border-r border-gray-800 font-bold italic w-28 bg-white align-middle text-left"
+                            >
+                              {dom.name}
+                            </td>
+                          )}
+                          <td className="p-1 px-2 border-r border-gray-800 font-medium">{sub.subject_name}</td>
+                          <td className="p-1 border-r border-gray-800 text-center">{sub.coef}</td>
+                          <td className="p-1 text-center">{sub.average !== null ? sub.average : "-"}</td>
                         </tr>
-                        {/* SUBJECTS */}
-                        {dom.subjects.map((sub: any) => (
-                          <tr key={sub.subject_id} className="border-b border-gray-200">
-                            <td className="p-1 px-3 border-r border-gray-800 font-medium">{sub.subject_name}</td>
-                            <td className="p-1 border-r border-gray-800 text-center font-semibold text-gray-600">{sub.coef}</td>
-                            <td className="p-1 text-center font-bold">{sub.average !== null ? sub.average : "-"}</td>
-                          </tr>
-                        ))}
-                        {/* DOMAIN TOTALS */}
-                        <tr className="border-b border-gray-800 bg-gray-50/80">
-                          <td className="p-1 px-3 text-right font-bold text-[9px] border-r border-gray-800 uppercase italic">S/Total {dom.name}</td>
-                          <td className="p-1 text-center border-r border-gray-800 font-bold">{coefSum}</td>
-                          <td className="p-1 text-center font-bold text-primary">{noteSum}</td>
-                        </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="border-t-[3px] border-gray-800">
-                  <tr className="bg-gray-100 font-bold text-[11px]">
-                    <td className="p-1.5 text-right border-r border-gray-800 uppercase">Grand Total</td>
-                    <td className="p-1.5 text-center border-r border-gray-800">{grandTotalCoef}</td>
-                    <td className="p-1.5 text-center">{Number(grandTotalNote.toFixed(1))}</td>
-                  </tr>
-                  <tr className="bg-gray-200 font-black text-[12px]">
-                    <td className="p-1.5 text-right border-r border-gray-800 uppercase">Moyenne Générale</td>
-                    <td className="p-1.5 text-center border-r border-gray-800 text-[9px] font-bold text-gray-500">SUR 10</td>
-                    <td className="p-1.5 text-center">{grandAvg ?? "-"}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                      ))}
+                      {/* DOMAIN TOTALS */}
+                      <tr className="border-b border-gray-800 font-bold bg-white">
+                        <td className="p-1 px-2 border-r border-gray-800">Total</td>
+                        <td className="p-1 text-center border-r border-gray-800">{coefSum}</td>
+                        <td className="p-1 text-center">{noteSum}</td>
+                      </tr>
+                      {/* DOMAIN MOYENNE */}
+                      <tr className="border-b-[2px] border-gray-800 font-bold bg-gray-50">
+                        <td className="p-1 px-2 border-r border-gray-800 text-gray-700">Moyenne</td>
+                        <td className="p-1 text-center border-r border-gray-800 text-gray-600">10</td>
+                        <td className="p-1 text-center">{avg !== null ? avg : "-"}</td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-[3px] border-gray-800 font-bold">
+                <tr className="border-b border-gray-800">
+                  <td colSpan={2} className="p-1.5 px-2 border-r border-gray-800">Grand Total</td>
+                  <td className="p-1.5 text-center border-r border-gray-800">{grandTotalCoef}</td>
+                  <td className="p-1.5 text-center">{Number(grandTotalNote.toFixed(1))}</td>
+                </tr>
+                <tr className="border-b border-gray-800">
+                  <td colSpan={2} className="p-1.5 px-2 border-r border-gray-800">Moyenne</td>
+                  <td className="p-1.5 text-center border-r border-gray-800">10</td>
+                  <td className="p-1.5 text-center">{grandAvg ?? "-"}</td>
+                </tr>
+                <tr className="border-b border-gray-800 bg-gray-50">
+                  <td colSpan={2} className="p-1.5 px-2 border-r border-gray-800">Mention</td>
+                  <td colSpan={2} className="p-1.5 text-center uppercase tracking-wider">{mention}</td>
+                </tr>
+                {['Etape 4', 'Trimestre 3'].includes(selectedPeriod) && (
+                  <>
+                    <tr className="border-b border-gray-800 bg-gray-100">
+                      <td colSpan={2} className="p-1.5 px-2 border-r border-gray-800 text-[12px]">Moyenne Générale</td>
+                      <td className="p-1.5 text-center border-r border-gray-800">10</td>
+                      <td className="p-1.5 text-center text-[12px]">{grandAvg ?? "-"}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="p-1.5 px-2 border-r border-gray-800">Décision de fin d'année</td>
+                      <td colSpan={2} className="p-1.5 text-center uppercase">{decision}</td>
+                    </tr>
+                  </>
+                )}
+              </tfoot>
+            </table>
 
-              {/* SECTION RÉSULTATS & OBSERVATIONS */}
-              <div className="mt-3 grid grid-cols-2 gap-3 text-[10px]">
-                <div className="border border-gray-800 p-2 space-y-1 bg-gray-50 rounded-sm">
-                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Mention :</span> <span className="font-bold">{mention}</span></p>
-                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Conduite :</span> <span className="font-bold">{conductGrade} / 10</span></p>
-                  <div className="border-t border-gray-300 my-1 pt-1 flex justify-between">
-                    <span className="font-semibold text-gray-600">Décision :</span> <span className="font-black text-primary uppercase">{decision}</span>
-                  </div>
-                </div>
-                <div className="border border-gray-800 p-2 space-y-1 bg-white rounded-sm">
-                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences :</span> <span className="font-bold">{absences} jour(s)</span></p>
-                  <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards :</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
-                </div>
+            {/* OBSERVATIONS */}
+            <div className="mt-4 border-[2px] border-gray-800 bg-white">
+              <div className="bg-gray-100 p-1 px-2 border-b border-gray-800 font-bold uppercase text-left text-[10px]">
+                Observations
               </div>
+              <div className="p-2 flex justify-between px-8 text-[11px] font-medium">
+                <span>Retard : {student.tardiness_count > 0 ? student.tardiness_count : "....."}</span>
+                <span>Absence : {absences > 0 ? absences : "....."}</span>
+                <span>Autre : .......................</span>
+              </div>
+            </div>
 
-              {/* SIGNATURES */}
-              <div className="mt-6 flex justify-between px-2 text-[10px]">
-                <div className="text-center">
-                  <p className="font-bold mb-8 text-gray-600">La Direction</p>
-                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold mb-8 text-gray-600">Le Titulaire</p>
-                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold mb-8 text-gray-600">Les Parents</p>
-                  <div className="border-t border-gray-800 w-24 mx-auto"></div>
-                </div>
+            {/* SIGNATURES */}
+            <div className="mt-6 text-center font-bold text-[12px]">Signatures</div>
+            <div className="mt-4 mb-4 flex justify-between px-4 text-[11px]">
+              <div className="flex items-end gap-2">
+                <span className="font-bold">La Direction :</span>
+                <div className="border-b border-gray-800 w-32"></div>
+              </div>
+              <div className="flex items-end gap-2">
+                <span className="font-bold">Responsable :</span>
+                <div className="border-b border-gray-800 w-40"></div>
               </div>
             </div>
           </div>
@@ -1092,7 +1117,7 @@ export default function SchoolGrades() {
       <div className="space-y-6 max-w-6xl mx-auto">
 
         {/* ── Header ── */}
-        <div>
+        <div className="print:hidden">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <FileSpreadsheet className="h-6 w-6 text-primary" />
             Carnet de Notes &amp; {engine.terminology.get("reportCards")}
@@ -1104,7 +1129,7 @@ export default function SchoolGrades() {
 
         {/* ── Tabs ── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+          <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent print:hidden">
             <TabsTrigger
               value="grades"
               className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3"
@@ -1390,7 +1415,7 @@ export default function SchoolGrades() {
 
           {/* ══════════════ TAB 2: BULLETINS & CLASSEMENTS ══════════════ */}
           <TabsContent value="bulk" className="space-y-4">
-            <Card className="p-4 bg-muted/30">
+            <Card className="p-4 bg-muted/30 print:hidden">
               <div className="flex flex-col sm:flex-row gap-4 items-end">
                 <div className="space-y-1.5 min-w-[200px]">
                   <Label>Classe</Label>

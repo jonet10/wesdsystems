@@ -75,7 +75,7 @@ export const DashboardLayout = ({ children, role: explicitRole, title, subtitle,
             {subscriptionReminder.shouldPrompt && isBusinessArea && (
               <div
                 className={cn(
-                  "mb-6 rounded-2xl border p-4 shadow-sm",
+                  "mb-6 rounded-2xl border p-4 shadow-sm print:hidden",
                   subscriptionReminder.severity === "critical"
                     ? "border-destructive/20 bg-destructive/10 text-destructive"
                     : "border-amber-500/20 bg-amber-500/10 text-amber-100"

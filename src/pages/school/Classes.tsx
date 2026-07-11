@@ -21,6 +21,7 @@ import { DEFAULT_CLASSES, CYCLES } from "@/modules/school/defaultClasses";
 import { setBusinessId } from "@/modules/school/services/utils";
 import type { SchoolClass } from "@/modules/school/types";
 import { ClassCurriculumDialog } from "./components/ClassCurriculumDialog";
+import { ClassScheduleDialog } from "./components/ClassScheduleDialog";
 
 export default function SchoolClasses() {
   const { t } = useTranslation();
@@ -50,6 +51,10 @@ export default function SchoolClasses() {
   // Curriculum Dialog
   const [isCurriculumDialogOpen, setIsCurriculumDialogOpen] = useState(false);
   const [selectedClassForCurriculum, setSelectedClassForCurriculum] = useState<SchoolClass | null>(null);
+
+  // Schedule Dialog
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [selectedClassForSchedule, setSelectedClassForSchedule] = useState<SchoolClass | null>(null);
 
   // Group Form Fields
   const [name, setName] = useState("");
@@ -676,6 +681,9 @@ export default function SchoolClasses() {
                             <Button variant="ghost" size="icon" title="Programme" onClick={() => { setSelectedClassForCurriculum(cls); setIsCurriculumDialogOpen(true); }}>
                               <BookOpen className="h-4 w-4 text-blue-500" />
                             </Button>
+                            <Button variant="ghost" size="icon" title="Emploi du temps" onClick={() => { setSelectedClassForSchedule(cls); setIsScheduleDialogOpen(true); }}>
+                              <CalendarClock className="h-4 w-4 text-purple-500" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleEditGroup(cls)}><Pencil className="h-4 w-4" /></Button>
                             <Button variant="ghost" size="icon" onClick={() => handleToggleActive(cls)}>{cls.active !== false ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</Button>
                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteClass(cls.id)}><Trash2 className="h-4 w-4" /></Button>
@@ -827,6 +835,17 @@ export default function SchoolClasses() {
             onOpenChange={setIsCurriculumDialogOpen}
             classId={selectedClassForCurriculum.id}
             className={selectedClassForCurriculum.name}
+            businessId={businessId!}
+          />
+        )}
+
+        {/* SCHEDULE DIALOG */}
+        {selectedClassForSchedule && (
+          <ClassScheduleDialog
+            open={isScheduleDialogOpen}
+            onOpenChange={setIsScheduleDialogOpen}
+            classId={selectedClassForSchedule.id}
+            className={selectedClassForSchedule.name}
             businessId={businessId!}
           />
         )}

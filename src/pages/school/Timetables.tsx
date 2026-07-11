@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { PrintableTimetable } from "./components/PrintableTimetable";
 import {
-  Calendar, Plus, Clock, MapPin, BookOpen, User, Trash2, Pencil, AlertTriangle, RefreshCw
+  Calendar, Plus, Clock, MapPin, BookOpen, User, Trash2, Pencil, AlertTriangle, RefreshCw, Printer
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -58,12 +59,31 @@ export default function SchoolTimetables() {
     setSelectedClassId(classes[0].id);
   }
 
+  const updateSuggestedTime = (day: number) => {
+    const daySlots = slots.filter(s => s.day_of_week === day);
+    if (daySlots.length > 0) {
+      const endTimes = daySlots.map(s => s.end_time.substring(0, 5));
+      const lastEndTime = endTimes.sort().reverse()[0];
+      
+      setStartTime(lastEndTime);
+      
+      const startIndex = TIME_SLOTS.indexOf(lastEndTime);
+      if (startIndex !== -1 && startIndex + 2 < TIME_SLOTS.length) {
+         setEndTime(TIME_SLOTS[startIndex + 2]); // default to +1 hour (2 slots of 30m)
+      } else {
+         setEndTime("10:00");
+      }
+    } else {
+      setStartTime("08:00");
+      setEndTime("09:00");
+    }
+  };
+
   const resetForm = () => {
     setSubjectId("");
     setTeacherId("");
     setDayOfWeek(1);
-    setStartTime("08:00");
-    setEndTime("09:00");
+    updateSuggestedTime(1);
     setClassroom("");
   };
 
@@ -122,7 +142,7 @@ export default function SchoolTimetables() {
 
   return (
     <DashboardLayout role="salon_admin">
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-5xl mx-auto print:hidden">
         
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -133,12 +153,16 @@ export default function SchoolTimetables() {
             <p className="text-muted-foreground">Planifiez les cours hebdomadaires et évitez les doubles réservations</p>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button disabled={!selectedClassId}>
-                <Plus className="h-4 w-4 mr-2" /> Ajouter un cours
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.print()} disabled={!selectedClassId || slots.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> Exporter (Grille)
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button disabled={!selectedClassId}>
+                  <Plus className="h-4 w-4 mr-2" /> Ajouter un cours
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Ajouter un créneau horaire</DialogTitle>
@@ -180,7 +204,11 @@ export default function SchoolTimetables() {
                     <Label>Jour</Label>
                     <select
                       value={dayOfWeek}
-                      onChange={e => setDayOfWeek(parseInt(e.target.value))}
+                      onChange={e => {
+                        const newDay = parseInt(e.target.value);
+                        setDayOfWeek(newDay);
+                        updateSuggestedTime(newDay);
+                      }}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
                     >
                       {DAYS_OF_WEEK.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
@@ -240,6 +268,7 @@ export default function SchoolTimetables() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* ── Selection Class ── */}
@@ -340,6 +369,15 @@ export default function SchoolTimetables() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* PRINTABLE GRID */}
+      <div className="hidden print:block w-full">
+        <PrintableTimetable 
+           slots={slots} 
+           className={classes.find(c => c.id === selectedClassId)?.name} 
+           showTeacher={true} 
+        />
       </div>
     </DashboardLayout>
   );
