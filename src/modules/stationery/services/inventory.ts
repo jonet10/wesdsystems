@@ -7,16 +7,15 @@ export async function listInventoryAdjustments(businessId: string, branchId?: st
     .from("stationery_inventory_adjustments")
     .select(`
       id,
-      adjustment_date,
-      type,
-      quantity,
+      created_at,
+      adjustment_type,
+      quantity_changed,
       reason,
-      notes,
       stationery_products ( id, name, sku, barcode )
     `)
     .eq("business_id", businessId)
     .eq("branch_id", finalBranchId)
-    .order("adjustment_date", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
   return data || [];
@@ -39,10 +38,15 @@ export async function createInventoryAdjustment(
   // Ideally, this calls an RPC like 'adjust_stationery_stock' that updates the product and logs movement.
   // For the frontend demo, we insert the adjustment log.
   
+  const reasonText = adjustmentData.notes ? `${adjustmentData.reason} - ${adjustmentData.notes}` : adjustmentData.reason;
+  
   const { data, error } = await supabase
     .from("stationery_inventory_adjustments")
     .insert({
-      ...adjustmentData,
+      product_id: adjustmentData.product_id,
+      adjustment_type: adjustmentData.type,
+      quantity_changed: adjustmentData.quantity,
+      reason: reasonText,
       business_id: businessId,
       branch_id: finalBranchId
     })

@@ -360,12 +360,21 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
       const empRole = normalizeEmployeeRole(employeeSession.role);
       const empPerms = empRole ? getSalonEmployeePermissions(empRole) : null;
       if (empPerms) {
-        // Build employee-specific menu with correct routes
         const employeeMenuItems: SidebarItem[] = [
           { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/employee", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Calendar, labelKey: "sidebar.appointments", path: "/salon/appointments", permission: PERMISSIONS.APPOINTMENTS_VIEW },
+          { icon: Scissors, labelKey: "sidebar.services", path: "/salon/services", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Users, labelKey: "sidebar.clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Users, labelKey: "sidebar.employees", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Package, labelKey: "sidebar.inventory", path: "/salon/inventory", permission: PERMISSIONS.STOCK_MANAGE },
+          { icon: ShoppingBag, labelKey: "sidebar.products", path: "/salon/products", permission: PERMISSIONS.PRODUCTS_MANAGE },
           { icon: ShoppingBag, labelKey: "sidebar.pos", path: "/salon/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Gift, labelKey: "sidebar.promotions", path: "/salon/promotions", permission: PERMISSIONS.PROMOTIONS_MANAGE },
+          { icon: Receipt, labelKey: "sidebar.expenses", path: "/salon/expenses", permission: PERMISSIONS.EXPENSES_MANAGE },
           { icon: TrendingUp, labelKey: "sidebar.reports", path: "/salon/reports", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: BarChart3, labelKey: "sidebar.analytics", path: "/salon/sales-analytics", permission: PERMISSIONS.ANALYTICS_VIEW },
+          { icon: Building2, labelKey: "sidebar.branches", path: "/salon/branches", permission: PERMISSIONS.SETTINGS_MANAGE },
+          { icon: Settings, labelKey: "sidebar.settings", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
         const filtered = filterMenuByPermissions(employeeMenuItems, empPerms);
         console.log("[Sidebar] employeeSession permissions:", empPerms, "filtered items:", filtered.map(i => i.label));

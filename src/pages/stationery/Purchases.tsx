@@ -1,1 +1,10 @@
-export default function Purchases() { return <div>Purchases</div>; }
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+export default function Purchases() {
+  return (
+    <DashboardLayout role="salon_admin" title="Achats" subtitle="Historique des achats fournisseurs">
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        Module en cours de développement
+      </div>
+    </DashboardLayout>
+  );
+}

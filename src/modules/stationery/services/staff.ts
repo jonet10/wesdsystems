@@ -5,9 +5,9 @@ export async function listStaff(businessId: string) {
   // or it relies on global auth.
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, role")
+    .select("id, full_name, role")
     .eq("business_id", businessId);
 
   if (error) throw error;
-  return data || [];
+  return (data || []).map((p: any) => ({ ...p, name: p.full_name }));
 }

@@ -11,13 +11,33 @@ type LegacyBranchRow = {
 };
 
 export function useBusinessBranches() {
-  const { profile, isAuthenticated } = useAuth();
-  const businessId = profile?.business_id ?? null;
+  const { profile, isAuthenticated, employeeSession, autoPartsStaffSession } = useAuth();
+  const businessId = profile?.business_id || employeeSession?.business_id || autoPartsStaffSession?.business_id || null;
+  const isAllowed = isAuthenticated || !!employeeSession || !!autoPartsStaffSession;
 
   return useQuery({
     queryKey: ["business-branches", businessId],
-    enabled: Boolean(isAuthenticated && businessId),
+    enabled: isAllowed,
     queryFn: async (): Promise<BusinessBranch[]> => {
+      if (!isAuthenticated) {
+        if (employeeSession?.branch_id) {
+          return [{
+            id: employeeSession.branch_id,
+            business_id: (employeeSession as any).business_id || "",
+            name: "Succursale",
+            active: true,
+          }] as BusinessBranch[];
+        }
+        if (autoPartsStaffSession?.branch_id) {
+          return [{
+            id: autoPartsStaffSession.branch_id,
+            business_id: autoPartsStaffSession.business_id,
+            name: "Succursale",
+            active: true,
+          }] as BusinessBranch[];
+        }
+      }
+
       if (!businessId) return [];
 
       const [{ data: branchRows, error: branchError }, { data: legacyRows, error: legacyError }] = await Promise.all([

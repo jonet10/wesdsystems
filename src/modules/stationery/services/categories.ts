@@ -4,12 +4,17 @@ import type { StationeryCategory } from "../types";
 
 export async function listCategories(businessId: string, branchId?: string | null) {
   const finalBranchId = branchId || getStoredBranchId(businessId);
-  const { data, error } = await supabase
+  
+  let q = supabase
     .from("stationery_categories")
     .select("*")
-    .eq("business_id", businessId)
-    .eq("branch_id", finalBranchId)
-    .order("name", { ascending: true });
+    .eq("business_id", businessId);
+
+  if (finalBranchId) {
+    q = q.eq("branch_id", finalBranchId);
+  }
+
+  const { data, error } = await q.order("name", { ascending: true });
 
   if (error) throw error;
   return (data ?? []) as StationeryCategory[];

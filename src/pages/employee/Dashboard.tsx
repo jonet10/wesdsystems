@@ -107,7 +107,7 @@ export default function EmployeeDashboard() {
         const weekStartRange = getDayRangeInTimeZone(weekStartKey, timeZone);
         const monthStartRange = getDayRangeInTimeZone(monthStartKey, timeZone);
 
-        if (role === "cashier") {
+        if (role === "cashier" || role === "manager") {
           // Use RPC for PIN login sessions (bypasses RLS for anon key)
           if (employeeSession?.session_token) {
             const { data, error } = await supabase.rpc("get_employee_dashboard_stats", {
@@ -203,7 +203,7 @@ export default function EmployeeDashboard() {
   }, [resolvedBranchId, resolvedEmployeeId, role, employeeSession?.session_token]);
 
   const stats = useMemo(() => {
-    if (role === "cashier") {
+    if (role === "cashier" || role === "manager") {
       return [
         { title: "Ventes du jour", value: daySummary.revenue ? format(daySummary.revenue) : format(0), icon: <CreditCard className="h-6 w-6" /> },
         { title: "Tickets du jour", value: daySummary.tickets.toString(), icon: <Calendar className="h-6 w-6" /> },

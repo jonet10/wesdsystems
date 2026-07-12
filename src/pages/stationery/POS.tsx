@@ -342,85 +342,95 @@ export default function StationeryPOSPage() {
 
       {/* Payment Dialog */}
       <Dialog open={showPayment} onOpenChange={setShowPayment}>
-        <DialogContent className="sm:max-w-md sm:rounded-[24px]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Encaissement</DialogTitle>
+        <DialogContent className="sm:max-w-[400px] p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-xl font-bold text-slate-900">Encaissement</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Remise appliquée</Label>
-              <div className="flex gap-2 mt-1">
-                <Select value={discountType} onValueChange={(v: any) => { setDiscountType(v); setDiscountValue(0); }}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
-                    <SelectItem value="percentage">Pourcentage (%)</SelectItem>
-                    <SelectItem value="fixed">Montant fixe</SelectItem>
-                  </SelectContent>
-                </Select>
-                {discountType !== "none" && (
-                  <Input type="number" className="flex-1" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} />
-                )}
-              </div>
-            </div>
-            
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">TCA (%)</Label>
-                <Input type="number" className="mt-1" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
+                <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Remise appliquée</Label>
+                <div className="flex gap-2">
+                  <Select value={discountType} onValueChange={(v: any) => { setDiscountType(v); setDiscountValue(0); }}>
+                    <SelectTrigger className="w-full bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
+                      <SelectItem value="none">Aucune</SelectItem>
+                      <SelectItem value="percentage">Pourcentage (%)</SelectItem>
+                      <SelectItem value="fixed">Montant fixe</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Moyen de paiement</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Espèces</SelectItem>
-                    <SelectItem value="card">Carte Bancaire</SelectItem>
-                    <SelectItem value="transfer">Virement</SelectItem>
-                    <SelectItem value="moncash">MonCash</SelectItem>
-                    <SelectItem value="natcash">NatCash</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-medium text-slate-600 mb-1.5 block">TCA (%)</Label>
+                <Input type="number" className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" value={taxRate} onChange={(e) => setTaxRate(Number(e.target.value))} />
               </div>
             </div>
-            
-            <div className="border-t pt-4 mt-2">
-              <div className="flex justify-between items-center text-xl font-bold mb-4">
-                <span>Total à payer</span>
-                <span className="text-3xl text-primary">{format(total)}</span>
+
+            {discountType !== "none" && (
+              <div>
+                <Label className="text-xs font-medium text-slate-600 mb-1.5 block">
+                  Valeur de la remise {discountType === "percentage" ? "(%)" : "(Montant)"}
+                </Label>
+                <Input type="number" className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" value={discountValue} onChange={(e) => setDiscountValue(Number(e.target.value))} />
               </div>
-              
-              {paymentMethod === "cash" && (
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Montant reçu</Label>
+            )}
+            
+            <div>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Moyen de paiement</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="w-full bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
+                  <SelectItem value="cash">Espèces</SelectItem>
+                  <SelectItem value="card">Carte Bancaire</SelectItem>
+                  <SelectItem value="transfer">Virement</SelectItem>
+                  <SelectItem value="moncash">MonCash</SelectItem>
+                  <SelectItem value="natcash">NatCash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 my-2 flex justify-between items-center">
+              <span className="text-sm font-medium text-slate-600">Total à payer</span>
+              <span className="text-2xl font-bold text-slate-900">{format(total)}</span>
+            </div>
+            
+            {paymentMethod === "cash" && (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Montant reçu</Label>
                   <Input
                     type="number"
                     min={0}
                     step="any"
-                    placeholder={`Montant remis par le client...`}
-                    className="h-12 text-lg font-bold"
+                    placeholder="Montant remis par le client..."
+                    className="h-10 bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors placeholder:text-slate-400"
                     value={amountTendered}
                     onChange={(e) => setAmountTendered(e.target.value === "" ? "" : Number(e.target.value))}
                   />
-                  {typeof amountTendered === "number" && amountTendered >= total && (
-                    <div className="flex items-center justify-between bg-green-50 text-green-700 border border-green-200 rounded-lg px-4 py-3 mt-2">
-                      <span className="font-bold">Monnaie à rendre</span>
-                      <span className="text-xl font-black">{format(amountTendered - total)}</span>
-                    </div>
-                  )}
-                  {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
-                    <div className="flex items-center justify-between bg-orange-50 text-orange-600 border border-orange-200 rounded-lg px-4 py-3 mt-2">
-                      <span className="font-bold">Paiement partiel (Crédit)</span>
-                      <span className="font-bold">Reste: {format(total - amountTendered)}</span>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
+                
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-sm font-medium text-slate-600">Monnaie à rendre</span>
+                  <span className="text-sm font-bold text-slate-500">
+                    {typeof amountTendered === "number" && amountTendered >= total 
+                      ? format(amountTendered - total) 
+                      : "0,00 G"}
+                  </span>
+                </div>
+                
+                {typeof amountTendered === "number" && amountTendered > 0 && amountTendered < total && (
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-sm font-medium text-orange-600">Paiement partiel</span>
+                    <span className="text-sm font-bold text-orange-600">Reste: {format(total - amountTendered)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" className="h-12 flex-1" onClick={() => setShowPayment(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handlePayment} className="h-12 flex-[2] text-base font-bold">Valider la vente</Button>
+          <DialogFooter className="mt-6 flex gap-3 sm:justify-between">
+            <Button variant="outline" className="flex-1 bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900" onClick={() => setShowPayment(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handlePayment} className="flex-1 bg-black text-white hover:bg-slate-800">Valider la vente</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -429,8 +439,8 @@ export default function StationeryPOSPage() {
       <Dialog open={showReceipt} onOpenChange={(open) => { 
         if (!open) { setReceiptSnapshot(null); setShowReceipt(false); refetch(); } else { setShowReceipt(open); }
       }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Vente enregistrée avec succès</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-md p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2"><DialogTitle className="text-xl font-bold text-slate-900">Vente enregistrée avec succès</DialogTitle></DialogHeader>
           {lastSale && receiptSnapshot && (
             <>
               <div className="max-h-[60vh] overflow-y-auto bg-gray-100 p-2 rounded flex justify-center">

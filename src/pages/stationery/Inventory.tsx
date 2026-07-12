@@ -40,7 +40,7 @@ export default function StationeryInventoryPage() {
   });
 
   const load = async () => {
-    if (!businessId) return;
+    if (!businessId) { setLoading(false); return; }
     setLoading(true);
     try {
       const [adj, prods] = await Promise.all([
@@ -130,14 +130,14 @@ export default function StationeryInventoryPage() {
                   filtered.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">
-                        {format(new Date(r.adjustment_date), "dd MMM yyyy HH:mm", { locale: fr })}
+                        {format(new Date(r.created_at), "dd MMM yyyy HH:mm", { locale: fr })}
                       </TableCell>
                       <TableCell>
-                        {r.type === 'add' ? (
+                        {r.adjustment_type === 'add' ? (
                           <div className="flex items-center text-green-600 font-medium">
                             <ArrowUpRight className="h-4 w-4 mr-1" /> Entrée
                           </div>
-                        ) : r.type === 'remove' ? (
+                        ) : r.adjustment_type === 'remove' ? (
                           <div className="flex items-center text-red-600 font-medium">
                             <ArrowDownRight className="h-4 w-4 mr-1" /> Sortie
                           </div>
@@ -153,12 +153,12 @@ export default function StationeryInventoryPage() {
                           <p className="text-xs text-muted-foreground">{r.stationery_products?.sku || r.stationery_products?.barcode}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{getReasonLabel(r.reason)}</TableCell>
+                      <TableCell>{getReasonLabel(r.reason?.split(' - ')[0] || r.reason)}</TableCell>
                       <TableCell className="text-right font-bold text-lg">
-                        {r.type === 'add' ? '+' : r.type === 'remove' ? '-' : ''}{r.quantity}
+                        {r.adjustment_type === 'add' ? '+' : r.adjustment_type === 'remove' ? '-' : ''}{r.quantity_changed}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={r.notes}>
-                        {r.notes || "-"}
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate" title={r.reason}>
+                        {r.reason?.includes(' - ') ? r.reason.split(' - ').slice(1).join(' - ') : "-"}
                       </TableCell>
                     </TableRow>
                   ))
@@ -170,14 +170,14 @@ export default function StationeryInventoryPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nouvel Ajustement de Stock</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
+        <DialogContent className="sm:max-w-md p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2"><DialogTitle className="text-xl font-bold text-slate-900">Nouvel Ajustement de Stock</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-2">
             <div>
-              <Label>Produit</Label>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Produit</Label>
               <Select value={form.product_id} onValueChange={(v) => setForm({ ...form, product_id: v })}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Rechercher un produit..." /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="mt-1 bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue placeholder="Rechercher un produit..." /></SelectTrigger>
+                <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
                   {products.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name} (Stock actuel: {p.stock_quantity})
@@ -189,10 +189,10 @@ export default function StationeryInventoryPage() {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Type d'opération</Label>
+                <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Type d'opération</Label>
                 <Select value={form.type} onValueChange={(v: any) => setForm({ ...form, type: v })}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectTrigger className="mt-1 bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
                     <SelectItem value="add">Ajouter au stock (+)</SelectItem>
                     <SelectItem value="remove">Retirer du stock (-)</SelectItem>
                     <SelectItem value="set">Définir le stock (=)</SelectItem>
@@ -200,16 +200,16 @@ export default function StationeryInventoryPage() {
                 </Select>
               </div>
               <div>
-                <Label>Quantité</Label>
-                <Input type="number" min={1} className="mt-1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+                <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Quantité</Label>
+                <Input type="number" min={1} className="mt-1 bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
               </div>
             </div>
 
             <div>
-              <Label>Motif</Label>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Motif</Label>
               <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="mt-1 bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
                   <SelectItem value="Restock">Réapprovisionnement</SelectItem>
                   <SelectItem value="Correction">Correction d'inventaire</SelectItem>
                   <SelectItem value="Loss">Perte / Casse / Vol</SelectItem>
@@ -219,15 +219,14 @@ export default function StationeryInventoryPage() {
             </div>
 
             <div>
-              <Label>Notes (Optionnel)</Label>
-              <Textarea className="mt-1" placeholder="Détails supplémentaires..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Notes (Optionnel)</Label>
+              <Textarea className="mt-1 bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" placeholder="Détails supplémentaires..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
-            
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving || !form.product_id || form.quantity <= 0}>
-              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Valider l'ajustement"}
+          <DialogFooter className="mt-4 flex gap-3 sm:justify-between">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="flex-1 bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900">{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.product_id || form.quantity <= 0} className="flex-1 bg-black text-white hover:bg-slate-800">
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

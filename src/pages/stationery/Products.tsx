@@ -65,8 +65,8 @@ export default function StationeryProductsPage() {
   const openCreate = () => {
     setEditing(null);
     setForm({ 
-      name: "", description: "", category_id: "", sku: "", barcode: "", 
-      selling_price: "", purchase_price: "", stock_quantity: "0", min_stock_alert: "5", 
+      name: "", description: "", category_id: "none", sku: "", barcode: "", 
+      selling_price: "", purchase_price: "", stock_quantity: "", min_stock_alert: "", 
       selling_unit: "unité", active: true 
     });
     setOpen(true);
@@ -95,8 +95,8 @@ export default function StationeryProductsPage() {
         category_id: form.category_id || null,
         selling_price: form.selling_price === "" ? 0 : Number(form.selling_price),
         purchase_price: form.purchase_price === "" ? 0 : Number(form.purchase_price),
-        stock_quantity: Number(form.stock_quantity) || 0,
-        min_stock_alert: Number(form.min_stock_alert) || 5,
+        stock_quantity: form.stock_quantity === "" ? 0 : Number(form.stock_quantity),
+        min_stock_alert: form.min_stock_alert === "" ? 0 : Number(form.min_stock_alert),
       };
       
       if (!canViewCost) {
@@ -207,17 +207,17 @@ export default function StationeryProductsPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouveau"} produit</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div className="col-span-2"><Label>Nom du produit *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div className="col-span-2"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+        <DialogContent className="sm:max-w-2xl p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2"><DialogTitle className="text-xl font-bold text-slate-900">{editing ? "Modifier" : "Nouveau"} produit</DialogTitle></DialogHeader>
+          <div className="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-2 py-2">
+            <div className="col-span-2"><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Nom du produit *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            <div className="col-span-2"><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             
             <div>
-              <Label>Catégorie</Label>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Catégorie</Label>
               <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
                   <SelectItem value="none">Aucune</SelectItem>
                   {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
@@ -225,10 +225,10 @@ export default function StationeryProductsPage() {
             </div>
             
             <div>
-              <Label>Unité de vente</Label>
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Unité de vente</Label>
               <Select value={form.selling_unit} onValueChange={(v) => setForm({ ...form, selling_unit: v })}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="bg-slate-100 border-slate-300 text-slate-900 focus:ring-slate-500 focus:bg-white transition-colors"><SelectValue placeholder="Sélectionner..." /></SelectTrigger>
+                <SelectContent className="bg-slate-50 border-slate-300 text-slate-900 shadow-lg">
                   <SelectItem value="unité">Unité</SelectItem>
                   <SelectItem value="paquet">Paquet</SelectItem>
                   <SelectItem value="boîte">Boîte</SelectItem>
@@ -238,23 +238,23 @@ export default function StationeryProductsPage() {
               </Select>
             </div>
 
-            <div><Label>SKU (Référence interne)</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /></div>
-            <div><Label>Code-barres (EAN/UPC)</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">SKU (Référence interne)</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Code-barres (EAN/UPC)</Label><Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             
-            <div><Label>Prix de vente *</Label><Input type="number" step="0.01" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} required /></div>
-            {canViewCost && <div><Label>Prix d'achat</Label><Input type="number" step="0.01" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} /></div>}
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Prix de vente *</Label><Input type="number" step="0.01" value={form.selling_price} onChange={(e) => setForm({ ...form, selling_price: e.target.value })} required className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            {canViewCost && <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Prix d'achat</Label><Input type="number" step="0.01" value={form.purchase_price} onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>}
             
-            <div><Label>Stock actuel</Label><Input type="number" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} disabled={!!editing} title={editing ? "Utilisez le module Inventaire pour ajuster le stock existant" : ""} /></div>
-            <div><Label>Alerte stock minimum</Label><Input type="number" value={form.min_stock_alert} onChange={(e) => setForm({ ...form, min_stock_alert: e.target.value })} /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Stock actuel</Label><Input type="number" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} disabled={!!editing} title={editing ? "Utilisez le module Inventaire pour ajuster le stock existant" : ""} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Alerte stock minimum</Label><Input type="number" value={form.min_stock_alert} onChange={(e) => setForm({ ...form, min_stock_alert: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             
             <div className="col-span-2 flex items-center gap-2 mt-2">
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-              <Label>Produit actif à la vente</Label>
+              <Label className="text-sm font-medium text-slate-600">Produit actif à la vente</Label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving || !form.name || form.selling_price === ""}>
+          <DialogFooter className="mt-4 flex gap-3 sm:justify-between">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="flex-1 bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900">{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.name || form.selling_price === ""} className="flex-1 bg-black text-white hover:bg-slate-800">
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
             </Button>
           </DialogFooter>

@@ -155,28 +155,28 @@ export default function StationeryCategoriesPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouvelle"} catégorie</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div><Label>Nom de la catégorie *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
-            <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+        <DialogContent className="sm:max-w-md p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2"><DialogTitle className="text-xl font-bold text-slate-900">{editing ? "Modifier" : "Nouvelle"} catégorie</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Nom de la catégorie *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             
             <div>
-              <Label>Couleur d'identification</Label>
-              <div className="flex gap-2 items-center mt-2">
-                <Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-16 h-10 p-1" />
-                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="flex-1" />
+              <Label className="text-xs font-medium text-slate-600 mb-1.5 block">Couleur d'identification</Label>
+              <div className="flex gap-2 items-center mt-1">
+                <Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-16 h-10 p-1 bg-white border-slate-200" />
+                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="flex-1 bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" />
               </div>
             </div>
             
             <div className="flex items-center gap-2 mt-2">
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-              <Label>Catégorie visible</Label>
+              <Label className="text-sm font-medium text-slate-600">Catégorie visible</Label>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving || !form.name}>
+          <DialogFooter className="mt-4 flex gap-3 sm:justify-between">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="flex-1 bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900">{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.name} className="flex-1 bg-black text-white hover:bg-slate-800">
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
             </Button>
           </DialogFooter>

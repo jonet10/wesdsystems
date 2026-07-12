@@ -164,29 +164,25 @@ export default function StationeryCustomersPage() {
       </StaggerContainer>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouveau"} Client</DialogTitle></DialogHeader>
-          <div className="grid gap-4 py-4">
+        <DialogContent className="sm:max-w-md p-6 sm:rounded-xl bg-white dark:bg-white text-slate-900 border-0 shadow-2xl">
+          <DialogHeader className="mb-2"><DialogTitle className="text-xl font-bold text-slate-900">{editing ? "Modifier" : "Nouveau"} Client</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-2">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Prénom *</Label><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required /></div>
-              <div><Label>Nom</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></div>
+              <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Prénom *</Label><Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+              <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Nom</Label><Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Téléphone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-              <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Téléphone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+              <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
             </div>
 
-            <div><Label>Adresse postale</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            
-            <div>
-              <Label>Notes (Optionnel)</Label>
-              <Textarea className="mt-1" placeholder="Détails supplémentaires..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            </div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Adresse postale</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
+            <div><Label className="text-xs font-medium text-slate-600 mb-1.5 block">Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="bg-slate-100 border-slate-300 text-slate-900 focus-visible:ring-slate-500 focus-visible:bg-white transition-colors" /></div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving || !form.first_name}>
+          <DialogFooter className="mt-4 flex gap-3 sm:justify-between">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving} className="flex-1 bg-slate-100 border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900">{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.first_name} className="flex-1 bg-black text-white hover:bg-slate-800">
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
             </Button>
           </DialogFooter>

@@ -2634,24 +2634,8 @@ export default function POSPage() {
 
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>{lastSale?.tab_number ? `Fiche #${lastSale.tab_number}` : `Reçu #${lastSale?.sale_number || ""}`}</span>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-1">
-                  <Printer className="h-4 w-4" /> Imprimer
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePrintReceipt} className="gap-1">
-                  <Download className="h-4 w-4" /> PDF
-                </Button>
-              </div>
-            </DialogTitle>
-            <DialogDescription>
-              Consultez le reçu de la vente enregistrée et téléchargez une copie PDF.
-            </DialogDescription>
-          </DialogHeader>
-
-            <div className="bg-gray-100 p-2 rounded flex justify-center max-h-[60vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Reçu</DialogTitle>
+          <div className="bg-gray-100 p-2 rounded flex justify-center max-h-[60vh] overflow-y-auto">
               <ReceiptTemplate
                 ref={receiptRef}
                 formatAmount={format}
@@ -2707,9 +2691,13 @@ export default function POSPage() {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 print:hidden">
               <Button variant="outline" onClick={() => setShowReceipt(false)}>{t("common.close")}</Button>
-              <Button onClick={handlePrintReceipt}>
+              <Button variant="outline" onClick={handlePrintReceipt}>
+                <Download className="h-4 w-4 mr-2" />
+                PDF
+              </Button>
+              <Button onClick={() => window.print()}>
                 <Printer className="h-4 w-4 mr-2" />
                 Imprimer
               </Button>

@@ -1,1 +1,10 @@
-export default function Sales() { return <div>Sales</div>; }
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+export default function Sales() {
+  return (
+    <DashboardLayout role="salon_admin" title="Ventes" subtitle="Historique des ventes">
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        Module en cours de développement
+      </div>
+    </DashboardLayout>
+  );
+}

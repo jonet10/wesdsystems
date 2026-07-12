@@ -6,12 +6,23 @@ import { PERMISSIONS } from "@/config/permissions";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent } from "@/components/ui/card";
-import { stationeryDashboardStats } from "@/modules/stationery/services/reports";
+import { 
+  stationeryDashboardStats, 
+  getSalesEvolution, 
+  getTopProducts, 
+  getOutOfStockItems, 
+  getCategoryDistribution, 
+  getRecentActivity 
+} from "@/modules/stationery/services/reports";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import {
   DollarSign, ShoppingCart, FileText, Package,
-  AlertTriangle, TrendingUp, Users, BookOpen
+  AlertTriangle, TrendingUp, BookOpen, RefreshCw
 } from "lucide-react";
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from "recharts";
 
 // Reusable stat card adapted from Auto Parts
 function StatCard({
@@ -57,15 +68,39 @@ export default function StationeryDashboardPage() {
   const { format } = useCurrency();
 
   const [stats, setStats] = useState<any>(null);
+  const [salesEvolution, setSalesEvolution] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [outOfStockItems, setOutOfStockItems] = useState<any[]>([]);
+  const [categoryDist, setCategoryDist] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!businessId) return;
+    if (!businessId) {
+      setLoading(false);
+      return;
+    }
     
     const load = async () => {
       try {
-        const data = await stationeryDashboardStats(businessId);
-        setStats(data);
+        const [
+          dataStats, dataSalesEvo, dataTopProd, dataOos, dataCat, dataRecent
+        ] = await Promise.all([
+          stationeryDashboardStats(businessId),
+          getSalesEvolution(businessId, null, days),
+          getTopProducts(businessId, null, 30),
+          getOutOfStockItems(businessId, null),
+          getCategoryDistribution(businessId, null),
+          getRecentActivity(businessId, null)
+        ]);
+        
+        setStats(dataStats);
+        setSalesEvolution(dataSalesEvo);
+        setTopProducts(dataTopProd);
+        setOutOfStockItems(dataOos);
+        setCategoryDist(dataCat);
+        setRecentActivity(dataRecent);
       } catch (error) {
         console.error("Dashboard error", error);
       } finally {
@@ -76,7 +111,7 @@ export default function StationeryDashboardPage() {
     load();
     const iv = setInterval(load, 60_000); // refresh every minute
     return () => clearInterval(iv);
-  }, [businessId]);
+  }, [businessId, days]);
 
   if (loading) {
     return (
@@ -137,25 +172,164 @@ export default function StationeryDashboardPage() {
         </StaggerItem>
 
         {/* ── Alertes & KPIs Secondaires ── */}
-        {(stats?.outOfStock > 0 || stats?.lowStock > 0) && (
-          <StaggerItem>
-            <div className="flex flex-wrap gap-3 mt-4">
-              {stats.outOfStock > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-sm">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  <span><strong>{stats.outOfStock}</strong> produit{stats.outOfStock > 1 ? "s" : ""} en rupture de stock !</span>
-                </div>
-              )}
-              {stats.lowStock > 0 && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-sm">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  <span><strong>{stats.lowStock}</strong> produit{stats.lowStock > 1 ? "s" : ""} avec stock faible.</span>
-                </div>
-              )}
+        <StaggerItem>
+          <div className="flex flex-wrap gap-3 mt-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-red-900/30 bg-red-950/20 text-red-400 text-sm font-medium">
+              <AlertTriangle className="h-4 w-4" /> {stats?.outOfStock || 0} références en rupture
             </div>
-          </StaggerItem>
-        )}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-900/30 bg-amber-950/20 text-amber-400 text-sm font-medium">
+              <AlertTriangle className="h-4 w-4" /> {stats?.lowStock || 0} références à stock faible
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-blue-900/30 bg-blue-950/20 text-blue-400 text-sm font-medium">
+              <Package className="h-4 w-4" /> Valeur du stock : {format(stats?.totalStockValue || 0)}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 text-emerald-400 text-sm font-medium">
+              <TrendingUp className="h-4 w-4" /> Valeur potentielle : {format(stats?.totalPotentialRevenue || 0)}
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-purple-900/30 bg-purple-950/20 text-purple-400 text-sm font-medium">
+              <DollarSign className="h-4 w-4" /> Marge potentielle : {format(stats?.potentialMargin || 0)}
+            </div>
+          </div>
+        </StaggerItem>
 
+        {/* ── Graphique d'évolution des ventes ── */}
+        <StaggerItem>
+          <Card className="border-0 shadow-sm p-4">
+            <div className="flex justify-between items-center mb-6">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Evolution des ventes</p>
+              <div className="flex gap-2">
+                <button onClick={() => setDays(7)} className={`px-3 py-1 text-xs rounded-md border ${days === 7 ? 'bg-primary/10 border-primary/20 text-primary font-medium' : 'hover:bg-muted'}`}>7 jours</button>
+                <button onClick={() => setDays(30)} className={`px-3 py-1 text-xs rounded-md border ${days === 30 ? 'bg-primary/10 border-primary/20 text-primary font-medium' : 'hover:bg-muted'}`}>30 jours</button>
+              </div>
+            </div>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                  <YAxis hide />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [`${format(value)}`, 'Ventes']}
+                    labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                  />
+                  <Line type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </StaggerItem>
+
+        {/* ── 3 Colonnes : Top, Ruptures, Catégories ── */}
+        <StaggerItem>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Top Produits */}
+            <Card className="border-0 shadow-sm p-4">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top Produits</p>
+              <div className="space-y-4">
+                {topProducts.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Pas assez de données.</p>}
+                {topProducts.map((p, i) => {
+                  const maxQty = topProducts[0]?.quantity || 1;
+                  const pct = Math.round((p.quantity / maxQty) * 100);
+                  return (
+                    <div key={i} className="flex flex-col gap-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium truncate pr-2">{p.name}</span>
+                        <span className="text-muted-foreground flex-shrink-0">{p.quantity} ventes</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Ruptures */}
+            <Card className="border-0 shadow-sm p-4">
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Rupture de Stock</p>
+                <span className="bg-red-900/30 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium">{stats?.outOfStock || 0}</span>
+              </div>
+              <div className="space-y-3">
+                {outOfStockItems.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aucune rupture.</p>}
+                {outOfStockItems.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center text-sm">
+                    <span className="font-medium truncate pr-2">{p.name}</span>
+                    <button className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors flex-shrink-0">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Catégories */}
+            <Card className="border-0 shadow-sm p-4">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Par Catégorie</p>
+              <div className="flex items-center justify-between">
+                <div className="h-[120px] w-[120px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryDist}
+                        innerRadius={40}
+                        outerRadius={55}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {categoryDist.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number, name: string) => [`${value} articles`, name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 pl-4 space-y-2">
+                  {categoryDist.slice(0, 3).map((c, i) => (
+                    <div key={i} className="flex items-center text-xs">
+                      <div className="h-2 w-2 rounded-full mr-2" style={{ backgroundColor: c.fill }} />
+                      <span className="flex-1 truncate text-muted-foreground">{c.name}</span>
+                      <span className="font-medium ml-2">{c.percentage}%</span>
+                    </div>
+                  ))}
+                  {categoryDist.length > 3 && (
+                    <div className="flex items-center text-xs">
+                      <div className="h-2 w-2 rounded-full mr-2 bg-muted-foreground" />
+                      <span className="flex-1 truncate text-muted-foreground">Autres</span>
+                      <span className="font-medium ml-2">
+                        {categoryDist.slice(3).reduce((acc, c) => acc + c.percentage, 0)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+          </div>
+        </StaggerItem>
+
+        {/* ── Activité Récente ── */}
+        <StaggerItem>
+          <Card className="border-0 shadow-sm p-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Activité Récente</p>
+            <div className="space-y-0">
+              {recentActivity.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aucune vente récente.</p>}
+              {recentActivity.map((act, i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 text-sm">
+                  <div className="w-16 text-muted-foreground">{act.time}</div>
+                  <div className="flex-1 font-medium">Ticket #{act.invoice}</div>
+                  <div className="w-16 text-center text-muted-foreground">{act.initials}</div>
+                  <div className="w-24 text-right font-medium text-emerald-500">{format(act.amount)}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </StaggerItem>
       </StaggerContainer>
     </DashboardLayout>
   );
