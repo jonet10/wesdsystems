@@ -1,0 +1,196 @@
+import { useTranslation } from "react-i18next";
+import { useState, useEffect } from "react";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useStationeryBusinessId } from "@/modules/stationery/hooks/useStationeryBusinessId";
+import { useStationeryPermissions } from "@/modules/stationery/hooks/useStationeryPermissions";
+import { listSuppliers, createSupplier, updateSupplier, deleteSupplier } from "@/modules/stationery/services/suppliers";
+import { PERMISSIONS } from "@/config/permissions";
+import { toast } from "sonner";
+import { Pencil, Trash2, Search, Loader2, Plus, Truck } from "lucide-react";
+import type { StationerySupplier } from "@/modules/stationery/types";
+
+export default function StationerySuppliersPage() {
+  const { t } = useTranslation();
+  const businessId = useStationeryBusinessId();
+  const { hasStationeryPermission } = useStationeryPermissions();
+  const canManage = hasStationeryPermission(PERMISSIONS.SUPPLIERS_MANAGE);
+  
+  const [data, setData] = useState<StationerySupplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<StationerySupplier | null>(null);
+  
+  const [form, setForm] = useState({
+    company_name: "", contact_name: "", phone: "", email: "", address: "", notes: ""
+  });
+
+  const load = async () => {
+    if (!businessId) return;
+    setLoading(true);
+    try {
+      setData(await listSuppliers(businessId, null));
+    } catch (e: any) { toast.error(e.message); } finally { setLoading(false); }
+  };
+  
+  useEffect(() => { load(); }, [businessId]);
+
+  const filtered = data.filter((c) => {
+    const term = search.toLowerCase();
+    if (search && !c.company_name.toLowerCase().includes(term) && !(c.contact_name?.toLowerCase().includes(term)) && !(c.phone?.includes(term))) return false;
+    return true;
+  });
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ company_name: "", contact_name: "", phone: "", email: "", address: "", notes: "" });
+    setOpen(true);
+  };
+
+  const openEdit = (c: StationerySupplier) => {
+    setEditing(c);
+    setForm({
+      company_name: c.company_name, 
+      contact_name: c.contact_name ?? "", 
+      phone: c.phone ?? "", 
+      email: c.email ?? "", 
+      address: c.address ?? "", 
+      notes: c.notes ?? ""
+    });
+    setOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!businessId) return;
+    try {
+      setSaving(true);
+      if (editing) { 
+        await updateSupplier(editing.id, form, businessId); 
+        toast.success("Fournisseur mis à jour"); 
+      } else { 
+        await createSupplier(businessId, "", form); // branchId empty string uses hook internal logic
+        toast.success("Fournisseur créé"); 
+      }
+      setOpen(false); 
+      load();
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce fournisseur ?")) return;
+    try { 
+      await deleteSupplier(id, businessId); 
+      toast.success("Fournisseur supprimé"); 
+      load(); 
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  return (
+    <DashboardLayout role="salon_admin" title="Fournisseurs" subtitle="Partenaires Papeterie">
+      <StaggerContainer>
+        <StaggerItem>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Répertoire Fournisseurs</h2>
+              <p className="text-muted-foreground">{data.length} fournisseur(s) enregistré(s)</p>
+            </div>
+            {canManage && (
+              <Button onClick={openCreate} className="bg-indigo-600 hover:bg-indigo-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Nouveau Fournisseur
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex gap-4 mb-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Rechercher par nom d'entreprise ou téléphone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Entreprise</TableHead>
+                  <TableHead>Contact (Personne)</TableHead>
+                  <TableHead>Téléphone</TableHead>
+                  <TableHead>Email</TableHead>
+                  {canManage && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-10"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></TableCell></TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Aucun fournisseur trouvé</TableCell></TableRow>
+                ) : (
+                  filtered.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <div className="h-8 w-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                          <Truck className="h-4 w-4" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium text-indigo-700 dark:text-indigo-400">{r.company_name}</TableCell>
+                      <TableCell>{r.contact_name || "-"}</TableCell>
+                      <TableCell>{r.phone || "-"}</TableCell>
+                      <TableCell>{r.email || "-"}</TableCell>
+                      {canManage && (
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </StaggerItem>
+      </StaggerContainer>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editing ? "Modifier" : "Nouveau"} Fournisseur</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div><Label>Nom de l'entreprise *</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} required /></div>
+            
+            <div><Label>Personne de contact (Optionnel)</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Téléphone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+              <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+            </div>
+
+            <div><Label>Adresse</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            
+            <div>
+              <Label>Notes (Optionnel)</Label>
+              <Textarea className="mt-1" placeholder="Détails supplémentaires..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>{t("common.cancel")}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.company_name}>
+              {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Enregistrement...</> : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}

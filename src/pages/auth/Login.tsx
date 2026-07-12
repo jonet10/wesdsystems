@@ -53,6 +53,7 @@ export default function Login() {
       auto_parts: "/auto-parts",
       school_payments: "/school",
       school: "/school",
+      stationery: "/stationery",
     };
     return (businessType && routes[businessType]) || "/salon";
   };

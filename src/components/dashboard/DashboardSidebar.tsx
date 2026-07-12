@@ -217,6 +217,21 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Building2, labelKey: "sidebar.branches", path: "/auto-parts/branches", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
           { icon: Settings, labelKey: "sidebar.settings", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
+      case "stationery":
+        return [
+          { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/stationery", role: "all", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Package, labelKey: "sidebar.products", path: "/stationery/products", role: "all", permission: PERMISSIONS.PRODUCTS_READ },
+          { icon: Layers, labelKey: "sidebar.categories", path: "/stationery/categories", role: "all", permission: PERMISSIONS.CATEGORIES_MANAGE },
+          { icon: Users, labelKey: "sidebar.clients", path: "/stationery/customers", role: "all", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: Truck, labelKey: "sidebar.suppliers", path: "/stationery/suppliers", role: "all", permission: PERMISSIONS.SUPPLIERS_READ },
+          { icon: ShoppingBag, labelKey: "sidebar.pos", path: "/stationery/pos", role: "all", permission: PERMISSIONS.POS_VIEW },
+          { icon: ShoppingCart, labelKey: "sidebar.purchases", path: "/stationery/purchases", role: "all", permission: PERMISSIONS.PURCHASES_MANAGE },
+          { icon: FileText, labelKey: "sidebar.sales", path: "/stationery/sales", role: "all", permission: PERMISSIONS.SALES_TODAY },
+          { icon: Package, labelKey: "sidebar.inventory", path: "/stationery/inventory", role: "all", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Receipt, labelKey: "sidebar.expenses", path: "/stationery/expenses", role: "all", permission: PERMISSIONS.EXPENSES_MANAGE },
+          { icon: TrendingUp, labelKey: "sidebar.reports", path: "/stationery/reports", role: "salon_admin", permission: PERMISSIONS.REPORTS_VIEW },
+          { icon: Settings, labelKey: "sidebar.settings", path: "/stationery/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
+        ];
       case "school":
       case "school_payments":
         if (schoolContext) {

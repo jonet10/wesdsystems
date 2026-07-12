@@ -45,7 +45,9 @@ export type AutoPartsRole = "admin" | "manager" | "cashier";
 
 export type SalonEmployeeRole = "cashier" | "barber" | "manager";
 
-export type BusinessType = "salon" | "pharmacie" | "restaurant" | "bar" | "market" | "boutique" | "auto_parts" | "school" | "school_payments";
+export type BusinessType = "salon" | "pharmacie" | "restaurant" | "bar" | "market" | "boutique" | "auto_parts" | "school" | "school_payments" | "stationery";
+
+export type StationeryRole = "admin" | "manager" | "cashier" | "inventory_manager" | "accountant";
 
 export const AUTO_PARTS_ROLE_PERMISSIONS: Record<AutoPartsRole, Permission[]> = {
   admin: [

@@ -19,6 +19,7 @@ function moduleRoute(businessType: string): string {
     boutique: "/boutique",
     auto_parts: "/auto-parts",
     school: "/school",
+    stationery: "/stationery",
   };
   return routes[businessType] || "/salon";
 }
@@ -309,6 +310,7 @@ export default function Register() {
                         <option value="market">🛒 Provision & Supermarché</option>
                         <option value="boutique">🛍️ Boutique Générale / Habillement</option>
                         <option value="auto_parts">🔧 Pièces Auto & Mécanique</option>
+                        <option value="stationery">📦 Papeterie & Librairie</option>
                         <option value="school">🏫 École & Collège</option>
                       </select>
                     </div>

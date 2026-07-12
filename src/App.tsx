@@ -77,6 +77,20 @@ const AutoPartsSuppliers = lazy(() => import("./pages/auto-parts/Suppliers"));
 const AutoPartsClients = lazy(() => import("./pages/auto-parts/Clients"));
 const AutoPartsPOS = lazy(() => import("./pages/auto-parts/POS"));
 
+// Stationery
+const StationeryDashboard = lazy(() => import("./pages/stationery/Dashboard"));
+const StationeryProducts = lazy(() => import("./pages/stationery/Products"));
+const StationeryCategories = lazy(() => import("./pages/stationery/Categories"));
+const StationeryCustomers = lazy(() => import("./pages/stationery/Customers"));
+const StationerySuppliers = lazy(() => import("./pages/stationery/Suppliers"));
+const StationeryPurchases = lazy(() => import("./pages/stationery/Purchases"));
+const StationerySales = lazy(() => import("./pages/stationery/Sales"));
+const StationeryPOS = lazy(() => import("./pages/stationery/POS"));
+const StationeryExpenses = lazy(() => import("./pages/stationery/Expenses"));
+const StationeryInventory = lazy(() => import("./pages/stationery/Inventory"));
+const StationeryReports = lazy(() => import("./pages/stationery/Reports"));
+const StationerySettings = lazy(() => import("./pages/stationery/Settings"));
+
 // School
 import SchoolDashboard from "./pages/school/Dashboard";
 import SchoolSettings from "./pages/school/Settings";
@@ -544,6 +558,105 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+
+                {/* Stationery Routes */}
+                <Route
+                  path="/stationery"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.DASHBOARD_VIEW}>
+                      <StationeryDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/products"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.PRODUCTS_READ}>
+                      <StationeryProducts />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/categories"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.CATEGORIES_MANAGE}>
+                      <StationeryCategories />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/customers"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.CLIENTS_READ}>
+                      <StationeryCustomers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/suppliers"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SUPPLIERS_READ}>
+                      <StationerySuppliers />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/purchases"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.PURCHASES_MANAGE}>
+                      <StationeryPurchases />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/sales"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SALES_TODAY}>
+                      <StationerySales />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/pos"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.POS_VIEW}>
+                      <StationeryPOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/expenses"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.EXPENSES_MANAGE}>
+                      <StationeryExpenses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/inventory"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.STOCK_VIEW}>
+                      <StationeryInventory />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.REPORTS_VIEW}>
+                      <StationeryReports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/stationery/settings"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin"]} allowAuthenticatedWithoutRole requiredPermissions={PERMISSIONS.SETTINGS_MANAGE}>
+                      <StationerySettings />
+                    </ProtectedRoute>
+                  }
+                />
+
 
                 {/* School Routes */}
                 <Route element={<SchoolProviderWrapper />}>
