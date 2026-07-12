@@ -329,7 +329,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_sale(UUID, UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID, TEXT, UUID, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_sale(UUID, UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID, TEXT, UUID, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_sale(UUID, UUID, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID, TEXT, UUID, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_purchase(
   p_business_id UUID,
@@ -432,7 +432,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_products(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_products(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_products(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_create_product(
   p_session_token TEXT,
@@ -532,7 +532,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_search_products(UUID, TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_search_products(UUID, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_search_products(UUID, TEXT, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_get_product(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -567,7 +567,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) TO anon, authenticated, service_role;
 
 -- Drop toutes les signatures existantes de auto_parts_dashboard_counts pour éviter les surcharges conflictuelles
 DO $$
@@ -1599,7 +1599,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_clients(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_clients(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_clients(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_search_clients(p_business_id UUID, p_query TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1619,7 +1619,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_search_clients(UUID, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_search_clients(UUID, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_search_clients(UUID, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_create_sale(
   p_session_token TEXT,
@@ -1723,7 +1723,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_staff(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_staff(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_staff(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_stock_movements(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -3576,3 +3576,16 @@ $$;
 
 REVOKE EXECUTE ON FUNCTION public.school_list_staff(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.school_list_staff(UUID) TO authenticated, service_role;
+
+-- Fix RLS Policies for Auto Parts Categories & Products to allow Cashiers (x-staff-session)
+DROP POLICY IF EXISTS auto_parts_categories_global_read ON public.auto_parts_categories;
+CREATE POLICY auto_parts_categories_global_read
+  ON public.auto_parts_categories
+  FOR SELECT
+  USING (public.current_user_business_id() IS NOT NULL OR public.is_super_admin());
+
+DROP POLICY IF EXISTS auto_parts_products_global_read ON public.auto_parts_products;
+CREATE POLICY auto_parts_products_global_read
+  ON public.auto_parts_products
+  FOR SELECT
+  USING (public.current_user_business_id() IS NOT NULL OR public.is_super_admin());
