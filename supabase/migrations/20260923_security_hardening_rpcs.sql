@@ -569,6 +569,18 @@ $$;;
 REVOKE EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) TO authenticated, service_role;
 
+-- Drop toutes les signatures existantes de auto_parts_dashboard_counts pour éviter les surcharges conflictuelles
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT oidvectortypes(proargtypes) AS args
+    FROM pg_catalog.pg_proc
+    WHERE pronamespace = 'public'::regnamespace AND proname = 'auto_parts_dashboard_counts'
+  LOOP
+    EXECUTE format('DROP FUNCTION IF EXISTS public.auto_parts_dashboard_counts(%s)', r.args);
+  END LOOP;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_counts(
   p_business_id   UUID,
   p_session_token TEXT    DEFAULT NULL,
