@@ -301,20 +301,37 @@ BEGIN
     FOR t IN 
         SELECT table_name 
         FROM information_schema.tables 
-        WHERE table_schema = 'public' AND table_name LIKE 'stationery_%'
+        WHERE table_schema = 'public' 
+        AND table_name LIKE 'stationery_%'
+        AND table_name NOT IN ('stationery_product_variants', 'stationery_purchase_items', 'stationery_sale_items')
     LOOP
         EXECUTE format('
+            DROP POLICY IF EXISTS "Allow read access for business users" ON public.%I;
             CREATE POLICY "Allow read access for business users" ON public.%I FOR SELECT USING (
-                auth.uid() IN (
-                    SELECT id FROM public.profiles WHERE business_id = %I.business_id
-                )
+                auth.uid() IN (SELECT id FROM public.profiles WHERE business_id = %I.business_id)
             );
+            
+            DROP POLICY IF EXISTS "Allow all access for business users" ON public.%I;
             CREATE POLICY "Allow all access for business users" ON public.%I FOR ALL USING (
-                auth.uid() IN (
-                    SELECT id FROM public.profiles WHERE business_id = %I.business_id
-                )
+                auth.uid() IN (SELECT id FROM public.profiles WHERE business_id = %I.business_id)
             );
-        ', t, t, t, t);
+        ', t, t, t, t, t, t);
     END LOOP;
 END;
 $$;
+
+-- Specific policies for items without business_id
+DROP POLICY IF EXISTS "Allow access for variants" ON public.stationery_product_variants;
+CREATE POLICY "Allow access for variants" ON public.stationery_product_variants FOR ALL USING (
+    product_id IN (SELECT id FROM public.stationery_products WHERE business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()))
+);
+
+DROP POLICY IF EXISTS "Allow access for purchase items" ON public.stationery_purchase_items;
+CREATE POLICY "Allow access for purchase items" ON public.stationery_purchase_items FOR ALL USING (
+    purchase_id IN (SELECT id FROM public.stationery_purchases WHERE business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()))
+);
+
+DROP POLICY IF EXISTS "Allow access for sale items" ON public.stationery_sale_items;
+CREATE POLICY "Allow access for sale items" ON public.stationery_sale_items FOR ALL USING (
+    sale_id IN (SELECT id FROM public.stationery_sales WHERE business_id IN (SELECT business_id FROM public.profiles WHERE id = auth.uid()))
+);
