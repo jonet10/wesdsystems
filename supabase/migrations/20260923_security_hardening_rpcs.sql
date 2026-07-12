@@ -570,41 +570,89 @@ REVOKE EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) FROM PUBLIC
 GRANT EXECUTE ON FUNCTION public.auto_parts_get_product(UUID, UUID) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_counts(
-  p_business_id UUID,
-  p_session_token TEXT DEFAULT NULL,
-  p_staff_id UUID DEFAULT NULL,
-  p_branch_id UUID DEFAULT NULL
+  p_business_id   UUID,
+  p_session_token TEXT    DEFAULT NULL,
+  p_staff_id      UUID    DEFAULT NULL,
+  p_branch_id     UUID    DEFAULT NULL,
+  p_is_admin      BOOLEAN DEFAULT FALSE
 ) RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
 DECLARE
-  v_total_products INT;
-  v_total_stock_value NUMERIC;
-  v_out_of_stock INT;
-  v_low_stock INT;
-  v_today_sales NUMERIC;
-  v_month_sales NUMERIC;
-  v_month_purchases NUMERIC;
-  v_pending_orders INT;
-  v_month_start TIMESTAMPTZ := date_trunc('month', now());
-  v_day_start TIMESTAMPTZ := date_trunc('day', now());
+  v_total_products          INT;
+  v_total_stock_value       NUMERIC := 0;
+  v_out_of_stock            INT;
+  v_low_stock               INT;
+  v_today_sales             NUMERIC;
+  v_month_sales             NUMERIC;
+  v_month_purchases         NUMERIC;
+  v_pending_orders          INT;
+  v_month_start             TIMESTAMPTZ := date_trunc('month', now());
+  v_day_start               TIMESTAMPTZ := date_trunc('day', now());
+  v_staff_role              TEXT;
+  v_can_see_finance         BOOLEAN := false;
+  v_total_potential_revenue NUMERIC := 0;
+  v_total_potential_profit  NUMERIC := 0;
+  v_supabase_role           TEXT;
 BEGIN
   IF p_business_id IS DISTINCT FROM public.current_user_business_id() AND NOT public.is_super_admin() THEN
     RAISE EXCEPTION 'Accès non autorisé' USING ERRCODE = '42501';
   END IF;
 
+  -- 1. Accès via token caissier/manager/admin (session interne)
+  IF p_session_token IS NOT NULL THEN
+    SELECT s.staff_role INTO v_staff_role
+    FROM public.resolve_staff_from_token(p_session_token) s;
+    IF v_staff_role IS NOT NULL AND public.staff_has_permission(v_staff_role, 'products.manage') THEN
+      v_can_see_finance := true;
+    END IF;
+    IF NOT v_can_see_finance AND public.auto_parts_has_permission(p_session_token, 'products.manage', p_business_id) THEN
+      v_can_see_finance := true;
+    END IF;
+  END IF;
+
+  -- 2. Accès via Supabase Auth (admin connecté directement)
+  IF NOT v_can_see_finance THEN
+    IF p_is_admin THEN
+      v_can_see_finance := true;
+    ELSE
+      SELECT p.role INTO v_supabase_role
+      FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND (p.role IN ('super_admin', 'salon_admin', 'owner') OR p.business_id = p_business_id)
+      LIMIT 1;
+      IF v_supabase_role IS NOT NULL THEN
+        v_can_see_finance := true;
+      END IF;
+    END IF;
+  END IF;
+
   PERFORM public.ensure_auto_parts_inventory_for_business(p_business_id);
 
   SELECT COUNT(*),
-         COALESCE(SUM(COALESCE(i.cost_price, 0) * COALESCE(i.stock_quantity, 0)), 0),
          COUNT(*) FILTER (WHERE COALESCE(i.stock_quantity, 0) <= 0),
          COUNT(*) FILTER (WHERE COALESCE(i.stock_quantity, 0) > 0 AND COALESCE(i.stock_quantity, 0) <= COALESCE(i.min_stock, 0))
-  INTO v_total_products, v_total_stock_value, v_out_of_stock, v_low_stock
+  INTO v_total_products, v_out_of_stock, v_low_stock
   FROM public.auto_parts_products p
   JOIN public.auto_parts_product_inventory i ON i.product_id = p.id
   WHERE i.business_id = p_business_id
     AND COALESCE(p.active, true)
     AND COALESCE(i.active, true)
     AND (p_branch_id IS NULL OR i.branch_id = p_branch_id OR i.branch_id IS NULL);
+
+  IF v_can_see_finance THEN
+    SELECT
+      COALESCE(SUM(COALESCE(i.cost_price, 0) * COALESCE(i.stock_quantity, 0)), 0),
+      COALESCE(SUM(COALESCE(i.unit_price, 0) * COALESCE(i.stock_quantity, 0)), 0)
+    INTO v_total_stock_value, v_total_potential_revenue
+    FROM public.auto_parts_products p
+    JOIN public.auto_parts_product_inventory i ON i.product_id = p.id
+    WHERE i.business_id = p_business_id
+      AND COALESCE(p.active, true)
+      AND COALESCE(i.active, true)
+      AND (p_branch_id IS NULL OR i.branch_id = p_branch_id OR i.branch_id IS NULL);
+
+    v_total_potential_profit := v_total_potential_revenue - v_total_stock_value;
+  END IF;
 
   SELECT COALESCE(SUM(total), 0) INTO v_today_sales
   FROM public.auto_parts_sales
@@ -638,6 +686,8 @@ BEGIN
   RETURN jsonb_build_object(
     'totalProducts', v_total_products,
     'totalStockValue', v_total_stock_value,
+    'totalPotentialRevenue', v_total_potential_revenue,
+    'totalPotentialProfit', v_total_potential_profit,
     'outOfStock', v_out_of_stock,
     'lowStock', v_low_stock,
     'todaySales', v_today_sales,
@@ -646,10 +696,10 @@ BEGIN
     'pendingOrders', v_pending_orders
   );
 END;
-$$;;
+$$;
 
-REVOKE EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID, BOOLEAN) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID, BOOLEAN) TO authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_category_repartition(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
