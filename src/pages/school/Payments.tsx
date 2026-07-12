@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
 import { ReceiptData } from "@/components/printing/ReceiptTemplate";
 import { paymentService, setBusinessId } from "@/modules/school/services";
+import { SchoolNotificationService } from "@/modules/school/services/SchoolNotificationService";
 import type { SchoolInvoice, SchoolPayment, SchoolStudent, SchoolPaymentPlan } from "@/modules/school/types";
 import { format } from "date-fns";
 
@@ -177,6 +178,11 @@ export default function SchoolPayments() {
       });
 
       toast.success("Paiement enregistré avec succès");
+      
+      const newBalance = selectedInvoice.balance - amount;
+      const studentName = selectedInvoice.student ? `${selectedInvoice.student.first_name} ${selectedInvoice.student.last_name}` : "Inconnu";
+      await SchoolNotificationService.notifyPaymentReceived(studentName, amount, newBalance, "+50900000000", "HTG");
+
       setSelectedInvoice(null);
       await loadData();
       

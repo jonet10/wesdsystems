@@ -113,6 +113,10 @@ const SchoolInventory = lazy(() => import("@/pages/school/Inventory"));
 const SchoolPOS = lazy(() => import("@/pages/school/POS"));
 const SchoolReports = lazy(() => import("@/pages/school/Reports"));
 import ParentDashboard from "./pages/school/parent/Dashboard";
+import TeacherLogin from "./pages/school/TeacherLogin";
+import TeacherDashboard from "./pages/school/TeacherDashboard";
+import TeacherGrades from "./pages/school/TeacherGrades";
+import TeacherAttendance from "./pages/school/TeacherAttendance";
 import EnrollmentsPage from "./pages/school/enrollments/EnrollmentsPage";
 import StudentFinancialSheet from "./pages/school/finance/StudentFinancialSheet";
 import SchoolStaff from "./pages/school/Staff";
@@ -659,12 +663,37 @@ const App = () => (
 
 
                 {/* School Routes */}
+                <Route path="/school/teacher-login" element={<TeacherLogin />} />
                 <Route element={<SchoolProviderWrapper />}>
                   <Route
                     path="/school"
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/teacher/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_teacher"]} allowAuthenticatedWithoutRole>
+                      <TeacherDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/teacher/grades"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_teacher"]} allowAuthenticatedWithoutRole>
+                      <TeacherGrades />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/school/teacher/attendance"
+                  element={
+                    <ProtectedRoute allowedRoles={["school_teacher"]} allowAuthenticatedWithoutRole>
+                      <TeacherAttendance />
                     </ProtectedRoute>
                   }
                 />

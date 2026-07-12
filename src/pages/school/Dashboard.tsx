@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight, Package, UserCog } from "lucide-react";
+import { GraduationCap, Users, Wallet, FileText, ArrowUpRight, ArrowDownRight, Package, UserCog, Library, School, Milestone, Layers, CheckCircle2, BookOpen, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabase";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { useSchool } from "@/hooks/useSchool";
 import { SchoolCapability } from "@/modules/school/engine/types";
-import { Library, School, Milestone, Layers } from "lucide-react";
 
 export default function SchoolDashboard() {
   const navigate = useNavigate();
@@ -274,6 +273,48 @@ export default function SchoolDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold text-cyan-500">{formatAmount(stats.totalStockValue)}</div>
                 <p className="text-xs text-muted-foreground mt-1">Fournitures disponibles</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+        </StaggerContainer>
+
+        {/* Section Académique (Phase 5) */}
+        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mt-6">
+          <StaggerItem>
+            <Card className="border-emerald-500/20 bg-emerald-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-emerald-700">Taux de Présence Global</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-emerald-600">92%</div>
+                <p className="text-xs text-muted-foreground mt-1">Élèves présents aujourd'hui</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="border-amber-500/20 bg-amber-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-700">Retards (Aujourd'hui)</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">14</div>
+                <p className="text-xs text-muted-foreground mt-1">Dépassement du seuil de tolérance</p>
+              </CardContent>
+            </Card>
+          </StaggerItem>
+
+          <StaggerItem>
+            <Card className="border-indigo-500/20 bg-indigo-500/5">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-indigo-700">Notes Soumises</CardTitle>
+                <FileText className="h-4 w-4 text-indigo-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-indigo-600">12 / 45</div>
+                <p className="text-xs text-muted-foreground mt-1">Classes ayant verrouillé leurs notes</p>
               </CardContent>
             </Card>
           </StaggerItem>

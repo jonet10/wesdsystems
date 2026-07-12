@@ -1,148 +1,383 @@
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, Save, FileText, Package, CalendarDays, Globe, MapPin, Smartphone, Hash, CreditCard, AlertCircle, Sparkles, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { Save, Printer, Shield, Bell } from "lucide-react";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { ImageUploader } from "@/components/shared/ImageUploader";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+import { Link } from "react-router-dom";
+import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
+import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
+import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
+import { getBusinessSettings, upsertBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
+import { Switch } from "@/components/ui/switch";
 
 export default function PharmacySettings() {
   const { t } = useTranslation();
-  const [loading, setLoading] = useState(false);
+  const { user, profile, isAuthenticated } = useAuth();
+  const { availableCurrencies, setCurrency, currencyCode: activeCurrencyCode } = useCurrency();
+  const subscriptionReminder = useSubscriptionPaymentReminder();
+
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [owner, setOwner] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [slogan, setSlogan] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [address, setAddress] = useState("");
+  const [nif, setNif] = useState("");
+  const [website, setWebsite] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [printerWidth, setPrinterWidth] = useState("58");
 
+  const [invoicePrefix, setInvoicePrefix] = useState("INV-");
+  const [quotePrefix, setQuotePrefix] = useState("DEV-");
+  const [deliveryNotePrefix, setDeliveryNotePrefix] = useState("BL-");
+  const [receiptHeader, setReceiptHeader] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("");
+  const [lowStockThreshold, setLowStockThreshold] = useState(15);
+  
+  // Specific to pharmacy but kept local if backend doesn't support them yet
+  const [enableFEFO, setEnableFEFO] = useState(true);
+  const [requirePrescriptionUpload, setRequirePrescriptionUpload] = useState(false);
+
+  const persistBusinessPatch = useCallback(
+    async (patch: Partial<{ name: string; logo_url: string | null; currency_code: string }>) => {
+      const targetBusinessId = profile?.business_id ?? businessId;
+      if (!isAuthenticated || !user?.id || !targetBusinessId) return;
+      const { error } = await supabase.from("businesses").update(patch).eq("id", targetBusinessId);
+      if (error) throw new Error(error.message);
+    },
+    [businessId, isAuthenticated, profile?.business_id, user?.id]
+  );
+
   useEffect(() => {
+    const load = async () => {
+      if (!isAuthenticated || !user?.id) return;
+      try {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("full_name, business_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profileData?.full_name) setOwner(profileData.full_name);
+        if (!profileData?.business_id) { setLoading(false); return; }
+
+        const bizId = profileData.business_id;
+        setBusinessId(bizId);
+
+        const { data: bizData } = await supabase
+          .from("businesses")
+          .select("name, logo_url")
+          .eq("id", bizId)
+          .maybeSingle();
+        if (bizData) {
+          setCompanyName(bizData.name || "");
+          setLogoUrl(bizData.logo_url || null);
+        }
+
+        const existing = await getBusinessSettings(bizId);
+        if (existing) {
+          setSlogan(existing.slogan ?? "");
+          setEmail(existing.email ?? "");
+          setPhone(existing.phone ?? "");
+          setWhatsapp(existing.whatsapp ?? "");
+          setAddress(existing.address ?? "");
+          setNif(existing.nif ?? "");
+          setWebsite(existing.website ?? "");
+          setInvoicePrefix(existing.invoice_prefix);
+          setQuotePrefix(existing.quote_prefix);
+          setDeliveryNotePrefix(existing.delivery_note_prefix);
+          setReceiptHeader(existing.receipt_header ?? "");
+          setReceiptFooter(existing.receipt_footer ?? "");
+          setLowStockThreshold(existing.low_stock_threshold);
+        }
+      } catch { } finally { setLoading(false); }
+    };
+    load();
     setPrinterWidth(localStorage.getItem('wesd_pos_printer_width') || '58');
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
-  // Simulated settings state
-  const [settings, setSettings] = useState({
-    pharmacyName: "Ma Pharmacie",
-    address: "123 Rue de la Santé",
-    phone: "+509 12 34 56 78",
-    taxRate: 10,
-    enableFEFO: true,
-    requirePrescriptionUpload: false,
-    lowStockAlertThreshold: 15,
-    autoPrintReceipt: true,
-    receiptHeader: "MERCI DE VOTRE VISITE",
-    receiptFooter: "Les médicaments ne sont ni repris ni échangés."
-  });
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!businessId) return;
+    setSaving(true);
+    try {
+      if (profile?.business_id) {
+        await persistBusinessPatch({
+          name: companyName.trim(),
+          logo_url: logoUrl,
+          currency_code: activeCurrencyCode,
+        });
+      }
 
-  const handleChange = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-  };
+      if (profile?.full_name !== owner.trim()) {
+        await supabase.from("profiles").update({ full_name: owner.trim() }).eq("id", user!.id);
+      }
 
-  const handleSave = () => {
-    setLoading(true);
-    // In a real app, this would save to a Supabase settings table linked to business_id
-    setTimeout(() => {
-      toast.success("Paramètres sauvegardés avec succès");
-      setLoading(false);
-    }, 800);
+      await upsertBusinessSettings(businessId, {
+        company_name: companyName,
+        logo_url: logoUrl,
+        address: address || null,
+        phone: phone || null,
+        email: email || null,
+        website: website || null,
+        slogan: slogan || null,
+        whatsapp: whatsapp || null,
+        nif: nif || null,
+        patente: null,
+        rc: null,
+        bank_name: null,
+        bank_account: null,
+        invoice_prefix: invoicePrefix,
+        quote_prefix: quotePrefix,
+        delivery_note_prefix: deliveryNotePrefix,
+        receipt_footer: receiptFooter || null,
+        receipt_header: receiptHeader || null,
+        low_stock_threshold: lowStockThreshold,
+      });
+
+      toast.success("Paramètres enregistrés");
+    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
   };
 
   return (
-    <DashboardLayout role="salon_admin" title="Paramètres Pharmacie" subtitle="Configuration de votre établissement">
-      <div className="p-6">
-        <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-8">
-            <TabsTrigger value="general">Général</TabsTrigger>
-            <TabsTrigger value="inventory">Inventaire</TabsTrigger>
-            <TabsTrigger value="printing">Impression</TabsTrigger>
-            <TabsTrigger value="security">Sécurité</TabsTrigger>
-          </TabsList>
-          
-          <StaggerContainer>
-            {/* GENERAL TAB */}
-            <TabsContent value="general">
+    <DashboardLayout
+      role="salon_admin"
+      title="Paramètres Pharmacie"
+      subtitle="Configurez votre établissement pour le module pharmacie"
+    >
+      <StaggerContainer>
+        <form onSubmit={save} className="max-w-4xl">
+          {subscriptionReminder.shouldPrompt && (
+            <StaggerItem>
+              <Card className="mb-6 border-primary/20 bg-primary/5">
+                <CardContent className="p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <AlertCircle className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{subscriptionReminder.title}</p>
+                        <p className="text-sm text-muted-foreground">{subscriptionReminder.description}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {subscriptionReminder.planName ? `${subscriptionReminder.planName} • ` : ""}
+                          {subscriptionReminder.businessName}
+                        </p>
+                      </div>
+                    </div>
+                    <Button asChild disabled={!subscriptionReminder.paymentUrl}>
+                      <Link to={subscriptionReminder.paymentUrl || "#"}>
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        {subscriptionReminder.ctaLabel}
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </StaggerItem>
+          )}
+
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="mb-6 flex flex-wrap h-auto gap-2">
+              <TabsTrigger value="profile" className="gap-2">
+                <Building2 className="h-4 w-4" /> Profil
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="gap-2">
+                <FileText className="h-4 w-4" /> Documents
+              </TabsTrigger>
+              <TabsTrigger value="stock" className="gap-2">
+                <Package className="h-4 w-4" /> Stock / Inventaire
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <Shield className="h-4 w-4" /> Sécurité
+              </TabsTrigger>
+              <TabsTrigger value="subscription" className="gap-2">
+                <CalendarDays className="h-4 w-4" /> Abonnement
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-6">
               <StaggerItem>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Informations Générales</CardTitle>
-                    <CardDescription>Informations affichées sur vos documents officiels.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 max-w-xl">
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Building2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Fiche de la Pharmacie</h3>
+                      <p className="text-sm text-muted-foreground">Informations utilisées sur les documents et reçus</p>
+                    </div>
+                  </div>
+
+                  <div className="border-b border-border pb-6">
+                    <Label className="mb-4 block">Logo de l'entreprise</Label>
+                    <ImageUploader
+                      currentImageUrl={logoUrl}
+                      onImageUploaded={(url) => {
+                        setLogoUrl(url);
+                        void persistBusinessPatch({ logo_url: url }).catch(() => {
+                          toast.error("Logo téléversé, mais la sauvegarde a échoué.");
+                        });
+                      }}
+                      onImageDeleted={() => {
+                        setLogoUrl(null);
+                        void persistBusinessPatch({ logo_url: null }).catch(() => {
+                          toast.error("Échec de la mise à jour du logo.");
+                        });
+                      }}
+                      bucketName="logos"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label>Nom de la Pharmacie</Label>
-                      <Input value={settings.pharmacyName} onChange={e => handleChange("pharmacyName", e.target.value)} />
+                      <Label htmlFor="company-name">Nom de la Pharmacie *</Label>
+                      <Input id="company-name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
                     </div>
                     <div className="space-y-2">
-                      <Label>Adresse</Label>
-                      <Input value={settings.address} onChange={e => handleChange("address", e.target.value)} />
+                      <Label htmlFor="owner">Pharmacien Responsable / Gérant</Label>
+                      <Input id="owner" value={owner} onChange={(e) => setOwner(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>{t("common.phone")}</Label>
-                      <Input value={settings.phone} onChange={e => handleChange("phone", e.target.value)} />
+                      <Label htmlFor="slogan">Slogan</Label>
+                      <Input id="slogan" value={slogan} onChange={(e) => setSlogan(e.target.value)} placeholder="Ex: La santé avant tout" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Taux de Taxe (%)</Label>
-                      <Input type="number" value={settings.taxRate} onChange={e => handleChange("taxRate", Number(e.target.value))} />
+                      <Label htmlFor="email">Email de contact</Label>
+                      <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">{t("common.phone")}</Label>
+                      <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsapp">
+                        <Smartphone className="h-3.5 w-3.5 inline mr-1" />
+                        WhatsApp
+                      </Label>
+                      <Input id="whatsapp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="address">Adresse physique</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} className="pl-9" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="nif">
+                        <Hash className="h-3.5 w-3.5 inline mr-1" />
+                        NIF
+                      </Label>
+                      <Input id="nif" value={nif} onChange={(e) => setNif(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="website">
+                        <Globe className="h-3.5 w-3.5 inline mr-1" />
+                        Site web
+                      </Label>
+                      <Input id="website" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="currency">Devise</Label>
+                      <select
+                        id="currency"
+                        value={activeCurrencyCode}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {availableCurrencies.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.name} ({c.symbol}) - {c.code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </StaggerItem>
             </TabsContent>
 
-            {/* INVENTORY TAB */}
-            <TabsContent value="inventory">
+            <TabsContent value="documents" className="space-y-6">
               <StaggerItem>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bell className="w-5 h-5"/> Règles d'Inventaire</CardTitle>
-                    <CardDescription>Configuration de la gestion des stocks et péremptions.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6 max-w-xl">
-                    <div className="flex items-center justify-between border p-4 rounded-lg">
-                      <div>
-                        <Label className="text-base">Méthode FEFO (Strict)</Label>
-                        <p className="text-sm text-muted-foreground">Obliger le système à toujours vendre le lot qui expire en premier.</p>
-                      </div>
-                      <Switch checked={settings.enableFEFO} onCheckedChange={v => handleChange("enableFEFO", v)} />
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <FileText className="h-5 w-5" />
                     </div>
-                    
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Préfixes de documents</h3>
+                      <p className="text-sm text-muted-foreground">Personnalisez les préfixes des documents générés</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Seuil d'alerte de stock global par défaut</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Sera appliqué si un produit n'a pas de seuil spécifique configuré.</p>
-                      <Input type="number" value={settings.lowStockAlertThreshold} onChange={e => handleChange("lowStockAlertThreshold", Number(e.target.value))} />
+                      <Label>Facture</Label>
+                      <Input value={invoicePrefix} onChange={(e) => setInvoicePrefix(e.target.value)} />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="space-y-2">
+                      <Label>Devis</Label>
+                      <Input value={quotePrefix} onChange={(e) => setQuotePrefix(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Bon de livraison</Label>
+                      <Input value={deliveryNotePrefix} onChange={(e) => setDeliveryNotePrefix(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
               </StaggerItem>
-            </TabsContent>
 
-            {/* PRINTING TAB */}
-            <TabsContent value="printing">
               <StaggerItem>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Printer className="w-5 h-5"/> Configuration d'Impression</CardTitle>
-                    <CardDescription>Personnalisation des tickets de caisse POS.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6 max-w-xl">
-                    <div className="flex items-center justify-between border p-4 rounded-lg">
-                      <div>
-                        <Label className="text-base">Impression Automatique</Label>
-                        <p className="text-sm text-muted-foreground">Imprimer le reçu automatiquement après chaque vente.</p>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Personnalisation des reçus</h3>
+                      <p className="text-sm text-muted-foreground">Texte affiché sur les tickets de caisse</p>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Entête du ticket</Label>
+                      <Textarea value={receiptHeader} onChange={(e) => setReceiptHeader(e.target.value)} placeholder="Ex: Merci de votre visite !" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Pied de ticket</Label>
+                      <Textarea value={receiptFooter} onChange={(e) => setReceiptFooter(e.target.value)} placeholder="Ex: Document généré électroniquement" />
+                    </div>
+                  </div>
+                </div>
+              </StaggerItem>
+
+              <StaggerItem>
+                  <div className="bg-card rounded-xl border border-border p-6 shadow-card mt-6">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                        <Smartphone className="h-5 w-5" />
                       </div>
-                      <Switch checked={settings.autoPrintReceipt} onCheckedChange={v => handleChange("autoPrintReceipt", v)} />
+                      <div>
+                        <h3 className="text-lg font-semibold font-display">Configuration du POS / Imprimante</h3>
+                        <p className="text-sm text-muted-foreground">Configurez le matériel d'impression connecté à votre caisse</p>
+                      </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label>En-tête du Ticket</Label>
-                      <Input value={settings.receiptHeader} onChange={e => handleChange("receiptHeader", e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Pied de page (Mentions légales)</Label>
-                      <Input value={settings.receiptFooter} onChange={e => handleChange("receiptFooter", e.target.value)} />
-                    </div>
-                    
-                    <div className="space-y-2 pt-4 border-t">
                       <Label className="text-sm font-semibold">Largeur du papier</Label>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {[
@@ -174,41 +409,89 @@ export default function PharmacySettings() {
                         ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </StaggerItem>
+                  </div>
+                </StaggerItem>
             </TabsContent>
 
-            {/* SECURITY TAB */}
-            <TabsContent value="security">
+            <TabsContent value="stock" className="space-y-6">
               <StaggerItem>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Shield className="w-5 h-5"/> Réglementations</CardTitle>
-                    <CardDescription>Contraintes de vente et conformité.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6 max-w-xl">
-                    <div className="flex items-center justify-between border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 rounded-lg">
-                      <div>
-                        <Label className="text-base text-red-700 dark:text-red-400">Scan d'Ordonnance Obligatoire</Label>
-                        <p className="text-sm text-red-600/80 dark:text-red-400/80">Exiger qu'un fichier soit téléversé pour valider l'enregistrement d'une ordonnance.</p>
-                      </div>
-                      <Switch checked={settings.requirePrescriptionUpload} onCheckedChange={v => handleChange("requirePrescriptionUpload", v)} />
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Package className="h-5 w-5" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Seuil d'alerte stock global</h3>
+                      <p className="text-sm text-muted-foreground">Configurez quand déclencher une alerte de stock faible (utilisé par défaut)</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 max-w-xs">
+                    <Label>Seuil minimum</Label>
+                    <Input type="number" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(Number(e.target.value))} />
+                    <p className="text-xs text-muted-foreground">Une alerte sera générée quand le stock passe en dessous de ce seuil.</p>
+                  </div>
+                </div>
+              </StaggerItem>
+              
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Règles d'Inventaire</h3>
+                      <p className="text-sm text-muted-foreground">Configuration de la gestion des stocks et péremptions.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border p-4 rounded-lg">
+                    <div>
+                      <Label className="text-base">Méthode FEFO (Strict)</Label>
+                      <p className="text-sm text-muted-foreground">Obliger le système à toujours vendre le lot qui expire en premier.</p>
+                    </div>
+                    <Switch checked={enableFEFO} onCheckedChange={setEnableFEFO} />
+                  </div>
+                </div>
               </StaggerItem>
             </TabsContent>
-          </StaggerContainer>
+            
+            <TabsContent value="security" className="space-y-6">
+              <StaggerItem>
+                <div className="bg-card rounded-xl border border-border p-6 shadow-card">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold font-display">Réglementations</h3>
+                      <p className="text-sm text-muted-foreground">Contraintes de vente et conformité.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border border-red-200 bg-red-50 dark:bg-red-950/20 p-4 rounded-lg">
+                    <div>
+                      <Label className="text-base text-red-700 dark:text-red-400">Scan d'Ordonnance Obligatoire</Label>
+                      <p className="text-sm text-red-600/80 dark:text-red-400/80">Exiger qu'un fichier soit téléversé pour valider l'enregistrement d'une ordonnance.</p>
+                    </div>
+                    <Switch checked={requirePrescriptionUpload} onCheckedChange={setRequirePrescriptionUpload} />
+                  </div>
+                </div>
+              </StaggerItem>
+            </TabsContent>
 
-          <div className="mt-8 flex justify-end max-w-2xl">
-            <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto">
-              <Save className="w-4 h-4 mr-2" />
-              {loading ? "Sauvegarde..." : "Sauvegarder les modifications"}
+            <TabsContent value="subscription" className="space-y-6">
+              <SubscriptionPaymentCard />
+              <SubscriptionDashboard />
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end mt-6">
+            <Button type="submit" variant="hero" disabled={saving || loading} size="lg">
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Enregistrement..." : "Enregistrer les paramètres"}
             </Button>
           </div>
-        </Tabs>
-      </div>
+        </form>
+      </StaggerContainer>
     </DashboardLayout>
   );
 }

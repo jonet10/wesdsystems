@@ -68,3 +68,29 @@ export async function createSale(
 
   return sale as StationerySale;
 }
+
+export async function listSales(businessId: string, branchId: string | null) {
+  let query = supabase
+    .from("stationery_sales")
+    .select("*, customer:customer_id(first_name, last_name, phone)")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+
+  if (branchId) {
+    query = query.eq("branch_id", branchId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+export async function getSaleDetails(saleId: string) {
+  const { data, error } = await supabase
+    .from("stationery_sale_items")
+    .select("*, product:product_id(name, reference)")
+    .eq("sale_id", saleId);
+    
+  if (error) throw error;
+  return data;
+}
