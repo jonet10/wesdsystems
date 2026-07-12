@@ -140,6 +140,65 @@ export function clientSummary(businessId: string) {
   });
 }
 
+export function categoryRepartition(businessId: string) {
+  return callRPC<Array<{ name: string; count: number }>>("auto_parts_category_repartition", {
+    p_business_id: businessId,
+  });
+}
+
+export async function getOutOfStockItems(businessId: string, limit = 10) {
+  const { data, error } = await supabase
+    .from("auto_parts_product_inventory")
+    .select(`
+      stock_quantity,
+      product:auto_parts_products ( id, name )
+    `)
+    .eq("business_id", businessId)
+    .lte("stock_quantity", 0)
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching out of stock items", error);
+    return [];
+  }
+
+  return (data || [])
+    .filter((item: any) => item.product)
+    .map((item: any) => ({
+      id: item.product.id,
+      name: item.product.name,
+    }));
+}
+
+export async function getRecentActivity(businessId: string, limit = 5) {
+  const { data, error } = await supabase
+    .from("auto_parts_sales")
+    .select(`
+      id, invoice_number, total, created_at, staff_name
+    `)
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("Error fetching recent sales", error);
+    return [];
+  }
+
+  return (data || []).map((sale: any) => {
+    const name = sale.staff_name || "Caissier";
+    const initials = name.split(' ').map((n: string) => n[0]).join('').substring(0, 3).toUpperCase();
+    
+    return {
+      id: sale.id,
+      time: new Date(sale.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      invoice: sale.invoice_number,
+      initials,
+      amount: Number(sale.total)
+    };
+  });
+}
+
 export function getDateRangePreset(preset: "today" | "week" | "month" | "year"): { start: string; end: string } {
   const now = new Date();
   const end = now.toISOString();

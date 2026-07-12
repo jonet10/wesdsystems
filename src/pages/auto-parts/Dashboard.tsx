@@ -7,21 +7,27 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cashierDashboard, adminCashierStats, weeklyTrend } from "@/modules/auto-parts/services/reportsService";
+import {
+  cashierDashboard,
+  adminCashierStats,
+  weeklyTrend,
+  topProducts,
+  categoryRepartition,
+  getOutOfStockItems,
+  getRecentActivity
+} from "@/modules/auto-parts/services/reportsService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import {
   DollarSign, ShoppingCart, FileText, Package,
-  AlertTriangle, Users, TrendingUp, Truck, UserCheck,
+  AlertTriangle, Users, TrendingUp, Truck, UserCheck, BookOpen, RefreshCw
 } from "lucide-react";
 import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale, BarElement, PointElement,
-  LineElement, Title, Tooltip, Legend, Filler,
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from "recharts";
 import type { WeeklyTrend } from "@/modules/auto-parts/types";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler);
+
 
 // ─── Reusable stat card with accent bar ──────────────────────────────────────
 function StatCard({
@@ -99,19 +105,15 @@ function CashierDashboard({ businessId, staffId, staffName }: { businessId: stri
     return () => clearInterval(iv);
   }, [businessId, staffId]);
 
-  const chartData = useMemo(() => ({
-    labels: trend.map((w) => {
+  const salesEvolution = useMemo(() => {
+    return trend.map((w) => {
       const d = new Date(w.week_start + "T00:00:00");
-      return `${d.getDate()}/${d.getMonth() + 1}`;
-    }),
-    datasets: [{
-      label: "CA (HTG)",
-      data: trend.map((w) => w.total_sales ?? 0),
-      backgroundColor: "rgba(99, 102, 241, 0.7)",
-      borderRadius: 6,
-      borderSkipped: false,
-    }],
-  }), [trend]);
+      return {
+        label: `${d.getDate()}/${d.getMonth() + 1}`,
+        total: w.total_sales ?? 0
+      };
+    });
+  }, [trend]);
 
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
@@ -177,34 +179,23 @@ function CashierDashboard({ businessId, staffId, staffName }: { businessId: stri
       {/* Graphique 7 semaines */}
       {trend.length > 0 && (
         <StaggerItem>
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Évolution du CA (7 dernières semaines)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Bar
-                data={chartData}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: (ctx) => ` ${Number(ctx.raw).toLocaleString("fr-FR")} HTG`,
-                      },
-                    },
-                  },
-                  scales: {
-                    x: { grid: { display: false } },
-                    y: {
-                      beginAtZero: true,
-                      grid: { color: "rgba(0,0,0,0.04)" },
-                      ticks: { callback: (v) => `${Number(v).toLocaleString()} G` },
-                    },
-                  },
-                }}
-              />
-            </CardContent>
+          <Card className="border-0 shadow-sm p-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Évolution du CA (7 dernières semaines)</p>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                  <YAxis hide />
+                  <RechartsTooltip 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [`${format(value)}`, 'CA']}
+                    labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                  />
+                  <Line type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </Card>
         </StaggerItem>
       )}
@@ -216,7 +207,6 @@ function CashierDashboard({ businessId, staffId, staffName }: { businessId: stri
 function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: boolean }) {
   const { format } = useCurrency();
   const { hasAutoPartsPermission, autoPartsStaffSession } = useAuth();
-  // isAdmin est passé directement depuis le parent (plus fiable dans l'APK)
   const canViewStockValue = isAdmin || hasAutoPartsPermission(PERMISSIONS.STOCK_MANAGE);
   const canViewPurchases  = isAdmin || hasAutoPartsPermission(PERMISSIONS.PURCHASES_MANAGE);
 
@@ -226,7 +216,13 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
     byCashier: Array<{ staffId: string; staffName: string; salesToday: number; salesWeek: number; salesMonth: number; invoicesToday: number; invoicesWeek: number; invoicesTotal: number; itemsSoldMonth: number }>;
   } | null>(null);
   const [trend, setTrend] = useState<WeeklyTrend[]>([]);
+  const [topProductsList, setTopProductsList] = useState<any[]>([]);
+  const [outOfStockItems, setOutOfStockItems] = useState<any[]>([]);
+  const [categoryDist, setCategoryDist] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const COLORS = ["#8b5cf6", "#ec4899", "#3b82f6", "#10b981", "#f59e0b", "#64748b"];
 
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
@@ -236,41 +232,54 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
     };
 
     const load = async () => {
-      const dashParams: Record<string, any> = { p_business_id: businessId };
+      const dashParams: Record<string, any> = { p_business_id: businessId, p_is_admin: isAdmin };
       if (autoPartsStaffSession?.session_token) {
         dashParams.p_session_token = autoPartsStaffSession.session_token;
       }
 
-      const [c, a, t] = await Promise.all([
+      const [c, a, t, tp, oos, cat, recent] = await Promise.all([
         safe(async () => { const r = await supabase.rpc("auto_parts_dashboard_counts", dashParams); return r.data; }, null, "counts"),
         safe(() => adminCashierStats(businessId), null, "cashier_stats"),
         safe(() => weeklyTrend(businessId, 12), [], "weekly_trend"),
+        safe(() => topProducts(businessId, null, null, 5), [], "top_products"),
+        safe(() => getOutOfStockItems(businessId, 10), [], "oos"),
+        safe(() => categoryRepartition(businessId), [], "category_dist"),
+        safe(() => getRecentActivity(businessId, 5), [], "recent"),
       ]);
 
       if (c) setCounts(c);
       if (a) setAdminStats(a as any);
       if (t) setTrend(t);
+      if (tp) setTopProductsList(tp);
+      if (oos) setOutOfStockItems(oos);
+      if (cat) {
+        const totalCount = cat.reduce((sum: number, item: any) => sum + (item.count || 0), 0);
+        const mapped = cat.map((item: any, idx: number) => ({
+          name: item.name || "Sans catégorie",
+          value: item.count,
+          fill: COLORS[idx % COLORS.length],
+          percentage: totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0
+        }));
+        setCategoryDist(mapped);
+      }
+      if (recent) setRecentActivity(recent);
       setLoading(false);
     };
 
     load();
     const iv = setInterval(load, 60_000);
     return () => clearInterval(iv);
-  }, [businessId, autoPartsStaffSession]);
+  }, [businessId, autoPartsStaffSession, isAdmin]);
 
-  const chartData = useMemo(() => ({
-    labels: trend.map((w) => {
+  const salesEvolution = useMemo(() => {
+    return trend.map((w) => {
       const d = new Date(w.week_start + "T00:00:00");
-      return `${d.getDate()}/${d.getMonth() + 1}`;
-    }),
-    datasets: [{
-      label: "CA (HTG)",
-      data: trend.map((w) => w.total_sales ?? 0),
-      backgroundColor: "rgba(99, 102, 241, 0.7)",
-      borderRadius: 6,
-      borderSkipped: false,
-    }],
-  }), [trend]);
+      return {
+        label: `${d.getDate()}/${d.getMonth() + 1}`,
+        total: w.total_sales ?? 0
+      };
+    });
+  }, [trend]);
 
   if (loading) {
     return (
@@ -289,7 +298,7 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
 
       {/* ── 5 KPIs essentiels ── */}
       <StaggerItem>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Vue d'ensemble</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Vue d'ensemble Pièces Auto</p>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard
             icon={<DollarSign className="h-5 w-5" />}
@@ -308,22 +317,22 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
           <StatCard
             icon={<ShoppingCart className="h-5 w-5" />}
             label="Ventes aujourd'hui"
-            value={g?.salesToday !== undefined ? (g.invoicesToday ?? 0) : 0}
-            sub="Transactions"
+            value={g?.invoicesToday ?? 0}
+            sub="Tickets émis"
             accent="violet"
           />
           <StatCard
             icon={<FileText className="h-5 w-5" />}
-            label="Factures du mois"
+            label="Ventes du mois"
             value={g?.invoicesMonth ?? 0}
-            sub="Émises"
+            sub="Total des tickets"
             accent="cyan"
           />
           <StatCard
-            icon={<Package className="h-5 w-5" />}
-            label="Produits vendus"
-            value={adminStats?.byCashier?.reduce((s, c) => s + (c.itemsSoldMonth ?? 0), 0) ?? 0}
-            sub="Ce mois"
+            icon={<BookOpen className="h-5 w-5" />}
+            label="Catalogue"
+            value={counts.totalProducts ?? 0}
+            sub="Produits référencés"
             accent="orange"
           />
         </div>
@@ -334,37 +343,37 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
         <StaggerItem>
           <div className="flex flex-wrap gap-3">
             {counts.outOfStock > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-red-900/30 bg-red-950/20 text-red-400 text-sm font-medium">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                 <span><strong>{counts.outOfStock}</strong> référence{counts.outOfStock > 1 ? "s" : ""} en rupture</span>
               </div>
             )}
             {counts.lowStock > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-700 dark:text-amber-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-900/30 bg-amber-950/20 text-amber-400 text-sm font-medium">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                 <span><strong>{counts.lowStock}</strong> référence{counts.lowStock > 1 ? "s" : ""} à stock faible</span>
               </div>
             )}
             {canViewStockValue && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-blue-900/30 bg-blue-950/20 text-blue-400 text-sm font-medium">
                 <Package className="h-4 w-4 flex-shrink-0" />
                 <span>Valeur du stock : <strong>{format(counts.totalStockValue)}</strong></span>
               </div>
             )}
             {canViewStockValue && counts.totalPotentialRevenue > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 text-emerald-400 text-sm font-medium">
                 <TrendingUp className="h-4 w-4 flex-shrink-0" />
                 <span>Valeur potentielle : <strong>{format(counts.totalPotentialRevenue)}</strong></span>
               </div>
             )}
             {canViewStockValue && counts.totalPotentialProfit > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 text-violet-700 dark:text-violet-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-purple-900/30 bg-purple-950/20 text-purple-400 text-sm font-medium">
                 <DollarSign className="h-4 w-4 flex-shrink-0" />
                 <span>Marge potentielle : <strong>{format(counts.totalPotentialProfit)}</strong></span>
               </div>
             )}
             {canViewPurchases && counts.monthPurchases > 0 && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-indigo-900/30 bg-indigo-950/20 text-indigo-400 text-sm font-medium">
                 <Truck className="h-4 w-4 flex-shrink-0" />
                 <span>Achats ce mois : <strong>{format(counts.monthPurchases)}</strong></span>
               </div>
@@ -372,6 +381,141 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
           </div>
         </StaggerItem>
       )}
+
+      {/* ── Graphique d'évolution des ventes ── */}
+      {trend.length > 0 && (
+        <StaggerItem>
+          <Card className="border-0 shadow-sm p-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-6">Évolution hebdomadaire du CA (12 semaines)</p>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={salesEvolution}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" opacity={0.2} />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                  <YAxis hide />
+                  <RechartsTooltip 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [`${format(value)}`, 'CA']}
+                    labelStyle={{ color: '#64748b', marginBottom: '4px' }}
+                  />
+                  <Line type="monotone" dataKey="total" stroke="#8b5cf6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </StaggerItem>
+      )}
+
+      {/* ── 3 Colonnes : Top, Ruptures, Catégories ── */}
+      <StaggerItem>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Top Produits */}
+          <Card className="border-0 shadow-sm p-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top Produits</p>
+            <div className="space-y-4">
+              {topProductsList.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Pas assez de données.</p>}
+              {topProductsList.slice(0, 5).map((p, i) => {
+                const maxQty = topProductsList[0]?.quantity || 1;
+                const pct = Math.round((p.quantity / maxQty) * 100);
+                return (
+                  <div key={i} className="flex flex-col gap-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium truncate pr-2">{p.product_name}</span>
+                      <span className="text-muted-foreground flex-shrink-0">{p.quantity} ventes</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Ruptures */}
+          <Card className="border-0 shadow-sm p-4">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Rupture de Stock</p>
+              <span className="bg-red-900/30 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium">{counts.outOfStock}</span>
+            </div>
+            <div className="space-y-3">
+              {outOfStockItems.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aucune rupture.</p>}
+              {outOfStockItems.map((p, i) => (
+                <div key={i} className="flex justify-between items-center text-sm">
+                  <span className="font-medium truncate pr-2">{p.name}</span>
+                  <button className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors flex-shrink-0">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Catégories */}
+          <Card className="border-0 shadow-sm p-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Par Catégorie</p>
+            <div className="flex items-center justify-between">
+              <div className="h-[120px] w-[120px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryDist}
+                      innerRadius={40}
+                      outerRadius={55}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {categoryDist.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(value: number, name: string) => [`${value} articles`, name]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 pl-4 space-y-2">
+                {categoryDist.slice(0, 3).map((c, i) => (
+                  <div key={i} className="flex items-center text-xs">
+                    <div className="h-2 w-2 rounded-full mr-2" style={{ backgroundColor: c.fill }} />
+                    <span className="flex-1 truncate text-muted-foreground">{c.name}</span>
+                    <span className="font-medium ml-2">{c.percentage}%</span>
+                  </div>
+                ))}
+                {categoryDist.length > 3 && (
+                  <div className="flex items-center text-xs">
+                    <div className="h-2 w-2 rounded-full mr-2 bg-muted-foreground" />
+                    <span className="flex-1 truncate text-muted-foreground">Autres</span>
+                    <span className="font-medium ml-2">
+                      {categoryDist.slice(3).reduce((acc, c) => acc + c.percentage, 0)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+        </div>
+      </StaggerItem>
+
+      {/* ── Activité Récente ── */}
+      <StaggerItem>
+        <Card className="border-0 shadow-sm p-4">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Activité Récente</p>
+          <div className="space-y-0">
+            {recentActivity.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Aucune vente récente.</p>}
+            {recentActivity.map((act, i) => (
+              <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 text-sm">
+                <div className="w-16 text-muted-foreground">{act.time}</div>
+                <div className="flex-1 font-medium">Ticket #{act.invoice}</div>
+                <div className="w-16 text-center text-muted-foreground">{act.initials}</div>
+                <div className="w-24 text-right font-medium text-emerald-500">{format(act.amount)}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </StaggerItem>
 
       {/* ── Performance caissiers ── */}
       {adminStats?.byCashier && adminStats.byCashier.length > 0 && (
@@ -428,40 +572,6 @@ function AdminDashboard({ businessId, isAdmin }: { businessId: string; isAdmin: 
         </StaggerItem>
       )}
 
-      {/* ── Graphique tendance CA ── */}
-      {trend.length > 0 && (
-        <StaggerItem>
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Évolution du chiffre d'affaires (12 semaines)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Bar
-                data={chartData}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                      callbacks: {
-                        label: (ctx) => ` ${Number(ctx.raw).toLocaleString("fr-FR")} HTG`,
-                      },
-                    },
-                  },
-                  scales: {
-                    x: { grid: { display: false } },
-                    y: {
-                      beginAtZero: true,
-                      grid: { color: "rgba(0,0,0,0.04)" },
-                      ticks: { callback: (v) => `${Number(v).toLocaleString()} G` },
-                    },
-                  },
-                }}
-              />
-            </CardContent>
-          </Card>
-        </StaggerItem>
-      )}
     </StaggerContainer>
   );
 }
