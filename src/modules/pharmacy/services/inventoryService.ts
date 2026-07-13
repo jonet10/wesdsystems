@@ -171,37 +171,85 @@ export const inventoryService = {
   async createStockMovement(movement: Partial<PharmacyStockMovement>, explicitBusinessId?: string) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
     
-    // 1. Insert Stock Movement
+    // 1. Resolve or create Batch if not specified
+    let batchId = movement.batch_id;
+    if (!batchId && movement.product_id) {
+      // Find the first active batch for this product
+      const { data: existingBatches } = await supabase
+        .from("pharmacy_batches")
+        .select("id")
+        .eq("product_id", movement.product_id)
+        .gt("current_quantity", 0)
+        .order("expiration_date", { ascending: true })
+        .limit(1);
+        
+      if (existingBatches && existingBatches.length > 0) {
+        batchId = existingBatches[0].id;
+      } else {
+        // Create a default batch so that the stock trigger is activated and stock is not lost!
+        const expDate = new Date();
+        expDate.setFullYear(expDate.getFullYear() + 1); // 1 year from now
+        
+        const { data: newBatch, error: newBatchErr } = await supabase
+          .from("pharmacy_batches")
+          .insert([{
+            business_id: businessId,
+            product_id: movement.product_id,
+            batch_number: "LOT-AUTO",
+            expiration_date: expDate.toISOString().split("T")[0],
+            initial_quantity: movement.quantity || 0,
+            current_quantity: movement.quantity || 0
+          }])
+          .select()
+          .single();
+          
+        if (!newBatchErr && newBatch) {
+          batchId = newBatch.id;
+        }
+      }
+    }
+
+    // 2. Insert Stock Movement
     const { data: newMovement, error: moveErr } = await supabase
       .from("pharmacy_stock_movements")
-      .insert([{ ...movement, business_id: businessId }])
+      .insert([{
+        ...movement,
+        batch_id: batchId || null,
+        business_id: businessId
+      }])
       .select()
       .single();
 
     if (moveErr) throw moveErr;
 
-    // 2. If a batch is specified, update the batch's current quantity!
-    if (movement.batch_id && movement.quantity) {
-      // Get current batch quantity
+    // 3. Update batch quantity
+    if (batchId && movement.quantity) {
       const { data: batch, error: getErr } = await supabase
         .from("pharmacy_batches")
-        .select("current_quantity")
-        .eq("id", movement.batch_id)
+        .select("current_quantity, created_at")
+        .eq("id", batchId)
         .single();
         
       if (!getErr && batch) {
+        const wasJustCreated = (new Date().getTime() - new Date(batch.created_at).getTime()) < 2000;
         let newQty = Number(batch.current_quantity);
-        if (movement.type === "in" || movement.type === "return" || movement.type === "adjustment") {
-          newQty += Number(movement.quantity);
+        
+        if (wasJustCreated) {
+          if (!(movement.type === "in" || movement.type === "return" || movement.type === "adjustment")) {
+            newQty = 0;
+          }
         } else {
-          newQty -= Number(movement.quantity);
+          if (movement.type === "in" || movement.type === "return" || movement.type === "adjustment") {
+            newQty += Number(movement.quantity);
+          } else {
+            newQty -= Number(movement.quantity);
+          }
         }
         
-        // Update batch quantity
         await supabase
           .from("pharmacy_batches")
           .update({ current_quantity: Math.max(0, newQty) })
-          .eq("id", movement.batch_id);
+          .eq("id", batchId);
       }
     }
     
