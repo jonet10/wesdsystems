@@ -173,7 +173,7 @@ export const reportsService = {
   async getRecentActivity(businessId: string, limit: number = 5) {
     const { data, error } = await supabase
       .from("pharmacy_sales")
-      .select("receipt_number, total, created_at, created_by(full_name)")
+      .select("receipt_number, total, created_at")
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -182,8 +182,7 @@ export const reportsService = {
 
     return data.map(sale => {
       const time = new Date(sale.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-      const name = (sale.created_by as any)?.full_name || "Caissier";
-      const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase();
+      const initials = "PH"; // Initiales par défaut pour le caissier de la pharmacie
 
       return {
         time,
