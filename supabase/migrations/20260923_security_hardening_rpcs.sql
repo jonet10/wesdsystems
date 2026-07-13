@@ -83,7 +83,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.generate_auto_parts_invoice_number(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.generate_auto_parts_invoice_number(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.generate_auto_parts_invoice_number(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.update_auto_parts_quote(
   p_id UUID,
@@ -149,7 +149,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.update_auto_parts_quote(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, DATE, TEXT, TEXT, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_auto_parts_quote(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, DATE, TEXT, TEXT, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_auto_parts_quote(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, DATE, TEXT, TEXT, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_auto_parts_quote(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -171,7 +171,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.delete_auto_parts_quote(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_auto_parts_quote(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_auto_parts_quote(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_auto_parts_quote(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -193,7 +193,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.get_auto_parts_quote(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_auto_parts_quote(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_auto_parts_quote(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_sale(
   p_business_id UUID,
@@ -402,7 +402,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_purchase(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, UUID, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_purchase(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, UUID, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_purchase(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, UUID, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_products(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -488,7 +488,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_create_product(TEXT, UUID, TEXT, UUID, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_create_product(TEXT, UUID, TEXT, UUID, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_create_product(TEXT, UUID, TEXT, UUID, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_search_products(
   p_business_id UUID,
@@ -711,7 +711,7 @@ END;
 $$;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID, BOOLEAN) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_counts(UUID, TEXT, UUID, UUID, BOOLEAN) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_category_repartition(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -740,7 +740,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_category_repartition(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_category_repartition(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_category_repartition(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_dormant_products(
   p_business_id UUID,
@@ -802,7 +802,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_dormant_products(UUID, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dormant_products(UUID, INT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dormant_products(UUID, INT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_stock_forecast(
   p_business_id UUID,
@@ -861,7 +861,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_stock_forecast(UUID, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_stock_forecast(UUID, INT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_stock_forecast(UUID, INT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_store_health(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -928,7 +928,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_store_health(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_store_health(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_store_health(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_stock_movement(
   p_business_id UUID,
@@ -958,7 +958,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.ensure_auto_parts_inventory_for_business(p_business_id UUID)
 RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -979,7 +979,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.ensure_auto_parts_inventory_for_business(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.ensure_auto_parts_inventory_for_business(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.ensure_auto_parts_inventory_for_business(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.upsert_auto_parts_product(
   p_business_id UUID,
@@ -1114,7 +1114,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.upsert_auto_parts_product(UUID, UUID, JSONB, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.upsert_auto_parts_product(UUID, UUID, JSONB, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_auto_parts_product(UUID, UUID, JSONB, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_auto_parts_product_for_business(
   p_product_id UUID,
@@ -1137,7 +1137,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.delete_auto_parts_product_for_business(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_auto_parts_product_for_business(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_auto_parts_product_for_business(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.record_auto_parts_stock_movement(
   p_business_id UUID,
@@ -1168,7 +1168,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.record_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.record_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_auto_parts_stock_movement(UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_dashboard_stats(
   p_session_token TEXT,
@@ -1252,7 +1252,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_dashboard_stats(TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_stats(TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_dashboard_stats(TEXT, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.update_auto_parts_purchase(
   p_id UUID,
@@ -1343,7 +1343,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.update_auto_parts_purchase(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_auto_parts_purchase(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_auto_parts_purchase(UUID, UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_auto_parts_purchase(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1393,7 +1393,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.delete_auto_parts_purchase(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_auto_parts_purchase(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_auto_parts_purchase(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_staff(
   p_business_id UUID,
@@ -1423,7 +1423,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_staff(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_staff(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_staff(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.issue_auto_parts_staff_session(
   p_staff_id UUID,
@@ -1455,7 +1455,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.issue_auto_parts_staff_session(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.issue_auto_parts_staff_session(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.issue_auto_parts_staff_session(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.update_auto_parts_staff(
   p_id UUID,
@@ -1496,7 +1496,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.update_auto_parts_staff(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_auto_parts_staff(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_auto_parts_staff(UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_auto_parts_staff(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1519,7 +1519,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.delete_auto_parts_staff(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_auto_parts_staff(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_auto_parts_staff(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_get_sale(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1543,7 +1543,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_get_sale(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_get_sale(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_get_sale(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_categories(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1561,7 +1561,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_categories(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_categories(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_categories(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_suppliers(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1580,7 +1580,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_suppliers(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_suppliers(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_suppliers(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_clients(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1704,7 +1704,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_create_sale(TEXT, UUID, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, UUID, TEXT, UUID, JSONB, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_create_sale(TEXT, UUID, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, UUID, TEXT, UUID, JSONB, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_create_sale(TEXT, UUID, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, UUID, TEXT, UUID, JSONB, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_staff(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1752,7 +1752,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_stock_movements(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_stock_movements(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_stock_movements(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_sales(
   p_business_id UUID,
@@ -1783,7 +1783,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_sales(UUID, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_sales(UUID, UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_sales(UUID, UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_return_requests(
   p_business_id UUID,
@@ -1817,7 +1817,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_return_requests(UUID, UUID, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_return_requests(UUID, UUID, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_return_requests(UUID, UUID, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_monthly_sales(
   p_business_id UUID,
@@ -1850,7 +1850,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_monthly_sales(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_monthly_sales(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_monthly_sales(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.process_auto_parts_return(
   p_business_id UUID,
@@ -1929,7 +1929,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.process_auto_parts_return(UUID, UUID, JSONB, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.process_auto_parts_return(UUID, UUID, JSONB, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.process_auto_parts_return(UUID, UUID, JSONB, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_returns(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -1962,7 +1962,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_returns(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_returns(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_returns(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_employee_dashboard_stats(
   p_session_token TEXT,
@@ -2554,7 +2554,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_weekly_trend(UUID, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_weekly_trend(UUID, INT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_weekly_trend(UUID, INT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_client_summary(
   p_business_id UUID
@@ -2586,7 +2586,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_client_summary(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_client_summary(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_client_summary(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_cashier_monthly_progress(
   p_business_id UUID,
@@ -2629,7 +2629,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_cashier_monthly_progress(UUID, UUID, NUMERIC) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_cashier_monthly_progress(UUID, UUID, NUMERIC) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_cashier_monthly_progress(UUID, UUID, NUMERIC) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_write_audit_log(
   p_business_id UUID,
@@ -2669,7 +2669,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_write_audit_log(UUID, UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_write_audit_log(UUID, UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_write_audit_log(UUID, UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.upsert_auto_parts_business_settings(
   p_business_id UUID,
@@ -2743,7 +2743,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.upsert_auto_parts_business_settings(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.upsert_auto_parts_business_settings(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_auto_parts_business_settings(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_quote(
   p_business_id UUID,
@@ -2798,7 +2798,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_quote(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, DATE, TEXT, TEXT, TEXT, UUID, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_quote(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, DATE, TEXT, TEXT, TEXT, UUID, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_quote(UUID, UUID, TEXT, TEXT, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, DATE, TEXT, TEXT, TEXT, UUID, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.list_auto_parts_quotes(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2823,7 +2823,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.list_auto_parts_quotes(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.list_auto_parts_quotes(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.list_auto_parts_quotes(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_delivery_note(
   p_business_id UUID,
@@ -2872,7 +2872,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_delivery_note(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_delivery_note(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_delivery_note(UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, UUID, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.list_auto_parts_delivery_notes(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2897,7 +2897,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.list_auto_parts_delivery_notes(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.list_auto_parts_delivery_notes(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.list_auto_parts_delivery_notes(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_list_purchases(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2922,7 +2922,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_list_purchases(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_list_purchases(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_list_purchases(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.list_auto_parts_stock_movements(p_business_id UUID, p_branch_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2948,7 +2948,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.list_auto_parts_stock_movements(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.list_auto_parts_stock_movements(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.list_auto_parts_stock_movements(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.list_auto_parts_branches(p_business_id UUID)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2968,7 +2968,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.list_auto_parts_branches(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.list_auto_parts_branches(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.list_auto_parts_branches(UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.get_auto_parts_delivery_note(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -2990,7 +2990,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.get_auto_parts_delivery_note(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_auto_parts_delivery_note(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_auto_parts_delivery_note(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.update_auto_parts_delivery_note(
   p_id UUID,
@@ -3033,7 +3033,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.update_auto_parts_delivery_note(UUID, UUID, TEXT, TEXT, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_auto_parts_delivery_note(UUID, UUID, TEXT, TEXT, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.update_auto_parts_delivery_note(UUID, UUID, TEXT, TEXT, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.delete_auto_parts_delivery_note(p_id UUID, p_business_id UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -3055,7 +3055,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.delete_auto_parts_delivery_note(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.delete_auto_parts_delivery_note(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_auto_parts_delivery_note(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.create_auto_parts_return_request(
   p_business_id UUID,
@@ -3123,7 +3123,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.create_auto_parts_return_request(UUID, UUID, UUID, TEXT, JSONB) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_auto_parts_return_request(UUID, UUID, UUID, TEXT, JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.create_auto_parts_return_request(UUID, UUID, UUID, TEXT, JSONB) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_cashier_dashboard(
   p_business_id UUID,
@@ -3233,7 +3233,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_cashier_dashboard(UUID, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_cashier_dashboard(UUID, UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_cashier_dashboard(UUID, UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.auto_parts_admin_cashier_stats(
   p_business_id UUID,
@@ -3317,7 +3317,7 @@ END;
 $$;;
 
 REVOKE EXECUTE ON FUNCTION public.auto_parts_admin_cashier_stats(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.auto_parts_admin_cashier_stats(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_parts_admin_cashier_stats(UUID, UUID) TO anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.generate_school_matricule(p_business_id UUID)
 RETURNS TEXT
