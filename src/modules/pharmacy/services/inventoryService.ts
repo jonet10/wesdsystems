@@ -203,7 +203,8 @@ export const inventoryService = {
           .select()
           .single();
           
-        if (!newBatchErr && newBatch) {
+        if (newBatchErr) throw newBatchErr;
+        if (newBatch) {
           batchId = newBatch.id;
         }
       }
