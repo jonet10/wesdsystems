@@ -124,8 +124,8 @@ export const inventoryService = {
   },
 
   // --- BATCHES ---
-  async getBatches() {
-    const businessId = getPharmacyBusinessId();
+  async getBatches(explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_batches")
       .select("*, product:product_id(name, min_stock_alert)")
@@ -133,5 +133,38 @@ export const inventoryService = {
       .order("expiration_date", { ascending: true }); // FEFO ordering
     if (error) throw error;
     return data as PharmacyBatch[];
+  },
+
+  async createBatch(payload: Partial<PharmacyBatch>) {
+    const businessId = getPharmacyBusinessId();
+    
+    // 1. Insert Batch
+    const { data: batch, error: batchErr } = await supabase
+      .from("pharmacy_batches")
+      .insert([{
+        ...payload,
+        business_id: businessId,
+        current_quantity: payload.initial_quantity // current starts equal to initial
+      }])
+      .select()
+      .single();
+      
+    if (batchErr) throw batchErr;
+
+    // 2. Log Stock Movement
+    const { error: moveErr } = await supabase
+      .from("pharmacy_stock_movements")
+      .insert([{
+        business_id: businessId,
+        product_id: batch.product_id,
+        batch_id: batch.id,
+        type: "in",
+        quantity: batch.initial_quantity,
+        reference: `Lot initial : ${batch.batch_number}`
+      }]);
+
+    if (moveErr) console.error("Error creating stock movement for batch:", moveErr);
+
+    return batch as PharmacyBatch;
   }
 };
