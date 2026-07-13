@@ -186,7 +186,13 @@ export const inventoryService = {
       if (existingBatches && existingBatches.length > 0) {
         batchId = existingBatches[0].id;
       } else {
-        // Create a default batch so that the stock trigger is activated and stock is not lost!
+        // Fetch product's default prices
+        const { data: prod } = await supabase
+          .from("pharmacy_products")
+          .select("cost_price, sale_price")
+          .eq("id", movement.product_id)
+          .single();
+
         const expDate = new Date();
         expDate.setFullYear(expDate.getFullYear() + 1); // 1 year from now
         
@@ -198,7 +204,9 @@ export const inventoryService = {
             batch_number: "LOT-AUTO",
             expiration_date: expDate.toISOString().split("T")[0],
             initial_quantity: movement.quantity || 0,
-            current_quantity: movement.quantity || 0
+            current_quantity: movement.quantity || 0,
+            cost_price: prod?.cost_price || 0,
+            sale_price: prod?.sale_price || 0
           }])
           .select()
           .single();
