@@ -149,7 +149,7 @@ export default function PharmacyStock() {
         reference: form.reference || null
       };
 
-      await inventoryService.createStockMovement(payload);
+      await inventoryService.createStockMovement(payload, businessId || undefined);
       toast.success("Mouvement de stock enregistré");
       setOpen(false);
       if (businessId) load(businessId);

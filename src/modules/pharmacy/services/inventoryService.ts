@@ -135,8 +135,8 @@ export const inventoryService = {
     return data as PharmacyBatch[];
   },
 
-  async createBatch(payload: Partial<PharmacyBatch>) {
-    const businessId = getPharmacyBusinessId();
+  async createBatch(payload: Partial<PharmacyBatch>, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     
     // 1. Insert Batch
     const { data: batch, error: batchErr } = await supabase
@@ -168,8 +168,8 @@ export const inventoryService = {
     return batch as PharmacyBatch;
   },
 
-  async createStockMovement(movement: Partial<PharmacyStockMovement>) {
-    const businessId = getPharmacyBusinessId();
+  async createStockMovement(movement: Partial<PharmacyStockMovement>, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     
     // 1. Insert Stock Movement
     const { data: newMovement, error: moveErr } = await supabase

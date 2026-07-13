@@ -103,7 +103,7 @@ export default function PharmacyBatches() {
         ...form,
         manufacture_date: form.manufacture_date || null
       };
-      await inventoryService.createBatch(payload);
+      await inventoryService.createBatch(payload, businessId || undefined);
       toast.success("Lot ajouté avec succès");
       setOpen(false);
       if (businessId) load(businessId);
