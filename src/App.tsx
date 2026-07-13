@@ -250,8 +250,8 @@ const App = () => (
                   }
                 />
 
-                {/* Salon / Pharmacie / Market / Boutique Routes */}
-                {(["salon", "pharmacie", "market", "boutique"] as const).flatMap(prefix =>
+                {/* Salon / Market / Boutique Routes */}
+                {(["salon", "market", "boutique"] as const).flatMap(prefix =>
                   salonAdminRoutes.map(route => (
                     <Route
                       key={`${prefix}/${route.path}`}
