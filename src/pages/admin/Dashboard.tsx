@@ -218,7 +218,7 @@ export default function SuperAdminDashboard() {
       const price = subscription.price_snapshot ?? plan?.monthly_price ?? 0;
       return sum + Number(price || 0);
     }, 0);
-    const displaySalonsActifs = activeSubscriptions.length;
+     const displaySalonsActifs = subscriptionRows.filter((subscription) => subscription.status === "active" || subscription.status === "trialing").length;
     const displayUsers = Number(totalUsersCount || 0);
     const activeBranches = (branches || []).filter((branch: any) => branch.active !== false).length;
     const loyaltyRewards = (rewards || []).filter((reward: any) => reward.active !== false).length;
