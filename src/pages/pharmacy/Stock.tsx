@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { setPharmacyBusinessId, getPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
 import { toast } from "sonner";
 import { Package, TrendingUp, TrendingDown, ArrowLeftRight, Search, ShoppingCart, AlertTriangle } from "lucide-react";
@@ -44,13 +44,13 @@ export default function PharmacyStock() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    load();
-  }, []);
+    if (businessId) {
+      load();
+    }
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);

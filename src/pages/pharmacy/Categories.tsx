@@ -13,8 +13,8 @@ import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/co
 import { toast } from "sonner";
 import { Pencil, Trash2 } from "lucide-react";
 import type { PharmacyCategory } from "@/modules/pharmacy/types";
-import { productService, getPharmacyBusinessId, setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { productService } from "@/modules/pharmacy/services/productService";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyCategories() {
   const { t } = useTranslation();
@@ -24,16 +24,13 @@ export default function PharmacyCategories() {
   const [editing, setEditing] = useState<PharmacyCategory | null>(null);
   const [form, setForm] = useState({ name: "", description: "", color: "#ffffff" });
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    // Basic setup to ensure businessId is available. In a real scenario, this is set by Auth/Context.
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id; // Using first salon's business_id as fallback
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {
-      // ignore
+    if (businessId) {
+      load();
     }
-    load();
-  }, []);
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);

@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { supabase } from "@/lib/supabase";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { setPharmacyBusinessId, getPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
 import { toast } from "sonner";
 import { CreditCard, DollarSign, Users, AlertTriangle, Search, CheckCircle } from "lucide-react";
@@ -38,13 +38,13 @@ export default function PharmacyCredits() {
   const [payAmount, setPayAmount] = useState("");
   const [paying, setPaying] = useState(false);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    load();
-  }, []);
+    if (businessId) {
+      load();
+    }
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);

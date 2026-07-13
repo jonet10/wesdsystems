@@ -12,7 +12,7 @@ import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText } from "lucid
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService, setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyPOS() {
   const [products, setProducts] = useState<PharmacyProduct[]>([]);
@@ -28,13 +28,13 @@ export default function PharmacyPOS() {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    loadData();
-  }, []);
+    if (businessId) {
+      loadData();
+    }
+  }, [businessId]);
 
   const loadData = async () => {
     try {

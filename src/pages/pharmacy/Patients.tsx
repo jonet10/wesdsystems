@@ -15,7 +15,7 @@ import { Pencil, Trash2, Phone, FileText } from "lucide-react";
 import type { PharmacyCustomer } from "@/modules/pharmacy/types";
 import { salesService } from "@/modules/pharmacy/services/salesService";
 import { setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyPatients() {
   const { t } = useTranslation();
@@ -25,13 +25,13 @@ export default function PharmacyPatients() {
   const [editing, setEditing] = useState<PharmacyCustomer | null>(null);
   const [form, setForm] = useState({ first_name: "", last_name: "", phone: "", address: "", medical_notes: "" });
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    load();
-  }, []);
+    if (businessId) {
+      load();
+    }
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);

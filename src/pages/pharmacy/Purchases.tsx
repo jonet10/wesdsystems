@@ -17,7 +17,7 @@ import { Plus, Trash2, Eye } from "lucide-react";
 import type { PharmacyPurchase, PharmacySupplier, PharmacyProduct } from "@/modules/pharmacy/types";
 import { inventoryService } from "@/modules/pharmacy/services/inventoryService";
 import { productService, setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyPurchases() {
   const { t } = useTranslation();
@@ -31,13 +31,13 @@ export default function PharmacyPurchases() {
   const [form, setForm] = useState({ supplier_id: "", purchase_number: "" });
   const [items, setItems] = useState<any[]>([]);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    loadData();
-  }, []);
+    if (businessId) {
+      loadData();
+    }
+  }, [businessId]);
 
   const loadData = async () => {
     setLoading(true);

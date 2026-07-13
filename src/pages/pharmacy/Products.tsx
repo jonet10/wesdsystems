@@ -16,8 +16,8 @@ import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/co
 import { toast } from "sonner";
 import { Pencil, Trash2, ShieldAlert } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
-import { productService, getPharmacyBusinessId, setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { productService } from "@/modules/pharmacy/services/productService";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyProducts() {
   const { t } = useTranslation();
@@ -37,13 +37,13 @@ export default function PharmacyProducts() {
     min_stock_alert: 10
   });
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) { }
-    loadData();
-  }, []);
+    if (businessId) {
+      loadData();
+    }
+  }, [businessId]);
 
   const loadData = async () => {
     setLoading(true);

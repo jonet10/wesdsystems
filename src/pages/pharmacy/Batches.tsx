@@ -7,19 +7,19 @@ import { AlertCircle, CalendarClock, Ban } from "lucide-react";
 import type { PharmacyBatch } from "@/modules/pharmacy/types";
 import { inventoryService } from "@/modules/pharmacy/services/inventoryService";
 import { setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyBatches() {
   const [data, setData] = useState<PharmacyBatch[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    load();
-  }, []);
+    if (businessId) {
+      load();
+    }
+  }, [businessId]);
 
   const load = async () => {
     setLoading(true);

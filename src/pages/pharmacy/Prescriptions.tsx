@@ -18,7 +18,7 @@ import { FileText, Trash2, Eye } from "lucide-react";
 import type { PharmacyPrescription, PharmacyCustomer } from "@/modules/pharmacy/types";
 import { salesService } from "@/modules/pharmacy/services/salesService";
 import { setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
-import { glowupStore } from "@/lib/store";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
 export default function PharmacyPrescriptions() {
   const { t } = useTranslation();
@@ -29,13 +29,13 @@ export default function PharmacyPrescriptions() {
   const [form, setForm] = useState({ customer_id: "", doctor_name: "", notes: "" });
   const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const businessId = usePharmacyBusinessId();
+
   useEffect(() => {
-    try {
-      const bizId = glowupStore.getSalons()[0]?.business_id;
-      if (bizId) setPharmacyBusinessId(bizId);
-    } catch (e) {}
-    loadData();
-  }, []);
+    if (businessId) {
+      loadData();
+    }
+  }, [businessId]);
 
   const loadData = async () => {
     setLoading(true);
