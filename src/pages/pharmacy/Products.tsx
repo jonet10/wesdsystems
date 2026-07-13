@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { toast } from "sonner";
-import { Pencil, Trash2, ShieldAlert } from "lucide-react";
+import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
@@ -46,18 +46,31 @@ export default function PharmacyProducts() {
   }, [businessId]);
 
   const loadData = async () => {
+    if (!businessId) return;
     setLoading(true);
     try {
       const [prods, cats] = await Promise.all([
-        productService.getProducts(),
-        productService.getCategories()
+        productService.getProducts(businessId),
+        productService.getCategories(businessId)
       ]);
       setData(prods);
       setCategories(cats);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportCatalog = async () => {
+    if (!businessId) return;
+    setLoading(true);
+    try {
+      await productService.importStandardCatalog(businessId);
+      toast.success("Catalogue standard importé avec succès !");
+      await loadData();
+    } catch (e: any) {
+      toast.error("Erreur lors de l'importation : " + e.message);
     } finally {
       setLoading(false);
     }
@@ -132,37 +145,54 @@ export default function PharmacyProducts() {
             description={`${data.length} produit(s) enregistré(s)`} 
             action={{ label: "Nouveau Produit", onClick: openCreate }} 
           />
-          <AutoPartsDataTable
-            rows={data}
-            columns={[
-              { key: "name", label: "Nom du Produit", render: (r) => (
-                <div>
-                  <div className="font-medium flex items-center gap-2">
-                    {r.name}
-                    {r.requires_prescription && <ShieldAlert className="w-4 h-4 text-red-500" title="Ordonnance requise" />}
+          
+          {data.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-purple-500/20 rounded-2xl bg-purple-500/5 mt-6">
+              <Pill className="h-12 w-12 text-purple-400 mb-4 animate-bounce" />
+              <h3 className="text-lg font-semibold mb-2">Votre catalogue de médicaments est vide</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+                Vous pouvez importer instantanément la liste standard de plus de 100 médicaments essentiels et 18 catégories recommandées pour commencer rapidement.
+              </p>
+              <Button onClick={handleImportCatalog} className="bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Importer le catalogue standard
+              </Button>
+            </div>
+          )}
+
+          {data.length > 0 && (
+            <AutoPartsDataTable
+              rows={data}
+              columns={[
+                { key: "name", label: "Nom du Produit", render: (r) => (
+                  <div>
+                    <div className="font-medium flex items-center gap-2">
+                      {r.name}
+                      {r.requires_prescription && <ShieldAlert className="w-4 h-4 text-red-500" title="Ordonnance requise" />}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{r.generic_name}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{r.generic_name}</div>
-                </div>
-              ) },
-              { key: "category", label: "Catégorie", render: (r) => (
-                <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${r.category?.color || '#ccc'}20`, color: r.category?.color || '#666' }}>
-                  {r.category?.name || "Non classé"}
-                </span>
-              ) },
-              { key: "form", label: "Forme", render: (r) => r.form || "-" },
-              { key: "stock", label: "Stock Total", render: (r) => (
-                <span className={r.total_stock_quantity <= r.min_stock_alert ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
-                  {r.total_stock_quantity}
-                </span>
-              ) },
-              { key: "actions", label: "Actions", render: (r) => (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                </div>
-              )},
-            ]}
-          />
+                ) },
+                { key: "category", label: "Catégorie", render: (r) => (
+                  <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${r.category?.color || '#ccc'}20`, color: r.category?.color || '#666' }}>
+                    {r.category?.name || "Non classé"}
+                  </span>
+                ) },
+                { key: "form", label: "Forme", render: (r) => r.form || "-" },
+                { key: "stock", label: "Stock Total", render: (r) => (
+                  <span className={r.total_stock_quantity <= r.min_stock_alert ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
+                    {r.total_stock_quantity}
+                  </span>
+                ) },
+                { key: "actions", label: "Actions", render: (r) => (
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                  </div>
+                )},
+              ]}
+            />
+          )}
         </StaggerItem>
       </StaggerContainer>
 

@@ -13,8 +13,8 @@ export const getPharmacyBusinessId = () => {
 };
 
 export const productService = {
-  async getCategories() {
-    const businessId = getPharmacyBusinessId();
+  async getCategories(explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_categories")
       .select("*")
@@ -58,8 +58,8 @@ export const productService = {
     if (error) throw error;
   },
 
-  async getProducts() {
-    const businessId = getPharmacyBusinessId();
+  async getProducts(explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_products")
       .select("*, category:category_id(*)")
@@ -115,5 +115,12 @@ export const productService = {
       
     if (error) throw error;
     return data as PharmacyProductUnit[];
+  },
+
+  async importStandardCatalog(businessId: string) {
+    const { data, error } = await supabase
+      .rpc("import_standard_pharmacy_catalog", { p_business_id: businessId });
+    if (error) throw error;
+    return data;
   }
 };
