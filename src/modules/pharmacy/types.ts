@@ -35,6 +35,8 @@ export interface PharmacyProduct {
   requires_prescription: boolean;
   min_stock_alert: number;
   total_stock_quantity: number;
+  cost_price?: number;
+  sale_price?: number;
   active: boolean;
   image_url: string | null;
   created_at: string;

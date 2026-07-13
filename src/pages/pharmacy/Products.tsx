@@ -18,9 +18,11 @@ import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function PharmacyProducts() {
   const { t } = useTranslation();
+  const { format } = useCurrency();
   const [data, setData] = useState<PharmacyProduct[]>([]);
   const [categories, setCategories] = useState<PharmacyCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,9 @@ export default function PharmacyProducts() {
     barcode: "",
     form: "",
     requires_prescription: false,
-    min_stock_alert: 10
+    min_stock_alert: 10,
+    cost_price: 0,
+    sale_price: 0
   });
 
   const businessId = usePharmacyBusinessId();
@@ -85,7 +89,9 @@ export default function PharmacyProducts() {
       barcode: "",
       form: "Comprimé",
       requires_prescription: false,
-      min_stock_alert: 10
+      min_stock_alert: 10,
+      cost_price: 0,
+      sale_price: 0
     });
     setOpen(true);
   };
@@ -99,7 +105,9 @@ export default function PharmacyProducts() {
       barcode: p.barcode || "",
       form: p.form || "Comprimé",
       requires_prescription: p.requires_prescription,
-      min_stock_alert: p.min_stock_alert
+      min_stock_alert: p.min_stock_alert,
+      cost_price: p.cost_price || 0,
+      sale_price: p.sale_price || 0
     });
     setOpen(true);
   };
@@ -179,6 +187,8 @@ export default function PharmacyProducts() {
                   </span>
                 ) },
                 { key: "form", label: "Forme", render: (r) => r.form || "-" },
+                { key: "cost_price", label: "Prix d'Achat", render: (r) => format(r.cost_price || 0) },
+                { key: "sale_price", label: "Prix de Vente", render: (r) => format(r.sale_price || 0) },
                 { key: "stock", label: "Stock Total", render: (r) => (
                   <span className={r.total_stock_quantity <= r.min_stock_alert ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
                     {r.total_stock_quantity}
@@ -237,9 +247,17 @@ export default function PharmacyProducts() {
               <Label>Code Barre</Label>
               <Input placeholder="Scanner ou taper..." value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} />
             </div>
-            <div className="space-y-2">
+             <div className="space-y-2">
               <Label>Alerte Stock Minimum</Label>
               <Input type="number" value={form.min_stock_alert} onChange={(e) => setForm({ ...form, min_stock_alert: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Prix d'Achat</Label>
+              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Prix de Vente</Label>
+              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
             </div>
             <div className="col-span-2 flex items-center justify-between border p-4 rounded-lg mt-2">
               <div>

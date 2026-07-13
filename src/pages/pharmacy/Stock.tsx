@@ -48,25 +48,24 @@ export default function PharmacyStock() {
 
   useEffect(() => {
     if (businessId) {
-      load();
+      load(businessId);
     }
   }, [businessId]);
 
-  const load = async () => {
+  const load = async (bizId: string) => {
     setLoading(true);
     try {
-      const businessId = getPharmacyBusinessId();
       const [{ data: mvts, error }, { data: batchData }] = await Promise.all([
         supabase
           .from("pharmacy_stock_movements")
           .select("*, product:product_id(name), batch:batch_id(batch_number, expiration_date)")
-          .eq("business_id", businessId)
+          .eq("business_id", bizId)
           .order("created_at", { ascending: false })
           .limit(300),
         supabase
           .from("pharmacy_batches")
           .select("*, product:product_id(name, min_stock_alert)")
-          .eq("business_id", businessId)
+          .eq("business_id", bizId)
           .gt("current_quantity", 0)
           .order("expiration_date", { ascending: true })
       ]);
@@ -74,7 +73,7 @@ export default function PharmacyStock() {
       setMovements(mvts || []);
       setBatches(batchData || []);
     } catch (e: any) {
-      toast.error("Erreur de chargement des mouvements");
+      toast.error("Erreur de chargement des mouvements: " + e.message);
     } finally {
       setLoading(false);
     }
