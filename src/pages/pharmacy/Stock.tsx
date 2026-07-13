@@ -7,12 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
-import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
-import { setPharmacyBusinessId, getPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
 import { toast } from "sonner";
-import { Package, TrendingUp, TrendingDown, ArrowLeftRight, Search, ShoppingCart, AlertTriangle } from "lucide-react";
+import { Package, TrendingUp, TrendingDown, ArrowLeftRight, Search, ShoppingCart, AlertTriangle, Plus } from "lucide-react";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
+import { productService } from "@/modules/pharmacy/services/productService";
+import { inventoryService } from "@/modules/pharmacy/services/inventoryService";
+import type { PharmacyProduct } from "@/modules/pharmacy/types";
 
 interface StockMovement {
   id: string;
@@ -43,6 +50,17 @@ export default function PharmacyStock() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [batches, setBatches] = useState<any[]>([]);
+  const [allBatches, setAllBatches] = useState<any[]>([]);
+  const [products, setProducts] = useState<PharmacyProduct[]>([]);
+  const [open, setOpen] = useState(false);
+
+  const [form, setForm] = useState({
+    product_id: "",
+    batch_id: "",
+    type: "in",
+    quantity: 0,
+    reference: ""
+  });
 
   const businessId = usePharmacyBusinessId();
 
@@ -55,7 +73,7 @@ export default function PharmacyStock() {
   const load = async (bizId: string) => {
     setLoading(true);
     try {
-      const [{ data: mvts, error }, { data: batchData }] = await Promise.all([
+      const [{ data: mvts, error }, { data: batchData }, prods] = await Promise.all([
         supabase
           .from("pharmacy_stock_movements")
           .select("*, product:product_id(name), batch:batch_id(batch_number, expiration_date)")
@@ -67,11 +85,14 @@ export default function PharmacyStock() {
           .select("*, product:product_id(name, min_stock_alert)")
           .eq("business_id", bizId)
           .gt("current_quantity", 0)
-          .order("expiration_date", { ascending: true })
+          .order("expiration_date", { ascending: true }),
+        productService.getProducts(bizId)
       ]);
       if (error) throw error;
       setMovements(mvts || []);
       setBatches(batchData || []);
+      setAllBatches(batchData || []);
+      setProducts(prods || []);
     } catch (e: any) {
       toast.error("Erreur de chargement des mouvements: " + e.message);
     } finally {
@@ -93,6 +114,51 @@ export default function PharmacyStock() {
     const daysLeft = Math.ceil((new Date(b.expiration_date).getTime() - Date.now()) / 86400000);
     return daysLeft <= 30 && daysLeft >= 0;
   });
+
+  const openCreate = () => {
+    setForm({
+      product_id: "",
+      batch_id: "",
+      type: "in",
+      quantity: 0,
+      reference: ""
+    });
+    setOpen(true);
+  };
+
+  const handleProductChange = (productId: string) => {
+    setForm({
+      ...form,
+      product_id: productId,
+      batch_id: "" // reset batch selection
+    });
+  };
+
+  const handleSave = async () => {
+    if (!form.product_id || !form.quantity || form.quantity <= 0) {
+      toast.error("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+
+    try {
+      const payload = {
+        product_id: form.product_id,
+        batch_id: form.batch_id || null,
+        type: form.type,
+        quantity: form.quantity,
+        reference: form.reference || null
+      };
+
+      await inventoryService.createStockMovement(payload);
+      toast.success("Mouvement de stock enregistré");
+      setOpen(false);
+      if (businessId) load(businessId);
+    } catch (e: any) {
+      toast.error("Erreur lors de l'enregistrement : " + e.message);
+    }
+  };
+
+  const filteredBatches = allBatches.filter(b => b.product_id === form.product_id);
 
   return (
     <DashboardLayout role="salon_admin" title="Stock & Mouvements" subtitle="Historique des entrées, ventes et ajustements de stock">
@@ -155,7 +221,7 @@ export default function PharmacyStock() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <CardTitle className="text-base">Historique des mouvements</CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -179,6 +245,10 @@ export default function PharmacyStock() {
                       <SelectItem value="expiry">Périmés</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button onClick={openCreate} className="h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                    <Plus className="h-4 w-4" />
+                    Ajuster le Stock
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -217,7 +287,7 @@ export default function PharmacyStock() {
                           <TableCell className="font-medium">{m.product?.name || "-"}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{m.batch?.batch_number || "-"}</TableCell>
                           <TableCell className={`font-semibold ${cfg.color}`}>
-                            {["in", "return"].includes(m.type) ? "+" : "-"}{m.quantity}
+                            {["in", "return", "adjustment"].includes(m.type) ? "+" : "-"}{m.quantity}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{m.reference || "-"}</TableCell>
                         </TableRow>
@@ -230,6 +300,69 @@ export default function PharmacyStock() {
           </Card>
         </StaggerItem>
       </StaggerContainer>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Enregistrer un Ajustement de Stock</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Médicament / Produit *</Label>
+              <Select value={form.product_id} onValueChange={handleProductChange}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner le produit..." /></SelectTrigger>
+                <SelectContent>
+                  {products.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Type de mouvement *</Label>
+              <Select value={form.type} onValueChange={(val) => setForm({ ...form, type: val })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="in">Entrée (Don, Approvisionnement manuel)</SelectItem>
+                  <SelectItem value="out">Sortie (Perte, Casse, Consommation)</SelectItem>
+                  <SelectItem value="adjustment">Ajustement positif</SelectItem>
+                  <SelectItem value="expiry">Périmé (Retrait du stock)</SelectItem>
+                  <SelectItem value="return">Retour (Client/Fournisseur)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Lot associé (Optionnel mais recommandé)</Label>
+              <Select value={form.batch_id} onValueChange={(val) => setForm({ ...form, batch_id: val })} disabled={!form.product_id}>
+                <SelectTrigger>
+                  <SelectValue placeholder={form.product_id ? "Sélectionner un lot..." : "Sélectionnez d'abord un produit"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredBatches.map(b => (
+                    <SelectItem key={b.id} value={b.id}>Lot {b.batch_number} - Restant : {b.current_quantity}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Quantité *</Label>
+              <Input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Référence / Raison</Label>
+              <Input placeholder="Ex: Ajustement inventaire de fin de mois" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
+            <Button onClick={handleSave} disabled={!form.product_id || !form.quantity || form.quantity <= 0}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

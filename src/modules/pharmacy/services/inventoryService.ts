@@ -166,5 +166,45 @@ export const inventoryService = {
     if (moveErr) console.error("Error creating stock movement for batch:", moveErr);
 
     return batch as PharmacyBatch;
+  },
+
+  async createStockMovement(movement: Partial<PharmacyStockMovement>) {
+    const businessId = getPharmacyBusinessId();
+    
+    // 1. Insert Stock Movement
+    const { data: newMovement, error: moveErr } = await supabase
+      .from("pharmacy_stock_movements")
+      .insert([{ ...movement, business_id: businessId }])
+      .select()
+      .single();
+
+    if (moveErr) throw moveErr;
+
+    // 2. If a batch is specified, update the batch's current quantity!
+    if (movement.batch_id && movement.quantity) {
+      // Get current batch quantity
+      const { data: batch, error: getErr } = await supabase
+        .from("pharmacy_batches")
+        .select("current_quantity")
+        .eq("id", movement.batch_id)
+        .single();
+        
+      if (!getErr && batch) {
+        let newQty = Number(batch.current_quantity);
+        if (movement.type === "in" || movement.type === "return" || movement.type === "adjustment") {
+          newQty += Number(movement.quantity);
+        } else {
+          newQty -= Number(movement.quantity);
+        }
+        
+        // Update batch quantity
+        await supabase
+          .from("pharmacy_batches")
+          .update({ current_quantity: Math.max(0, newQty) })
+          .eq("id", movement.batch_id);
+      }
+    }
+    
+    return newMovement;
   }
 };
