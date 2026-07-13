@@ -1159,7 +1159,7 @@ BEGIN
     RAISE EXCEPTION 'Accès non autorisé' USING ERRCODE = '42501';
   END IF;
 
-  v_creator := COALESCE(p_created_by, current_setting('request.jwt.claims', true)::json->>'sub');
+  v_creator := COALESCE(p_created_by, NULLIF(current_setting('request.jwt.claims', true)::json->>'sub', '')::UUID);
   INSERT INTO public.auto_parts_stock_movements (product_id, type, quantity, unit_price, reference, notes, business_id, branch_id, created_by)
   VALUES (p_product_id, p_type, p_quantity, p_unit_price, p_reference, p_notes, p_business_id, p_branch_id, v_creator)
   RETURNING id INTO v_movement_id;
