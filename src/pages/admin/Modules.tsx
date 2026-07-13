@@ -110,6 +110,16 @@ const DEFAULT_MODULES: PlatformModuleRow[] = [
     owner: "Produit éducation",
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: "stationery",
+    name: "Papeterie",
+    vertical: "retail",
+    status: "complete",
+    progress: 100,
+    description: "POS, ventes, achats, inventaire de papeterie et rapports de performance.",
+    owner: "Produit papeterie",
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
 function statusMeta(status: ModuleStatus) {

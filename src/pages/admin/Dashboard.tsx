@@ -108,6 +108,12 @@ const platformModules: PlatformModule[] = [
     label: "Complet",
     description: "Gestion des élèves, professeurs, frais scolaires, paiements et rapports financiers.",
   },
+  {
+    name: "Papeterie",
+    phase: "complete",
+    label: "Complet",
+    description: "POS, ventes, achats, inventaire de papeterie et rapports opérationnels.",
+  },
 ];
 
 export default function SuperAdminDashboard() {
