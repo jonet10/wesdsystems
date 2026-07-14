@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,17 +7,29 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
-import { productService, setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
+import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
+import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/lib/supabase";
+import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
+import { printReceipt } from "@/lib/print-utils";
 
 export default function PharmacyPOS() {
+  const { format } = useCurrency();
+  const { profile } = useAuth();
+  
   const [products, setProducts] = useState<PharmacyProduct[]>([]);
   const [customers, setCustomers] = useState<PharmacyCustomer[]>([]);
   const [prescriptions, setPrescriptions] = useState<PharmacyPrescription[]>([]);
+  const [businessInfo, setBusinessInfo] = useState<any>(null);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<any[]>([]);
@@ -27,6 +39,11 @@ export default function PharmacyPOS() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [lastSale, setLastSale] = useState<any>(null);
+  const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptData | null>(null);
+  
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const businessId = usePharmacyBusinessId();
 
@@ -38,14 +55,20 @@ export default function PharmacyPOS() {
 
   const loadData = async (bizId: string) => {
     try {
-      const [prods, custs, prescs] = await Promise.all([
+      const [prods, custs, prescs, biz] = await Promise.all([
         productService.getProducts(bizId),
         salesService.getCustomers(bizId),
-        salesService.getPrescriptions(bizId)
+        salesService.getPrescriptions(bizId),
+        supabase
+          .from("businesses")
+          .select("name, phone, email, address, logo_url, nif")
+          .eq("id", bizId)
+          .maybeSingle()
       ]);
       setProducts(prods.filter(p => p.total_stock_quantity > 0)); // Only show in-stock items in POS
       setCustomers(custs);
       setPrescriptions(prescs);
+      setBusinessInfo(biz?.data || null);
     } catch (e: any) {
       toast.error("Erreur de chargement des données POS : " + e.message);
     }
@@ -65,10 +88,6 @@ export default function PharmacyPOS() {
       }
       setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      // In a real app, sale_price should be fetched from the batch or a product base price.
-      // We assume product base price is available, but currently our DB schema puts sale_price in batch.
-      // For the demo, we will assign a dummy price or if product had a base_price we'd use it.
-      // Let's assume a default price of 150 HTG for demo if not specified.
       setCart([...cart, { 
         product_id: product.id, 
         name: product.name, 
@@ -112,7 +131,7 @@ export default function PharmacyPOS() {
     setIsProcessing(true);
     try {
       const salePayload = {
-        customer_id: selectedCustomer || null,
+        customer_id: selectedCustomer && selectedCustomer !== "none" ? selectedCustomer : null,
         prescription_id: selectedPrescription || null,
         subtotal: totalAmount,
         tax_amount: 0,
@@ -123,7 +142,58 @@ export default function PharmacyPOS() {
         receipt_number: `REC-${Date.now().toString().slice(-6)}`
       };
 
-      await salesService.processSale(salePayload, cart, businessId || undefined);
+      const newSale = await salesService.processSale(salePayload, cart, businessId || undefined);
+      
+      // Build the receipt snapshot
+      const selectedCustObj = customers.find(c => c.id === selectedCustomer);
+      const snapshot: ReceiptData = {
+        business: {
+          name: businessInfo?.name || "PHARMACIE",
+          logo_url: businessInfo?.logo_url || undefined,
+          address: businessInfo?.address || undefined,
+          phone: businessInfo?.phone || undefined,
+          email: businessInfo?.email || undefined,
+          nif: businessInfo?.nif || undefined,
+          receipt_footer_message: "Merci pour votre confiance !",
+          receipt_policy_message: "Aucun retour de médicament n'est autorisé pour des raisons de sécurité de santé publique."
+        },
+        transaction: {
+          invoiceNumber: newSale.receipt_number,
+          invoiceLabel: "Reçu de Vente",
+          date: newSale.created_at,
+          cashierName: profile?.full_name || "Caissier",
+          clientName: selectedCustObj ? `${selectedCustObj.first_name} ${selectedCustObj.last_name}` : "Client de passage",
+          clientPhone: selectedCustObj?.phone || undefined
+        },
+        items: cart.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.unit_price,
+          total: item.quantity * item.unit_price
+        })),
+        totals: {
+          subtotal: totalAmount,
+          tax: 0,
+          discount: 0,
+          total: totalAmount
+        },
+        payment: {
+          method: paymentMethod === "cash" ? "ESPÈCES" :
+                  paymentMethod === "card" ? "CARTE" :
+                  paymentMethod === "moncash" ? "MONCASH" :
+                  paymentMethod === "natcash" ? "NATCASH" :
+                  paymentMethod === "transfer" ? "VIREMENT" : "CRÉDIT",
+          amountReceived: totalAmount,
+          amountTendered: totalAmount,
+          changeGiven: 0
+        },
+        currencyCode: "HTG"
+      };
+
+      setLastSale(newSale);
+      setReceiptSnapshot(snapshot);
+      setShowReceipt(true);
+
       toast.success("Vente effectuée avec succès !");
       setCart([]);
       setSelectedCustomer("");
@@ -133,6 +203,12 @@ export default function PharmacyPOS() {
       toast.error(e.message);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (receiptRef.current) {
+      await printReceipt(receiptRef.current, `ticket-${lastSale?.receipt_number || "sale"}`);
     }
   };
 
@@ -191,7 +267,7 @@ export default function PharmacyPOS() {
                       {item.name}
                       {item.requires_prescription && <FileText className="w-3 h-3 text-red-500" />}
                     </div>
-                    <div className="text-sm text-muted-foreground">{item.unit_price} HTG x {item.quantity}</div>
+                    <div className="text-sm text-muted-foreground">{format(item.unit_price)} x {item.quantity}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md">
@@ -246,7 +322,7 @@ export default function PharmacyPOS() {
 
             <div className="pt-2 flex justify-between items-center">
               <span className="text-lg font-bold">Total à Payer</span>
-              <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{totalAmount} HTG</span>
+              <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{format(totalAmount)}</span>
             </div>
 
             <Button 
@@ -260,6 +336,43 @@ export default function PharmacyPOS() {
         </div>
 
       </div>
+
+      {/* Receipt Preview & Print Dialog */}
+      <Dialog open={showReceipt} onOpenChange={(open) => {
+        if (!open) {
+          setReceiptSnapshot(null);
+          setLastSale(null);
+        }
+        setShowReceipt(open);
+      }}>
+        <DialogContent className="max-w-md bg-white text-black p-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="text-center font-bold text-gray-800">Fiche de Vente (Ticket)</DialogTitle>
+          </DialogHeader>
+          
+          <div className="p-6 max-h-[60vh] overflow-y-auto bg-gray-100 flex justify-center">
+            {receiptSnapshot && (
+              <div className="bg-white p-4 shadow-md rounded-md border w-full max-w-[80mm]">
+                <ReceiptTemplate 
+                  ref={receiptRef} 
+                  data={receiptSnapshot} 
+                  formatAmount={(amt) => format(amt)}
+                />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
+            <Button variant="outline" className="text-gray-700" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); setLastSale(null); }}>
+              Fermer
+            </Button>
+            <Button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+              <Printer className="w-4 h-4" />
+              Imprimer / PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
