@@ -131,33 +131,33 @@ export default function SuperAdminSettingsPage() {
   };
 
   const saveManualPaymentConfig = async () => {
-    const entries = [
-      { key: "manual_payment_moncash_name", value: manualPaymentMoncashName },
-      { key: "manual_payment_moncash_number", value: manualPaymentMoncashNumber },
-      { key: "manual_payment_natcash_name", value: manualPaymentNatcashName },
-      { key: "manual_payment_natcash_number", value: manualPaymentNatcashNumber },
-    ];
-    const { error } = await supabase.from("app_config").upsert(entries, { onConflict: "key" });
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde des paramètres de paiement manuel.");
-    } else {
+    try {
+      const promises = [
+        supabase.rpc("upsert_app_config", { p_key: "manual_payment_moncash_name", p_value: manualPaymentMoncashName }),
+        supabase.rpc("upsert_app_config", { p_key: "manual_payment_moncash_number", p_value: manualPaymentMoncashNumber }),
+        supabase.rpc("upsert_app_config", { p_key: "manual_payment_natcash_name", p_value: manualPaymentNatcashName }),
+        supabase.rpc("upsert_app_config", { p_key: "manual_payment_natcash_number", p_value: manualPaymentNatcashNumber }),
+      ];
+      await Promise.all(promises);
       toast.success("Paramètres de paiement manuel sauvegardés avec succès !");
+    } catch (error) {
+      toast.error("Erreur lors de la sauvegarde des paramètres de paiement manuel.");
     }
   };
 
   const saveWhatsappConfig = async () => {
-    const entries = [
-      { key: "whatsapp_global_enabled", value: String(whatsappGlobalEnabled) },
-      { key: "whatsapp_global_provider", value: whatsappGlobalProvider },
-      { key: "whatsapp_global_api_url", value: whatsappGlobalApiUrl },
-      { key: "whatsapp_global_api_key", value: whatsappGlobalApiKey },
-      { key: "whatsapp_global_session_name", value: whatsappGlobalSessionName },
-    ];
-    const { error } = await supabase.from("app_config").upsert(entries, { onConflict: "key" });
-    if (error) {
-      toast.error("Erreur lors de la sauvegarde de la configuration WhatsApp.");
-    } else {
+    try {
+      const promises = [
+        supabase.rpc("upsert_app_config", { p_key: "whatsapp_global_enabled", p_value: String(whatsappGlobalEnabled) }),
+        supabase.rpc("upsert_app_config", { p_key: "whatsapp_global_provider", p_value: whatsappGlobalProvider }),
+        supabase.rpc("upsert_app_config", { p_key: "whatsapp_global_api_url", p_value: whatsappGlobalApiUrl }),
+        supabase.rpc("upsert_app_config", { p_key: "whatsapp_global_api_key", p_value: whatsappGlobalApiKey }),
+        supabase.rpc("upsert_app_config", { p_key: "whatsapp_global_session_name", p_value: whatsappGlobalSessionName }),
+      ];
+      await Promise.all(promises);
       toast.success("Configuration WhatsApp globale mise à jour !");
+    } catch (error) {
+      toast.error("Erreur lors de la sauvegarde de la configuration WhatsApp.");
     }
   };
 
