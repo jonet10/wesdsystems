@@ -1,13 +1,71 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Package, AlertTriangle, FileText, Download } from "lucide-react";
+import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
+import { reportsService } from "@/modules/pharmacy/services/reportsService";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { supabase } from "@/lib/supabase";
 
 export default function PharmacyReports() {
+  const businessId = usePharmacyBusinessId();
+  const { format } = useCurrency();
   const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [prescriptionsCount, setPrescriptionsCount] = useState(0);
+  const [expiredLosses, setExpiredLosses] = useState(0);
+  const [expiredCount, setExpiredCount] = useState(0);
+
+  const loadStats = async () => {
+    if (!businessId) return;
+    setStatsLoading(true);
+    try {
+      const data = await reportsService.getDashboardStats(businessId);
+      setStats(data);
+
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      // Fetch prescriptions count
+      const { count: prescCount, error: prescError } = await supabase
+        .from("pharmacy_prescriptions")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .gte("created_at", startOfMonth.toISOString());
+      
+      if (!prescError) {
+        setPrescriptionsCount(prescCount || 0);
+      }
+
+      // Fetch expired batches
+      const { data: expiredBatches, error: expError } = await supabase
+        .from("pharmacy_batches")
+        .select("current_quantity, cost_price")
+        .eq("business_id", businessId)
+        .lt("expiration_date", new Date().toISOString().split('T')[0])
+        .gt("current_quantity", 0);
+
+      if (!expError && expiredBatches) {
+        const losses = expiredBatches.reduce((sum, b) => sum + Number(b.current_quantity) * Number(b.cost_price || 0), 0);
+        setExpiredLosses(losses);
+        setExpiredCount(expiredBatches.length);
+      }
+
+    } catch (error) {
+      console.error("Error loading report stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, [businessId]);
 
   const downloadReport = (type: string) => {
     setLoading(true);
@@ -28,7 +86,9 @@ export default function PharmacyReports() {
                 <TrendingUp className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0 HTG</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" /> : `${format(stats?.salesMonth ?? 0)}`}
+                </div>
                 <p className="text-xs text-muted-foreground">+0% par rapport au mois dernier</p>
               </CardContent>
             </Card>
@@ -40,7 +100,9 @@ export default function PharmacyReports() {
                 <Package className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0 HTG</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" /> : `${format(stats?.totalStockValue ?? 0)}`}
+                </div>
                 <p className="text-xs text-muted-foreground">Au prix d'achat</p>
               </CardContent>
             </Card>
@@ -52,7 +114,9 @@ export default function PharmacyReports() {
                 <FileText className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">0</div>
+                <div className="text-2xl font-bold">
+                  {statsLoading ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" /> : prescriptionsCount}
+                </div>
                 <p className="text-xs text-muted-foreground">Ce mois-ci</p>
               </CardContent>
             </Card>
@@ -64,8 +128,10 @@ export default function PharmacyReports() {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-500">0 HTG</div>
-                <p className="text-xs text-muted-foreground">0 lots périmés détruits</p>
+                <div className="text-2xl font-bold text-red-500">
+                  {statsLoading ? <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" /> : `${format(expiredLosses)}`}
+                </div>
+                <p className="text-xs text-muted-foreground">{expiredCount} lots périmés en stock</p>
               </CardContent>
             </Card>
           </StaggerItem>
