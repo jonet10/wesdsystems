@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Globe, Shield, CreditCard, Database, Check, Copy, Smartphone, Building2 } from "lucide-react";
+import { Globe, Shield, CreditCard, Database, Check, Copy, Smartphone, Building2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
@@ -27,6 +27,13 @@ export default function SuperAdminSettingsPage() {
   const [manualPaymentNatcashName, setManualPaymentNatcashName] = useState("Jonet Jean Francois");
   const [manualPaymentNatcashNumber, setManualPaymentNatcashNumber] = useState("40011619");
 
+  // Global WhatsApp Settings states
+  const [whatsappGlobalEnabled, setWhatsappGlobalEnabled] = useState(true);
+  const [whatsappGlobalProvider, setWhatsappGlobalProvider] = useState("openwa");
+  const [whatsappGlobalApiUrl, setWhatsappGlobalApiUrl] = useState("");
+  const [whatsappGlobalApiKey, setWhatsappGlobalApiKey] = useState("");
+  const [whatsappGlobalSessionName, setWhatsappGlobalSessionName] = useState("default");
+
   useEffect(() => {
     const loadConfig = async () => {
       const { data, error } = await supabase.from("app_config").select("key, value");
@@ -36,6 +43,13 @@ export default function SuperAdminSettingsPage() {
       if (map.manual_payment_moncash_number) setManualPaymentMoncashNumber(map.manual_payment_moncash_number);
       if (map.manual_payment_natcash_name) setManualPaymentNatcashName(map.manual_payment_natcash_name);
       if (map.manual_payment_natcash_number) setManualPaymentNatcashNumber(map.manual_payment_natcash_number);
+
+      // Load WhatsApp global configurations
+      if (map.whatsapp_global_enabled) setWhatsappGlobalEnabled(map.whatsapp_global_enabled === "true");
+      if (map.whatsapp_global_provider) setWhatsappGlobalProvider(map.whatsapp_global_provider);
+      if (map.whatsapp_global_api_url) setWhatsappGlobalApiUrl(map.whatsapp_global_api_url);
+      if (map.whatsapp_global_api_key) setWhatsappGlobalApiKey(map.whatsapp_global_api_key);
+      if (map.whatsapp_global_session_name) setWhatsappGlobalSessionName(map.whatsapp_global_session_name);
     };
     void loadConfig();
   }, []);
@@ -61,6 +75,22 @@ export default function SuperAdminSettingsPage() {
     }
   };
 
+  const saveWhatsappConfig = async () => {
+    const entries = [
+      { key: "whatsapp_global_enabled", value: String(whatsappGlobalEnabled) },
+      { key: "whatsapp_global_provider", value: whatsappGlobalProvider },
+      { key: "whatsapp_global_api_url", value: whatsappGlobalApiUrl },
+      { key: "whatsapp_global_api_key", value: whatsappGlobalApiKey },
+      { key: "whatsapp_global_session_name", value: whatsappGlobalSessionName },
+    ];
+    const { error } = await supabase.from("app_config").upsert(entries, { onConflict: "key" });
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde de la configuration WhatsApp.");
+    } else {
+      toast.success("Configuration WhatsApp globale mise à jour !");
+    }
+  };
+
   const copyUrl = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -82,7 +112,7 @@ export default function SuperAdminSettingsPage() {
       <StaggerContainer className="space-y-6">
         <StaggerItem>
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid grid-cols-5 w-full max-w-3xl bg-muted/50 p-1 rounded-xl">
+            <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full max-w-3xl bg-muted/50 p-1 rounded-xl">
               <TabsTrigger value="general" className="flex items-center gap-2 rounded-lg py-2">
                 <Globe className="h-4 w-4" />
                 <span className="hidden sm:inline">Général</span>
@@ -98,6 +128,10 @@ export default function SuperAdminSettingsPage() {
               <TabsTrigger value="manual-payments" className="flex items-center gap-2 rounded-lg py-2">
                 <Smartphone className="h-4 w-4" />
                 <span className="hidden sm:inline">Manuel</span>
+              </TabsTrigger>
+              <TabsTrigger value="whatsapp" className="flex items-center gap-2 rounded-lg py-2">
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">WhatsApp</span>
               </TabsTrigger>
               <TabsTrigger value="system" className="flex items-center gap-2 rounded-lg py-2">
                 <Database className="h-4 w-4" />
@@ -342,6 +376,80 @@ export default function SuperAdminSettingsPage() {
                 <div className="flex justify-end pt-4 border-t border-border">
                   <Button variant="hero" onClick={saveManualPaymentConfig}>
                     Sauvegarder les bénéficiaires
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* GLOBAL WHATSAPP SETTINGS */}
+            <TabsContent value="whatsapp" className="mt-6">
+              <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold font-display">Passerelle WhatsApp Globale</h3>
+                  <p className="text-sm text-muted-foreground font-sans">
+                    Configurez la connexion WhatsApp globale partagée par l'ensemble des modules (Pharmacie, École, etc.).
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border">
+                  <div>
+                    <Label className="font-semibold text-base">Activer WhatsApp à l'échelle de la plateforme</Label>
+                    <p className="text-sm text-muted-foreground font-sans">Permet l'envoi automatique de notifications pour tous les établissements abonnés.</p>
+                  </div>
+                  <Switch checked={whatsappGlobalEnabled} onCheckedChange={setWhatsappGlobalEnabled} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="wa-provider">Fournisseur de service</Label>
+                    <select
+                      id="wa-provider"
+                      value={whatsappGlobalProvider}
+                      onChange={(e) => setWhatsappGlobalProvider(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="openwa">OpenWA (Conseillé)</option>
+                      <option value="ultramsg">UltraMsg</option>
+                      <option value="meta">Meta Cloud API</option>
+                      <option value="twilio">Twilio API</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="wa-session">Nom de Session / Expéditeur Twilio</Label>
+                    <Input
+                      id="wa-session"
+                      placeholder="default / whatsapp:+14155238886"
+                      value={whatsappGlobalSessionName}
+                      onChange={(e) => setWhatsappGlobalSessionName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="wa-url">API URL de la Passerelle</Label>
+                  <Input
+                    id="wa-url"
+                    placeholder={whatsappGlobalProvider === "meta" ? "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages" : "https://api.example.com"}
+                    value={whatsappGlobalApiUrl}
+                    onChange={(e) => setWhatsappGlobalApiUrl(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="wa-key">Clé d'API ou Jeton d'Accès</Label>
+                  <Input
+                    id="wa-key"
+                    type="password"
+                    placeholder="Bearer token or authorization key"
+                    value={whatsappGlobalApiKey}
+                    onChange={(e) => setWhatsappGlobalApiKey(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex justify-end pt-4 border-t border-border">
+                  <Button variant="hero" onClick={saveWhatsappConfig}>
+                    Sauvegarder la configuration WhatsApp
                   </Button>
                 </div>
               </div>

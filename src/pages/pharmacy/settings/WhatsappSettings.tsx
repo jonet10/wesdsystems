@@ -13,9 +13,12 @@ import { toast } from "sonner";
 import { Save, Send, Settings, ShieldAlert, AlertTriangle } from "lucide-react";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { whatsappService } from "@/modules/pharmacy/services/whatsappService";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PharmacyWhatsappSettings() {
   const businessId = usePharmacyBusinessId();
+  const { profile } = useAuth();
+  const isSuperAdmin = profile?.role === "super_admin" || profile?.role_normalized === "super_admin";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -164,69 +167,102 @@ export default function PharmacyWhatsappSettings() {
                 <Switch checked={enabled} onCheckedChange={setEnabled} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Fournisseur de Service</Label>
-                  <Select value={provider} onValueChange={setProvider}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openwa">OpenWA (Conseillé)</SelectItem>
-                      <SelectItem value="ultramsg">UltraMsg</SelectItem>
-                      <SelectItem value="meta">Meta Cloud API</SelectItem>
-                      <SelectItem value="twilio">Twilio API</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {isSuperAdmin ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Fournisseur de Service</Label>
+                      <Select value={provider} onValueChange={setProvider}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="openwa">OpenWA (Conseillé)</SelectItem>
+                          <SelectItem value="ultramsg">UltraMsg</SelectItem>
+                          <SelectItem value="meta">Meta Cloud API</SelectItem>
+                          <SelectItem value="twilio">Twilio API</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label>Numéro du Destinataire (Propriétaire)</Label>
-                  <Input 
-                    placeholder="+50937012345" 
-                    value={ownerPhone} 
-                    onChange={e => setOwnerPhone(e.target.value)} 
-                  />
-                </div>
-              </div>
+                    <div className="space-y-1.5">
+                      <Label>Numéro du Destinataire (Propriétaire)</Label>
+                      <Input 
+                        placeholder="+50937012345" 
+                        value={ownerPhone} 
+                        onChange={e => setOwnerPhone(e.target.value)} 
+                      />
+                    </div>
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label>API URL de la Passerelle</Label>
-                <Input 
-                  placeholder={provider === "meta" ? "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages" : "https://api.example.com"} 
-                  value={apiUrl} 
-                  onChange={e => setApiUrl(e.target.value)} 
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <Label>API URL de la Passerelle</Label>
+                    <Input 
+                      placeholder={provider === "meta" ? "https://graph.facebook.com/v17.0/PHONE_NUMBER_ID/messages" : "https://api.example.com"} 
+                      value={apiUrl} 
+                      onChange={e => setApiUrl(e.target.value)} 
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label>Clé API ou Jeton d'Accès</Label>
-                <Input 
-                  type="password" 
-                  placeholder="Bearer token or authorization key" 
-                  value={apiKey} 
-                  onChange={e => setApiKey(e.target.value)} 
-                />
-              </div>
+                  <div className="space-y-1.5">
+                    <Label>Clé API ou Jeton d'Accès</Label>
+                    <Input 
+                      type="password" 
+                      placeholder="Bearer token or authorization key" 
+                      value={apiKey} 
+                      onChange={e => setApiKey(e.target.value)} 
+                    />
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>Nom de Session / Expéditeur Twilio</Label>
-                  <Input 
-                    placeholder="default / whatsapp:+14155238886" 
-                    value={sessionName} 
-                    onChange={e => setSessionName(e.target.value)} 
-                  />
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Nom de Session / Expéditeur Twilio</Label>
+                      <Input 
+                        placeholder="default / whatsapp:+14155238886" 
+                        value={sessionName} 
+                        onChange={e => setSessionName(e.target.value)} 
+                      />
+                    </div>
 
-                <div className="space-y-1.5">
-                  <Label>Seuil de Grosse Vente (HTG)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="10000" 
-                    value={largeSaleThreshold} 
-                    onChange={e => setLargeSaleThreshold(e.target.value)} 
-                  />
-                </div>
-              </div>
+                    <div className="space-y-1.5">
+                      <Label>Seuil de Grosse Vente (HTG)</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="10000" 
+                        value={largeSaleThreshold} 
+                        onChange={e => setLargeSaleThreshold(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Numéro du Destinataire (Propriétaire)</Label>
+                      <Input 
+                        placeholder="+50937012345" 
+                        value={ownerPhone} 
+                        onChange={e => setOwnerPhone(e.target.value)} 
+                      />
+                      <p className="text-xs text-muted-foreground font-sans">Numéro de téléphone recevant les alertes (format international, ex: +50937012345).</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Seuil de Grosse Vente (HTG)</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="10000" 
+                        value={largeSaleThreshold} 
+                        onChange={e => setLargeSaleThreshold(e.target.value)} 
+                      />
+                      <p className="text-xs text-muted-foreground font-sans">Déclenche une notification si le montant de la vente dépasse ce seuil.</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-600 dark:text-blue-400 font-sans">
+                    💡 <strong>Note de service</strong> : Les paramètres de connexion technique de la passerelle (URL, clés API) sont gérés de manière centralisée par la plateforme.
+                  </div>
+                </>
+              )}
 
               <div className="pt-4 flex gap-3 justify-end border-t">
                 <Button 

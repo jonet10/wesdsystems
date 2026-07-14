@@ -221,13 +221,27 @@ export const whatsappService = {
       if (type === "weekly_report" && !settings.send_weekly_report) return { success: false };
       if (type === "monthly_report" && !settings.send_monthly_report) return { success: false };
 
-      const provider = this.getProvider(settings.provider);
+      // Load global WhatsApp config from platform
+      const { data: globalConfigData } = await supabase.rpc("get_app_config");
+      const globalConfig = globalConfigData || {};
+
+      const isGlobalEnabled = globalConfig.whatsapp_global_enabled !== "false";
+      if (!isGlobalEnabled) {
+        return { success: false, errorMessage: "WhatsApp désactivé globalement par la plateforme" };
+      }
+
+      const providerName = globalConfig.whatsapp_global_provider || settings.provider || "openwa";
+      const apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+      const apiKey = globalConfig.whatsapp_global_api_key || settings.api_key || "";
+      const sessionName = globalConfig.whatsapp_global_session_name || settings.session_name || "default";
+
+      const provider = this.getProvider(providerName);
       const res = await provider.sendMessage(
-        settings.api_url || "",
-        settings.api_key || "",
+        apiUrl,
+        apiKey,
         settings.owner_phone,
         message,
-        settings.session_name || "default"
+        sessionName
       );
 
       // Log the notification
@@ -272,17 +286,27 @@ export const whatsappService = {
     if (error || !log) throw new Error("Log introuvable");
 
     const settings = await this.getSettings(log.business_id);
-    if (!settings || !settings.api_url || !settings.api_key) {
-      throw new Error("Configuration WhatsApp invalide");
+    if (!settings) throw new Error("Configuration client introuvable");
+
+    const { data: globalConfigData } = await supabase.rpc("get_app_config");
+    const globalConfig = globalConfigData || {};
+
+    const providerName = globalConfig.whatsapp_global_provider || settings.provider || "openwa";
+    const apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+    const apiKey = globalConfig.whatsapp_global_api_key || settings.api_key || "";
+    const sessionName = globalConfig.whatsapp_global_session_name || settings.session_name || "default";
+
+    if (!apiUrl || !apiKey) {
+      throw new Error("Configuration WhatsApp globale ou locale manquante");
     }
 
-    const provider = this.getProvider(settings.provider);
+    const provider = this.getProvider(providerName);
     const res = await provider.sendMessage(
-      settings.api_url,
-      settings.api_key,
+      apiUrl,
+      apiKey,
       log.recipient,
       log.message,
-      settings.session_name
+      sessionName
     );
 
     // Update log status
@@ -300,14 +324,22 @@ export const whatsappService = {
 
   // ─── TEST MESSAGE SENDER ───
   async sendTestMessage(businessId: string, phone: string, settings: any) {
-    const provider = this.getProvider(settings.provider);
+    const { data: globalConfigData } = await supabase.rpc("get_app_config");
+    const globalConfig = globalConfigData || {};
+
+    const providerName = settings.provider || globalConfig.whatsapp_global_provider || "openwa";
+    const apiUrl = settings.api_url || globalConfig.whatsapp_global_api_url || "";
+    const apiKey = settings.api_key || globalConfig.whatsapp_global_api_key || "";
+    const sessionName = settings.session_name || globalConfig.whatsapp_global_session_name || "default";
+
+    const provider = this.getProvider(providerName);
     const message = "🧪 Message de Test WesdSystems WhatsApp\n\nVotre connexion WhatsApp est correctement configurée et fonctionnelle !";
     const res = await provider.sendMessage(
-      settings.api_url || "",
-      settings.api_key || "",
+      apiUrl,
+      apiKey,
       phone,
       message,
-      settings.session_name
+      sessionName
     );
 
     // Log the test message
