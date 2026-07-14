@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -565,7 +565,7 @@ export default function SuperAdminSettingsPage() {
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground text-center max-w-[280px]">
-                            Ouvrez WhatsApp sur votre mobile > Appareils connectés > Connecter un appareil, puis scannez ce code.
+                            Ouvrez WhatsApp sur votre mobile &gt; Appareils connectés &gt; Connecter un appareil, puis scannez ce code.
                           </p>
                         </div>
 
@@ -596,7 +596,7 @@ export default function SuperAdminSettingsPage() {
                               <p className="text-xs text-emerald-500 font-semibold uppercase tracking-wider">Code d'association</p>
                               <p className="text-2xl font-bold font-mono tracking-widest text-emerald-500">{pairingCode}</p>
                               <p className="text-[11px] text-muted-foreground font-sans">
-                                Ouvrez WhatsApp > Appareils connectés > Connecter > Se connecter plutôt par numéro, et tapez ce code.
+                                Ouvrez WhatsApp &gt; Appareils connectés &gt; Connecter &gt; Se connecter plutôt par numéro, et tapez ce code.
                               </p>
                             </div>
                           )}
