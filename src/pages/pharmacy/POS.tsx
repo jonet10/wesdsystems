@@ -121,6 +121,27 @@ export default function PharmacyPOS() {
   const totalAmount = cart.reduce((acc, curr) => acc + (curr.quantity * curr.unit_price), 0);
   const requiresPrescription = cart.some(item => item.requires_prescription);
 
+  const checkDrugInteractions = (items: any[]) => {
+    const names = items.map(i => i.name.toLowerCase());
+    const warnings: string[] = [];
+
+    // Check for acetaminophen duplication
+    const hasAcetaminophen = names.some(n => n.includes("acétaminophène") || n.includes("acetaminophen") || n.includes("efferalgan") || n.includes("doliprane"));
+    const hasParacetamol = names.some(n => n.includes("paracétamol") || n.includes("paracetamol"));
+    if (hasAcetaminophen && hasParacetamol) {
+      warnings.push("Risque de double médication / surdosage : Plus d'un produit contient du paracétamol (Acétaminophène).");
+    }
+
+    // Check for double NSAID
+    const hasIbuprofen = names.some(n => n.includes("ibuprofène") || n.includes("ibuprofen") || n.includes("advil"));
+    const hasAspirin = names.some(n => n.includes("aspirine") || n.includes("aspirin") || n.includes("aspegic"));
+    if (hasIbuprofen && hasAspirin) {
+      warnings.push("Interaction AINS majeure : L'association de plusieurs anti-inflammatoires non stéroïdiens (ex: Ibuprofène + Aspirine) augmente fortement le risque d'hémorragie digestive.");
+    }
+
+    return warnings;
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     if (requiresPrescription && !selectedPrescription) {
@@ -315,7 +336,6 @@ export default function PharmacyPOS() {
                   <SelectItem value="cash">Espèces</SelectItem>
                   <SelectItem value="card">Carte Bancaire</SelectItem>
                   <SelectItem value="moncash">MonCash</SelectItem>
-                  <SelectItem value="insurance">Assurance</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -324,6 +344,22 @@ export default function PharmacyPOS() {
               <span className="text-lg font-bold">Total à Payer</span>
               <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{format(totalAmount)}</span>
             </div>
+
+            {/* Clinical Alerts / Drug Interactions */}
+            {cart.length > 0 && (() => {
+              const warnings = checkDrugInteractions(cart);
+              if (warnings.length === 0) return null;
+              return (
+                <div className="space-y-1.5 p-3 rounded-lg border border-amber-200 bg-amber-50/90 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs animate-pulse">
+                  {warnings.map((w, index) => (
+                    <div key={index} className="flex gap-2 items-start font-medium">
+                      <span className="shrink-0 text-sm">⚠️</span>
+                      <p>{w}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             <Button 
               className="w-full h-12 text-lg font-bold bg-blue-600 hover:bg-blue-700" 
