@@ -47,7 +47,7 @@ export default function PharmacySettings() {
   const [deliveryNotePrefix, setDeliveryNotePrefix] = useState("BL-");
   const [receiptHeader, setReceiptHeader] = useState("");
   const [receiptFooter, setReceiptFooter] = useState("");
-  const [lowStockThreshold, setLowStockThreshold] = useState(15);
+  const [lowStockThreshold, setLowStockThreshold] = useState<string | number>("15");
   
   // Specific to pharmacy but kept local if backend doesn't support them yet
   const [enableFEFO, setEnableFEFO] = useState(true);
@@ -102,7 +102,7 @@ export default function PharmacySettings() {
           setDeliveryNotePrefix(existing.delivery_note_prefix);
           setReceiptHeader(existing.receipt_header ?? "");
           setReceiptFooter(existing.receipt_footer ?? "");
-          setLowStockThreshold(existing.low_stock_threshold);
+          setLowStockThreshold(String(existing.low_stock_threshold ?? 15));
         }
       } catch { } finally { setLoading(false); }
     };
@@ -146,7 +146,7 @@ export default function PharmacySettings() {
         delivery_note_prefix: deliveryNotePrefix,
         receipt_footer: receiptFooter || null,
         receipt_header: receiptHeader || null,
-        low_stock_threshold: lowStockThreshold,
+        low_stock_threshold: Number(lowStockThreshold || 0),
       });
 
       toast.success("Paramètres enregistrés");
@@ -427,7 +427,7 @@ export default function PharmacySettings() {
                   </div>
                   <div className="space-y-2 max-w-xs">
                     <Label>Seuil minimum</Label>
-                    <Input type="number" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(Number(e.target.value))} />
+                    <Input type="number" min="0" value={lowStockThreshold} onChange={(e) => setLowStockThreshold(e.target.value)} />
                     <p className="text-xs text-muted-foreground">Une alerte sera générée quand le stock passe en dessous de ce seuil.</p>
                   </div>
                 </div>

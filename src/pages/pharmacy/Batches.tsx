@@ -31,9 +31,9 @@ export default function PharmacyBatches() {
     batch_number: "",
     manufacture_date: "",
     expiration_date: "",
-    initial_quantity: 0,
-    cost_price: 0,
-    sale_price: 0
+    initial_quantity: "0",
+    cost_price: "0",
+    sale_price: "0"
   });
 
   const businessId = usePharmacyBusinessId();
@@ -74,9 +74,9 @@ export default function PharmacyBatches() {
       batch_number: "",
       manufacture_date: "",
       expiration_date: "",
-      initial_quantity: 0,
-      cost_price: 0,
-      sale_price: 0
+      initial_quantity: "0",
+      cost_price: "0",
+      sale_price: "0"
     });
     setOpen(true);
   };
@@ -87,13 +87,13 @@ export default function PharmacyBatches() {
     setForm({
       ...form,
       product_id: productId,
-      cost_price: prod?.cost_price || 0,
-      sale_price: prod?.sale_price || 0
+      cost_price: String(prod?.cost_price || 0),
+      sale_price: String(prod?.sale_price || 0)
     });
   };
 
   const handleSave = async () => {
-    if (!form.product_id || !form.batch_number || !form.expiration_date || form.initial_quantity <= 0) {
+    if (!form.product_id || !form.batch_number || !form.expiration_date || Number(form.initial_quantity || 0) <= 0) {
       toast.error("Veuillez remplir tous les champs obligatoires");
       return;
     }
@@ -101,6 +101,9 @@ export default function PharmacyBatches() {
     try {
       const payload = {
         ...form,
+        initial_quantity: Number(form.initial_quantity || 0),
+        cost_price: Number(form.cost_price || 0),
+        sale_price: Number(form.sale_price || 0),
         manufacture_date: form.manufacture_date || null
       };
       await inventoryService.createBatch(payload, businessId || undefined);
@@ -181,7 +184,7 @@ export default function PharmacyBatches() {
             </div>
             <div className="space-y-2">
               <Label>Quantité Initiale *</Label>
-              <Input type="number" min="1" value={form.initial_quantity} onChange={(e) => setForm({ ...form, initial_quantity: Number(e.target.value) })} />
+              <Input type="number" min="1" value={form.initial_quantity} onChange={(e) => setForm({ ...form, initial_quantity: e.target.value })} />
             </div>
 
             <div className="space-y-2">
@@ -195,16 +198,16 @@ export default function PharmacyBatches() {
 
             <div className="space-y-2">
               <Label>Prix d'Achat (unitaire) *</Label>
-              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} />
+              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Prix de Vente (unitaire) *</Label>
-              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
+              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={!form.product_id || !form.batch_number || !form.expiration_date || form.initial_quantity <= 0}>Enregistrer</Button>
+            <Button onClick={handleSave} disabled={!form.product_id || !form.batch_number || !form.expiration_date || Number(form.initial_quantity || 0) <= 0}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

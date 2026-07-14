@@ -36,9 +36,9 @@ export default function PharmacyProducts() {
     barcode: "",
     form: "",
     requires_prescription: false,
-    min_stock_alert: 10,
-    cost_price: 0,
-    sale_price: 0
+    min_stock_alert: "10",
+    cost_price: "0",
+    sale_price: "0"
   });
 
   const businessId = usePharmacyBusinessId();
@@ -89,9 +89,9 @@ export default function PharmacyProducts() {
       barcode: "",
       form: "Comprimé",
       requires_prescription: false,
-      min_stock_alert: 10,
-      cost_price: 0,
-      sale_price: 0
+      min_stock_alert: "10",
+      cost_price: "0",
+      sale_price: "0"
     });
     setOpen(true);
   };
@@ -105,9 +105,9 @@ export default function PharmacyProducts() {
       barcode: p.barcode || "",
       form: p.form || "Comprimé",
       requires_prescription: p.requires_prescription,
-      min_stock_alert: p.min_stock_alert,
-      cost_price: p.cost_price || 0,
-      sale_price: p.sale_price || 0
+      min_stock_alert: String(p.min_stock_alert),
+      cost_price: String(p.cost_price || 0),
+      sale_price: String(p.sale_price || 0)
     });
     setOpen(true);
   };
@@ -116,7 +116,10 @@ export default function PharmacyProducts() {
     try {
       const payload = {
         ...form,
-        category_id: form.category_id || null
+        category_id: form.category_id || null,
+        min_stock_alert: Number(form.min_stock_alert || 0),
+        cost_price: Number(form.cost_price || 0),
+        sale_price: Number(form.sale_price || 0)
       };
 
       if (editing) {
@@ -249,15 +252,15 @@ export default function PharmacyProducts() {
             </div>
              <div className="space-y-2">
               <Label>Alerte Stock Minimum</Label>
-              <Input type="number" value={form.min_stock_alert} onChange={(e) => setForm({ ...form, min_stock_alert: Number(e.target.value) })} />
+              <Input type="number" value={form.min_stock_alert} onChange={(e) => setForm({ ...form, min_stock_alert: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Prix d'Achat</Label>
-              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) })} />
+              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Prix de Vente</Label>
-              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: Number(e.target.value) })} />
+              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
             </div>
             <div className="col-span-2 flex items-center justify-between border p-4 rounded-lg mt-2">
               <div>

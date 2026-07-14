@@ -66,7 +66,7 @@ export default function PharmacyPurchases() {
   };
 
   const addItem = () => {
-    setItems([...items, { product_id: "", quantity: 1, cost_price: 0, sale_price: 0, batch_number: "", expiration_date: "" }]);
+    setItems([...items, { product_id: "", quantity: "1", cost_price: "0", sale_price: "0", batch_number: "", expiration_date: "" }]);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -85,7 +85,7 @@ export default function PharmacyPurchases() {
       return;
     }
     try {
-      const total_amount = items.reduce((acc, curr) => acc + (Number(curr.quantity) * Number(curr.cost_price)), 0);
+      const total_amount = items.reduce((acc, curr) => acc + (Number(curr.quantity || 0) * Number(curr.cost_price || 0)), 0);
       const purchasePayload = {
         ...form,
         total_amount,
@@ -93,7 +93,14 @@ export default function PharmacyPurchases() {
         payment_status: "paid" as const
       };
 
-      await inventoryService.createPurchase(purchasePayload, items);
+      const formattedItems = items.map(item => ({
+        ...item,
+        quantity: Number(item.quantity || 0),
+        cost_price: Number(item.cost_price || 0),
+        sale_price: Number(item.sale_price || 0)
+      }));
+
+      await inventoryService.createPurchase(purchasePayload, formattedItems);
       toast.success("Achat enregistré avec succès !");
       setOpen(false);
       loadData();
@@ -173,15 +180,15 @@ export default function PharmacyPurchases() {
                   </div>
                   <div className="col-span-1">
                     <Label className="text-xs">Qté</Label>
-                    <Input type="number" value={item.quantity} onChange={(e) => updateItem(index, "quantity", Number(e.target.value))} />
+                    <Input type="number" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} />
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs">Prix Achat Unité</Label>
-                    <Input type="number" value={item.cost_price} onChange={(e) => updateItem(index, "cost_price", Number(e.target.value))} />
+                    <Input type="number" value={item.cost_price} onChange={(e) => updateItem(index, "cost_price", e.target.value)} />
                   </div>
                   <div className="col-span-1">
                     <Label className="text-xs">Prix Vente</Label>
-                    <Input type="number" value={item.sale_price} onChange={(e) => updateItem(index, "sale_price", Number(e.target.value))} />
+                    <Input type="number" value={item.sale_price} onChange={(e) => updateItem(index, "sale_price", e.target.value)} />
                   </div>
                   <div className="col-span-1 text-right">
                     <Button variant="ghost" size="icon" onClick={() => removeItem(index)}><Trash2 className="w-4 h-4 text-red-500"/></Button>

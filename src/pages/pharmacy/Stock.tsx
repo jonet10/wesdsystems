@@ -58,7 +58,7 @@ export default function PharmacyStock() {
     product_id: "",
     batch_id: "",
     type: "in",
-    quantity: 0,
+    quantity: "0",
     reference: ""
   });
 
@@ -120,7 +120,7 @@ export default function PharmacyStock() {
       product_id: "",
       batch_id: "",
       type: "in",
-      quantity: 0,
+      quantity: "0",
       reference: ""
     });
     setOpen(true);
@@ -135,7 +135,7 @@ export default function PharmacyStock() {
   };
 
   const handleSave = async () => {
-    if (!form.product_id || !form.quantity || form.quantity <= 0) {
+    if (!form.product_id || !form.quantity || Number(form.quantity || 0) <= 0) {
       toast.error("Veuillez remplir tous les champs obligatoires");
       return;
     }
@@ -145,7 +145,7 @@ export default function PharmacyStock() {
         product_id: form.product_id,
         batch_id: form.batch_id || null,
         type: form.type,
-        quantity: form.quantity,
+        quantity: Number(form.quantity || 0),
         reference: form.reference || null
       };
 
@@ -349,7 +349,7 @@ export default function PharmacyStock() {
 
             <div className="space-y-2">
               <Label>Quantité *</Label>
-              <Input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+              <Input type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
             </div>
 
             <div className="space-y-2">
@@ -359,7 +359,7 @@ export default function PharmacyStock() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={!form.product_id || !form.quantity || form.quantity <= 0}>Enregistrer</Button>
+            <Button onClick={handleSave} disabled={!form.product_id || !form.quantity || Number(form.quantity || 0) <= 0}>Enregistrer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
