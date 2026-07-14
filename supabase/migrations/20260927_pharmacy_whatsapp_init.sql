@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS public.pharmacy_whatsapp_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE UNIQUE,
-  branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES public.business_branches(id) ON DELETE CASCADE,
   enabled BOOLEAN DEFAULT false,
   provider TEXT DEFAULT 'openwa' CHECK (provider IN ('openwa', 'ultramsg', 'meta', 'twilio')),
   api_url TEXT,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.pharmacy_whatsapp_settings (
 CREATE TABLE IF NOT EXISTS public.pharmacy_whatsapp_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
-  branch_id UUID REFERENCES public.branches(id) ON DELETE CASCADE,
+  branch_id UUID REFERENCES public.business_branches(id) ON DELETE CASCADE,
   recipient TEXT NOT NULL,
   message TEXT NOT NULL,
   type TEXT NOT NULL CHECK (type IN (
