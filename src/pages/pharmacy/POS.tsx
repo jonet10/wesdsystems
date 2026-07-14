@@ -258,7 +258,7 @@ export default function PharmacyPOS() {
                     <p className="text-xs text-muted-foreground mt-1">{p.form}</p>
                   </div>
                   <div className="mt-4 flex justify-between items-end">
-                    <span className="text-sm font-semibold bg-gray-100 px-2 py-1 rounded">Stock: {p.total_stock_quantity}</span>
+                    <span className="text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">Stock: {p.total_stock_quantity}</span>
                     {p.requires_prescription && <FileText className="w-4 h-4 text-red-500" title="Ordonnance requise" />}
                   </div>
                 </CardContent>
