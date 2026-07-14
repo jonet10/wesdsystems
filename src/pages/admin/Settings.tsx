@@ -34,6 +34,13 @@ export default function SuperAdminSettingsPage() {
   const [whatsappGlobalApiKey, setWhatsappGlobalApiKey] = useState("");
   const [whatsappGlobalSessionName, setWhatsappGlobalSessionName] = useState("default");
 
+  // Local WhatsApp Gateway states
+  const [localGwStatus, setLocalGwStatus] = useState<string>("OFFLINE");
+  const [localGwQr, setLocalGwQr] = useState<string | null>(null);
+  const [pairingPhone, setPairingPhone] = useState<string>("");
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [isRequestingPairing, setIsRequestingPairing] = useState<boolean>(false);
+
   useEffect(() => {
     const loadConfig = async () => {
       const { data, error } = await supabase.from("app_config").select("key, value");
@@ -53,6 +60,69 @@ export default function SuperAdminSettingsPage() {
     };
     void loadConfig();
   }, []);
+
+  const checkLocalGatewayStatus = useCallback(async () => {
+    // Determine the base url to query. Fallback to localhost if empty
+    const baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    try {
+      const response = await fetch(`${baseUrl}/status`);
+      if (response.ok) {
+        const data = await response.json();
+        setLocalGwStatus(data.state);
+        setLocalGwQr(data.qr);
+      } else {
+        setLocalGwStatus("OFFLINE");
+      }
+    } catch (err) {
+      setLocalGwStatus("OFFLINE");
+    }
+  }, [whatsappGlobalApiUrl]);
+
+  useEffect(() => {
+    let interval: any;
+    if (whatsappGlobalProvider === "openwa") {
+      checkLocalGatewayStatus();
+      interval = setInterval(checkLocalGatewayStatus, 5000);
+    } else {
+      setLocalGwStatus("OFFLINE");
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [whatsappGlobalProvider, whatsappGlobalApiUrl, checkLocalGatewayStatus]);
+
+  const handleRequestPairingCode = async () => {
+    if (!pairingPhone) {
+      toast.error("Veuillez saisir un numéro de téléphone.");
+      return;
+    }
+    setIsRequestingPairing(true);
+    setPairingCode(null);
+    const baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    try {
+      const response = await fetch(`${baseUrl}/request-pairing-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: pairingPhone })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.code) {
+          setPairingCode(data.code);
+          toast.success("Code d'association généré ! Entrez-le sur votre téléphone.");
+        } else {
+          toast.error("Impossible de générer le code d'association.");
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Erreur de connexion avec le serveur local.");
+      }
+    } catch (err: any) {
+      toast.error("Impossible de joindre le serveur local.");
+    } finally {
+      setIsRequestingPairing(false);
+    }
+  };
 
   const { t } = useTranslation();
 
@@ -452,6 +522,89 @@ export default function SuperAdminSettingsPage() {
                     Sauvegarder la configuration WhatsApp
                   </Button>
                 </div>
+
+                {/* LOCAL GATEWAY STATUS & PAIRING UI */}
+                {whatsappGlobalProvider === "openwa" && (
+                  <div className="mt-8 border-t border-border pt-6 space-y-6">
+                    <div>
+                      <h4 className="text-base font-semibold font-display">Statut de la Passerelle Locale (OpenWA)</h4>
+                      <p className="text-sm text-muted-foreground font-sans">
+                        Statut en temps réel de votre serveur de messagerie local (port 3000).
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-muted/20">
+                      <div className={`w-3 h-3 rounded-full ${
+                        localGwStatus === "CONNECTED" ? "bg-emerald-500 animate-pulse" :
+                        localGwStatus === "INITIALIZING" ? "bg-amber-500 animate-pulse" :
+                        localGwStatus === "DISCONNECTED" ? "bg-red-500 animate-pulse" : "bg-zinc-500"
+                      }`} />
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {localGwStatus === "CONNECTED" && "Connecté (Prêt)"}
+                          {localGwStatus === "INITIALIZING" && "Initialisation..."}
+                          {localGwStatus === "DISCONNECTED" && "En attente de connexion"}
+                          {localGwStatus === "OFFLINE" && "Serveur Hors-ligne (Lancer npm run dev)"}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-sans">
+                          {localGwStatus === "OFFLINE" ? "Assurez-vous que le serveur local tourne sur le port 3000." : `Passerelle active sur ${whatsappGlobalApiUrl || "http://localhost:3000"}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {localGwStatus === "DISCONNECTED" && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-muted/10 p-6 rounded-xl border border-border">
+                        {/* QR CODE VIEW */}
+                        <div className="flex flex-col items-center justify-center border-b lg:border-b-0 lg:border-r border-border pb-6 lg:pb-0 lg:pr-6 space-y-4">
+                          <p className="font-medium text-sm text-center">Option 1 : Scannez le QR Code officiel</p>
+                          {localGwQr ? (
+                            <img src={localGwQr} alt="WhatsApp QR Code" className="border border-border rounded-xl p-2 bg-white" style={{ width: 220 }} />
+                          ) : (
+                            <div className="w-[220px] h-[220px] bg-muted flex items-center justify-center rounded-xl border border-dashed border-border text-xs text-muted-foreground text-center p-4">
+                              Génération du QR Code en cours...
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground text-center max-w-[280px]">
+                            Ouvrez WhatsApp sur votre mobile > Appareils connectés > Connecter un appareil, puis scannez ce code.
+                          </p>
+                        </div>
+
+                        {/* PAIRING CODE VIEW */}
+                        <div className="flex flex-col justify-center space-y-4">
+                          <p className="font-medium text-sm text-center lg:text-left">Option 2 : Associer par numéro de téléphone</p>
+                          <p className="text-xs text-muted-foreground">
+                            Entrez votre numéro au format international (sans le + devant) pour recevoir un code à 8 chiffres.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="ex: 50938073835"
+                              value={pairingPhone}
+                              onChange={(e) => setPairingPhone(e.target.value)}
+                              disabled={isRequestingPairing}
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={handleRequestPairingCode}
+                              disabled={isRequestingPairing}
+                            >
+                              {isRequestingPairing ? "Génération..." : "Obtenir le code"}
+                            </Button>
+                          </div>
+
+                          {pairingCode && (
+                            <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-center space-y-2">
+                              <p className="text-xs text-emerald-500 font-semibold uppercase tracking-wider">Code d'association</p>
+                              <p className="text-2xl font-bold font-mono tracking-widest text-emerald-500">{pairingCode}</p>
+                              <p className="text-[11px] text-muted-foreground font-sans">
+                                Ouvrez WhatsApp > Appareils connectés > Connecter > Se connecter plutôt par numéro, et tapez ce code.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
 
