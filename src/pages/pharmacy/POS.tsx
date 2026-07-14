@@ -21,6 +21,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
 import { printReceipt } from "@/lib/print-utils";
+import { getBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
 
 export default function PharmacyPOS() {
   const { format } = useCurrency();
@@ -55,20 +56,28 @@ export default function PharmacyPOS() {
 
   const loadData = async (bizId: string) => {
     try {
-      const [prods, custs, prescs, biz] = await Promise.all([
+      const [prods, custs, prescs, biz, bizSettings] = await Promise.all([
         productService.getProducts(bizId),
         salesService.getCustomers(bizId),
         salesService.getPrescriptions(bizId),
         supabase
           .from("businesses")
-          .select("name, phone, email, address, logo_url, nif")
+          .select("name, logo_url")
           .eq("id", bizId)
-          .maybeSingle()
+          .maybeSingle(),
+        getBusinessSettings(bizId).catch(() => null)
       ]);
       setProducts(prods.filter(p => p.total_stock_quantity > 0)); // Only show in-stock items in POS
       setCustomers(custs);
       setPrescriptions(prescs);
-      setBusinessInfo(biz?.data || null);
+      setBusinessInfo({
+        name: biz?.data?.name || bizSettings?.company_name || "PHARMACIE",
+        logo_url: biz?.data?.logo_url || bizSettings?.logo_url || null,
+        address: bizSettings?.address || null,
+        phone: bizSettings?.phone || null,
+        email: bizSettings?.email || null,
+        nif: bizSettings?.nif || null
+      });
     } catch (e: any) {
       toast.error("Erreur de chargement des données POS : " + e.message);
     }
