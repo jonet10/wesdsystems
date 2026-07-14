@@ -1,5 +1,6 @@
 const express = require('express');
 const qrcode = require('qrcode-terminal');
+const qrcodeImage = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const app = express();
@@ -27,16 +28,22 @@ const client = new Client({
 // Événement d'affichage du QR code pour connecter le téléphone
 client.on('qr', async (qr) => {
     try {
-        console.log('\n[WhatsApp] Demande de code d\'association pour le numéro : 50938073835...');
-        const pairingCode = await client.requestPairingCode('50938073835');
-        console.log('\n════════════════════════════════════════════════════════════');
-        console.log(`  CODE D'ASSOCIATION WHATSAPP : ${pairingCode}  `);
-        console.log('════════════════════════════════════════════════════════════\n');
+        const artifactPath = 'C:\\Users\\herod\\.gemini\\antigravity\\brain\\22fc4979-e076-424e-a79f-fee58a5bd86d\\qrcode.png';
+        await qrcodeImage.toFile(artifactPath, qr, {
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            },
+            width: 300
+        });
+        console.log('\n[WhatsApp] QR Code enregistré avec succès sous : qrcode.png');
     } catch (err) {
-        console.error('Erreur lors de la demande du pairing code:', err);
-        console.log('Affichage du QR Code alternatif :');
-        qrcode.generate(qr, { small: true });
+        console.error('Erreur lors de l\'enregistrement de l\'image QR Code:', err);
     }
+    
+    // Garde aussi l'affichage texte par défaut
+    console.log('Affichage du QR Code alternatif :');
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
