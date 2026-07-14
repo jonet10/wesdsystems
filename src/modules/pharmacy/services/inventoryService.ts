@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { PharmacySupplier, PharmacyPurchase, PharmacyPurchaseItem, PharmacyBatch, PharmacyStockMovement } from "../types";
 import { getPharmacyBusinessId } from "./productService";
+import { whatsappService } from "./whatsappService";
 
 export const inventoryService = {
   // --- SUPPLIERS ---
@@ -260,6 +261,34 @@ export const inventoryService = {
           .update({ current_quantity: Math.max(0, newQty) })
           .eq("id", batchId);
       }
+    }
+
+    // Trigger low stock and stock out alerts asynchronously
+    if (movement.product_id) {
+      (async () => {
+        try {
+          const { data: prod } = await supabase
+            .from("pharmacy_products")
+            .select("name, total_stock_quantity, min_stock_alert")
+            .eq("id", movement.product_id)
+            .single();
+
+          if (prod) {
+            const totalStock = Number(prod.total_stock_quantity);
+            const minStock = Number(prod.min_stock_alert || 10);
+
+            if (totalStock === 0) {
+              const msg = `🚨 RUPTURE DE STOCK\n\nProduit : ${prod.name}\nLe stock de ce produit est complètement épuisé ! Veuillez commander au plus vite.\n\nWesdSystems Pharmacy`;
+              whatsappService.sendWhatsAppMessageAsync(businessId, msg, "low_stock", businessId);
+            } else if (totalStock <= minStock) {
+              const msg = `⚠️ ALERTE STOCK FAIBLE\n\nProduit : ${prod.name}\nStock actuel : ${totalStock}\nSeuil minimum : ${minStock}\n\nRéapprovisionnement recommandé.\n\nWesdSystems Pharmacy`;
+              whatsappService.sendWhatsAppMessageAsync(businessId, msg, "low_stock", businessId);
+            }
+          }
+        } catch (err) {
+          console.error("[Inventory Service] WhatsApp stock alert error:", err);
+        }
+      })();
     }
     
     return newMovement;

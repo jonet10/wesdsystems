@@ -34,6 +34,8 @@ import PharmacyPrescriptions from "./pages/pharmacy/Prescriptions";
 import PharmacyCredits from "./pages/pharmacy/Credits";
 import PharmacyRegisters from "./pages/pharmacy/Registers";
 import PharmacyReports from "./pages/pharmacy/Reports";
+import PharmacyWhatsappSettings from "./pages/pharmacy/settings/WhatsappSettings";
+import PharmacyNotifications from "./pages/pharmacy/Notifications";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Register from "./pages/auth/Register";
 import PartnerRegister from "./pages/auth/PartnerRegister";
@@ -898,6 +900,8 @@ const App = () => (
                 <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />
                 <Route path="/pharmacie/registers" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyRegisters /></ProtectedRoute>} />
                 <Route path="/pharmacie/reports" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyReports /></ProtectedRoute>} />
+                <Route path="/pharmacie/whatsapp-settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyWhatsappSettings /></ProtectedRoute>} />
+                <Route path="/pharmacie/notifications" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyNotifications /></ProtectedRoute>} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

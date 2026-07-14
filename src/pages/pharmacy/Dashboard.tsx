@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { useAuth } from "@/hooks/useAuth";
+import { whatsappService } from "@/modules/pharmacy/services/whatsappService";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,6 +74,9 @@ export default function PharmacyDashboard() {
       setLoading(false);
       return;
     }
+    
+    // Check and trigger daily/weekly/monthly WhatsApp reports asynchronously
+    whatsappService.checkAndTriggerReports(businessId);
     
     const load = async () => {
       try {

@@ -15,6 +15,8 @@ import { setPharmacyBusinessId, getPharmacyBusinessId } from "@/modules/pharmacy
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, DollarSign, ShoppingBag, TrendingUp, Monitor } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { whatsappService } from "@/modules/pharmacy/services/whatsappService";
 
 interface Register {
   id: string;
@@ -33,6 +35,7 @@ interface Register {
 export default function PharmacyRegisters() {
   const { t } = useTranslation();
   const { format } = useCurrency();
+  const { profile } = useAuth();
   const [registers, setRegisters] = useState<Register[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -116,8 +119,22 @@ export default function PharmacyRegisters() {
       if (newStatus === "open") {
         updatePayload.opened_at = new Date().toISOString();
         updatePayload.closed_at = null;
+
+        // WhatsApp Alert
+        if (businessId) {
+          const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          const msg = `🟢 Caisse ouverte\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+          whatsappService.sendWhatsAppMessageAsync(businessId, msg, "register_open", businessId);
+        }
       } else {
         updatePayload.closed_at = new Date().toISOString();
+
+        // WhatsApp Alert
+        if (businessId) {
+          const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          const msg = `🔒 Caisse fermée\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse final : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+          whatsappService.sendWhatsAppMessageAsync(businessId, msg, "register_close", businessId);
+        }
       }
       const { error } = await supabase.from("pharmacy_registers").update(updatePayload).eq("id", reg.id);
       if (error) throw error;

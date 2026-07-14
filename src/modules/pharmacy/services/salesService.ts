@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { PharmacyCustomer, PharmacyPrescription, PharmacySale, PharmacySaleItem } from "../types";
 import { getPharmacyBusinessId } from "./productService";
+import { whatsappService } from "./whatsappService";
 
 export const salesService = {
   // --- CUSTOMERS / PATIENTS ---
@@ -135,6 +136,84 @@ export const salesService = {
       }
     }
 
+    // Trigger WhatsApp large sale alert asynchronously
+    if (newSale) {
+      (async () => {
+        try {
+          const settings = await whatsappService.getSettings(businessId);
+          if (settings && settings.enabled && settings.send_sales_alerts) {
+            const totalAmt = Number(newSale.total || 0);
+            const threshold = Number(settings.large_sale_threshold || 10000);
+            
+            if (totalAmt >= threshold) {
+              // Fetch customer if linked
+              let customerName = "Client de passage";
+              if (newSale.customer_id) {
+                const { data: cust } = await supabase
+                  .from("pharmacy_customers")
+                  .select("first_name, last_name")
+                  .eq("id", newSale.customer_id)
+                  .single();
+                if (cust) customerName = `${cust.first_name} ${cust.last_name}`;
+              }
+
+              // Fetch cashier if linked
+              let cashierName = "Caissier";
+              if (newSale.created_by) {
+                const { data: prof } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", newSale.created_by)
+                  .single();
+                if (prof) cashierName = prof.full_name || "Caissier";
+              }
+
+              const timeStr = new Date(newSale.created_at || new Date()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              const msg = `🛒 Nouvelle Vente\n\nMontant : ${totalAmt.toLocaleString()} HTG\nClient : ${customerName}\nCaissier : ${cashierName}\nPaiement : ${newSale.payment_method === "cash" ? "Espèces" : newSale.payment_method === "card" ? "Carte Bancaire" : newSale.payment_method === "moncash" ? "MonCash" : "Autre"}\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+              
+              whatsappService.sendWhatsAppMessageAsync(businessId, msg, "sales_alert", newSale.branch_id || businessId);
+            }
+          }
+        } catch (e) {
+          console.error("[Sales Service] WhatsApp large sale alert error:", e);
+        }
+      })();
+    }
+
     return newSale;
+  },
+
+  async voidSale(saleId: string, cashierName: string, reason: string, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
+    const { data: sale } = await supabase
+      .from("pharmacy_sales")
+      .select("*")
+      .eq("id", saleId)
+      .single();
+
+    if (!sale) throw new Error("Vente introuvable");
+
+    const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const msg = `⚠️ Annulation de vente\n\nFacture : ${sale.receipt_number}\nMontant : ${Number(sale.total).toLocaleString()} HTG\nCaissier : ${cashierName}\nRaison : ${reason}\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+    
+    whatsappService.sendWhatsAppMessageAsync(businessId, msg, "void_alert", sale.branch_id || businessId);
+    return true;
+  },
+
+  async returnProduct(saleId: string, productSelector: { id: string; name: string }, quantity: number, customerName: string, cashierName: string, reason: string, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
+    const { data: sale } = await supabase
+      .from("pharmacy_sales")
+      .select("*")
+      .eq("id", saleId)
+      .single();
+
+    if (!sale) throw new Error("Vente introuvable");
+
+    const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const msg = `↩️ Retour produit\n\nProduit : ${productSelector.name}\nQuantité : ${quantity}\nClient : ${customerName}\nCaissier : ${cashierName}\nRaison : ${reason}\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+
+    whatsappService.sendWhatsAppMessageAsync(businessId, msg, "return_alert", sale.branch_id || businessId);
+    return true;
   }
 };
