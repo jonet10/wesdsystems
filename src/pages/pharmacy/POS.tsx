@@ -32,24 +32,22 @@ export default function PharmacyPOS() {
 
   useEffect(() => {
     if (businessId) {
-      loadData();
+      loadData(businessId);
     }
   }, [businessId]);
 
-  const loadData = async () => {
+  const loadData = async (bizId: string) => {
     try {
       const [prods, custs, prescs] = await Promise.all([
-        productService.getProducts(),
-        salesService.getCustomers(),
-        salesService.getPrescriptions()
+        productService.getProducts(bizId),
+        salesService.getCustomers(bizId),
+        salesService.getPrescriptions(bizId)
       ]);
       setProducts(prods.filter(p => p.total_stock_quantity > 0)); // Only show in-stock items in POS
       setCustomers(custs);
       setPrescriptions(prescs);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error("Erreur de chargement des données POS");
-      }
+      toast.error("Erreur de chargement des données POS : " + e.message);
     }
   };
 
@@ -123,12 +121,12 @@ export default function PharmacyPOS() {
         receipt_number: `REC-${Date.now().toString().slice(-6)}`
       };
 
-      await salesService.processSale(salePayload, cart);
+      await salesService.processSale(salePayload, cart, businessId || undefined);
       toast.success("Vente effectuée avec succès !");
       setCart([]);
       setSelectedCustomer("");
       setSelectedPrescription("");
-      loadData(); // Reload stock
+      if (businessId) loadData(businessId); // Reload stock
     } catch (e: any) {
       toast.error(e.message);
     } finally {

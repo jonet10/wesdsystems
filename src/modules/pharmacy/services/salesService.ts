@@ -4,8 +4,8 @@ import { getPharmacyBusinessId } from "./productService";
 
 export const salesService = {
   // --- CUSTOMERS / PATIENTS ---
-  async getCustomers() {
-    const businessId = getPharmacyBusinessId();
+  async getCustomers(explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_customers")
       .select("*")
@@ -38,8 +38,8 @@ export const salesService = {
   },
 
   // --- PRESCRIPTIONS ---
-  async getPrescriptions() {
-    const businessId = getPharmacyBusinessId();
+  async getPrescriptions(explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_prescriptions")
       .select("*, customer:customer_id(*)")
@@ -63,8 +63,8 @@ export const salesService = {
   // --- SALES (POS) ---
   // A real production app would use an RPC call for atomicity to handle the FEFO logic.
   // Here we'll do the logic on the frontend: find the oldest batches and deplete them.
-  async processSale(sale: Partial<PharmacySale>, cart: any[]) {
-    const businessId = getPharmacyBusinessId();
+  async processSale(sale: Partial<PharmacySale>, cart: any[], explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
 
     // 1. Create Sale
     const { data: newSale, error: saleErr } = await supabase
