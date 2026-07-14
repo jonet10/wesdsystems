@@ -25,11 +25,18 @@ const client = new Client({
 });
 
 // Événement d'affichage du QR code pour connecter le téléphone
-client.on('qr', (qr) => {
-    console.log('\n════════════════════════════════════════════════════════════');
-    console.log('  SCANNEZ CE QR CODE AVEC VOTRE APPLICATION WHATSAPP MOBILE ');
-    console.log('════════════════════════════════════════════════════════════\n');
-    qrcode.generate(qr, { small: true });
+client.on('qr', async (qr) => {
+    try {
+        console.log('\n[WhatsApp] Demande de code d\'association pour le numéro : 50938073835...');
+        const pairingCode = await client.requestPairingCode('50938073835');
+        console.log('\n════════════════════════════════════════════════════════════');
+        console.log(`  CODE D'ASSOCIATION WHATSAPP : ${pairingCode}  `);
+        console.log('════════════════════════════════════════════════════════════\n');
+    } catch (err) {
+        console.error('Erreur lors de la demande du pairing code:', err);
+        console.log('Affichage du QR Code alternatif :');
+        qrcode.generate(qr, { small: true });
+    }
 });
 
 client.on('ready', () => {
