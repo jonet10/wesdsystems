@@ -73,7 +73,7 @@ export default function PharmacyPOS() {
         product_id: product.id, 
         name: product.name, 
         quantity: 1, 
-        unit_price: 150, // Dummy fallback, normally fetched from active batches
+        unit_price: product.sale_price || 150, 
         requires_prescription: product.requires_prescription,
         max_stock: product.total_stock_quantity
       }]);
@@ -114,10 +114,12 @@ export default function PharmacyPOS() {
       const salePayload = {
         customer_id: selectedCustomer || null,
         prescription_id: selectedPrescription || null,
-        total_amount: totalAmount,
-        payment_method: paymentMethod,
+        subtotal: totalAmount,
+        tax_amount: 0,
+        discount_amount: 0,
+        total: totalAmount,
+        payment_method: paymentMethod as any,
         payment_status: "paid" as const,
-        status: "completed" as const,
         receipt_number: `REC-${Date.now().toString().slice(-6)}`
       };
 
