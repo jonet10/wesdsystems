@@ -147,18 +147,6 @@ export default function SchoolTeachers() {
   const [password, setPassword] = useState("");
   const [hasLinkedAccount, setHasLinkedAccount] = useState(false);
 
-  // Auto-generate username when first or last name changes and no account exists yet
-  useEffect(() => {
-    if (!hasLinkedAccount && createAccount && (firstName || lastName)) {
-      const generated = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9\s.-]/g, "")
-        .replace(/\s+/g, ".");
-      setUsername(generated);
-    }
-  }, [firstName, lastName, createAccount, hasLinkedAccount]);
-
   const { data: teachers = [], isLoading } = useTeachers();
   const { data: classes = [] } = useClasses();
   const { data: catalogSubjects = [] } = useSubjects();
@@ -187,6 +175,18 @@ export default function SchoolTeachers() {
   const [hireDate, setHireDate] = useState("");
   const [active, setActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Auto-generate username when first or last name changes and no account exists yet
+  useEffect(() => {
+    if (!hasLinkedAccount && createAccount && (firstName || lastName)) {
+      const generated = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s.-]/g, "")
+        .replace(/\s+/g, ".");
+      setUsername(generated);
+    }
+  }, [firstName, lastName, createAccount, hasLinkedAccount]);
 
   // ── Salary & Assignments Modal
   const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
