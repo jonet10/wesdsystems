@@ -170,7 +170,7 @@ export default function SchoolTeachers() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [dialogAssignments, setDialogAssignments] = useState<UIAssignment[]>([]);
-  const { data: editingTeacherAssignments = [] } = useTeacherAssignments(editingTeacher?.id);
+  const { data: editingTeacherAssignments } = useTeacherAssignments(editingTeacher?.id);
 
   useEffect(() => {
     if (editingTeacher) {
