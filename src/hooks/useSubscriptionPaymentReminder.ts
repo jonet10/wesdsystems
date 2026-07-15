@@ -19,7 +19,48 @@ type BusinessRow = {
   name: string | null;
   plan_id: string | null;
   currency_code: string | null;
+  business_type?: string | null;
 };
+
+async function sendExpiryWhatsAppAlert(
+  businessId: string,
+  businessName: string,
+  planName: string,
+  paymentUrl: string | null,
+  recipientPhone: string
+) {
+  try {
+    const { data: globalConfigData } = await supabase.rpc("get_app_config");
+    const globalConfig = globalConfigData || {};
+
+    const isGlobalEnabled = globalConfig.whatsapp_global_enabled !== "false";
+    if (!isGlobalEnabled) return;
+
+    const providerName = globalConfig.whatsapp_global_provider || "openwa";
+    let apiUrl = globalConfig.whatsapp_global_api_url || "";
+    if (!apiUrl || apiUrl === "default") {
+      apiUrl = "http://localhost:3000";
+    }
+    const apiKey = globalConfig.whatsapp_global_api_key || "";
+    const sessionName = globalConfig.whatsapp_global_session_name || "default";
+
+    const { OpenWaProvider, UltraMsgProvider, MetaCloudProvider, TwilioProvider } = await import("@/modules/pharmacy/services/whatsappService");
+    
+    let provider;
+    if (providerName === "ultramsg") provider = new UltraMsgProvider();
+    else if (providerName === "meta") provider = new MetaCloudProvider();
+    else if (providerName === "twilio") provider = new TwilioProvider();
+    else provider = new OpenWaProvider();
+
+    const linkText = paymentUrl ? `\n\nRenouvelez dès maintenant ici : ${paymentUrl}` : "";
+    const message = `[Wesd Systems] Alerte Abonnement : Bonjour, l'abonnement pour votre établissement "${businessName}" a expiré (Forfait : ${planName || "Standard"}). Veuillez régulariser votre compte pour réactiver toutes les fonctionnalités.${linkText}`;
+
+    console.log(`[Subscription Alert] Sending WhatsApp to: ${recipientPhone}`);
+    await provider.sendMessage(apiUrl, apiKey, recipientPhone.replace(/\D/g, ""), message, sessionName);
+  } catch (err) {
+    console.error("Failed to send subscription WhatsApp alert:", err);
+  }
+}
 
 type PlanRow = {
   id: string;
@@ -65,7 +106,14 @@ export function computeDaysRemaining(endDate: string | null): number | null {
 export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
   const { profile, isAuthenticated } = useAuth();
   const businessId = profile?.business_id ?? null;
-  const isBusinessOwner = profile?.role === "salon_admin" || profile?.role === "bar_admin";
+  const isBusinessOwner = Boolean(
+    profile?.role?.includes("admin") ||
+    profile?.role_normalized?.includes("admin") ||
+    profile?.role === "owner" ||
+    profile?.role === "manager" ||
+    profile?.role === "salon_admin" ||
+    profile?.role === "bar_admin"
+  );
 
   const query = useQuery({
     queryKey: ["subscription-payment-reminder", businessId],
@@ -83,7 +131,7 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
       const [{ data: businessData }, { data: subscriptionData }] = await Promise.all([
         supabase
           .from("businesses")
-          .select("id, name, plan_id, currency_code")
+          .select("id, name, plan_id, currency_code, business_type")
           .eq("id", businessId)
           .maybeSingle(),
         supabase
@@ -184,6 +232,50 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
             currencyCode: business?.currency_code || "HTG",
           })
         : null;
+
+      // Try to find the contact phone number of the business
+      let ownerPhone = "";
+      try {
+        if (business?.business_type === "school") {
+          const { data: schoolSet } = await supabase
+            .from("school_settings")
+            .select("whatsapp, phone")
+            .eq("business_id", businessId)
+            .maybeSingle();
+          ownerPhone = schoolSet?.whatsapp || schoolSet?.phone || "";
+        } else if (business?.business_type === "pharmacy") {
+          const { data: pharmSet } = await supabase
+            .from("pharmacy_whatsapp_settings")
+            .select("owner_phone")
+            .eq("business_id", businessId)
+            .maybeSingle();
+          ownerPhone = pharmSet?.owner_phone || "";
+        } else if (business?.business_type === "salon") {
+          const { data: salonSet } = await supabase
+            .from("salon_business_profiles")
+            .select("phone")
+            .eq("business_id", businessId)
+            .maybeSingle();
+          ownerPhone = salonSet?.phone || "";
+        }
+        
+        if (!ownerPhone) {
+          const { data: userData } = await supabase.auth.getUser();
+          ownerPhone = userData?.user?.phone || userData?.user?.user_metadata?.phone || "";
+        }
+      } catch (phoneErr) {
+        console.error("Error retrieving owner contact details:", phoneErr);
+      }
+
+      if (isExpired && ownerPhone && planName) {
+        const alertSentKey = `subscription-whatsapp-alert-sent:${businessId}:${subscription?.id || "no-sub"}`;
+        const hasBeenSent = localStorage.getItem(alertSentKey);
+        if (!hasBeenSent) {
+          localStorage.setItem(alertSentKey, "true");
+          // Trigger the WhatsApp message asynchronously
+          void sendExpiryWhatsAppAlert(businessId, businessName, planName, paymentUrl, ownerPhone);
+        }
+      }
 
       // Titles and descriptions for each scenario
       let title: string;
