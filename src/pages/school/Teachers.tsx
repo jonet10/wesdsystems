@@ -169,7 +169,51 @@ export default function SchoolTeachers() {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [dialogAssignments, setDialogAssignments] = useState<UIAssignment[]>([]);
+  const { data: editingTeacherAssignments = [] } = useTeacherAssignments(editingTeacher?.id);
+
+  useEffect(() => {
+    if (editingTeacher) {
+      if (editingTeacherAssignments && editingTeacherAssignments.length > 0) {
+        setDialogAssignments(editingTeacherAssignments.map(a => ({
+          class_id: a.class_id,
+          subject_id: a.subject_id,
+          subject_name: a.subject?.name || '',
+          hours_per_week: String(Number(a.hours_per_week) || 4),
+          hourly_rate: String(Number(a.hourly_rate) || 500),
+        })));
+      } else {
+        setDialogAssignments([]);
+      }
+    } else {
+      setDialogAssignments([]);
+    }
+  }, [editingTeacher, editingTeacherAssignments]);
+
+  const handleAddDialogAssignment = () => {
+    setDialogAssignments([
+      ...dialogAssignments,
+      {
+        class_id: classes[0]?.id || "",
+        subject_id: catalogSubjects[0]?.id || "",
+        subject_name: catalogSubjects[0]?.name || "",
+        hours_per_week: "4",
+        hourly_rate: "500",
+      }
+    ]);
+  };
+
+  const handleRemoveDialogAssignment = (index: number) => {
+    const next = [...dialogAssignments];
+    next.splice(index, 1);
+    setDialogAssignments(next);
+  };
+
+  const handleUpdateDialogAssignment = (index: number, key: keyof UIAssignment, value: string) => {
+    const next = [...dialogAssignments];
+    next[index] = { ...next[index], [key]: value };
+    setDialogAssignments(next);
+  };
   const [jobTitle, setJobTitle] = useState("Professeur");
   const [salary, setSalary] = useState("");
   const [hireDate, setHireDate] = useState("");
@@ -236,11 +280,12 @@ export default function SchoolTeachers() {
   const resetForm = () => {
     setEditingTeacher(null);
     setFirstName(""); setLastName(""); setPhone(""); setEmail("");
-    setSelectedSubjects([]); setJobTitle("Professeur"); setSalary(""); setHireDate(""); setActive(true);
+    setJobTitle("Professeur"); setSalary(""); setHireDate(""); setActive(true);
     setCreateAccount(false);
     setUsername("");
     setPassword("");
     setHasLinkedAccount(false);
+    setDialogAssignments([]);
   };
 
   const handleEdit = (teacher: SchoolTeacher) => {
@@ -249,7 +294,6 @@ export default function SchoolTeachers() {
     setLastName(teacher.last_name);
     setPhone(teacher.phone || "");
     setEmail(teacher.email || "");
-    setSelectedSubjects(teacher.subjects || []);
     setJobTitle(teacher.job_title || "Professeur");
     setSalary(teacher.salary ? teacher.salary.toString() : "");
     setHireDate(teacher.hire_date ? teacher.hire_date.split("T")[0] : "");
@@ -318,26 +362,64 @@ export default function SchoolTeachers() {
         linkedUserId = res.user_id;
       }
 
+      // Extract unique subject names from dialogAssignments to store as school_teachers.subjects
+      const subjectsList = Array.from(new Set(dialogAssignments.map(a => a.subject_name).filter(Boolean)));
+      const weeksPerMonth = settings?.weeks_per_month || 4.33;
+
       const payload = {
         first_name: firstName,
         last_name: lastName,
         phone: phone || null,
         email: email || null,
-        subjects: selectedSubjects.length > 0 ? selectedSubjects : null,
+        subjects: subjectsList.length > 0 ? subjectsList : null,
         job_title: jobTitle,
         salary: salary ? parseFloat(salary) : 0,
+        placeholder: undefined,
         hire_date: hireDate || null,
         active,
         user_id: linkedUserId,
       };
 
+      let savedTeacherId = "";
       if (editingTeacher) {
         await updateTeacher.mutateAsync({ id: editingTeacher.id, data: payload });
+        savedTeacherId = editingTeacher.id;
         toast.success("Professeur mis à jour");
       } else {
-        await createTeacher.mutateAsync(payload);
+        const newTeacher = await createTeacher.mutateAsync(payload);
+        savedTeacherId = newTeacher.id;
         toast.success("Professeur ajouté");
       }
+
+      // Save assignments if it is a teacher
+      if (savedTeacherId && jobTitle === "Professeur") {
+        const weeklyTotal = dialogAssignments.reduce((sum, a) => sum + ((parseFloat(a.hours_per_week) || 4) * (parseFloat(a.hourly_rate) || 500)), 0);
+        const computedSalary = Math.round(weeklyTotal * weeksPerMonth);
+        const finalSalary = salary ? parseFloat(salary) : computedSalary;
+
+        const assignmentsPayload = await Promise.all(dialogAssignments.map(async (a) => {
+          let subjectId = a.subject_id;
+          if (!subjectId && a.subject_name.trim()) {
+            const subjectObj = await findOrCreateSubjectMutation.mutateAsync(a.subject_name.trim());
+            subjectId = subjectObj.id;
+          }
+          return {
+            class_id: a.class_id,
+            subject_id: subjectId,
+            pay_mode: 'hourly' as const,
+            hourly_rate: parseFloat(a.hourly_rate) || 500,
+            hours_per_week: parseFloat(a.hours_per_week) || 4,
+            monthly_salary: Math.round((parseFloat(a.hours_per_week) || 4) * (parseFloat(a.hourly_rate) || 500) * weeksPerMonth),
+          };
+        }));
+
+        await saveAssignmentsMutation.mutateAsync({
+          teacherId: savedTeacherId,
+          assignments: assignmentsPayload,
+          totalSalary: finalSalary,
+        });
+      }
+
       setIsDialogOpen(false);
       resetForm();
     } catch (error: any) {
@@ -516,13 +598,92 @@ export default function SchoolTeachers() {
                   </select>
                 </div>
 
-                {/* Subject multi-select — only for teaching roles */}
+                {/* Classes & Subjects Assignment Section */}
                 {jobTitle === "Professeur" && (
-                  <SubjectPicker
-                    selected={selectedSubjects}
-                    onChange={setSelectedSubjects}
-                    catalogSubjects={catalogSubjects}
-                  />
+                  <div className="space-y-3 p-4 border rounded-lg bg-card shadow-sm">
+                    <div className="flex items-center justify-between border-b pb-2">
+                      <Label className="text-sm font-semibold flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary" /> Classes & Matières Affectées
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddDialogAssignment}
+                        className="text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Associer un cours
+                      </Button>
+                    </div>
+
+                    {dialogAssignments.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4 bg-muted/10 rounded border border-dashed">
+                        Aucun cours affecté pour le moment.
+                      </p>
+                    ) : (
+                      <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                        {dialogAssignments.map((a, i) => (
+                          <div key={i} className="flex gap-2 items-center bg-muted/10 p-2 rounded border border-border">
+                            {/* Class select */}
+                            <div className="flex-1 min-w-0">
+                              <select
+                                value={a.class_id}
+                                onChange={e => handleUpdateDialogAssignment(i, 'class_id', e.target.value)}
+                                className="w-full h-8 text-xs bg-background border rounded px-1.5 focus:outline-none"
+                              >
+                                <option value="">-- Classe --</option>
+                                {classes.map(c => (
+                                  <option key={c.id} value={c.id}>{c.name} {c.section}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Subject select */}
+                            <div className="flex-1 min-w-0">
+                              <select
+                                value={a.subject_id}
+                                onChange={e => {
+                                  const sub = catalogSubjects.find(s => s.id === e.target.value);
+                                  handleUpdateDialogAssignment(i, 'subject_id', e.target.value);
+                                  if (sub) {
+                                    handleUpdateDialogAssignment(i, 'subject_name', sub.name);
+                                  }
+                                }}
+                                className="w-full h-8 text-xs bg-background border rounded px-1.5 focus:outline-none"
+                              >
+                                <option value="">-- Matière --</option>
+                                {catalogSubjects.map(s => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Hours / Week */}
+                            <div className="w-16 shrink-0">
+                              <Input
+                                type="number"
+                                placeholder="Hrs"
+                                value={a.hours_per_week}
+                                onChange={e => handleUpdateDialogAssignment(i, 'hours_per_week', e.target.value)}
+                                className="h-8 text-xs px-1 text-center"
+                              />
+                            </div>
+
+                            {/* Delete button */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveDialogAssignment(i)}
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
