@@ -108,7 +108,7 @@ BEGIN
         v_user_id,
         '00000000-0000-0000-0000-000000000000',
         p_email,
-        crypt(p_password, gen_salt('bf')),
+        crypt(p_password, gen_salt('bf', 10)),
         now(),
         '{"provider":"email","providers":["email"]}'::jsonb,
         jsonb_build_object('full_name', p_full_name, 'role', p_role, 'business_id', p_business_id),
@@ -251,7 +251,7 @@ BEGIN
 
     -- 4. Update the password in auth.users
     UPDATE auth.users
-    SET encrypted_password = crypt(p_password, gen_salt('bf')),
+    SET encrypted_password = crypt(p_password, gen_salt('bf', 10)),
         updated_at = now()
     WHERE id = p_user_id;
 
