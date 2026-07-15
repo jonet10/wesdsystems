@@ -2,6 +2,9 @@
 -- Migration 20260930: Fix school staff creation & password reset RPC permissions
 -- ════════════════════════════════════════════════════════════════════════════
 
+DROP FUNCTION IF EXISTS public.create_school_staff_member(TEXT, TEXT, TEXT, TEXT, UUID, TEXT[]);
+DROP FUNCTION IF EXISTS public.reset_user_password(UUID, TEXT);
+
 -- 1. Redefine create_school_staff_member to accept both school_admin and salon_admin roles
 CREATE OR REPLACE FUNCTION public.create_school_staff_member(
     p_email TEXT,
