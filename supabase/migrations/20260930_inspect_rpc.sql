@@ -44,11 +44,43 @@ BEGIN
         );
     END IF;
 
-    -- 3. Check if email already exists in auth.users
-    IF EXISTS (SELECT 1 FROM auth.users WHERE lower(email) = lower(p_email)) THEN
+    -- 3. Check if email already exists in auth.users (idempotency/recovery)
+    SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(p_email);
+
+    IF v_user_id IS NOT NULL THEN
+        -- Link or update profile for existing user
+        INSERT INTO public.profiles (
+            id,
+            full_name,
+            email,
+            role,
+            role_normalized,
+            business_id,
+            is_active
+        ) VALUES (
+            v_user_id,
+            p_full_name,
+            p_email,
+            p_role,
+            CASE 
+              WHEN p_role = 'school_teacher' THEN 'school_teacher'
+              WHEN p_role = 'school_cashier' THEN 'school_cashier'
+              WHEN p_role = 'school_accountant' THEN 'school_accountant'
+              ELSE p_role
+            END,
+            p_business_id,
+            true
+        ) ON CONFLICT (id) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            email = EXCLUDED.email,
+            role = EXCLUDED.role,
+            role_normalized = EXCLUDED.role_normalized,
+            business_id = EXCLUDED.business_id,
+            is_active = true;
+
         RETURN jsonb_build_object(
-            'success', false,
-            'error', 'Un compte avec cet e-mail existe déjà.'
+            'success', true,
+            'user_id', v_user_id
         );
     END IF;
 
@@ -90,8 +122,18 @@ BEGIN
         ''
     );
 
-    -- Generate a clean username
+    -- Generate and de-duplicate username
     v_username := lower(regexp_replace(unaccent(trim(p_full_name)), '\s+', '.', 'g'));
+    DECLARE
+        v_suffix INT := 1;
+        v_temp_username TEXT := v_username;
+    BEGIN
+        WHILE EXISTS (SELECT 1 FROM public.profiles WHERE lower(username) = lower(v_temp_username)) LOOP
+            v_temp_username := v_username || v_suffix;
+            v_suffix := v_suffix + 1;
+        END LOOP;
+        v_username := v_temp_username;
+    END;
 
     -- 6. Insert into public.profiles
     INSERT INTO public.profiles (
