@@ -181,7 +181,15 @@ export default function SchoolPayments() {
       
       const newBalance = selectedInvoice.balance - amount;
       const studentName = selectedInvoice.student ? `${selectedInvoice.student.first_name} ${selectedInvoice.student.last_name}` : "Inconnu";
-      await SchoolNotificationService.notifyPaymentReceived(studentName, amount, newBalance, "+50900000000", "HTG");
+      const parentPhone = selectedInvoice.student?.responsible_person_info?.phone || selectedInvoice.student?.phone;
+      if (parentPhone) {
+        try {
+          const { smsService } = await import("@/modules/school/services/smsService");
+          await smsService.triggerPaymentAlert(studentName, parentPhone, newPayment.receipt_number || "Recu", amount, newBalance);
+        } catch (alertErr) {
+          console.error("Failed to send WhatsApp payment alert:", alertErr);
+        }
+      }
 
       setSelectedInvoice(null);
       await loadData();

@@ -17,6 +17,7 @@ import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { supabase } from "@/lib/supabase";
 import type { SchoolInvoice, SchoolStudent, SchoolAcademicYear, SchoolClass, SchoolFee, SchoolFeeCategory } from "@/modules/school/types";
 import { format } from "date-fns";
+import { smsService } from "@/modules/school/services/smsService";
 
 export default function SchoolInvoices() {
   const { t } = useTranslation();
@@ -192,6 +193,18 @@ export default function SchoolInvoices() {
           };
           await supabase.from("school_payment_plans").insert([defaultPlan]);
         }
+      }
+
+      // Trigger WhatsApp Invoice alert
+      try {
+        const targetStudent = students.find(s => s.id === genStudentId);
+        const studentName = targetStudent ? `${targetStudent.first_name} ${targetStudent.last_name}` : "Élève";
+        const parentPhone = targetStudent?.responsible_person_info?.phone || targetStudent?.phone;
+        if (parentPhone) {
+          await smsService.triggerInvoiceAlert(studentName, parentPhone, invoiceNum, totalAmount);
+        }
+      } catch (alertErr) {
+        console.error("Failed to send WhatsApp invoice alert:", alertErr);
       }
 
       toast.success(`Facture ${invoiceNum} générée avec succès`);

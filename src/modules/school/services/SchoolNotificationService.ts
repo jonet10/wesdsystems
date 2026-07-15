@@ -1,77 +1,98 @@
-import { NotificationManager } from '../engine/notifications/NotificationManager';
 import { supabase } from '@/lib/supabase';
+import { smsService } from './smsService';
 
 export class SchoolNotificationService {
   /**
    * Notifie la direction que les notes ont été soumises.
    */
   static async notifyGradesSubmitted(businessId: string, teacherName: string, subjectName: string, className: string) {
-    const manager = NotificationManager.getInstance();
-    // En production, on irait chercher les numéros de la direction dans la BDD.
-    // Pour la démo, on simule l'envoi au directeur.
-    
-    const message = `Le professeur ${teacherName} vient de soumettre les notes de ${subjectName} pour la classe ${className}.`;
-    
-    console.log("[Notification] Sending Grades Submitted alert:", message);
-    
-    // Simulate finding director's phone
-    const directorPhone = "+50930000000"; 
-    
-    await manager.sendNotification({
-      to: directorPhone,
-      body: message,
-      type: 'whatsapp'
-    });
+    try {
+      // 1. Get school settings (name and whatsapp/phone contact)
+      const { data: settings } = await supabase
+        .from("school_settings")
+        .select("name, whatsapp, phone")
+        .eq("business_id", businessId)
+        .maybeSingle();
+
+      const schoolName = settings?.name || "L'Établissement Scolaire";
+      // Direction number: use whatsapp if present, else phone, fallback to a dummy if none
+      const directorPhone = settings?.whatsapp || settings?.phone || "+50930000000";
+
+      const message = `[${schoolName}] Notification Direction : Le professeur ${teacherName} vient de soumettre les notes de ${subjectName} pour la classe ${className}.`;
+
+      console.log("[School WhatsApp] Sending Grades Submitted alert:", message);
+      await smsService.sendSMS(directorPhone, message);
+    } catch (err) {
+      console.error("[School WhatsApp] Failed to send notifyGradesSubmitted:", err);
+    }
   }
 
   /**
    * Notifie les parents d'une absence.
    */
-  static async notifyStudentAbsent(studentName: string, className: string, parentPhone: string) {
-    const manager = NotificationManager.getInstance();
-    
-    const message = `Bonjour,\n\nNous vous informons que votre enfant ${studentName} (${className}) est absent aujourd'hui.\n\nMerci de contacter l'administration.\n\nL'Administration`;
-    
-    console.log("[Notification] Sending Absence alert to", parentPhone);
-    
-    await manager.sendNotification({
-      to: parentPhone,
-      body: message,
-      type: 'whatsapp'
-    });
+  static async notifyStudentAbsent(studentName: string, className: string, parentPhone: string, businessId?: string) {
+    try {
+      let schoolName = "L'École";
+      if (businessId) {
+        const { data: settings } = await supabase
+          .from("school_settings")
+          .select("name")
+          .eq("business_id", businessId)
+          .maybeSingle();
+        if (settings?.name) schoolName = settings.name;
+      }
+
+      const message = `[${schoolName}] Bonjour, nous vous informons que votre enfant ${studentName} (${className}) est absent aujourd'hui. Veuillez contacter la direction pour justifier cette absence.`;
+      
+      await smsService.sendSMS(parentPhone, message);
+    } catch (err) {
+      console.error("[School WhatsApp] Failed to send notifyStudentAbsent:", err);
+    }
   }
 
   /**
    * Notifie les parents d'un retard.
    */
-  static async notifyStudentLate(studentName: string, arrivalTime: string, parentPhone: string) {
-    const manager = NotificationManager.getInstance();
-    
-    const message = `Bonjour,\n\nVotre enfant ${studentName} est arrivé en retard à l'école aujourd'hui.\n\nHeure d'arrivée : ${arrivalTime}\n\nL'Administration`;
-    
-    console.log("[Notification] Sending Late alert to", parentPhone);
-    
-    await manager.sendNotification({
-      to: parentPhone,
-      body: message,
-      type: 'whatsapp'
-    });
+  static async notifyStudentLate(studentName: string, arrivalTime: string, parentPhone: string, businessId?: string) {
+    try {
+      let schoolName = "L'École";
+      if (businessId) {
+        const { data: settings } = await supabase
+          .from("school_settings")
+          .select("name")
+          .eq("business_id", businessId)
+          .maybeSingle();
+        if (settings?.name) schoolName = settings.name;
+      }
+
+      const message = `[${schoolName}] Bonjour, votre enfant ${studentName} est arrivé en retard à l'école aujourd'hui à ${arrivalTime}. L'Administration`;
+      
+      await smsService.sendSMS(parentPhone, message);
+    } catch (err) {
+      console.error("[School WhatsApp] Failed to send notifyStudentLate:", err);
+    }
   }
 
   /**
    * Notifie les parents d'un paiement reçu.
    */
-  static async notifyPaymentReceived(studentName: string, amount: number, balance: number, parentPhone: string, currencySymbol: string = 'HTG') {
-    const manager = NotificationManager.getInstance();
-    
-    const message = `Paiement reçu.\n\nÉlève : ${studentName}\nMontant : ${amount} ${currencySymbol}\nSolde restant : ${balance} ${currencySymbol}\n\nMerci.`;
-    
-    console.log("[Notification] Sending Payment alert to", parentPhone);
-    
-    await manager.sendNotification({
-      to: parentPhone,
-      body: message,
-      type: 'whatsapp'
-    });
+  static async notifyPaymentReceived(studentName: string, amount: number, balance: number, parentPhone: string, currencySymbol: string = 'HTG', businessId?: string) {
+    try {
+      let schoolName = "L'École";
+      if (businessId) {
+        const { data: settings } = await supabase
+          .from("school_settings")
+          .select("name")
+          .eq("business_id", businessId)
+          .maybeSingle();
+        if (settings?.name) schoolName = settings.name;
+      }
+
+      const message = `[${schoolName}] Paiement reçu avec succès pour ${studentName}. Montant payé : ${amount} ${currencySymbol}. Solde restant : ${balance} ${currencySymbol}. Merci de votre confiance.`;
+      
+      await smsService.sendSMS(parentPhone, message);
+    } catch (err) {
+      console.error("[School WhatsApp] Failed to send notifyPaymentReceived:", err);
+    }
   }
 }

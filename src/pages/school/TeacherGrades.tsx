@@ -9,8 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Save, Lock, AlertCircle } from "lucide-react";
 import { SchoolNotificationService } from "@/modules/school/services/SchoolNotificationService";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function TeacherGrades() {
+  const { user, profile } = useAuth();
+  const businessId = profile?.business_id || user?.user_metadata?.business_id;
+  const teacherName = profile?.full_name || user?.email || "Enseignant";
+
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [isLocked, setIsLocked] = useState(false);
@@ -47,7 +52,7 @@ export default function TeacherGrades() {
       
       const className = classes.find(c => c.id === selectedClass)?.name || "";
       const subjectName = subjects.find(s => s.id === selectedSubject)?.name || "";
-      await SchoolNotificationService.notifyGradesSubmitted("business_id", "Jean Dupont", subjectName, className);
+      await SchoolNotificationService.notifyGradesSubmitted(businessId || "", teacherName, subjectName, className);
     }
   };
 

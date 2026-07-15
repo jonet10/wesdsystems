@@ -153,12 +153,27 @@ export const smsService = {
     return success;
   },
 
+  async getSchoolName(): Promise<string> {
+    const businessId = getBusinessId();
+    try {
+      const { data } = await supabase
+        .from("school_settings")
+        .select("name")
+        .eq("business_id", businessId)
+        .maybeSingle();
+      return data?.name || "L'École";
+    } catch (err) {
+      return "L'École";
+    }
+  },
+
   /** Trigger automatic alert when student is marked absent */
   async triggerAttendanceAlert(studentName: string, parentPhone: string, date: string): Promise<void> {
     const settings = await smsService.getSettings();
     if (!settings.enable_attendance_alert) return;
 
-    const message = `Wesd School : Bonjour, nous vous informons que votre enfant ${studentName} a été marqué ABSENT lors de l'appel du ${new Date(date).toLocaleDateString("fr-FR")}. Veuillez contacter la direction pour justifier cette absence.`;
+    const schoolName = await smsService.getSchoolName();
+    const message = `[${schoolName}] Bonjour, nous vous informons que votre enfant ${studentName} a été marqué ABSENT lors de l'appel du ${new Date(date).toLocaleDateString("fr-FR")}. Veuillez contacter la direction pour justifier cette absence.`;
     await smsService.sendSMS(parentPhone, message);
   },
 
@@ -167,7 +182,8 @@ export const smsService = {
     const settings = await smsService.getSettings();
     if (!settings.enable_payment_alert) return;
 
-    const message = `Wesd School : Bonjour, la facture scolarité N° ${invoiceNumber} pour ${studentName} a été émise. Le solde à payer est de ${balance} HTG. Merci pour votre collaboration.`;
+    const schoolName = await smsService.getSchoolName();
+    const message = `[${schoolName}] Bonjour, la facture scolarité N° ${invoiceNumber} pour ${studentName} a été émise. Le solde à payer est de ${balance} HTG. Merci pour votre collaboration.`;
     await smsService.sendSMS(parentPhone, message);
   },
 
@@ -176,7 +192,8 @@ export const smsService = {
     const settings = await smsService.getSettings();
     if (!settings.enable_payment_alert) return;
 
-    const message = `Wesd School : Paiement reçu avec succès ! Reçu N° ${receiptNumber} pour ${studentName}. Montant payé : ${amount} HTG. Solde restant : ${remainingBalance} HTG. Merci de votre confiance.`;
+    const schoolName = await smsService.getSchoolName();
+    const message = `[${schoolName}] Paiement reçu avec succès ! Reçu N° ${receiptNumber} pour ${studentName}. Montant payé : ${amount} HTG. Solde restant : ${remainingBalance} HTG. Merci de votre confiance.`;
     await smsService.sendSMS(parentPhone, message);
   }
 };
