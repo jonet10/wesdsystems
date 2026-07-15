@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
@@ -22,6 +22,82 @@ import { supabase } from "@/lib/supabase";
 import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
 import { printReceipt } from "@/lib/print-utils";
 import { getBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
+
+const getProductVisual = (name: string, form: string, imageUrl?: string | null) => {
+  if (imageUrl) {
+    return {
+      element: (
+        <img 
+          src={imageUrl} 
+          alt={name} 
+          className="w-full h-full object-cover transition-all duration-300 group-hover:scale-[1.05]" 
+        />
+      ),
+      bg: "bg-white",
+      border: "border-border",
+      tag: form || "Produit"
+    };
+  }
+
+  const n = name.toLowerCase();
+  const f = form?.toLowerCase() || "";
+  
+  if (f.includes("sirop") || f.includes("solution") || f.includes("suspension") || f.includes("gouttes") || n.includes("sirop") || n.includes("solution") || n.includes("alcool")) {
+    return {
+      element: <Droplet className="w-8 h-8 text-sky-500 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-sky-500/10 to-sky-500/5",
+      border: "border-sky-500/20",
+      tag: "Liquide / Sirop"
+    };
+  }
+  if (f.includes("sachet") || f.includes("poudre") || n.includes("sachet") || n.includes("poudre")) {
+    return {
+      element: <Layers className="w-8 h-8 text-amber-500 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-amber-500/10 to-amber-500/5",
+      border: "border-amber-500/20",
+      tag: "Sachet / Poudre"
+    };
+  }
+  if (f.includes("crème") || f.includes("gel") || f.includes("pommade") || n.includes("crème") || n.includes("gel") || n.includes("pommade")) {
+    return {
+      element: <Sparkles className="w-8 h-8 text-teal-500 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-teal-500/10 to-teal-500/5",
+      border: "border-teal-500/20",
+      tag: "Crème / Gel"
+    };
+  }
+  if (f.includes("gélule") || f.includes("capsule") || n.includes("gélule") || n.includes("capsule")) {
+    return {
+      element: <Pill className="w-8 h-8 text-orange-500 rotate-45 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-orange-500/10 to-orange-500/5",
+      border: "border-orange-500/20",
+      tag: "Gélule / Capsule"
+    };
+  }
+  if (f.includes("injection") || f.includes("ampoule") || f.includes("vaccin") || n.includes("injection") || n.includes("ampoule") || n.includes("vaccin")) {
+    return {
+      element: <Activity className="w-8 h-8 text-rose-500 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-rose-500/10 to-rose-500/5",
+      border: "border-rose-500/20",
+      tag: "Injection / Ampoule"
+    };
+  }
+  if (f.includes("comprimé") || f.includes("comprimes") || f.includes("tablet") || n.includes("comprimé") || n.includes("tablet")) {
+    return {
+      element: <Pill className="w-8 h-8 text-indigo-500 transition-transform duration-300 group-hover:scale-110" />,
+      bg: "from-indigo-500/10 to-indigo-500/5",
+      border: "border-indigo-500/20",
+      tag: "Comprimé"
+    };
+  }
+  // Default
+  return {
+    element: <Pill className="w-8 h-8 text-purple-500 transition-transform duration-300 group-hover:scale-110" />,
+    bg: "from-purple-500/10 to-purple-500/5",
+    border: "border-purple-500/20",
+    tag: form || "Médicament"
+  };
+};
 
 export default function PharmacyPOS() {
   const { format } = useCurrency();
@@ -259,20 +335,36 @@ export default function PharmacyPOS() {
           </div>
 
           <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-4 pb-4">
-            {filteredProducts.map(p => (
-              <Card key={p.id} className="cursor-pointer hover:border-blue-500 transition-colors" onClick={() => addToCart(p)}>
-                <CardContent className="p-4 flex flex-col h-full justify-between">
-                  <div>
-                    <h3 className="font-bold leading-tight">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{p.form}</p>
+            {filteredProducts.map(p => {
+              const visual = getProductVisual(p.name, p.form || "", p.image_url);
+              return (
+                <Card key={p.id} className="group cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card" onClick={() => addToCart(p)}>
+                  {/* Visual Header representing the medication form */}
+                  <div className={`h-24 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden`}>
+                    {visual.element}
+                    <span className="absolute top-2 right-2 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-background/90 text-muted-foreground border border-border/80">
+                      {visual.tag}
+                    </span>
                   </div>
-                  <div className="mt-4 flex justify-between items-end">
-                    <span className="text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded">Stock: {p.total_stock_quantity}</span>
-                    {p.requires_prescription && <FileText className="w-4 h-4 text-red-500" title="Ordonnance requise" />}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-3.5 flex flex-col flex-1 justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-sm leading-tight text-foreground line-clamp-2 min-h-[2.5rem] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
+                    </div>
+                    <div className="flex justify-between items-end mt-auto">
+                      <span className="text-[11px] font-bold bg-muted text-muted-foreground px-2 py-1 rounded border border-border/40">
+                        Stock: {p.total_stock_quantity}
+                      </span>
+                      {p.requires_prescription && (
+                        <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> Ord.
+                        </span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
             {filteredProducts.length === 0 && (
               <div className="col-span-full text-center text-muted-foreground py-10">Aucun produit trouvé ou en stock.</div>
             )}
