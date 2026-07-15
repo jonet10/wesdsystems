@@ -330,3 +330,71 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_auth_user_details(TEXT) TO authenticated;
+
+
+-- ─── 5. CRÉATION DE LA FONCTION SECURISÉE DE MISE À JOUR DES IDENTIFIANTS ───
+CREATE OR REPLACE FUNCTION public.update_school_user_credentials(
+    p_user_id UUID,
+    p_email TEXT,
+    p_password TEXT DEFAULT NULL
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog, extensions
+AS $$
+DECLARE
+    v_caller_role TEXT;
+    v_caller_business_id UUID;
+    v_target_business_id UUID;
+BEGIN
+    -- 1. Récupérer les détails de l'appelant
+    SELECT role_normalized, business_id 
+    INTO v_caller_role, v_caller_business_id 
+    FROM public.profiles 
+    WHERE id = auth.uid();
+
+    -- 2. Récupérer l'établissement de la cible
+    SELECT business_id 
+    INTO v_target_business_id 
+    FROM public.profiles 
+    WHERE id = p_user_id;
+
+    -- 3. Vérification des autorisations
+    IF v_caller_role IS DISTINCT FROM 'super_admin' AND (
+        v_caller_business_id IS NULL 
+        OR v_target_business_id IS NULL
+        OR v_caller_business_id <> v_target_business_id 
+        OR v_caller_role NOT IN ('school_admin', 'salon_admin')
+    ) THEN
+        RAISE EXCEPTION 'Unauthorized: Only school admins of this business can update user credentials.';
+    END IF;
+
+    -- 4. Modifier l'e-mail dans auth.users et public.profiles
+    IF p_email IS NOT NULL AND p_email <> '' THEN
+        UPDATE auth.users
+        SET email = p_email,
+            email_change = '',
+            email_change_token_new = '',
+            email_confirmed_at = now(),
+            updated_at = now()
+        WHERE id = p_user_id;
+        
+        UPDATE public.profiles
+        SET email = p_email
+        WHERE id = p_user_id;
+    END IF;
+
+    -- 5. Modifier le mot de passe dans auth.users si fourni
+    IF p_password IS NOT NULL AND p_password <> '' THEN
+        UPDATE auth.users
+        SET encrypted_password = crypt(p_password, gen_salt('bf', 10)),
+            updated_at = now()
+        WHERE id = p_user_id;
+    END IF;
+
+    RETURN FOUND;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.update_school_user_credentials(UUID, TEXT, TEXT) TO authenticated;

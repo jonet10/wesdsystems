@@ -349,13 +349,16 @@ export default function SchoolTeachers() {
 
       // 1. If we are editing and they typed a new password or changed the username, update them
       if (editingTeacher && editingTeacher.user_id) {
-        if (password.trim()) {
-          const { error: pwErr } = await supabase.rpc("reset_user_password", {
-            p_user_id: editingTeacher.user_id,
-            p_password: password
-          });
-          if (pwErr) console.warn("Reset password error:", pwErr.message);
-        }
+        const cleanUsername = username.trim().toLowerCase().replace(/@/g, '.');
+        const shortId = businessId.replace(/-/g, '').slice(0, 8);
+        const generatedEmail = `${cleanUsername}.${shortId}@school.wesdsystems.app`;
+
+        const { error: credentialsErr } = await supabase.rpc("update_school_user_credentials", {
+          p_user_id: editingTeacher.user_id,
+          p_email: generatedEmail,
+          p_password: password.trim() || null
+        });
+        if (credentialsErr) console.warn("Update credentials error:", credentialsErr.message);
 
         if (username.trim()) {
           const { error: profileErr } = await supabase
@@ -376,8 +379,9 @@ export default function SchoolTeachers() {
         if (!businessId) {
           throw new Error("Impossible d'associer un compte de connexion sans ID d'établissement.");
         }
+        const cleanUsername = username.trim().toLowerCase().replace(/@/g, '.');
         const shortId = businessId.replace(/-/g, '').slice(0, 8);
-        const generatedEmail = `${username.trim().toLowerCase()}.${shortId}@school.wesdsystems.app`;
+        const generatedEmail = `${cleanUsername}.${shortId}@school.wesdsystems.app`;
         
         // Define default permissions for teacher
         const defaultPermissions = ["school:students", "school:parents", "school:classes"];
