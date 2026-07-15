@@ -12,6 +12,8 @@ import { Plus, Pencil, Trash2, Search, UserCheck, BookOpen, Phone, DollarSign, C
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ExportButtons } from "@/components/school/ExportButtons";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import { useSchoolSettings } from "@/hooks/useSchoolSettings";
 import { 
   useTeachers, 
@@ -136,6 +138,26 @@ export default function SchoolTeachers() {
   const { t } = useTranslation();
   const { settings, activeAcademicYear } = useSchoolSettings();
   const { format: formatAmount } = useCurrency();
+  const { user, profile } = useAuth();
+  const businessId = profile?.business_id || user?.user_metadata?.business_id;
+
+  // ── Connection Account state
+  const [createAccount, setCreateAccount] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [hasLinkedAccount, setHasLinkedAccount] = useState(false);
+
+  // Auto-generate username when first or last name changes and no account exists yet
+  useEffect(() => {
+    if (!hasLinkedAccount && createAccount && (firstName || lastName)) {
+      const generated = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s.-]/g, "")
+        .replace(/\s+/g, ".");
+      setUsername(generated);
+    }
+  }, [firstName, lastName, createAccount, hasLinkedAccount]);
 
   const { data: teachers = [], isLoading } = useTeachers();
   const { data: classes = [] } = useClasses();
@@ -215,6 +237,10 @@ export default function SchoolTeachers() {
     setEditingTeacher(null);
     setFirstName(""); setLastName(""); setPhone(""); setEmail("");
     setSelectedSubjects([]); setJobTitle("Professeur"); setSalary(""); setHireDate(""); setActive(true);
+    setCreateAccount(false);
+    setUsername("");
+    setPassword("");
+    setHasLinkedAccount(false);
   };
 
   const handleEdit = (teacher: SchoolTeacher) => {
@@ -228,6 +254,22 @@ export default function SchoolTeachers() {
     setSalary(teacher.salary ? teacher.salary.toString() : "");
     setHireDate(teacher.hire_date ? teacher.hire_date.split("T")[0] : "");
     setActive(teacher.active);
+    setCreateAccount(false);
+    setPassword("");
+    if (teacher.user_id) {
+      setHasLinkedAccount(true);
+      supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", teacher.user_id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.username) setUsername(data.username);
+        });
+    } else {
+      setHasLinkedAccount(false);
+      setUsername("");
+    }
     setIsDialogOpen(true);
   };
 
@@ -236,6 +278,46 @@ export default function SchoolTeachers() {
     if (!firstName.trim() || !lastName.trim()) { toast.error("Veuillez saisir le prénom et le nom"); return; }
     setIsSaving(true);
     try {
+      let linkedUserId = editingTeacher?.user_id || null;
+
+      // 1. If we are editing and they typed a new password, reset it
+      if (editingTeacher && editingTeacher.user_id && password.trim()) {
+        const { error: pwErr } = await supabase.rpc("reset_user_password", {
+          p_user_id: editingTeacher.user_id,
+          p_password: password
+        });
+        if (pwErr) console.warn("Reset password error:", pwErr.message);
+      }
+
+      // 2. If createAccount is active and they don't have a linked account yet:
+      if (!linkedUserId && createAccount && username.trim() && password.trim()) {
+        if (!businessId) {
+          throw new Error("Impossible d'associer un compte de connexion sans ID d'établissement.");
+        }
+        const shortId = businessId.replace(/-/g, '').slice(0, 8);
+        const generatedEmail = `${username.trim().toLowerCase()}.${shortId}@school.wesdsystems.app`;
+        
+        // Define default permissions for teacher
+        const defaultPermissions = ["school:students", "school:parents", "school:classes"];
+
+        const { data: rpcData, error: rpcErr } = await supabase.rpc("create_school_staff_member", {
+          p_email: generatedEmail,
+          p_password: password,
+          p_full_name: `${firstName} ${lastName}`,
+          p_role: "school_teacher",
+          p_business_id: businessId,
+          p_permissions: defaultPermissions,
+        });
+
+        if (rpcErr) throw rpcErr;
+        
+        const res = typeof rpcData === "string" ? JSON.parse(rpcData) : rpcData;
+        if (!res?.success || !res?.user_id) {
+          throw new Error(res?.error || "Impossible de créer le compte de connexion.");
+        }
+        linkedUserId = res.user_id;
+      }
+
       const payload = {
         first_name: firstName,
         last_name: lastName,
@@ -246,7 +328,9 @@ export default function SchoolTeachers() {
         salary: salary ? parseFloat(salary) : 0,
         hire_date: hireDate || null,
         active,
+        user_id: linkedUserId,
       };
+
       if (editingTeacher) {
         await updateTeacher.mutateAsync({ id: editingTeacher.id, data: payload });
         toast.success("Professeur mis à jour");
@@ -445,6 +529,50 @@ export default function SchoolTeachers() {
                   <div className="space-y-2"><Label>Salaire Initial Mensuel</Label><Input type="number" step="0.01" value={salary} onChange={e => setSalary(e.target.value)} /></div>
                   <div className="space-y-2"><Label>Date d'embauche</Label><Input type="date" value={hireDate} onChange={e => setHireDate(e.target.value)} /></div>
                 </div>
+                {/* Connexion Account Section */}
+                <div className="p-4 border border-dashed rounded-lg bg-muted/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-semibold">Compte de connexion</Label>
+                      <p className="text-xs text-muted-foreground font-sans">
+                        {hasLinkedAccount
+                          ? "Ce professeur possède déjà un compte utilisateur lié."
+                          : "Créer un identifiant et un mot de passe pour le portail enseignant."}
+                      </p>
+                    </div>
+                    {!hasLinkedAccount && (
+                      <Switch checked={createAccount} onCheckedChange={setCreateAccount} />
+                    )}
+                  </div>
+
+                  {(hasLinkedAccount || createAccount) && (
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-dashed">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Nom d'utilisateur</Label>
+                        <Input
+                          placeholder="Ex: jean.dupont"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          disabled={hasLinkedAccount}
+                          required={createAccount}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          {hasLinkedAccount ? "Nouveau mot de passe (Optionnel)" : "Mot de passe"}
+                        </Label>
+                        <Input
+                          type="text"
+                          placeholder={hasLinkedAccount ? "Laisser vide si inchangé" : "Saisir un mot de passe"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required={createAccount && !hasLinkedAccount}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Professeur Actif</Label>
