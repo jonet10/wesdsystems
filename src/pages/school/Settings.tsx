@@ -79,6 +79,7 @@ export default function SchoolSettingsPage() {
   const [smsSenderId, setSmsSenderId] = useState("");
   const [smsAttendanceAlert, setSmsAttendanceAlert] = useState(false);
   const [smsPaymentAlert, setSmsPaymentAlert] = useState(false);
+  const [smsGradesAlert, setSmsGradesAlert] = useState(true);
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
 
   const [isSaving, setIsSaving]       = useState(false);
@@ -233,6 +234,7 @@ export default function SchoolSettingsPage() {
           setSmsSenderId(smsData.sender_id || "");
           setSmsAttendanceAlert(smsData.enable_attendance_alert);
           setSmsPaymentAlert(smsData.enable_payment_alert);
+          setSmsGradesAlert(smsData.sender_id !== "false");
         }
 
         // 5. School configurations
@@ -331,7 +333,7 @@ export default function SchoolSettingsPage() {
           .update({
             provider: smsProvider,
             api_key: smsApiKey || null,
-            sender_id: smsSenderId || null,
+            sender_id: smsGradesAlert ? "true" : "false",
             enable_attendance_alert: smsAttendanceAlert,
             enable_payment_alert: smsPaymentAlert,
           })
@@ -343,7 +345,7 @@ export default function SchoolSettingsPage() {
             business_id: businessId,
             provider: smsProvider,
             api_key: smsApiKey || null,
-            sender_id: smsSenderId || null,
+            sender_id: smsGradesAlert ? "true" : "false",
             enable_attendance_alert: smsAttendanceAlert,
             enable_payment_alert: smsPaymentAlert,
           }]);
@@ -987,6 +989,19 @@ export default function SchoolSettingsPage() {
                       </select>
                     </div>
 
+                    <div className="space-y-1.5">
+                      <Label htmlFor="admin-whatsapp">Numéro WhatsApp de l'Administration (Destinataire)</Label>
+                      <Input
+                        id="admin-whatsapp"
+                        placeholder="Ex: +509 37 00 00 00"
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground font-sans">
+                        Numéro recevant les alertes administratives de l'établissement (ex: soumission de notes).
+                      </p>
+                    </div>
+
                     {smsProvider === "Twilio" && (
                       <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-600 dark:text-blue-400 font-sans">
                         💡 <strong>Note de service</strong> : Les paramètres de connexion technique de la passerelle WhatsApp (URL de l'API, clés de sécurité) sont gérés de manière centralisée par la plateforme.
@@ -998,7 +1013,7 @@ export default function SchoolSettingsPage() {
                       
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
-                          <Label className="text-sm font-medium">Notifications d'absences</Label>
+                          <Label className="text-sm font-medium">Notifications d'absences (parents)</Label>
                           <p className="text-xs text-muted-foreground">Envoyer un message WhatsApp automatique aux parents lorsqu'un élève est marqué absent.</p>
                         </div>
                         <input
@@ -1011,13 +1026,26 @@ export default function SchoolSettingsPage() {
 
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
-                          <Label className="text-sm font-medium">Notifications financières</Label>
+                          <Label className="text-sm font-medium">Notifications financières (parents)</Label>
                           <p className="text-xs text-muted-foreground">Envoyer un message WhatsApp automatique aux parents pour les factures émises et les reçus de paiement.</p>
                         </div>
                         <input
                           type="checkbox"
                           checked={smsPaymentAlert}
                           onChange={e => setSmsPaymentAlert(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <Label className="text-sm font-medium">Validation des notes (direction)</Label>
+                          <p className="text-xs text-muted-foreground">Recevoir une alerte WhatsApp à la direction lorsque les enseignants soumettent des notes.</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={smsGradesAlert}
+                          onChange={e => setSmsGradesAlert(e.target.checked)}
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         />
                       </div>
