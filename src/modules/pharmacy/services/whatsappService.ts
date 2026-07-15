@@ -231,7 +231,10 @@ export const whatsappService = {
       }
 
       const providerName = globalConfig.whatsapp_global_provider || settings.provider || "openwa";
-      const apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+      let apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+      if (!apiUrl || apiUrl === "default") {
+        apiUrl = "http://localhost:3000";
+      }
       const apiKey = globalConfig.whatsapp_global_api_key || settings.api_key || "";
       const sessionName = globalConfig.whatsapp_global_session_name || settings.session_name || "default";
 
@@ -292,11 +295,14 @@ export const whatsappService = {
     const globalConfig = globalConfigData || {};
 
     const providerName = globalConfig.whatsapp_global_provider || settings.provider || "openwa";
-    const apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+    let apiUrl = globalConfig.whatsapp_global_api_url || settings.api_url || "";
+    if (!apiUrl || apiUrl === "default") {
+      apiUrl = "http://localhost:3000";
+    }
     const apiKey = globalConfig.whatsapp_global_api_key || settings.api_key || "";
     const sessionName = globalConfig.whatsapp_global_session_name || settings.session_name || "default";
 
-    if (!apiUrl || !apiKey) {
+    if (!apiUrl) {
       throw new Error("Configuration WhatsApp globale ou locale manquante");
     }
 
@@ -328,7 +334,10 @@ export const whatsappService = {
     const globalConfig = globalConfigData || {};
 
     const providerName = settings.provider || globalConfig.whatsapp_global_provider || "openwa";
-    const apiUrl = settings.api_url || globalConfig.whatsapp_global_api_url || "";
+    let apiUrl = settings.api_url || globalConfig.whatsapp_global_api_url || "";
+    if (!apiUrl || apiUrl === "default") {
+      apiUrl = "http://localhost:3000";
+    }
     const apiKey = settings.api_key || globalConfig.whatsapp_global_api_key || "";
     const sessionName = settings.session_name || globalConfig.whatsapp_global_session_name || "default";
 
