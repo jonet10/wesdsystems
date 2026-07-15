@@ -63,7 +63,10 @@ export default function SuperAdminSettingsPage() {
 
   const checkLocalGatewayStatus = useCallback(async () => {
     // Determine the base url to query. Fallback to localhost if empty
-    const baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    let baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    if (!baseUrl || baseUrl === "default") {
+      baseUrl = "http://localhost:3000";
+    }
     try {
       const response = await fetch(`${baseUrl}/status`);
       if (response.ok) {
@@ -98,7 +101,10 @@ export default function SuperAdminSettingsPage() {
     }
     setIsRequestingPairing(true);
     setPairingCode(null);
-    const baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    let baseUrl = whatsappGlobalApiUrl ? whatsappGlobalApiUrl.replace(/\/$/, "") : "http://localhost:3000";
+    if (!baseUrl || baseUrl === "default") {
+      baseUrl = "http://localhost:3000";
+    }
     try {
       const response = await fetch(`${baseUrl}/request-pairing-code`, {
         method: "POST",
