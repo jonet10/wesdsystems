@@ -146,6 +146,27 @@ export default function SchoolTeachers() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [hasLinkedAccount, setHasLinkedAccount] = useState(false);
+  const [schoolSlug, setSchoolSlug] = useState("");
+
+  useEffect(() => {
+    if (!businessId) return;
+    supabase
+      .from('businesses')
+      .select('name')
+      .eq('id', businessId)
+      .single()
+      .then(({ data }) => {
+        if (data?.name) {
+          const slug = data.name
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+          setSchoolSlug(slug);
+        }
+      });
+  }, [businessId]);
 
   const { data: teachers = [], isLoading } = useTeachers();
   const { data: classes = [] } = useClasses();
@@ -223,14 +244,16 @@ export default function SchoolTeachers() {
   // Auto-generate username when first or last name changes and no account exists yet
   useEffect(() => {
     if (!hasLinkedAccount && createAccount && (firstName || lastName)) {
-      const generated = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`
+      const base = `${firstName.trim().toLowerCase()}.${lastName.trim().toLowerCase()}`
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9\s.-]/g, "")
         .replace(/\s+/g, ".");
-      setUsername(generated);
+      
+      const suffix = schoolSlug ? `@${schoolSlug}` : "";
+      setUsername(`${base}${suffix}`);
     }
-  }, [firstName, lastName, createAccount, hasLinkedAccount]);
+  }, [firstName, lastName, createAccount, hasLinkedAccount, schoolSlug]);
 
   // ── Salary & Assignments Modal
   const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
@@ -324,13 +347,28 @@ export default function SchoolTeachers() {
     try {
       let linkedUserId = editingTeacher?.user_id || null;
 
-      // 1. If we are editing and they typed a new password, reset it
-      if (editingTeacher && editingTeacher.user_id && password.trim()) {
-        const { error: pwErr } = await supabase.rpc("reset_user_password", {
-          p_user_id: editingTeacher.user_id,
-          p_password: password
-        });
-        if (pwErr) console.warn("Reset password error:", pwErr.message);
+      // 1. If we are editing and they typed a new password or changed the username, update them
+      if (editingTeacher && editingTeacher.user_id) {
+        if (password.trim()) {
+          const { error: pwErr } = await supabase.rpc("reset_user_password", {
+            p_user_id: editingTeacher.user_id,
+            p_password: password
+          });
+          if (pwErr) console.warn("Reset password error:", pwErr.message);
+        }
+
+        if (username.trim()) {
+          const { error: profileErr } = await supabase
+            .from("profiles")
+            .update({ username: username.trim().toLowerCase() })
+            .eq("id", editingTeacher.user_id);
+          if (profileErr) {
+            if (profileErr.message.includes("profiles_username_unique")) {
+              throw new Error("Ce nom d'utilisateur est déjà utilisé par un autre compte.");
+            }
+            throw profileErr;
+          }
+        }
       }
 
       // 2. If createAccount is active and they don't have a linked account yet:
@@ -374,7 +412,6 @@ export default function SchoolTeachers() {
         subjects: subjectsList.length > 0 ? subjectsList : null,
         job_title: jobTitle,
         salary: salary ? parseFloat(salary) : 0,
-        placeholder: undefined,
         hire_date: hireDate || null,
         active,
         user_id: linkedUserId,
@@ -714,7 +751,7 @@ export default function SchoolTeachers() {
                           placeholder="Ex: jean.dupont"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          disabled={hasLinkedAccount}
+                          disabled={false}
                           required={createAccount}
                         />
                       </div>

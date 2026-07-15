@@ -122,14 +122,25 @@ BEGIN
         ''
     );
 
-    -- Generate and de-duplicate username
-    v_username := lower(regexp_replace(unaccent(trim(p_full_name)), '\s+', '.', 'g'));
+    -- Generate and de-duplicate username with school acronym
     DECLARE
+        v_school_name TEXT;
+        v_school_slug TEXT;
         v_suffix INT := 1;
-        v_temp_username TEXT := v_username;
+        v_temp_username TEXT;
     BEGIN
+        SELECT name INTO v_school_name FROM public.businesses WHERE id = p_business_id;
+        
+        v_school_slug := lower(regexp_replace(unaccent(trim(v_school_name)), '[^a-zA-Z0-9]+', '', 'g'));
+        IF v_school_slug IS NULL OR v_school_slug = '' THEN
+            v_school_slug := 'school';
+        END IF;
+
+        v_username := lower(regexp_replace(unaccent(trim(p_full_name)), '\s+', '.', 'g')) || '@' || v_school_slug;
+        v_temp_username := v_username;
+
         WHILE EXISTS (SELECT 1 FROM public.profiles WHERE lower(username) = lower(v_temp_username)) LOOP
-            v_temp_username := v_username || v_suffix;
+            v_temp_username := lower(regexp_replace(unaccent(trim(p_full_name)), '\s+', '.', 'g')) || v_suffix || '@' || v_school_slug;
             v_suffix := v_suffix + 1;
         END LOOP;
         v_username := v_temp_username;
@@ -249,3 +260,73 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.reset_user_password(UUID, TEXT) TO authenticated;
+
+-- 3. Repair missing profiles for school teachers already linked to auth accounts
+INSERT INTO public.profiles (id, full_name, email, role, role_normalized, business_id, username, is_active)
+SELECT 
+  t.user_id, 
+  t.first_name || ' ' || t.last_name, 
+  COALESCE(t.email, u.email), 
+  'school_teacher', 
+  'school_teacher', 
+  t.business_id, 
+  lower(regexp_replace(unaccent(trim(t.first_name || ' ' || t.last_name)), '\s+', '.', 'g')) || '@' || COALESCE(lower(regexp_replace(unaccent(trim(b.name)), '[^a-zA-Z0-9]+', '', 'g')), 'school'),
+  true
+FROM public.school_teachers t
+JOIN auth.users u ON u.id = t.user_id
+JOIN public.businesses b ON b.id = t.business_id
+LEFT JOIN public.profiles p ON p.id = t.user_id
+WHERE p.id IS NULL
+ON CONFLICT (id) DO NOTHING;
+
+-- 4. Set unique usernames for any profile missing a username
+DO $$
+DECLARE
+  rec RECORD;
+  v_username TEXT;
+  v_school_slug TEXT;
+  v_suffix INT;
+  v_temp_username TEXT;
+BEGIN
+  FOR rec IN 
+    SELECT p.id, p.full_name, b.name AS school_name
+    FROM public.profiles p
+    LEFT JOIN public.businesses b ON b.id = p.business_id
+    WHERE p.username IS NULL OR p.username = ''
+  LOOP
+    v_school_slug := lower(regexp_replace(unaccent(trim(rec.school_name)), '[^a-zA-Z0-9]+', '', 'g'));
+    IF v_school_slug IS NULL OR v_school_slug = '' THEN
+        v_school_slug := 'school';
+    END IF;
+
+    v_username := lower(regexp_replace(unaccent(trim(rec.full_name)), '\s+', '.', 'g')) || '@' || v_school_slug;
+    v_suffix := 1;
+    v_temp_username := v_username;
+    
+    WHILE EXISTS (SELECT 1 FROM public.profiles WHERE lower(username) = lower(v_temp_username) AND id <> rec.id) LOOP
+      v_temp_username := lower(regexp_replace(unaccent(trim(rec.full_name)), '\s+', '.', 'g')) || v_suffix || '@' || v_school_slug;
+      v_suffix := v_suffix + 1;
+    END LOOP;
+    
+    UPDATE public.profiles
+    SET username = v_temp_username
+    WHERE id = rec.id;
+  END LOOP;
+END $$;
+
+
+CREATE OR REPLACE FUNCTION public.get_auth_user_details(p_email TEXT)
+RETURNS TABLE (id UUID, email TEXT, encrypted_password TEXT, email_confirmed_at TIMESTAMPTZ)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog, extensions
+AS $$
+BEGIN
+    RETURN QUERY 
+    SELECT u.id, u.email::TEXT, u.encrypted_password::TEXT, u.email_confirmed_at 
+    FROM auth.users u 
+    WHERE lower(u.email) = lower(p_email);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_auth_user_details(TEXT) TO authenticated;
