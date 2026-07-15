@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
-  Building2, Save, Globe, Smartphone, FileText, Hash,
+  Building2, Save, Globe, Smartphone, FileText, Hash, MessageSquare,
   CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock, GraduationCap
 } from "lucide-react";
 import { toast } from "sonner";
@@ -437,7 +437,7 @@ export default function SchoolSettingsPage() {
                 <Package className="h-4 w-4" /> Stock
               </TabsTrigger>
               <TabsTrigger value="sms" className="gap-2">
-                <Smartphone className="h-4 w-4" /> SMS Gateway
+                <MessageSquare className="h-4 w-4" /> WhatsApp Gateway
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
@@ -958,20 +958,20 @@ export default function SchoolSettingsPage() {
 
 
 
-            {/* ── SMS GATEWAY ── */}
+            {/* ── WHATSAPP GATEWAY ── */}
             <TabsContent value="sms" className="space-y-6">
               <StaggerItem>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
-                  {/* SMS Config Form */}
+                  {/* WhatsApp Config Form */}
                   <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                        <Smartphone className="h-5 w-5" />
+                        <MessageSquare className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold font-display">Passerelle SMS</h3>
-                        <p className="text-sm text-muted-foreground">Configurez votre fournisseur d'envoi de messages</p>
+                        <h3 className="text-lg font-semibold font-display">Passerelle WhatsApp</h3>
+                        <p className="text-sm text-muted-foreground">Configurez vos alertes et notifications WhatsApp</p>
                       </div>
                     </div>
 
@@ -983,30 +983,14 @@ export default function SchoolSettingsPage() {
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none"
                       >
                         <option value="Mock">Simulateur Local (Gratuit / Test)</option>
-                        <option value="Twilio">Twilio Gateway (Production)</option>
+                        <option value="Twilio">Passerelle WhatsApp Globale (Production)</option>
                       </select>
                     </div>
 
                     {smsProvider === "Twilio" && (
-                      <>
-                        <div className="space-y-1.5">
-                          <Label>Twilio Account SID / API Key</Label>
-                          <Input
-                            type="password"
-                            placeholder="Entrez votre Account SID"
-                            value={smsApiKey}
-                            onChange={e => setSmsApiKey(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label>Twilio Sender ID / N° expéditeur</Label>
-                          <Input
-                            placeholder="Ex: +1234567890"
-                            value={smsSenderId}
-                            onChange={e => setSmsSenderId(e.target.value)}
-                          />
-                        </div>
-                      </>
+                      <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 rounded-lg border border-blue-100 dark:border-blue-900/50 text-xs text-blue-600 dark:text-blue-400 font-sans">
+                        💡 <strong>Note de service</strong> : Les paramètres de connexion technique de la passerelle WhatsApp (URL de l'API, clés de sécurité) sont gérés de manière centralisée par la plateforme.
+                      </div>
                     )}
 
                     <div className="space-y-4 pt-2 border-t">
@@ -1015,7 +999,7 @@ export default function SchoolSettingsPage() {
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
                           <Label className="text-sm font-medium">Notifications d'absences</Label>
-                          <p className="text-xs text-muted-foreground">Envoyer un SMS automatique aux parents lorsqu'un élève est marqué absent.</p>
+                          <p className="text-xs text-muted-foreground">Envoyer un message WhatsApp automatique aux parents lorsqu'un élève est marqué absent.</p>
                         </div>
                         <input
                           type="checkbox"
@@ -1028,7 +1012,7 @@ export default function SchoolSettingsPage() {
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-0.5">
                           <Label className="text-sm font-medium">Notifications financières</Label>
-                          <p className="text-xs text-muted-foreground">Envoyer un SMS automatique aux parents pour les factures émises et les reçus de paiement.</p>
+                          <p className="text-xs text-muted-foreground">Envoyer un message WhatsApp automatique aux parents pour les factures émises et les reçus de paiement.</p>
                         </div>
                         <input
                           type="checkbox"
@@ -1040,14 +1024,14 @@ export default function SchoolSettingsPage() {
                     </div>
                   </div>
 
-                  {/* SMS logs */}
+                  {/* WhatsApp logs */}
                   <div className="bg-card rounded-xl border border-border p-6 shadow-card space-y-4 flex flex-col h-[400px]">
                     <div className="flex items-center justify-between border-b pb-3">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Journal des SMS Envoyés ({smsLogs.length})</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Journal des Messages WhatsApp ({smsLogs.length})</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                       {smsLogs.length === 0 ? (
-                        <p className="text-xs text-center text-muted-foreground py-10">Aucun SMS envoyé pour le moment.</p>
+                        <p className="text-xs text-center text-muted-foreground py-10">Aucun message envoyé pour le moment.</p>
                       ) : smsLogs.map((log, index) => (
                         <div key={index} className="p-3 rounded-lg border text-xs space-y-1 hover:bg-muted/10 transition-all">
                           <div className="flex justify-between font-semibold text-muted-foreground">

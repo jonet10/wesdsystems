@@ -80,7 +80,7 @@ export const smsService = {
     return data as SchoolSmsLog[];
   },
 
-  /** Core method to send SMS. Saves a log in DB */
+  /** Core method to send SMS/WhatsApp. Saves a log in DB */
   async sendSMS(recipient: string, message: string): Promise<boolean> {
     const businessId = getBusinessId();
     const settings = await smsService.getSettings();
@@ -98,20 +98,43 @@ export const smsService = {
       success = false;
     }
 
-    // Trigger SMS delivery mechanism
+    // Trigger WhatsApp delivery mechanism if provider is Twilio (Production)
     if (success && settings.provider === "Twilio") {
-      // For real Twilio dispatch, in a full backend it would call an Edge Function or microservice.
-      // Here we simulate the request:
       try {
-        // Mocking API call to a serverless gateway
-        console.log(`[Twilio SMS Dispatch] To: ${cleanPhone}, Msg: ${message}`);
-        success = true;
+        const { data: globalConfigData } = await supabase.rpc("get_app_config");
+        const globalConfig = globalConfigData || {};
+
+        const isGlobalEnabled = globalConfig.whatsapp_global_enabled !== "false";
+        if (isGlobalEnabled) {
+          const providerName = globalConfig.whatsapp_global_provider || "openwa";
+          let apiUrl = globalConfig.whatsapp_global_api_url || "";
+          if (!apiUrl || apiUrl === "default") {
+            apiUrl = "http://localhost:3000";
+          }
+          const apiKey = globalConfig.whatsapp_global_api_key || "";
+          const sessionName = globalConfig.whatsapp_global_session_name || "default";
+
+          const { OpenWaProvider, UltraMsgProvider, MetaCloudProvider, TwilioProvider } = await import("@/modules/pharmacy/services/whatsappService");
+          
+          let provider;
+          if (providerName === "ultramsg") provider = new UltraMsgProvider();
+          else if (providerName === "meta") provider = new MetaCloudProvider();
+          else if (providerName === "twilio") provider = new TwilioProvider();
+          else provider = new OpenWaProvider();
+
+          const res = await provider.sendMessage(apiUrl, apiKey, cleanPhone, message, sessionName);
+          success = res.success;
+        } else {
+          console.warn("[School WhatsApp] WhatsApp disabled globally.");
+          success = false;
+        }
       } catch (err) {
+        console.error("[School WhatsApp] Send error:", err);
         success = false;
       }
     } else {
       // Mock Simulator: automatically succeeds
-      console.log(`[Mock SMS Simulator] To: ${cleanPhone}, Msg: ${message}`);
+      console.log(`[Mock WhatsApp Simulator] To: ${cleanPhone}, Msg: ${message}`);
       success = true;
     }
 
@@ -125,7 +148,7 @@ export const smsService = {
         status: success ? 'sent' : 'failed'
       }]);
 
-    if (logError) console.error("Error creating SMS log:", logError);
+    if (logError) console.error("Error creating WhatsApp log:", logError);
 
     return success;
   },
