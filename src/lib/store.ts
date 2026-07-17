@@ -311,10 +311,10 @@ export const glowupStore = {
   },
 
   // --- MULTI-BUSINESS CONFIG ---
-  getActiveBusiness(): "salon" | "pharmacie" | "restaurant" | "market" | "boutique" | "auto_parts" {
+  getActiveBusiness(): "salon" | "pharmacie" | "restaurant" | "market" | "boutique" | "auto_parts" | "school" | "school_payments" {
     return (getItemSafe("glowup_active_business") as any) || "salon";
   },
-  setActiveBusiness(type: "salon" | "pharmacie" | "restaurant" | "market" | "boutique" | "auto_parts") {
+  setActiveBusiness(type: "salon" | "pharmacie" | "restaurant" | "market" | "boutique" | "auto_parts" | "school" | "school_payments") {
     setItemSafe("glowup_active_business", type);
     notifyStoreUpdated();
   }

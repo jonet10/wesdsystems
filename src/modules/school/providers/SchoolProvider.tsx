@@ -118,8 +118,9 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   const activePlugin = schoolPluginRegistry.get(schoolType);
   const engine = new SchoolEngine(activePlugin);
 
-  // Render centered spinner if loading core configuration
-  if (isLoading) {
+  // Render centered spinner if loading core configuration — only for admin users
+  const isAdminRole = profile?.role === "school_admin" || profile?.role === "salon_admin" || profile?.role_normalized === "studio_admin";
+  if (isLoading && isAdminRole) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-zinc-950">
         <div className="text-center space-y-3">
@@ -135,7 +136,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
       {children}
 
       {/* Setup Wizard Overlay if not configured */}
-      {isAuthenticated && businessId && !isConfigured && (
+      {isAuthenticated && businessId && !isConfigured && (profile?.role === "school_admin" || profile?.role === "salon_admin" || profile?.role_normalized === "studio_admin") && (
         <Dialog open={true} onOpenChange={() => {}}>
           <DialogContent className="max-w-2xl p-0 overflow-hidden border border-zinc-800 bg-zinc-950 text-white shadow-2xl rounded-2xl">
             <DialogTitle className="sr-only">Configuration de l'établissement</DialogTitle>

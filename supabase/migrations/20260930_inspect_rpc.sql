@@ -103,7 +103,8 @@ BEGIN
         confirmation_token,
         recovery_token,
         email_change_token_new,
-        email_change
+        email_change,
+        aud
     ) VALUES (
         v_user_id,
         '00000000-0000-0000-0000-000000000000',
@@ -119,7 +120,8 @@ BEGIN
         '',
         '',
         '',
-        ''
+        '',
+        'authenticated'
     );
 
     -- Generate and de-duplicate username with school acronym
@@ -374,6 +376,7 @@ BEGIN
     IF p_email IS NOT NULL AND p_email <> '' THEN
         UPDATE auth.users
         SET email = p_email,
+            aud = 'authenticated',
             email_change = '',
             email_change_token_new = '',
             email_confirmed_at = now(),
@@ -398,3 +401,47 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.update_school_user_credentials(UUID, TEXT, TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_function_def(p_name TEXT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN pg_get_functiondef(p_name::regproc);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_function_def(TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.dump_auth_user(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog, extensions
+AS $$
+DECLARE
+    v_row RECORD;
+BEGIN
+    SELECT * INTO v_row FROM auth.users WHERE id = p_user_id;
+    RETURN row_to_json(v_row)::jsonb;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.dump_auth_user(UUID) TO authenticated;
+
+-- ─── 6. CORRECTION DES UTILISATEURS EXISTANTS ───
+-- Fix aud column for any auth user that has it set to NULL
+UPDATE auth.users
+SET aud = 'authenticated'
+WHERE aud IS NULL OR aud = '';
+
+-- Fix double '@' sign in any existing user email
+UPDATE auth.users
+SET email = regexp_replace(email, '@', '.')
+WHERE email LIKE '%@%@%';
+
+-- Fix double '@' sign in the public.profiles email
+UPDATE public.profiles
+SET email = regexp_replace(email, '@', '.')
+WHERE email LIKE '%@%@%';

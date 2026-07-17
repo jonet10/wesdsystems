@@ -19,6 +19,14 @@ export default function SchoolDashboard() {
 
   const { engine } = useSchool();
 
+  // Redirect teachers to their own dedicated space
+  const userRole = profile?.role_normalized || user?.user_metadata?.role || '';
+  useEffect(() => {
+    if (userRole === 'school_teacher') {
+      navigate('/school/teacher/dashboard', { replace: true });
+    }
+  }, [userRole, navigate]);
+
   const [stats, setStats] = useState<any>({
     totalStudents: 0,
     totalTeachers: 0,
@@ -87,6 +95,49 @@ export default function SchoolDashboard() {
           }
         }
 
+        // --- Academic Dynamic KPIs ---
+        // 1. Attendance statistics (find latest date with data)
+        const { data: attendanceData } = await supabase
+          .from("school_attendance")
+          .select("status, date")
+          .eq("business_id", businessId)
+          .eq("type", "student");
+
+        const uniqueDates = Array.from(new Set((attendanceData || []).map(a => a.date))).sort();
+        const latestDate = uniqueDates.length > 0 ? uniqueDates[uniqueDates.length - 1] : new Date().toISOString().split('T')[0];
+
+        const latestAttendance = (attendanceData || []).filter(a => a.date === latestDate);
+        const totalCall = latestAttendance.length;
+        const presentCall = latestAttendance.filter(a => a.status === "present" || a.status === "late").length;
+        const presenceRate = totalCall > 0 ? Math.round((presentCall / totalCall) * 100) : 100;
+        const totalLates = latestAttendance.filter(a => a.status === "late").length;
+
+        // 2. Exam submissions stats
+        const { count: totalSubjectsCoeffs } = await supabase
+          .from("school_class_subject_coefficients")
+          .select("*", { count: "exact", head: true })
+          .eq("business_id", businessId);
+
+        const { data: activeYear } = await supabase
+          .from("school_academic_years")
+          .select("id")
+          .eq("business_id", businessId)
+          .eq("active", true)
+          .maybeSingle();
+
+        let submittedExams = 0;
+        const totalExpectedExams = (totalSubjectsCoeffs || 0) * 4; // 4 periods per year
+
+        if (activeYear) {
+          const { data: examsData } = await supabase
+            .from("school_exams")
+            .select("id, status")
+            .eq("business_id", businessId)
+            .eq("academic_year_id", activeYear.id);
+          
+          submittedExams = (examsData || []).filter(e => e.status === "submitted" || e.status === "validated").length;
+        }
+
         const extra = await engine.dashboard.getDashboardStatsQuery(businessId, supabase);
 
         setStats({
@@ -96,6 +147,11 @@ export default function SchoolDashboard() {
           totalPending: pending,
           totalExpenses: totalExp,
           totalStockValue: stockValue,
+          presenceRate,
+          totalLates,
+          submittedExams,
+          totalExpectedExams,
+          latestDateLabel: latestDate ? new Date(latestDate).toLocaleDateString("fr-FR") : "Aujourd'hui",
           extraStats: {
             totalClasses: extra.totalClasses || 0,
             totalFaculties: extra.totalFaculties || 0,
@@ -287,8 +343,8 @@ export default function SchoolDashboard() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-600">92%</div>
-                <p className="text-xs text-muted-foreground mt-1">Élèves présents aujourd'hui</p>
+                <div className="text-2xl font-bold text-emerald-600">{stats.presenceRate ?? 100}%</div>
+                <p className="text-xs text-muted-foreground mt-1">Données du {stats.latestDateLabel || "dernier appel"}</p>
               </CardContent>
             </Card>
           </StaggerItem>
@@ -296,12 +352,12 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card className="border-amber-500/20 bg-amber-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-amber-700">Retards (Aujourd'hui)</CardTitle>
+                <CardTitle className="text-sm font-medium text-amber-700">Retards (Dernier appel)</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-amber-600">14</div>
-                <p className="text-xs text-muted-foreground mt-1">Dépassement du seuil de tolérance</p>
+                <div className="text-2xl font-bold text-amber-600">{stats.totalLates ?? 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Signalés sur la journée</p>
               </CardContent>
             </Card>
           </StaggerItem>
@@ -309,12 +365,12 @@ export default function SchoolDashboard() {
           <StaggerItem>
             <Card className="border-indigo-500/20 bg-indigo-500/5">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-indigo-700">Notes Soumises</CardTitle>
+                <CardTitle className="text-sm font-medium text-indigo-700">Notes Soumises / Validées</CardTitle>
                 <FileText className="h-4 w-4 text-indigo-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-indigo-600">12 / 45</div>
-                <p className="text-xs text-muted-foreground mt-1">Classes ayant verrouillé leurs notes</p>
+                <div className="text-2xl font-bold text-indigo-600">{stats.submittedExams ?? 0} / {stats.totalExpectedExams ?? 0}</div>
+                <p className="text-xs text-muted-foreground mt-1">Évaluations verrouillées dans l'année</p>
               </CardContent>
             </Card>
           </StaggerItem>

@@ -209,7 +209,15 @@ export const gradeService = {
       });
     });
 
-    // 6. Aggregate averages by student and subject
+    // 6. Fetch attendance records for this class
+    const { data: attendanceRecords } = await supabase
+      .from("school_attendance")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("class_id", classId)
+      .eq("type", "student");
+
+    // 7. Aggregate averages by student and subject
     const subjectList = Array.from(new Set(exams.map(e => JSON.stringify({ id: e.subject_id, name: e.subject?.name }))));
     const subjects = subjectList.map(s => JSON.parse(s));
 
@@ -267,6 +275,15 @@ export const gradeService = {
       // Scale overall average to 10 base
       const overallAverage = totalCoefficient > 0 ? Number(((totalWeightedScore / totalCoefficient) * 10).toFixed(2)) : null;
 
+      // Calculate attendance statistics
+      const studentAttendance = (attendanceRecords || []).filter(r => r.person_id === student.id);
+      const absences = studentAttendance.filter(r => r.status === "absent").length;
+      const excused = studentAttendance.filter(r => r.status === "excused").length;
+      const retards = studentAttendance.filter(r => r.status === "late").length;
+      const presents = studentAttendance.filter(r => r.status === "present").length;
+      const totalDays = studentAttendance.length;
+      const presencePct = totalDays > 0 ? Math.round(((presents + retards) / totalDays) * 100) : 100;
+
       return {
         student_id: student.id,
         student_name: `${student.first_name} ${student.last_name}`,
@@ -276,6 +293,11 @@ export const gradeService = {
         totalPoints: Number(totalWeightedScore.toFixed(2)),
         totalCoefficients: totalCoefficient,
         overallAverage,
+        absences_count: absences,
+        excused_absences_count: excused,
+        tardiness_count: retards,
+        presence_percentage: presencePct,
+        total_school_days: totalDays,
       };
     });
 
@@ -433,5 +455,49 @@ export const gradeService = {
       students: studentsData,
       periodsFound: Array.from(new Set((exams || []).map(e => (e as any).period_name).filter(Boolean)))
     };
+  },
+
+  /** Submit exam grades (locks edit mode for teachers, triggers notification) */
+  async submitExamGrades(examId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("school_exams")
+      .update({
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        submitted_by: userId
+      })
+      .eq("id", examId);
+
+    if (error) throw error;
+  },
+
+  /** Validate exam grades (admin/director approval) */
+  async validateExamGrades(examId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("school_exams")
+      .update({
+        status: 'validated',
+        validated_at: new Date().toISOString(),
+        validated_by: userId
+      })
+      .eq("id", examId);
+
+    if (error) throw error;
+  },
+
+  /** Reject/Send back exam grades to draft for editing */
+  async rejectExamGrades(examId: string): Promise<void> {
+    const { error } = await supabase
+      .from("school_exams")
+      .update({
+        status: 'draft',
+        submitted_at: null,
+        submitted_by: null,
+        validated_at: null,
+        validated_by: null
+      })
+      .eq("id", examId);
+
+    if (error) throw error;
   }
 };

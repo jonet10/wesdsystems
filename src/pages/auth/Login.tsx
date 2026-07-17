@@ -162,7 +162,7 @@ export default function Login() {
       let route = '/school';
       if (role === 'school_cashier') route = '/school/payments';
       else if (role === 'school_accountant') route = '/school/finance/student';
-      else if (role === 'school_teacher') route = '/school';
+      else if (role === 'school_teacher') route = '/school/teacher/dashboard';
       navigate(route);
 
       toast({ title: 'Connexion réussie', description: `Bienvenue, ${data.user?.user_metadata?.full_name || schoolUsername} !` });

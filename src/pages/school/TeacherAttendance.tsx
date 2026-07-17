@@ -7,31 +7,144 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Save, Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Save, Clock, CheckCircle2, XCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SchoolNotificationService } from "@/modules/school/services/SchoolNotificationService";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+
+interface StudentAttendanceState {
+  id: string;
+  name: string;
+  status: string;
+  arrival_time: string;
+  parent_phone?: string;
+  attendance_id?: string;
+}
 
 export default function TeacherAttendance() {
+  const { user, profile } = useAuth();
+  const businessId = profile?.business_id || user?.user_metadata?.business_id;
+
+  const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [students, setStudents] = useState<StudentAttendanceState[]>([]);
 
-  // Configuration (Mock for UI, should be fetched from school_notification_settings)
+  // Configuration (Official start time for lateness calculation)
   const officialStartTime = "08:00";
   const lateThresholdMinutes = 15; // 8:15 = late
 
-  const classes = [{ id: "1", name: "7AF" }, { id: "2", name: "NS1" }];
-  
-  const [students, setStudents] = useState([
-    { id: "s1", name: "Jean Pierre", status: "present", arrival_time: "07:55" },
-    { id: "s2", name: "Marie Claire", status: "absent", arrival_time: "" },
-    { id: "s3", name: "Paul Junior", status: "present", arrival_time: "08:20" }, // Devrait être retard
-  ]);
+  // 1. Initial Load: Find teacher record and classes
+  useEffect(() => {
+    if (!user?.id || !businessId) return;
+
+    const initTeacher = async () => {
+      try {
+        const { data: teacherData } = await supabase
+          .from("school_teachers")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("business_id", businessId)
+          .maybeSingle();
+
+        if (!teacherData) return;
+        setTeacherId(teacherData.id);
+
+        // Fetch assigned classes
+        const { data: assignments } = await supabase
+          .from("school_teacher_assignments")
+          .select("class_id, class:school_classes(name)")
+          .eq("teacher_id", teacherData.id)
+          .eq("business_id", businessId);
+
+        const assignedClasses = (assignments || [])
+          .filter((a: any) => a.class)
+          .map((a: any) => ({
+            id: a.class_id,
+            name: a.class.name
+          }));
+
+        // Deduplicate classes list
+        const uniqueClasses = Array.from(new Map(assignedClasses.map(c => [c.id, c])).values());
+        setClasses(uniqueClasses);
+      } catch (err) {
+        console.error("Init teacher error:", err);
+      }
+    };
+
+    initTeacher();
+  }, [user, businessId]);
+
+  // 2. Load class students & existing attendance
+  useEffect(() => {
+    if (!selectedClass || !date || !businessId) {
+      setStudents([]);
+      return;
+    }
+
+    const loadAttendance = async () => {
+      try {
+        setLoading(true);
+
+        // 1. Fetch class students
+        const { data: enrollments } = await supabase
+          .from("school_enrollments")
+          .select("student:student_id(id, first_name, last_name, parent_phone)")
+          .eq("class_id", selectedClass)
+          .eq("business_id", businessId)
+          .eq("status", "active");
+
+        const activeStudents = (enrollments || [])
+          .filter((e: any) => e.student)
+          .map((e: any) => ({
+            id: e.student.id,
+            name: `${e.student.first_name} ${e.student.last_name}`,
+            parent_phone: e.student.parent_phone || ""
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        // 2. Fetch attendance entries for today
+        const { data: attendanceData } = await supabase
+          .from("school_attendance")
+          .select("id, person_id, status, delay_minutes, time")
+          .eq("class_id", selectedClass)
+          .eq("date", date)
+          .eq("type", "student")
+          .eq("business_id", businessId);
+
+        const attendanceMap = new Map(attendanceData?.map(a => [a.person_id, a]) || []);
+
+        const studentStates = activeStudents.map(s => {
+          const attRecord = attendanceMap.get(s.id);
+          return {
+            id: s.id,
+            name: s.name,
+            status: attRecord ? attRecord.status : "present",
+            arrival_time: attRecord?.time ? attRecord.time.substring(0, 5) : "",
+            parent_phone: s.parent_phone,
+            attendance_id: attRecord?.id
+          };
+        });
+
+        setStudents(studentStates);
+      } catch (err) {
+        console.error("Error loading attendance:", err);
+        toast.error("Erreur de chargement des élèves.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAttendance();
+  }, [selectedClass, date, businessId]);
 
   // Calcul automatique du retard
   useEffect(() => {
     setStudents(prev => prev.map(s => {
-      if (s.status === 'absent') return s;
+      if (s.status === 'absent' || s.status === 'excused') return s;
       
       if (s.arrival_time) {
         const [hourStr, minStr] = s.arrival_time.split(":");
@@ -48,12 +161,11 @@ export default function TeacherAttendance() {
       }
       return s;
     }));
-  }, [students.map(s => s.arrival_time).join(",")]); // Trigger only when arrival_time changes
+  }, [students.map(s => s.arrival_time).join(",")]);
 
   const handleStatusChange = (id: string, newStatus: string) => {
     setStudents(students.map(s => {
       if (s.id === id) {
-        // Reset arrival time if marked absent
         return { ...s, status: newStatus, arrival_time: newStatus === 'absent' ? '' : s.arrival_time };
       }
       return s;
@@ -65,21 +177,65 @@ export default function TeacherAttendance() {
   };
 
   const handleSave = async () => {
-    setLoading(true);
-    // Simulate API Call
-    await new Promise(r => setTimeout(r, 1000));
-    
-    // Simulate sending notifications
-    for (const student of students) {
-      if (student.status === 'absent') {
-        await SchoolNotificationService.notifyStudentAbsent(student.name, "7AF", "+50900000000");
-      } else if (student.status === 'late') {
-        await SchoolNotificationService.notifyStudentLate(student.name, student.arrival_time, "+50900000000");
-      }
-    }
+    if (!selectedClass || !date || !businessId) return;
+    try {
+      setLoading(true);
+      const className = classes.find(c => c.id === selectedClass)?.name || "";
 
-    setLoading(false);
-    toast.success("Présences enregistrées avec succès. Les notifications WhatsApp seront envoyées selon la configuration.");
+      for (const s of students) {
+        let delayMinutes = 0;
+        if (s.status === 'late' && s.arrival_time) {
+          const [hourStr, minStr] = s.arrival_time.split(":");
+          const [offHour, offMin] = officialStartTime.split(":");
+          const arrTime = parseInt(hourStr) * 60 + parseInt(minStr);
+          const offTime = parseInt(offHour) * 60 + parseInt(offMin);
+          delayMinutes = Math.max(0, arrTime - offTime);
+        }
+
+        const payload = {
+          business_id: businessId,
+          class_id: selectedClass,
+          person_id: s.id,
+          type: 'student' as const,
+          date,
+          status: s.status,
+          time: s.arrival_time ? `${s.arrival_time}:00` : null,
+          delay_minutes: delayMinutes,
+          teacher_id: teacherId || null
+        };
+
+        if (s.attendance_id) {
+          await supabase
+            .from("school_attendance")
+            .update(payload)
+            .eq("id", s.attendance_id);
+        } else {
+          await supabase
+            .from("school_attendance")
+            .insert(payload);
+        }
+
+        // WhatsApp notification fallback to parents in real-time
+        if (s.parent_phone && s.parent_phone.trim() !== "") {
+          if (s.status === 'absent') {
+            await SchoolNotificationService.notifyStudentAbsent(s.name, className, s.parent_phone, businessId);
+          } else if (s.status === 'late') {
+            await SchoolNotificationService.notifyStudentLate(s.name, s.arrival_time, s.parent_phone, businessId);
+          }
+        }
+      }
+
+      toast.success("Présences enregistrées avec succès et parents notifiés.");
+      
+      // Force reload to get newly created ids
+      // Light reload by re-assigning the date
+      setDate(d => d);
+    } catch (err: any) {
+      console.error("Save attendance error:", err);
+      toast.error("Erreur lors de la sauvegarde : " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {

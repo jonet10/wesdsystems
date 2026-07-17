@@ -289,6 +289,12 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     ? superAdminItems
     : role === "partner"
     ? partnerItems
+    : role === "school_teacher"
+    ? [
+        { icon: LayoutDashboard, label: "Tableau de Bord", path: "/school/teacher/dashboard", role: "all" },
+        { icon: CalendarCheck, label: "Présences / Appel", path: "/school/teacher/attendance", role: "all" },
+        { icon: FileSpreadsheet, label: "Notes & Bulletins", path: "/school/teacher/grades", role: "all" },
+      ]
     : (role === "salon_admin" || role === "school_admin" || role === "pharmacy_admin" || role === "market_admin" || role === "admin")
     ? getBusinessAdminItems()
     : employeeSpecificItems.filter(i => !i.role || i.role === "all" || i.role === "employee");
@@ -316,8 +322,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     { icon: Settings, labelKey: "sidebar.settings", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
   ];
   const items = (() => {
-    // School custom permissions filter
-    if (profile && (activeBiz === "school" || activeBiz === "school_payments")) {
+    // School custom permissions filter (exclude school_teacher from general admin items)
+    if (profile && profile.role !== "school_teacher" && (activeBiz === "school" || activeBiz === "school_payments")) {
       const isSchoolAdmin = profile.role === "school_admin" || profile.role === "super_admin" || profile.role === "salon_admin";
       const customPerms = profile.permissions || [];
       const schoolItems = getBusinessAdminItems();
@@ -487,7 +493,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
 
         {/* Navigation */}
         <nav className="flex-1 py-4 px-3 overflow-y-auto">
-          {activeBiz === "school" || activeBiz === "school_payments" ? (
+          {(activeBiz === "school" || activeBiz === "school_payments") && role !== "school_teacher" ? (
             // ── SCHOOL: grouped sections
             <div className="space-y-1">
               {/* Dashboard (standalone) */}

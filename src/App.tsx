@@ -670,7 +670,7 @@ const App = () => (
                   <Route
                     path="/school"
                   element={
-                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier", "school_teacher"]} allowAuthenticatedWithoutRole>
+                    <ProtectedRoute allowedRoles={["salon_admin", "school_admin", "school_accountant", "school_cashier"]} allowAuthenticatedWithoutRole>
                       <SchoolDashboard />
                     </ProtectedRoute>
                   }
@@ -699,6 +699,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+
                 <Route
                   path="/school/staff"
                   element={

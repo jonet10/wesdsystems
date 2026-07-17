@@ -3,6 +3,7 @@ import { autoTable } from "jspdf-autotable";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { SchoolSetting } from "@/modules/school/types";
+import * as XLSX from "xlsx";
 
 export interface ExportColumn {
   header: string;
@@ -28,9 +29,10 @@ export const exportToPDF = async (
   settings: SchoolSetting | null,
   academicYearName: string | null,
   userName: string = "Système",
-  footerSummary?: string
+  footerSummary?: string,
+  orientation: "p" | "l" = "p"
 ) => {
-  const doc = new jsPDF("p", "pt", "a4");
+  const doc = new jsPDF(orientation, "pt", "a4");
   const pageWidth = doc.internal.pageSize.width;
   
   let currentY = 40;
@@ -188,4 +190,23 @@ export const printDocument = (
 
   printWindow.document.write(html);
   printWindow.document.close();
+};
+
+export const exportToExcel = (
+  title: string,
+  data: any[],
+  columns: ExportColumn[]
+) => {
+  const formattedData = data.map((item) => {
+    const row: Record<string, any> = {};
+    columns.forEach(col => {
+      row[col.header] = col.cell ? col.cell(item) : (item[col.accessorKey] ?? "");
+    });
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(formattedData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Rapport");
+  XLSX.writeFile(workbook, `${title.replace(/\s+/g, '_').toLowerCase()}.xlsx`);
 };

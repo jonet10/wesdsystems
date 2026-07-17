@@ -16,7 +16,7 @@ import { useSchool } from "@/hooks/useSchool";
 import { supabase } from "@/lib/supabase";
 import { reportService, type PaymentReportRow, type OutstandingReportRow, type ExpenseReportRow } from "@/modules/school/services/reportService";
 import { classService } from "@/modules/school/services";
-import { exportToPDF, printDocument, type ExportColumn } from "@/lib/school-export";
+import { exportToPDF, printDocument, exportToExcel, type ExportColumn } from "@/lib/school-export";
 import { format } from "date-fns";
 import { setBusinessId } from "@/modules/school/services";
 
@@ -280,6 +280,9 @@ export default function SchoolReports() {
                     <Button variant="outline" size="sm" onClick={() => exportToPDF("Rapport des Paiements", payments, paymentColumns, settings, activeAcademicYear?.name || null, userName)}>
                       <Download className="h-4 w-4 mr-2" />PDF
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel("Rapport des Paiements", payments, paymentColumns)}>
+                      <Download className="h-4 w-4 mr-2" />Excel
+                    </Button>
                   </div>
                 </div>
                 <CardContent className="p-0 max-h-96 overflow-auto">
@@ -336,6 +339,9 @@ export default function SchoolReports() {
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => exportToPDF("Rapport des Inscriptions", enrollmentPayments, paymentColumns, settings, activeAcademicYear?.name || null, userName)}>
                       <Download className="h-4 w-4 mr-2" />PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel("Rapport des Inscriptions", enrollmentPayments, paymentColumns)}>
+                      <Download className="h-4 w-4 mr-2" />Excel
                     </Button>
                   </div>
                 </div>
@@ -411,6 +417,9 @@ export default function SchoolReports() {
                     )}>
                       <Download className="h-4 w-4 mr-2" />PDF
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel("Liste des Impayés", outstanding, outstandingColumns)}>
+                      <Download className="h-4 w-4 mr-2" />Excel
+                    </Button>
                   </div>
                 </div>
                 <CardContent className="p-0 max-h-96 overflow-auto">
@@ -470,6 +479,9 @@ export default function SchoolReports() {
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => exportToPDF("Rapport des Dépenses", expenses, expenseColumns, settings, activeAcademicYear?.name || null, userName)}>
                       <Download className="h-4 w-4 mr-2" />PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel("Rapport des Dépenses", expenses, expenseColumns)}>
+                      <Download className="h-4 w-4 mr-2" />Excel
                     </Button>
                   </div>
                 </div>
@@ -671,9 +683,16 @@ export default function SchoolReports() {
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => exportToPDF(
                       `Rapport des Présences - ${classes.find(c => c.id === attendanceClassId)?.name || ""}`,
-                      attendanceReport, attendanceColumns, settings, activeAcademicYear?.name || null, userName
+                      attendanceReport, attendanceColumns, settings, activeAcademicYear?.name || null, userName,
+                      undefined, "l"
                     )}>
                       <Download className="h-4 w-4 mr-2" />PDF
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => exportToExcel(
+                      `Rapport des Présences - ${classes.find(c => c.id === attendanceClassId)?.name || ""}`,
+                      attendanceReport, attendanceColumns
+                    )}>
+                      <Download className="h-4 w-4 mr-2" />Excel
                     </Button>
                   </div>
                 </div>

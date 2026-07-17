@@ -10,6 +10,9 @@ import { AlertTriangle, CreditCard, Lock, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
+import { useEffect } from "react";
+import { glowupStore } from "@/lib/store";
+
 interface DashboardLayoutProps {
   children: ReactNode;
   role?: "super_admin" | "salon_admin" | "bar_admin" | "employee" | "partner" | string;
@@ -26,6 +29,28 @@ export const DashboardLayout = ({ children, role: explicitRole, title, subtitle,
   
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const subscriptionReminder = useSubscriptionPaymentReminder();
+
+  useEffect(() => {
+    const path = location.pathname;
+    let targetBiz: any = null;
+    if (path.startsWith("/school")) targetBiz = "school";
+    else if (path.startsWith("/pharmacie")) targetBiz = "pharmacie";
+    else if (path.startsWith("/bar")) targetBiz = "restaurant";
+    else if (path.startsWith("/auto-parts")) targetBiz = "auto_parts";
+    else if (path.startsWith("/market")) targetBiz = "market";
+    else if (path.startsWith("/boutique")) targetBiz = "boutique";
+    else if (path.startsWith("/salon")) targetBiz = "salon";
+
+    if (targetBiz && glowupStore.getActiveBusiness() !== targetBiz) {
+      // Defer state update to avoid synchronous React render loop issues
+      const timer = setTimeout(() => {
+        if (glowupStore.getActiveBusiness() !== targetBiz) {
+          glowupStore.setActiveBusiness(targetBiz);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname]);
 
   const { effectiveRole, effectiveUserName } = useMemo(() => {
     const isEmployeeContext = location.pathname.startsWith("/employee") || 

@@ -681,22 +681,23 @@ export default function SchoolTeachers() {
 
                             {/* Subject select */}
                             <div className="flex-1 min-w-0">
-                              <select
-                                value={a.subject_id}
+                              <input
+                                list={`subjects-list-${i}`}
+                                value={a.subject_name}
                                 onChange={e => {
-                                  const sub = catalogSubjects.find(s => s.id === e.target.value);
-                                  handleUpdateDialogAssignment(i, 'subject_id', e.target.value);
-                                  if (sub) {
-                                    handleUpdateDialogAssignment(i, 'subject_name', sub.name);
-                                  }
+                                  const val = e.target.value;
+                                  const sub = catalogSubjects.find(s => s.name.toLowerCase() === val.toLowerCase());
+                                  handleUpdateDialogAssignment(i, 'subject_name', val);
+                                  handleUpdateDialogAssignment(i, 'subject_id', sub ? sub.id : '');
                                 }}
-                                className="w-full h-8 text-xs bg-background border rounded px-1.5 focus:outline-none"
-                              >
-                                <option value="">-- Matière --</option>
+                                placeholder="Matière (ex: Algèbre)"
+                                className="w-full h-8 text-xs bg-background border rounded px-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
+                              <datalist id={`subjects-list-${i}`}>
                                 {catalogSubjects.map(s => (
-                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                  <option key={s.id} value={s.name} />
                                 ))}
-                              </select>
+                              </datalist>
                             </div>
 
                             {/* Hours / Week */}
@@ -910,23 +911,23 @@ export default function SchoolTeachers() {
 
                                   {/* Subject — dropdown from catalog, teacher's subjects first */}
                                   <TableCell>
-                                    <select
-                                      value={a.subject_id}
-                                      onChange={e => handleAssignmentChange(i, 'subject_id', e.target.value)}
+                                    <input
+                                      list={`salary-subjects-list-${i}`}
+                                      value={a.subject_name}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        const sub = catalogSubjects.find(s => s.name.toLowerCase() === val.toLowerCase());
+                                        handleAssignmentChange(i, 'subject_name', val);
+                                        handleAssignmentChange(i, 'subject_id', sub ? sub.id : '');
+                                      }}
+                                      placeholder="Matière (ex: Algèbre)"
                                       className={`flex h-9 w-full rounded-md border bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${isDup ? 'border-destructive' : 'border-input'}`}
-                                    >
-                                      <option value="">-- Choisir --</option>
-                                      {teacherCatalogSubjects.length > 0 && (
-                                        <optgroup label="Matières du professeur">
-                                          {teacherCatalogSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </optgroup>
-                                      )}
-                                      <optgroup label="Toutes les matières">
-                                        {catalogSubjects
-                                          .filter(s => !teacherCatalogSubjects.find(ts => ts.id === s.id))
-                                          .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                      </optgroup>
-                                    </select>
+                                    />
+                                    <datalist id={`salary-subjects-list-${i}`}>
+                                      {catalogSubjects.map(s => (
+                                        <option key={s.id} value={s.name} />
+                                      ))}
+                                    </datalist>
                                   </TableCell>
 
                                   {/* Hours */}

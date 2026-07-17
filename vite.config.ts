@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "script",
-      devOptions: { enabled: true, type: "module" },
+      devOptions: { enabled: false },
       includeAssets: ["logo.png", "logo_square.png", "placeholder.svg", "favicon.ico"],
       manifest: {
         name: "Wesd Systems",

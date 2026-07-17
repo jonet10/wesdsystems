@@ -35,6 +35,7 @@ const getDefaultRouteForRole = (role?: string | null, businessType?: string | nu
   if (role === "partner") return "/partner";
   if (role === "employee") return "/employee";
   if (role === "school_parent") return "/school/parent/dashboard";
+  if (role === "school_teacher") return "/school/teacher/dashboard";
   return moduleRoute(businessType);
 };
 
@@ -172,7 +173,10 @@ export function ProtectedRoute({
   }
 
   const role = normalizeRole(profile.role_normalized ?? profile.role);
-  const currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
+  let currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
+  if (role && role.startsWith("school_")) {
+    currentBizType = "school";
+  }
   const normalizedAllowedRoles = allowedRoles
     .map((r) => normalizeRole(r))
     .filter(Boolean) as AppRole[];

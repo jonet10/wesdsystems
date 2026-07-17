@@ -43,7 +43,7 @@ const TRIMESTRE_PERIODS = [
 
 export default function SchoolGrades() {
   const { settings, activeAcademicYear } = useSchoolSettings();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { engine, evaluationPeriodType, bulletinModel, useDocumentEngine } = useSchool();
   const businessId = profile?.business_id;
 
@@ -337,8 +337,161 @@ export default function SchoolGrades() {
     }));
   };
 
+  const [isProcessingWorkflow, setIsProcessingWorkflow] = useState(false);
+  const [submittedExamsList, setSubmittedExamsList] = useState<any[]>([]);
+  const [isLoadingSubmittedExams, setIsLoadingSubmittedExams] = useState(false);
+
+  const [viewingExamDetails, setViewingExamDetails] = useState<any | null>(null);
+  const [viewingGradesList, setViewingGradesList] = useState<any[]>([]);
+  const [isLoadingViewingGrades, setIsLoadingViewingGrades] = useState(false);
+
+  const fetchSubmittedExams = async () => {
+    if (!businessId || !activeAcademicYear?.id) return;
+    try {
+      setIsLoadingSubmittedExams(true);
+      const { data, error } = await supabase
+        .from("school_exams")
+        .select(`
+          *,
+          class:school_classes(name),
+          subject:school_subjects(name)
+        `)
+        .eq("business_id", businessId)
+        .eq("academic_year_id", activeAcademicYear.id)
+        .eq("status", "submitted")
+        .order("submitted_at", { ascending: false });
+
+      if (error) throw error;
+      setSubmittedExamsList(data || []);
+    } catch (err: any) {
+      console.error("Error fetching submitted exams:", err);
+    } finally {
+      setIsLoadingSubmittedExams(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "pending_validation") {
+      fetchSubmittedExams();
+    }
+  }, [activeTab, businessId, activeAcademicYear]);
+
+  const handleOpenExamPalmares = async (exam: any) => {
+    setViewingExamDetails(exam);
+    try {
+      setIsLoadingViewingGrades(true);
+      
+      // 1. Fetch class active students
+      const { data: enrollments } = await supabase
+        .from("school_enrollments")
+        .select("student:student_id(id, first_name, last_name, matricule)")
+        .eq("class_id", exam.class_id)
+        .eq("status", "active");
+      
+      const activeStudents = (enrollments || [])
+        .filter((e: any) => e.student)
+        .map((e: any) => e.student)
+        .sort((a: any, b: any) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`));
+
+      // 2. Fetch grades
+      const { data: gradesData } = await supabase
+        .from("school_grades")
+        .select("student_id, points_obtained, note")
+        .eq("exam_id", exam.id);
+
+      const gradesMap = new Map(gradesData?.map(g => [g.student_id, g]) || []);
+      const fullGrades = activeStudents.map((s: any) => {
+        const gradeRecord = gradesMap.get(s.id);
+        return {
+          student_id: s.id,
+          student_name: `${s.first_name} ${s.last_name}`,
+          matricule: s.matricule || "",
+          grade: gradeRecord ? gradeRecord.points_obtained : null,
+          note: gradeRecord?.note || ""
+        };
+      });
+
+      setViewingGradesList(fullGrades);
+    } catch (err) {
+      console.error("Error loading palmares grades:", err);
+      toast.error("Erreur lors du chargement des notes.");
+    } finally {
+      setIsLoadingViewingGrades(false);
+    }
+  };
+
+  const handleValidateExamInModal = async (examId: string) => {
+    if (!user?.id) return;
+    try {
+      setIsProcessingWorkflow(true);
+      await gradeService.validateExamGrades(examId, user.id);
+      toast.success("Évaluation validée avec succès.");
+      setViewingExamDetails(null);
+      fetchSubmittedExams();
+      refetchExams();
+      refetchReportCards();
+    } catch (err: any) {
+      toast.error("Erreur de validation : " + err.message);
+    } finally {
+      setIsProcessingWorkflow(false);
+    }
+  };
+
+  const handleRejectExamInModal = async (examId: string) => {
+    if (!confirm("Voulez-vous vraiment renvoyer cette évaluation à l'enseignant pour correction ?")) return;
+    try {
+      setIsProcessingWorkflow(true);
+      await gradeService.rejectExamGrades(examId);
+      toast.success("Évaluation renvoyée au professeur.");
+      setViewingExamDetails(null);
+      fetchSubmittedExams();
+      refetchExams();
+      refetchReportCards();
+    } catch (err: any) {
+      toast.error("Erreur lors du rejet : " + err.message);
+    } finally {
+      setIsProcessingWorkflow(false);
+    }
+  };
+
+  const handleValidateExam = async () => {
+    if (!matchingExam?.id || !user?.id) return;
+    try {
+      setIsProcessingWorkflow(true);
+      await gradeService.validateExamGrades(matchingExam.id, user.id);
+      toast.success("Évaluation validée avec succès.");
+      refetchExams();
+      refetchReportCards();
+    } catch (err: any) {
+      toast.error("Erreur lors de la validation : " + err.message);
+    } finally {
+      setIsProcessingWorkflow(false);
+    }
+  };
+
+  const handleRejectExam = async () => {
+    if (!confirm("Voulez-vous vraiment renvoyer cette évaluation à l'enseignant pour correction ?")) return;
+    if (!matchingExam?.id) return;
+    try {
+      setIsProcessingWorkflow(true);
+      await gradeService.rejectExamGrades(matchingExam.id);
+      toast.success("Évaluation renvoyée au professeur.");
+      refetchExams();
+      refetchReportCards();
+    } catch (err: any) {
+      toast.error("Erreur lors du rejet : " + err.message);
+    } finally {
+      setIsProcessingWorkflow(false);
+    }
+  };
+
   const handleSaveGrades = async () => {
     if (!selectedExamId) return;
+
+    if (matchingExam?.status === 'submitted' || matchingExam?.status === 'validated') {
+      toast.error("Ces notes sont verrouillées. Veuillez d'abord déverrouiller/rejeter l'évaluation.");
+      return;
+    }
 
     const maxVal = matchingExam?.coefficient || 100;
 
@@ -548,13 +701,36 @@ export default function SchoolGrades() {
                           </tr>
                         )}
                         {settings.showAbsenceRow && (
-                          <tr>
-                            <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Jours d'absence</td>
-                            {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
-                            <td className="p-2 text-center" style={cellStyle}>{absences}</td>
-                            {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
-                            {settings.showRank && <td className="p-2" style={cellStyle}></td>}
-                          </tr>
+                          <>
+                            <tr>
+                              <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Absences non justifiées</td>
+                              {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                              <td className="p-2 text-center" style={cellStyle}>{absences} j.</td>
+                              {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                              {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                            </tr>
+                            <tr>
+                              <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Absences justifiées</td>
+                              {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                              <td className="p-2 text-center" style={cellStyle}>{student.excused_absences_count ?? 0} j.</td>
+                              {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                              {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                            </tr>
+                            <tr>
+                              <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Taux de présence</td>
+                              {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                              <td className="p-2 text-center" style={cellStyle}>{student.presence_percentage ?? 100}%</td>
+                              {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                              {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                            </tr>
+                            <tr>
+                              <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Total jours de cours</td>
+                              {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                              <td className="p-2 text-center" style={cellStyle}>{student.total_school_days ?? 0} j.</td>
+                              {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                              {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                            </tr>
+                          </>
                         )}
                         {settings.showTardinessRow && (
                           <tr>
@@ -629,13 +805,36 @@ export default function SchoolGrades() {
                         </tr>
                       )}
                       {settings.showAbsenceRow && (
-                        <tr>
-                          <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Jours d'absence</td>
-                          {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
-                          <td className="p-2 text-center" style={cellStyle}>{absences}</td>
-                          {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
-                          {settings.showRank && <td className="p-2" style={cellStyle}></td>}
-                        </tr>
+                        <>
+                          <tr>
+                            <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Absences non justifiées</td>
+                            {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                            <td className="p-2 text-center" style={cellStyle}>{absences} j.</td>
+                            {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                            {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                          </tr>
+                          <tr>
+                            <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Absences justifiées</td>
+                            {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                            <td className="p-2 text-center" style={cellStyle}>{student.excused_absences_count ?? 0} j.</td>
+                            {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                            {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                          </tr>
+                          <tr>
+                            <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Taux de présence</td>
+                            {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                            <td className="p-2 text-center" style={cellStyle}>{student.presence_percentage ?? 100}%</td>
+                            {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                            {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                          </tr>
+                          <tr>
+                            <td className="p-2 text-right font-medium text-gray-600" style={cellStyle}>Total jours de cours</td>
+                            {settings.showCoef && <td className="p-2 text-center" style={cellStyle}></td>}
+                            <td className="p-2 text-center" style={cellStyle}>{student.total_school_days ?? 0} j.</td>
+                            {settings.showAppreciation && <td className="p-2" style={cellStyle}></td>}
+                            {settings.showRank && <td className="p-2" style={cellStyle}></td>}
+                          </tr>
+                        </>
                       )}
                       {settings.showTardinessRow && (
                         <tr>
@@ -816,9 +1015,12 @@ export default function SchoolGrades() {
                 <p className="flex justify-between"><span className="font-semibold text-gray-600">Conduite:</span> <span className="font-bold">{conductGrade}/10</span></p>
                 <p className="flex justify-between"><span className="font-semibold text-gray-600">Décision:</span> <span className="font-black text-primary uppercase">{decision}</span></p>
               </div>
-              <div className="border border-gray-800 p-1.5 space-y-0.5 bg-white rounded-sm">
-                <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences:</span> <span className="font-bold">{absences} j.</span></p>
+              <div className="border border-gray-800 p-1.5 space-y-0.5 bg-white rounded-sm text-[8px] leading-tight">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Abs. Non Justifiées:</span> <span className="font-bold">{absences} j.</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Abs. Justifiées:</span> <span className="font-bold">{student.excused_absences_count ?? 0} j.</span></p>
                 <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards:</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Présence:</span> <span className="font-bold">{student.presence_percentage ?? 100}%</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Jours de Classe:</span> <span className="font-bold">{student.total_school_days ?? 0} j.</span></p>
               </div>
             </div>
 
@@ -927,9 +1129,12 @@ export default function SchoolGrades() {
                   <span className="font-semibold text-gray-600">Décision:</span> <span className="font-black text-primary uppercase">{decision}</span>
                 </div>
               </div>
-              <div className="border border-gray-800 p-2 space-y-1 bg-white rounded-sm">
-                <p className="flex justify-between"><span className="font-semibold text-gray-600">Absences:</span> <span className="font-bold">{absences} jour(s)</span></p>
+              <div className="border border-gray-800 p-2 space-y-1 bg-white rounded-sm text-[10px]">
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Abs. Non Justifiées:</span> <span className="font-bold">{absences} j.</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Abs. Justifiées:</span> <span className="font-bold">{student.excused_absences_count ?? 0} j.</span></p>
                 <p className="flex justify-between"><span className="font-semibold text-gray-600">Retards:</span> <span className="font-bold">{student.tardiness_count ?? 0}</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Présence:</span> <span className="font-bold">{student.presence_percentage ?? 100}%</span></p>
+                <p className="flex justify-between"><span className="font-semibold text-gray-600">Jours de Classe:</span> <span className="font-bold">{student.total_school_days ?? 0} j.</span></p>
               </div>
             </div>
 
@@ -1085,12 +1290,14 @@ export default function SchoolGrades() {
             {/* OBSERVATIONS */}
             <div className="mt-4 border-[2px] border-gray-800 bg-white">
               <div className="bg-gray-100 p-1 px-2 border-b border-gray-800 font-bold uppercase text-left text-[10px]">
-                Observations
+                Assiduité & Discipline
               </div>
-              <div className="p-2 flex justify-between px-8 text-[11px] font-medium">
-                <span>Retard : {student.tardiness_count > 0 ? student.tardiness_count : "....."}</span>
-                <span>Absence : {absences > 0 ? absences : "....."}</span>
-                <span>Autre : .......................</span>
+              <div className="p-2 grid grid-cols-5 gap-2 text-center text-[10px] font-medium">
+                <div><span className="font-semibold block">Abs. Non Justifiées</span> {absences} j.</div>
+                <div><span className="font-semibold block">Abs. Justifiées</span> {student.excused_absences_count ?? 0} j.</div>
+                <div><span className="font-semibold block">Retards</span> {student.tardiness_count ?? 0}</div>
+                <div><span className="font-semibold block">Taux Présence</span> {student.presence_percentage ?? 100}%</div>
+                <div><span className="font-semibold block">Jours de Classe</span> {student.total_school_days ?? 0} j.</div>
               </div>
             </div>
 
@@ -1148,6 +1355,12 @@ export default function SchoolGrades() {
               onClick={() => refetchReportCards()}
             >
               <GraduationCap className="h-4 w-4 mr-2" /> {engine.terminology.get("reportCards")} &amp; Classements
+            </TabsTrigger>
+            <TabsTrigger
+              value="pending_validation"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none py-3"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Palmarès à Valider
             </TabsTrigger>
           </TabsList>
 
@@ -1314,18 +1527,54 @@ export default function SchoolGrades() {
                         {" · "}Coef. {matchingExam.coefficient}
                         {" · "}Date : {matchingExam.exam_date ? new Date(matchingExam.exam_date).toLocaleDateString("fr-FR") : ""}
                       </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        {matchingExam.status === 'submitted' && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded">
+                            Soumis (Attente de validation)
+                          </span>
+                        )}
+                        {matchingExam.status === 'validated' && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-500/10 px-2 py-0.5 rounded">
+                            Validé par la direction
+                          </span>
+                        )}
+                        {(matchingExam.status === 'draft' || !matchingExam.status) && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 bg-gray-500/10 px-2 py-0.5 rounded">
+                            Brouillon
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
                       Saisie / {matchingExam.coefficient} pts
                     </span>
-                    <Button variant="ghost" size="icon" className="text-primary" onClick={openEditExamDialog} title="Modifier l'évaluation">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={handleDeleteExam} title="Supprimer l'évaluation">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {matchingExam.status === 'submitted' && (
+                      <>
+                        <Button variant="outline" size="sm" className="bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800 border-green-200" onClick={handleValidateExam} disabled={isProcessingWorkflow}>
+                          Valider
+                        </Button>
+                        <Button variant="outline" size="sm" className="bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border-red-200" onClick={handleRejectExam} disabled={isProcessingWorkflow}>
+                          Renvoyer
+                        </Button>
+                      </>
+                    )}
+                    {matchingExam.status === 'validated' && (
+                      <Button variant="outline" size="sm" className="text-amber-700 hover:bg-amber-50 border-amber-200" onClick={handleRejectExam} disabled={isProcessingWorkflow}>
+                        Déverrouiller
+                      </Button>
+                    )}
+                    {(!matchingExam.status || matchingExam.status === 'draft') && (
+                      <>
+                        <Button variant="ghost" size="icon" className="text-primary" onClick={openEditExamDialog} title="Modifier l'évaluation">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={handleDeleteExam} title="Supprimer l'évaluation">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1363,7 +1612,8 @@ export default function SchoolGrades() {
                             ? ""
                             : String(sg.points_obtained);
                           const noteVal = local ? local.note : sg.note;
-                          return (
+                          const isReadOnly = matchingExam.status === 'submitted' || matchingExam.status === 'validated';
+                           return (
                             <TableRow key={sg.student_id}>
                               <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                               <TableCell className="font-medium">{sg.student_name}</TableCell>
@@ -1378,6 +1628,7 @@ export default function SchoolGrades() {
                                   onChange={(e) =>
                                     handleGradeInputChange(sg.student_id, "points", e.target.value)
                                   }
+                                  disabled={isReadOnly}
                                   className="h-8 w-32 ml-auto text-right font-semibold"
                                 />
                               </TableCell>
@@ -1388,6 +1639,7 @@ export default function SchoolGrades() {
                                   onChange={(e) =>
                                     handleGradeInputChange(sg.student_id, "note", e.target.value)
                                   }
+                                  disabled={isReadOnly}
                                   className="h-8"
                                 />
                               </TableCell>
@@ -1404,10 +1656,12 @@ export default function SchoolGrades() {
                     <Printer className="h-4 w-4 mr-2" />
                     Télécharger Palmarès
                   </Button>
-                  <Button size="lg" onClick={handleSaveGrades} disabled={saveGradesMutation.isPending}>
-                    <Save className="h-4 w-4 mr-2" />
-                    {saveGradesMutation.isPending ? "Enregistrement..." : "Enregistrer les notes"}
-                  </Button>
+                  {!(matchingExam.status === 'submitted' || matchingExam.status === 'validated') && (
+                    <Button size="lg" onClick={handleSaveGrades} disabled={saveGradesMutation.isPending}>
+                      <Save className="h-4 w-4 mr-2" />
+                      {saveGradesMutation.isPending ? "Enregistrement..." : "Enregistrer les notes"}
+                    </Button>
+                  )}
                 </div>
               </Card>
             )}
@@ -1565,8 +1819,164 @@ export default function SchoolGrades() {
               </Card>
             )}
           </TabsContent>
+
+          {/* ══════════════ TAB 4: PALMARÈS À VALIDER ══════════════ */}
+          <TabsContent value="pending_validation" className="space-y-4">
+            {isLoadingSubmittedExams ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                Chargement des évaluations soumises...
+              </div>
+            ) : submittedExamsList.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground flex flex-col items-center gap-2">
+                <CheckCircle2 className="h-8 w-8 text-green-500 opacity-60" />
+                <p className="font-semibold text-lg text-foreground">Tout est en ordre !</p>
+                <p>Aucune évaluation n'est actuellement en attente de validation.</p>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Évaluations en attente de validation</CardTitle>
+                  <CardDescription>
+                    Vérifiez les notes saisies par les enseignants avant de les valider officiellement.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Classe</TableHead>
+                        <TableHead>Matière</TableHead>
+                        <TableHead>Nom de l'Évaluation</TableHead>
+                        <TableHead>Période</TableHead>
+                        <TableHead className="text-center">Barème</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {submittedExamsList.map((exam) => (
+                        <TableRow key={exam.id}>
+                          <TableCell className="font-semibold">{exam.class?.name || "—"}</TableCell>
+                          <TableCell>{exam.subject?.name || "—"}</TableCell>
+                          <TableCell>{exam.name}</TableCell>
+                          <TableCell className="font-medium text-primary">{exam.period_name}</TableCell>
+                          <TableCell className="text-center font-bold">{exam.max_points} pts</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+                              onClick={() => handleOpenExamPalmares(exam)}
+                            >
+                              <FileText className="h-3.5 w-3.5 mr-1" />
+                              Voir le Palmarès
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
 
+
+        {/* ══════════════ DIALOG: Palmarès Soumis – Consultation & Validation ══════════════ */}
+        <Dialog open={!!viewingExamDetails} onOpenChange={(open) => { if (!open) setViewingExamDetails(null); }}>
+          <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <Award className="h-5 w-5 text-amber-500" />
+                Palmarès — {viewingExamDetails?.name}
+              </DialogTitle>
+              {viewingExamDetails && (
+                <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                  <span className="bg-muted px-2 py-0.5 rounded-md font-medium">Classe : {viewingExamDetails.class?.name}</span>
+                  <span className="bg-muted px-2 py-0.5 rounded-md font-medium">Matière : {viewingExamDetails.subject?.name}</span>
+                  <span className="bg-muted px-2 py-0.5 rounded-md font-medium">Période : {viewingExamDetails.period_name}</span>
+                  <span className="bg-amber-500/10 text-amber-700 px-2 py-0.5 rounded-md font-bold">/ {viewingExamDetails.max_points} pts</span>
+                </div>
+              )}
+            </DialogHeader>
+
+            {/* Table des notes */}
+            <div className="flex-1 overflow-y-auto">
+              {isLoadingViewingGrades ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                  Chargement des notes...
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10 text-center">#</TableHead>
+                      <TableHead>Élève</TableHead>
+                      <TableHead className="text-center font-bold">Note obtenue</TableHead>
+                      <TableHead className="text-center">Sur</TableHead>
+                      <TableHead className="text-center">%</TableHead>
+                      <TableHead>Appréciation</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {viewingGradesList.map((g, idx) => {
+                      const pct = viewingExamDetails?.max_points && g.grade !== null
+                        ? Math.round((g.grade / viewingExamDetails.max_points) * 100)
+                        : null;
+                      const badgeColor = pct === null ? "text-muted-foreground" : pct >= 70 ? "text-green-600 bg-green-50" : pct >= 50 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
+                      return (
+                        <TableRow key={g.student_id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
+                          <TableCell className="text-center text-xs text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="font-semibold">{g.student_name}</TableCell>
+                          <TableCell className="text-center">
+                            {g.grade !== null ? (
+                              <span className={`font-bold text-base px-2 py-0.5 rounded ${badgeColor}`}>{g.grade}</span>
+                            ) : (
+                              <span className="text-muted-foreground italic text-xs">Absent / Non noté</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">{viewingExamDetails?.max_points}</TableCell>
+                          <TableCell className="text-center">
+                            {pct !== null ? <span className={`text-sm font-medium ${badgeColor} px-1.5 py-0.5 rounded`}>{pct}%</span> : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground italic">{g.note || "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            {/* Footer – boutons de validation */}
+            <div className="border-t pt-4 flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{viewingGradesList.filter(g => g.grade !== null).length}</span> élèves notés sur {viewingGradesList.length}
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="bg-red-50 text-red-700 hover:bg-red-100 border-red-200"
+                  disabled={isProcessingWorkflow}
+                  onClick={() => viewingExamDetails && handleRejectExamInModal(viewingExamDetails.id)}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Renvoyer à l'enseignant
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  disabled={isProcessingWorkflow}
+                  onClick={() => viewingExamDetails && handleValidateExamInModal(viewingExamDetails.id)}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  {isProcessingWorkflow ? "Validation..." : "Valider officiellement"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* ══════════════ DIALOG: Modifier Évaluation ══════════════ */}
         <Dialog open={isEditExamDialogOpen} onOpenChange={setIsEditExamDialogOpen}>

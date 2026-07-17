@@ -32,11 +32,20 @@ export const attendanceService = {
   },
 
   /** Save attendance sheet for a class on a specific date */
-  async save(classId: string, date: string, records: Array<{
-    student_id: string;
-    status: 'present' | 'absent' | 'late' | 'excused';
-    note?: string | null;
-  }>): Promise<SchoolAttendanceRecord[]> {
+  async save(
+    classId: string, 
+    date: string, 
+    records: Array<{
+      student_id: string;
+      status: 'present' | 'absent' | 'late' | 'excused';
+      note?: string | null;
+      scheduled_time?: string | null;
+      actual_time?: string | null;
+      delay_minutes?: number | null;
+    }>,
+    teacherId?: string | null,
+    subjectId?: string | null
+  ): Promise<SchoolAttendanceRecord[]> {
     const businessId = getBusinessId();
 
     // 1. Delete previous entries for this class and date to prevent duplication
@@ -60,7 +69,12 @@ export const attendanceService = {
       person_id: r.student_id,
       class_id: classId,
       status: r.status,
-      note: r.note || null
+      note: r.note || null,
+      teacher_id: teacherId || null,
+      subject_id: subjectId || null,
+      scheduled_time: r.scheduled_time || null,
+      actual_time: r.actual_time || null,
+      delay_minutes: r.delay_minutes || null
     }));
 
     // 3. Bulk insert

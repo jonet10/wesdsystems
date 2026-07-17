@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { smsService } from './smsService';
+import { setBusinessId } from './index';
 
 export class SchoolNotificationService {
   /**
@@ -7,6 +8,7 @@ export class SchoolNotificationService {
    */
   static async notifyGradesSubmitted(businessId: string, teacherName: string, subjectName: string, className: string) {
     try {
+      if (businessId) setBusinessId(businessId);
       // 1. Get school settings (name and whatsapp/phone contact)
       const { data: settings } = await supabase
         .from("school_settings")
@@ -32,6 +34,7 @@ export class SchoolNotificationService {
    */
   static async notifyStudentAbsent(studentName: string, className: string, parentPhone: string, businessId?: string) {
     try {
+      if (businessId) setBusinessId(businessId);
       let schoolName = "L'École";
       if (businessId) {
         const { data: settings } = await supabase
@@ -55,6 +58,7 @@ export class SchoolNotificationService {
    */
   static async notifyStudentLate(studentName: string, arrivalTime: string, parentPhone: string, businessId?: string) {
     try {
+      if (businessId) setBusinessId(businessId);
       let schoolName = "L'École";
       if (businessId) {
         const { data: settings } = await supabase
@@ -78,6 +82,7 @@ export class SchoolNotificationService {
    */
   static async notifyPaymentReceived(studentName: string, amount: number, balance: number, parentPhone: string, currencySymbol: string = 'HTG', businessId?: string) {
     try {
+      if (businessId) setBusinessId(businessId);
       let schoolName = "L'École";
       if (businessId) {
         const { data: settings } = await supabase
