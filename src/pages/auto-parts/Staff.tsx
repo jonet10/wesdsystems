@@ -98,7 +98,7 @@ export default function AutoPartsStaffPage() {
           phone: form.phone,
           role: form.role,
           pin_code: form.pin_code,
-        });
+        }, businessId);
         toast.success("Employé modifié");
         setOpen(false);
       } else {
@@ -113,7 +113,7 @@ export default function AutoPartsStaffPage() {
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      await deleteStaff(deleteConfirm.id);
+      await deleteStaff(deleteConfirm.id, businessId);
       toast.success("Employé supprimé");
       setDeleteConfirm(null);
       load();
