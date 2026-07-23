@@ -2175,10 +2175,10 @@ export default function POSPage() {
                       </div>
 
                       {/* Employee Selector */}
-                      {requiresEmployee && (
+                      {cartServiceIds.length > 0 && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold flex items-center gap-1">
-                            <UserCog className="h-3.5 w-3.5 text-primary" /> Employé en charge
+                            <UserCog className="h-3.5 w-3.5 text-primary" /> Employé en charge {!requiresEmployee && <span className="text-muted-foreground font-normal">(optionnel)</span>}
                           </Label>
                           {availableEmployees.length > 0 ? (
                             <div className="grid grid-cols-2 gap-2">
