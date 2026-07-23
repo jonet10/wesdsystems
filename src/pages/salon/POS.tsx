@@ -1224,9 +1224,9 @@ export default function POSPage() {
     return roles.size > 0 ? roles : null;
   }, [cartServiceIds, serviceRoleRequirements]);
   const availableEmployees = useMemo(() => {
-    if (!allowedRoles) return employees;
-    return employees.filter(e => allowedRoles.has(e.role));
-  }, [employees, allowedRoles]);
+    // Le client a demandé à ce que tous les noms s'affichent sans filtrage par rôle
+    return employees;
+  }, [employees]);
 
   const totals = useMemo(() => calculateCartTotals(cart, discountPercent), [cart, discountPercent]);
   const { subtotal, totalDiscount, total } = totals;
@@ -1969,7 +1969,7 @@ export default function POSPage() {
                                         </div>
                                         {barberName && (
                                           <div>
-                                            <span className="font-medium text-foreground">Barbier : </span>
+                                            <span className="font-medium text-foreground">Spécialiste : </span>
                                             {barberName}
                                           </div>
                                         )}

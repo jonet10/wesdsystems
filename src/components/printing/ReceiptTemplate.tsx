@@ -87,7 +87,7 @@ export const Receipt58Template = ({ data, formatAmount }: { data: ReceiptData; f
         <div>{transaction.invoiceLabel || "Facture"} : #{transaction.invoiceNumber}</div>
         <div>Date : {format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}</div>
         {transaction.clientName && <div>Client : {transaction.clientName}</div>}
-        {transaction.barberName && <div>Barbier : {transaction.barberName}</div>}
+        {transaction.barberName && <div>Spécialiste : {transaction.barberName}</div>}
         {transaction.cashierName && <div>Caissier : <strong>{transaction.cashierName}</strong></div>}
       </div>
 
@@ -220,7 +220,7 @@ export const Receipt80Template = ({ data, formatAmount }: { data: ReceiptData; f
         )}
         {transaction.barberName && (
           <div className="flex justify-between">
-            <span>Barbier/Coiffeur :</span>
+            <span>Spécialiste :</span>
             <span className="font-bold">{transaction.barberName}</span>
           </div>
         )}
@@ -351,7 +351,7 @@ export const ReceiptA4Template = ({ data, formatAmount }: { data: ReceiptData; f
           <div className="text-sm text-gray-600 mt-1 space-y-1">
             <div>Numéro : <span className="font-bold text-black">#{transaction.invoiceNumber}</span></div>
             <div>Date : {format(new Date(transaction.date), 'dd MMMM yyyy HH:mm')}</div>
-            {transaction.barberName && <div>Prestataire / Barbier : <span className="font-medium text-black">{transaction.barberName}</span></div>}
+            {transaction.barberName && <div>Spécialiste : <span className="font-medium text-black">{transaction.barberName}</span></div>}
             {transaction.cashierName && <div>Caissier : <span className="font-semibold text-black">{transaction.cashierName}</span></div>}
           </div>
         </div>
