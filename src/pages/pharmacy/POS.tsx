@@ -143,7 +143,7 @@ export default function PharmacyPOS() {
           .maybeSingle(),
         getBusinessSettings(bizId).catch(() => null)
       ]);
-      setProducts(prods.filter(p => p.total_stock_quantity > 0)); // Only show in-stock items in POS
+      setProducts(prods); // Afficher tous les produits du catalogue dans la caisse
       setCustomers(custs);
       setPrescriptions(prescs);
       setBusinessInfo({
@@ -166,20 +166,24 @@ export default function PharmacyPOS() {
 
   const addToCart = (product: PharmacyProduct) => {
     const existing = cart.find(item => item.product_id === product.id);
+    const stockQty = Number(product.total_stock_quantity || 0);
+
     if (existing) {
-      if (existing.quantity >= product.total_stock_quantity) {
-        toast.error("Stock insuffisant !");
-        return;
+      if (stockQty > 0 && existing.quantity >= stockQty) {
+        toast.warning(`Attention : Quantité supérieure au stock disponible (${stockQty})`);
       }
       setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
+      if (stockQty <= 0) {
+        toast.info(`Produit ajouté au panier (Stock à 0 - vente autorisée)`);
+      }
       setCart([...cart, { 
         product_id: product.id, 
         name: product.name, 
         quantity: 1, 
         unit_price: product.sale_price || 150, 
         requires_prescription: product.requires_prescription,
-        max_stock: product.total_stock_quantity
+        max_stock: stockQty > 0 ? stockQty : 9999
       }]);
     }
   };
@@ -188,11 +192,10 @@ export default function PharmacyPOS() {
     setCart(cart.map(item => {
       if (item.product_id === productId) {
         const newQ = item.quantity + delta;
-        if (newQ > item.max_stock) {
-          toast.error("Stock insuffisant !");
-          return item;
-        }
         if (newQ <= 0) return item;
+        if (item.max_stock && item.max_stock < 9999 && newQ > item.max_stock) {
+          toast.warning(`Quantité (${newQ}) supérieure au stock (${item.max_stock})`);
+        }
         return { ...item, quantity: newQ };
       }
       return item;
@@ -320,25 +323,26 @@ export default function PharmacyPOS() {
 
   return (
     <DashboardLayout role="salon_admin" title="Point de Vente (Caisse)" subtitle="Vente au comptoir">
-      <div className="grid lg:grid-cols-3 gap-6 p-6 h-[calc(100vh-140px)]">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-4 md:p-6 min-h-[calc(100vh-140px)]">
         
         {/* LEFT PANEL : PRODUCTS CATALOG */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
             <Input 
               placeholder="Rechercher un médicament (Nom, DCI, Code barre)..." 
-              className="pl-10 text-lg py-6 shadow-sm"
+              className="pl-10 text-lg py-6 shadow-sm border-border/60 bg-card"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-4 pb-4">
+          <div className="flex-1 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
             {filteredProducts.map(p => {
               const visual = getProductVisual(p.name, p.form || "", p.image_url);
+              const stock = Number(p.total_stock_quantity || 0);
               return (
-                <Card key={p.id} className="group cursor-pointer hover:border-primary hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card" onClick={() => addToCart(p)}>
+                <Card key={p.id} className="group cursor-pointer hover:border-primary hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card border-border/60" onClick={() => addToCart(p)}>
                   {/* Visual Header representing the medication form */}
                   <div className={`h-24 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden`}>
                     {visual.element}
@@ -352,8 +356,8 @@ export default function PharmacyPOS() {
                       <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
                     </div>
                     <div className="flex justify-between items-end mt-auto">
-                      <span className="text-[11px] font-bold bg-muted text-muted-foreground px-2 py-1 rounded border border-border/40">
-                        Stock: {p.total_stock_quantity}
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stock > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"}`}>
+                        Stock: {stock}
                       </span>
                       {p.requires_prescription && (
                         <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -366,14 +370,14 @@ export default function PharmacyPOS() {
               );
             })}
             {filteredProducts.length === 0 && (
-              <div className="col-span-full text-center text-muted-foreground py-10">Aucun produit trouvé ou en stock.</div>
+              <div className="col-span-full text-center text-muted-foreground py-10">Aucun produit trouvé.</div>
             )}
           </div>
         </div>
 
         {/* RIGHT PANEL : CART & CHECKOUT */}
-        <div className="bg-white dark:bg-gray-900 border rounded-xl flex flex-col shadow-sm">
-          <div className="p-4 border-b bg-gray-50/50 dark:bg-gray-800/50 flex items-center gap-2">
+        <div className="md:col-span-5 lg:col-span-4 bg-card border border-border/60 rounded-xl flex flex-col shadow-sm">
+          <div className="p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-bold text-lg">Panier Actuel</h2>
           </div>
@@ -404,7 +408,7 @@ export default function PharmacyPOS() {
             )}
           </div>
 
-          <div className="p-4 border-t bg-gray-50/50 dark:bg-gray-800/50 space-y-4">
+          <div className="p-4 border-t border-border/60 bg-muted/30 space-y-4">
             
             <div className="space-y-2">
               <Label className="flex items-center gap-1 text-xs"><User className="w-3 h-3"/> Patient (Optionnel)</Label>

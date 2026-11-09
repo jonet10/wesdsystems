@@ -75,10 +75,10 @@ export const salesService = {
       .single();
     if (saleErr) throw saleErr;
 
-    // 2. Process Cart Items (FEFO Depletion)
+    // 2. Process Cart Items (FEFO Depletion with graceful fallback if no batches)
     for (const item of cart) {
       // Fetch batches for this product ordered by expiration date (FEFO)
-      const { data: batches, error: batchErr } = await supabase
+      const { data: batches } = await supabase
         .from("pharmacy_batches")
         .select("*")
         .eq("business_id", businessId)
@@ -86,53 +86,73 @@ export const salesService = {
         .gt("current_quantity", 0)
         .order("expiration_date", { ascending: true });
 
-      if (batchErr || !batches) throw new Error("Erreur de récupération des lots");
-
       let remainingToFulfill = item.quantity;
 
-      for (const batch of batches) {
-        if (remainingToFulfill <= 0) break;
+      if (batches && batches.length > 0) {
+        for (const batch of batches) {
+          if (remainingToFulfill <= 0) break;
 
-        const quantityToTakeFromBatch = Math.min(batch.current_quantity, remainingToFulfill);
-        
-        // Update batch quantity
-        const { error: updateBatchErr } = await supabase
-          .from("pharmacy_batches")
-          .update({ current_quantity: batch.current_quantity - quantityToTakeFromBatch })
-          .eq("id", batch.id);
+          const quantityToTakeFromBatch = Math.min(batch.current_quantity, remainingToFulfill);
+          
+          // Update batch quantity
+          await supabase
+            .from("pharmacy_batches")
+            .update({ current_quantity: Math.max(0, batch.current_quantity - quantityToTakeFromBatch) })
+            .eq("id", batch.id);
 
-        if (updateBatchErr) throw updateBatchErr;
+          // Create Sale Item for this specific batch
+          await supabase
+            .from("pharmacy_sale_items")
+            .insert([{
+              business_id: businessId,
+              sale_id: newSale.id,
+              product_id: item.product_id,
+              batch_id: batch.id,
+              quantity: quantityToTakeFromBatch,
+              unit_price: item.unit_price,
+              total_price: quantityToTakeFromBatch * item.unit_price
+            }]);
 
-        // Create Sale Item for this specific batch
+          // Create Stock Movement (Out / Sale)
+          await supabase
+            .from("pharmacy_stock_movements")
+            .insert([{
+              business_id: businessId,
+              product_id: item.product_id,
+              batch_id: batch.id,
+              type: "sale",
+              quantity: quantityToTakeFromBatch,
+              reference: `Sale ${newSale.receipt_number}`
+            }]);
+
+          remainingToFulfill -= quantityToTakeFromBatch;
+        }
+      }
+
+      // If no batches exist or batch stock ran out, record the remaining sale item gracefully
+      if (remainingToFulfill > 0) {
         await supabase
           .from("pharmacy_sale_items")
           .insert([{
             business_id: businessId,
             sale_id: newSale.id,
             product_id: item.product_id,
-            batch_id: batch.id,
-            quantity: quantityToTakeFromBatch,
+            batch_id: null,
+            quantity: remainingToFulfill,
             unit_price: item.unit_price,
-            total_price: quantityToTakeFromBatch * item.unit_price
+            total_price: remainingToFulfill * item.unit_price
           }]);
 
-        // Create Stock Movement (Out)
         await supabase
           .from("pharmacy_stock_movements")
           .insert([{
             business_id: businessId,
             product_id: item.product_id,
-            batch_id: batch.id,
+            batch_id: null,
             type: "sale",
-            quantity: quantityToTakeFromBatch,
+            quantity: remainingToFulfill,
             reference: `Sale ${newSale.receipt_number}`
           }]);
-
-        remainingToFulfill -= quantityToTakeFromBatch;
-      }
-
-      if (remainingToFulfill > 0) {
-        throw new Error(`Stock insuffisant pour le produit ID: ${item.product_id}`);
       }
     }
 

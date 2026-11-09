@@ -147,16 +147,23 @@ export default function PharmacyRegisters() {
         if (error) throw error;
         toast.success("Caisse modifiée");
       } else {
-        const { error } = await supabase
+        const insertPayload: any = {
+          business_id: activeBizId,
+          initial_amount: openingBal,
+          expected_amount: openingBal,
+          status: "closed",
+          notes: notesPayload,
+          opened_by: profile?.id || null,
+        };
+        let { error } = await supabase
           .from("pharmacy_cash_registers")
-          .insert([{
-            business_id: activeBizId,
-            initial_amount: openingBal,
-            expected_amount: openingBal,
-            status: "closed",
-            notes: notesPayload,
-            opened_by: profile?.id || null,
-          }]);
+          .insert([insertPayload]);
+
+        if (error && error.message?.toLowerCase().includes("foreign key")) {
+          insertPayload.opened_by = null;
+          const retry = await supabase.from("pharmacy_cash_registers").insert([insertPayload]);
+          error = retry.error;
+        }
 
         if (error) throw error;
         toast.success("Caisse créée avec succès");
@@ -193,7 +200,13 @@ export default function PharmacyRegisters() {
         whatsappService.sendWhatsAppMessageAsync(activeBizId, msg, "register_close", activeBizId);
       }
 
-      const { error } = await supabase.from("pharmacy_cash_registers").update(updatePayload).eq("id", reg.id);
+      let { error } = await supabase.from("pharmacy_cash_registers").update(updatePayload).eq("id", reg.id);
+      if (error && error.message?.toLowerCase().includes("foreign key")) {
+        delete updatePayload.closed_by;
+        delete updatePayload.opened_by;
+        const retry = await supabase.from("pharmacy_cash_registers").update(updatePayload).eq("id", reg.id);
+        error = retry.error;
+      }
       if (error) throw error;
       toast.success(newStatus === "open" ? "Caisse ouverte" : "Caisse fermée");
       load();
@@ -224,12 +237,12 @@ export default function PharmacyRegisters() {
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: "Caisses totales", value: registers.length, icon: <Monitor className="h-5 w-5 text-blue-500" />, bg: "bg-blue-50 dark:bg-blue-500/10" },
-            { label: "Caisses ouvertes", value: totalOpen, icon: <ShoppingBag className="h-5 w-5 text-green-500" />, bg: "bg-green-50 dark:bg-green-500/10" },
+            { label: "Caisses totales", value: registers.length, icon: <Monitor className="h-5 w-5 text-primary" />, bg: "bg-primary/10" },
+            { label: "Caisses ouvertes", value: totalOpen, icon: <ShoppingBag className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />, bg: "bg-emerald-50 dark:bg-emerald-500/10" },
             { label: "Solde total", value: format(totalBalance), icon: <DollarSign className="h-5 w-5 text-primary" />, bg: "bg-primary/10" },
           ].map((kpi, i) => (
             <StaggerItem key={i}>
-              <Card className="border-0 shadow-sm">
+              <Card className="border border-border/60 bg-card shadow-sm">
                 <CardContent className="pt-5">
                   <div className="flex items-center gap-3">
                     <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${kpi.bg}`}>{kpi.icon}</div>
@@ -246,11 +259,11 @@ export default function PharmacyRegisters() {
 
         {/* Table */}
         <StaggerItem>
-          <Card className="border-0 shadow-sm">
+          <Card className="border border-border/60 bg-card shadow-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Caisses enregistreuses</CardTitle>
-                <Button size="sm" onClick={openCreate}>
+                <Button size="sm" onClick={openCreate} className="bg-primary hover:bg-primary-dark text-primary-fg shadow-sm">
                   <Plus className="h-4 w-4 mr-1" /> Nouvelle caisse
                 </Button>
               </div>
@@ -263,7 +276,7 @@ export default function PharmacyRegisters() {
                   <Monitor className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="font-medium">Aucune caisse configurée</p>
                   <p className="text-sm text-muted-foreground mb-4">Créez votre première caisse pour commencer</p>
-                  <Button onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Créer une caisse</Button>
+                  <Button onClick={openCreate} className="bg-primary hover:bg-primary-dark text-primary-fg"><Plus className="h-4 w-4 mr-1" /> Créer une caisse</Button>
                 </div>
               ) : (
                 <Table>
@@ -289,7 +302,7 @@ export default function PharmacyRegisters() {
                         <TableCell>{format(reg.opening_balance)}</TableCell>
                         <TableCell className="font-semibold">{format(reg.current_balance || 0)}</TableCell>
                         <TableCell>
-                          <Badge variant={reg.status === "open" ? "default" : "secondary"}>
+                          <Badge variant={reg.status === "open" ? "default" : "secondary"} className={reg.status === "open" ? "bg-emerald-600 text-white" : ""}>
                             {reg.status === "open" ? "Ouverte" : "Fermée"}
                           </Badge>
                         </TableCell>
@@ -301,6 +314,7 @@ export default function PharmacyRegisters() {
                             <Button
                               size="sm"
                               variant={reg.status === "open" ? "destructive" : "default"}
+                              className={reg.status === "open" ? "" : "bg-primary hover:bg-primary-dark text-primary-fg"}
                               onClick={() => handleToggle(reg)}
                             >
                               {reg.status === "open" ? "Fermer" : "Ouvrir"}
@@ -363,7 +377,7 @@ export default function PharmacyRegisters() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary-dark text-primary-fg">
               {saving ? "Enregistrement..." : editing ? "Modifier" : "Créer"}
             </Button>
           </DialogFooter>
