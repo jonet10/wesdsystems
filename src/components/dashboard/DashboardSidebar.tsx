@@ -135,7 +135,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: FileText, labelKey: "sidebar.prescriptions", path: "/pharmacie/prescriptions", permission: PERMISSIONS.APPOINTMENTS_VIEW },
           { icon: CreditCard, labelKey: "sidebar.credits", path: "/pharmacie/credits", permission: PERMISSIONS.FINANCE_VIEW },
           { icon: Wallet, labelKey: "sidebar.registers", path: "/pharmacie/registers", permission: PERMISSIONS.FINANCE_VIEW },
-          { icon: UserCog, labelKey: "sidebar.employees", path: "/pharmacie/staff", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: UserCog, labelKey: "sidebar.employees", path: "/pharmacie/employees", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: TrendingUp, labelKey: "sidebar.reports", path: "/pharmacie/reports", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Bell, label: "Alertes WhatsApp", path: "/pharmacie/notifications", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Settings, label: "Paramètres WhatsApp", path: "/pharmacie/whatsapp-settings", permission: PERMISSIONS.SETTINGS_MANAGE },

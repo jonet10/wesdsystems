@@ -67,6 +67,51 @@ export const salesService = {
   async processSale(sale: Partial<PharmacySale>, cart: any[], explicitBusinessId?: string) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
 
+    // 0. Valider le panier et le stock AVANT de créer la vente.
+    // Sans ce contrôle, une vente pouvait être enregistrée (et apparaître au
+    // tableau de bord) alors que le produit était en rupture de stock.
+    if (!cart.length) {
+      throw new Error("Le panier est vide.");
+    }
+
+    for (const item of cart) {
+      if (!item.product_id) {
+        throw new Error("Produit invalide dans le panier.");
+      }
+      if (!(Number(item.quantity) > 0)) {
+        throw new Error(`Quantité invalide pour ${item.name || "un produit"}.`);
+      }
+    }
+
+    const productIds = Array.from(new Set(cart.map((item) => item.product_id)));
+    const { data: stockRows, error: stockError } = await supabase
+      .from("pharmacy_products")
+      .select("id, name, total_stock_quantity")
+      .eq("business_id", businessId)
+      .in("id", productIds);
+
+    if (stockError) throw stockError;
+
+    const stockById = new Map<string, { name: string; available: number }>();
+    (stockRows || []).forEach((row: any) => {
+      stockById.set(row.id, {
+        name: row.name,
+        available: Number(row.total_stock_quantity) || 0,
+      });
+    });
+
+    for (const item of cart) {
+      const product = stockById.get(item.product_id);
+      if (!product) {
+        throw new Error(`Produit introuvable : ${item.name || item.product_id}`);
+      }
+      if (Number(item.quantity) > product.available) {
+        throw new Error(
+          `Stock insuffisant pour ${product.name} : ${product.available} disponible(s), ${item.quantity} demandé(s).`
+        );
+      }
+    }
+
     // 1. Create Sale
     const { data: newSale, error: saleErr } = await supabase
       .from("pharmacy_sales")

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +12,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
+import { getOpenRegisterForCurrentUser } from "@/modules/pharmacy/services/registerService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -119,6 +121,7 @@ export default function PharmacyPOS() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptData | null>(null);
+  const [openRegister, setOpenRegister] = useState<{ id: string; name: string } | null>(null);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +132,26 @@ export default function PharmacyPOS() {
       loadData(businessId);
     }
   }, [businessId]);
+
+  useEffect(() => {
+    if (!businessId || !profile?.id) {
+      setOpenRegister(null);
+      return;
+    }
+
+    let mounted = true;
+    getOpenRegisterForCurrentUser(businessId, profile.id)
+      .then((register) => {
+        if (mounted) setOpenRegister(register ? { id: register.id, name: register.name } : null);
+      })
+      .catch(() => {
+        if (mounted) setOpenRegister(null);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [businessId, profile?.id]);
 
   const loadData = async (bizId: string) => {
     try {
@@ -168,22 +191,26 @@ export default function PharmacyPOS() {
     const existing = cart.find(item => item.product_id === product.id);
     const stockQty = Number(product.total_stock_quantity || 0);
 
+    // Rupture de stock : la vente est bloquée.
+    if (stockQty <= 0) {
+      toast.error(`Rupture de stock : ${product.name} n'est pas disponible à la vente.`);
+      return;
+    }
+
     if (existing) {
-      if (stockQty > 0 && existing.quantity >= stockQty) {
-        toast.warning(`Attention : Quantité supérieure au stock disponible (${stockQty})`);
+      if (existing.quantity + 1 > stockQty) {
+        toast.warning(`Stock insuffisant pour ${product.name} : ${stockQty} disponible(s).`);
+        return;
       }
       setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      if (stockQty <= 0) {
-        toast.info(`Produit ajouté au panier (Stock à 0 - vente autorisée)`);
-      }
-      setCart([...cart, { 
-        product_id: product.id, 
-        name: product.name, 
-        quantity: 1, 
-        unit_price: product.sale_price || 150, 
+      setCart([...cart, {
+        product_id: product.id,
+        name: product.name,
+        quantity: 1,
+        unit_price: product.sale_price || 150,
         requires_prescription: product.requires_prescription,
-        max_stock: stockQty > 0 ? stockQty : 9999
+        max_stock: stockQty
       }]);
     }
   };
@@ -193,8 +220,9 @@ export default function PharmacyPOS() {
       if (item.product_id === productId) {
         const newQ = item.quantity + delta;
         if (newQ <= 0) return item;
-        if (item.max_stock && item.max_stock < 9999 && newQ > item.max_stock) {
-          toast.warning(`Quantité (${newQ}) supérieure au stock (${item.max_stock})`);
+        if (delta > 0 && item.max_stock && newQ > item.max_stock) {
+          toast.warning(`Stock insuffisant pour ${item.name} : ${item.max_stock} disponible(s).`);
+          return item;
         }
         return { ...item, quantity: newQ };
       }
@@ -239,9 +267,33 @@ export default function PharmacyPOS() {
 
     setIsProcessing(true);
     try {
+      // Revalider le stock au moment de valider la vente : le stock a pu changer
+      // depuis l'ajout au panier (autre vente, réception, etc.).
+      const freshProducts = await productService.getProducts(businessId || undefined);
+      const stockById = new Map(
+        freshProducts.map(p => [p.id, Number(p.total_stock_quantity) || 0])
+      );
+
+      for (const item of cart) {
+        const available = stockById.get(item.product_id) ?? 0;
+        if (available < item.quantity) {
+          toast.error(
+            `Stock insuffisant pour ${item.name} : ${available} disponible(s), ${item.quantity} demandé(s).`
+          );
+          if (businessId) loadData(businessId);
+          return;
+        }
+      }
+
+      const currentRegister = businessId
+        ? await getOpenRegisterForCurrentUser(businessId, profile?.id).catch(() => null)
+        : null;
+
       const salePayload = {
         customer_id: selectedCustomer && selectedCustomer !== "none" ? selectedCustomer : null,
         prescription_id: selectedPrescription || null,
+        register_id: currentRegister?.id || null,
+        created_by: profile?.id || null,
         subtotal: totalAmount,
         tax_amount: 0,
         discount_amount: 0,
@@ -324,7 +376,22 @@ export default function PharmacyPOS() {
   return (
     <DashboardLayout role="salon_admin" title="Point de Vente (Caisse)" subtitle="Vente au comptoir">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-4 md:p-6 min-h-[calc(100vh-140px)]">
-        
+
+        {!openRegister && (
+          <div className="md:col-span-12 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Aucune caisse n'est ouverte à votre nom. Les ventes ne seront pas rattachées à une caisse.
+            </span>
+            <Link
+              to="/pharmacie/registers"
+              className="ml-auto font-medium underline underline-offset-2"
+            >
+              Gérer les caisses
+            </Link>
+          </div>
+        )}
+
         {/* LEFT PANEL : PRODUCTS CATALOG */}
         <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-4">
           <div className="relative">
@@ -342,7 +409,7 @@ export default function PharmacyPOS() {
               const visual = getProductVisual(p.name, p.form || "", p.image_url);
               const stock = Number(p.total_stock_quantity || 0);
               return (
-                <Card key={p.id} className="group cursor-pointer hover:border-primary hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card border-border/60" onClick={() => addToCart(p)}>
+                <Card key={p.id} className={`group transition-all duration-300 overflow-hidden flex flex-col h-full bg-card border-border/60 ${stock > 0 ? "cursor-pointer hover:border-primary hover:shadow-md" : "opacity-70"}`} onClick={() => addToCart(p)}>
                   {/* Visual Header representing the medication form */}
                   <div className={`h-24 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden`}>
                     {visual.element}
@@ -356,8 +423,8 @@ export default function PharmacyPOS() {
                       <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
                     </div>
                     <div className="flex justify-between items-end mt-auto">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stock > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"}`}>
-                        Stock: {stock}
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stock > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
+                        {stock > 0 ? `Stock: ${stock}` : "Rupture de stock"}
                       </span>
                       {p.requires_prescription && (
                         <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -380,6 +447,11 @@ export default function PharmacyPOS() {
           <div className="p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-bold text-lg">Panier Actuel</h2>
+            {openRegister && (
+              <span className="ml-auto text-[11px] font-medium bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">
+                {openRegister.name}
+              </span>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
