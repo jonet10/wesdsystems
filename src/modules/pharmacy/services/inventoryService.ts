@@ -219,11 +219,20 @@ export const inventoryService = {
       }
     }
 
+    // Sanitize type to respect PostgreSQL CHECK (type IN ('in', 'out', 'adjustment', 'sale', 'return'))
+    const isExpiry = movement.type === "expiry";
+    const movementType = isExpiry ? "out" : (movement.type || "adjustment");
+    const movementRef = isExpiry
+      ? (movement.reference ? `[Périmé] ${movement.reference}` : "Retrait produit périmé")
+      : (movement.reference || null);
+
     // 2. Insert Stock Movement
     const { data: newMovement, error: moveErr } = await supabase
       .from("pharmacy_stock_movements")
       .insert([{
         ...movement,
+        type: movementType,
+        reference: movementRef,
         batch_id: batchId || null,
         business_id: businessId
       }])
@@ -245,11 +254,11 @@ export const inventoryService = {
         let newQty = Number(batch.current_quantity);
         
         if (wasJustCreated) {
-          if (!(movement.type === "in" || movement.type === "return" || movement.type === "adjustment")) {
+          if (!(movementType === "in" || movementType === "return" || movementType === "adjustment")) {
             newQty = 0;
           }
         } else {
-          if (movement.type === "in" || movement.type === "return" || movement.type === "adjustment") {
+          if (movementType === "in" || movementType === "return" || movementType === "adjustment") {
             newQty += Number(movement.quantity);
           } else {
             newQty -= Number(movement.quantity);

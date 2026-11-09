@@ -76,7 +76,7 @@ export const DashboardLayout = ({ children, role: explicitRole, title, subtitle,
     };
   }, [explicitRole, explicitUserName, profile, employeeSession, autoPartsStaffSession, isAuthenticated, location.pathname]);
 
-  const isBusinessArea = effectiveRole === "salon_admin" || effectiveRole === "bar_admin";
+  const isBusinessArea = (effectiveRole === "salon_admin" || effectiveRole === "bar_admin") && effectiveRole !== "super_admin" && !location.pathname.startsWith("/admin");
   const isSubscriptionLocked = isBusinessArea && subscriptionReminder.isCritical;
 
   return (

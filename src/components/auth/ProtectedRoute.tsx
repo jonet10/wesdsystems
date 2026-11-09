@@ -6,7 +6,7 @@ import { getSalonEmployeePermissions } from "@/config/permissions";
 import { hasPermission, type Permission } from "@/config/permissions";
 import { glowupStore } from "@/lib/store";
 
-type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent";
+type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent" | "pharmacy_admin" | "pharmacy_manager" | "pharmacy_cashier" | "pharmacy_stock_manager" | "pharmacy_accountant";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -36,6 +36,10 @@ const getDefaultRouteForRole = (role?: string | null, businessType?: string | nu
   if (role === "employee") return "/employee";
   if (role === "school_parent") return "/school/parent/dashboard";
   if (role === "school_teacher") return "/school/teacher/dashboard";
+  if (role === "pharmacy_cashier") return "/pharmacie/pos";
+  if (role === "pharmacy_stock_manager") return "/pharmacie/stock";
+  if (role === "pharmacy_accountant") return "/pharmacie/reports";
+  if (role?.startsWith("pharmacy_")) return "/pharmacie";
   return moduleRoute(businessType);
 };
 
@@ -77,6 +81,13 @@ const normalizeRole = (role?: string | null): AppRole | null => {
   if (role === "super_admin" || role === "employee" || role === "partner") return role;
   if (["owner", "salon_admin", "studio_admin"].includes(role)) return "studio_admin";
   if (["school_admin", "school_accountant", "school_cashier", "school_teacher", "school_parent"].includes(role)) return role as AppRole;
+  if ([
+    "pharmacy_admin",
+    "pharmacy_manager",
+    "pharmacy_cashier",
+    "pharmacy_stock_manager",
+    "pharmacy_accountant",
+  ].includes(role)) return role as AppRole;
   return null;
 };
 
@@ -176,6 +187,9 @@ export function ProtectedRoute({
   let currentBizType = glowupStore.getActiveBusiness() || profile.business_type;
   if (role && role.startsWith("school_")) {
     currentBizType = "school";
+  }
+  if (role && role.startsWith("pharmacy_")) {
+    currentBizType = "pharmacie";
   }
   const normalizedAllowedRoles = allowedRoles
     .map((r) => normalizeRole(r))

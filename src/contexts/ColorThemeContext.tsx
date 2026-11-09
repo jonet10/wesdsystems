@@ -28,22 +28,33 @@ export function ColorThemeProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const updateActiveBusiness = () => {
       const business = glowupStore.getActiveBusiness();
-      // Map 'auto_parts' to 'auto_parts' (or any specific mapping if needed)
-      // The store uses 'salon', 'pharmacie', 'restaurant', 'market', 'boutique', 'auto_parts'
-      // We fall back to 'minuit' if it's not a known theme, but since we have themes for most, we just use it directly.
-      setActiveBusiness(business || "minuit");
+      const themeMap: Record<string, string> = {
+        pharmacie: "pharmacie",
+        salon: "cerise",
+        auto_parts: "cobalt",
+        restaurant: "braise",
+        school: "cobalt",
+        school_payments: "cobalt",
+        market: "miel",
+        boutique: "cerise",
+      };
+      const mappedTheme = business ? (themeMap[business] || business) : "minuit";
+      setActiveBusiness(mappedTheme);
     };
 
     updateActiveBusiness();
 
     window.addEventListener("glowup-store-update", updateActiveBusiness);
+    window.addEventListener("popstate", updateActiveBusiness);
     return () => {
       window.removeEventListener("glowup-store-update", updateActiveBusiness);
+      window.removeEventListener("popstate", updateActiveBusiness);
     };
   }, []);
 
-  // The effective theme is the manual one, or the active business theme, or minuit.
-  const colorTheme = manualTheme || activeBusiness || "minuit";
+  // Le module pharmacie applique toujours son thème émeraude médical dédié
+  const isPharmacyContext = (typeof window !== "undefined" && window.location.pathname.startsWith("/pharmacie")) || activeBusiness === "pharmacie";
+  const colorTheme = isPharmacyContext ? "pharmacie" : (manualTheme || activeBusiness || "minuit");
 
   const setColorTheme = (theme: ColorTheme) => {
     setManualTheme(theme);

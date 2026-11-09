@@ -41,7 +41,7 @@ interface AuthState {
   logoutEmployee: () => void;
   loginAutoPartsStaff: (username: string, pin: string) => Promise<{ success: boolean; error?: string }>;
   logoutAutoPartsStaff: () => void;
-  loginStaff: (username: string, secret: string) => Promise<{ success: boolean; error?: string; staff_type?: string }>;
+  loginStaff: (username: string, secret: string) => Promise<{ success: boolean; error?: string; staff_type?: string; business_id?: string }>;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -268,6 +268,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
 
       if (!result.success) {
+        // Pharmacy staff are real Supabase Auth users (username + PIN).
+        // check_staff_login only covers salon/auto-parts, so fall back to the
+        // dedicated pharmacy lookup, then sign in normally.
+        const { data: pharmacyData, error: pharmacyError } = await supabase.rpc(
+          'get_pharmacy_login_email',
+          { p_username: username, p_pin: secret }
+        );
+
+        if (!pharmacyError && pharmacyData?.success && pharmacyData?.email) {
+          // Drop any stale PIN-session from other modules before signing in
+          setEmployeeSession(null);
+          saveEmployeeSession(null);
+          setAutoPartsStaffSession(null);
+          saveStaffSession(null);
+
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: pharmacyData.email,
+            password: secret.trim(),
+          });
+
+          if (!signInError) {
+            return {
+              success: true,
+              staff_type: 'pharmacy',
+              business_id: pharmacyData.business_id,
+            };
+          }
+        }
+
         return { success: false, error: result.error || 'Identifiants incorrects' };
       }
 

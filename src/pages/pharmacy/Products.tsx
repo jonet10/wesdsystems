@@ -158,13 +158,13 @@ export default function PharmacyProducts() {
           />
           
           {data.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-purple-500/20 rounded-2xl bg-purple-500/5 mt-6">
-              <Pill className="h-12 w-12 text-purple-400 mb-4 animate-bounce" />
+            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 mt-6">
+              <Pill className="h-12 w-12 text-primary mb-4 animate-bounce" />
               <h3 className="text-lg font-semibold mb-2">Votre catalogue de médicaments est vide</h3>
               <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
                 Vous pouvez importer instantanément la liste standard de plus de 100 médicaments essentiels et 18 catégories recommandées pour commencer rapidement.
               </p>
-              <Button onClick={handleImportCatalog} className="bg-purple-600 hover:bg-purple-700 text-white gap-2">
+              <Button onClick={handleImportCatalog} className="bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">
                 <RefreshCw className="h-4 w-4" />
                 Importer le catalogue standard
               </Button>

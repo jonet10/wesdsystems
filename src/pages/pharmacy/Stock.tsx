@@ -141,15 +141,22 @@ export default function PharmacyStock() {
     }
 
     try {
+      const activeBizId = businessId || undefined;
+      const isExpiry = form.type === "expiry";
+      const dbType = isExpiry ? "out" : form.type;
+      const refText = isExpiry 
+        ? (form.reference ? `[Périmé] ${form.reference}` : "Retrait produit périmé")
+        : (form.reference || null);
+
       const payload = {
         product_id: form.product_id,
         batch_id: form.batch_id || null,
-        type: form.type,
+        type: dbType,
         quantity: Number(form.quantity || 0),
-        reference: form.reference || null
+        reference: refText
       };
 
-      await inventoryService.createStockMovement(payload, businessId || undefined);
+      await inventoryService.createStockMovement(payload, activeBizId);
       toast.success("Mouvement de stock enregistré");
       setOpen(false);
       if (businessId) load(businessId);
@@ -245,7 +252,7 @@ export default function PharmacyStock() {
                       <SelectItem value="expiry">Périmés</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button onClick={openCreate} className="h-9 bg-purple-600 hover:bg-purple-700 text-white gap-2">
+                  <Button onClick={openCreate} className="h-9 bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">
                     <Plus className="h-4 w-4" />
                     Ajuster le Stock
                   </Button>

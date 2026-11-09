@@ -58,7 +58,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
-import { PERMISSIONS, filterMenuByPermissions, getSalonEmployeePermissions, type Permission } from "@/config/permissions";
+import { PERMISSIONS, filterMenuByPermissions, getSalonEmployeePermissions, getPharmacyPermissions, type Permission, type PharmacyRole } from "@/config/permissions";
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -135,6 +135,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: FileText, labelKey: "sidebar.prescriptions", path: "/pharmacie/prescriptions", permission: PERMISSIONS.APPOINTMENTS_VIEW },
           { icon: CreditCard, labelKey: "sidebar.credits", path: "/pharmacie/credits", permission: PERMISSIONS.FINANCE_VIEW },
           { icon: Wallet, labelKey: "sidebar.registers", path: "/pharmacie/registers", permission: PERMISSIONS.FINANCE_VIEW },
+          { icon: UserCog, labelKey: "sidebar.employees", path: "/pharmacie/employees", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: TrendingUp, labelKey: "sidebar.reports", path: "/pharmacie/reports", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Bell, label: "Alertes WhatsApp", path: "/pharmacie/notifications", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Settings, label: "Paramètres WhatsApp", path: "/pharmacie/whatsapp-settings", permission: PERMISSIONS.SETTINGS_MANAGE },
@@ -322,6 +323,14 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     { icon: Settings, labelKey: "sidebar.settings", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
   ];
   const items = (() => {
+    // Pharmacy staff (cashier, stock manager, accountant...) – filter by role permissions
+    if (profile && activeBiz === "pharmacie" && profile.role?.startsWith("pharmacy_")) {
+      const perms = getPharmacyPermissions(profile.role as PharmacyRole);
+      return getBusinessAdminItems().filter(
+        (item) => !item.permission || perms.includes(item.permission)
+      );
+    }
+
     // School custom permissions filter (exclude school_teacher from general admin items)
     if (profile && profile.role !== "school_teacher" && (activeBiz === "school" || activeBiz === "school_payments")) {
       const isSchoolAdmin = profile.role === "school_admin" || profile.role === "super_admin" || profile.role === "salon_admin";
@@ -402,7 +411,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           className={cn(
           "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group border",
           isActive 
-            ? "bg-gradient-to-r from-primary/15 to-info/10 dark:from-violet-500/20 dark:to-cyan-400/10 text-primary dark:text-cyan-400 font-medium border-primary/20 dark:border-cyan-400/20 shadow-glow dark:shadow-[0_0_15px_rgba(34,211,238,0.15)]" 
+            ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-medium border-primary/30 shadow-[0_0_15px_rgba(7,162,120,0.15)]" 
             : "text-muted-foreground border-transparent hover:bg-primary/5 dark:hover:bg-white/5 hover:text-foreground dark:hover:text-white hover:border-primary/10 dark:hover:border-white/10"
         )}
       >
@@ -455,15 +464,15 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
             : { width: collapsed ? 72 : 256 }
         }
         className={
-          "h-screen flex-shrink-0 bg-background/80 dark:bg-[#0A0A0F]/95 backdrop-blur-2xl border-r border-purple-500/10 dark:border-white/5 " +
-          "flex flex-col transition-all duration-300 ease-in-out shadow-2xl shadow-purple-950/20 dark:shadow-black/50 " +
+          "h-screen flex-shrink-0 bg-background/80 dark:bg-card/90 backdrop-blur-2xl border-r border-border/60 dark:border-white/5 " +
+          "flex flex-col transition-all duration-300 ease-in-out shadow-lg " +
           (isMobile
             ? "fixed left-0 top-0 z-40"
             : "relative z-40")
         }
       >
         {/* Logo Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-purple-500/10">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border/60 dark:border-white/5">
           {!isMobile && (
             <motion.div
               animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
@@ -557,7 +566,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
 
         {/* Footer (desktop only) */}
         {!isMobile && collapsed && (
-          <div className="p-3 border-t border-purple-500/10">
+          <div className="p-3 border-t border-border/60">
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="w-full">
@@ -569,7 +578,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           </div>
         )}
         {!isMobile && !collapsed && (
-          <div className="p-3 border-t border-purple-500/10">
+          <div className="p-3 border-t border-border/60">
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:bg-primary/10"

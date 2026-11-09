@@ -35,6 +35,7 @@ export default function PharmacyPurchases() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       loadData();
     }
   }, [businessId]);
@@ -45,15 +46,13 @@ export default function PharmacyPurchases() {
       const [purchases, supps, prods] = await Promise.all([
         inventoryService.getPurchases(),
         inventoryService.getSuppliers(),
-        productService.getProducts()
+        productService.getProducts(businessId || undefined)
       ]);
       setData(purchases);
       setSuppliers(supps);
       setProducts(prods);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }

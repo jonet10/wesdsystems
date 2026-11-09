@@ -29,6 +29,7 @@ export default function PharmacySuppliers() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       load();
     }
   }, [businessId]);
@@ -39,9 +40,7 @@ export default function PharmacySuppliers() {
       const res = await inventoryService.getSuppliers();
       setData(res);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }

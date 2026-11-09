@@ -42,6 +42,7 @@ export default function PharmacyCredits() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       load();
     }
   }, [businessId]);
@@ -49,14 +50,15 @@ export default function PharmacyCredits() {
   const load = async () => {
     setLoading(true);
     try {
-      const businessId = getPharmacyBusinessId();
+      const activeBizId = businessId || getPharmacyBusinessId();
       const { data, error } = await supabase
         .from("pharmacy_sales")
         .select("id, receipt_number, total, payment_status, created_at, customer:customer_id(first_name, last_name, phone)")
-        .eq("business_id", businessId)
+        .eq("business_id", activeBizId)
         .in("payment_status", ["credit", "partial"])
         .order("created_at", { ascending: false });
       if (error) throw error;
+
 
       // Compute balance for each
       const withBalance = await Promise.all(
@@ -73,11 +75,11 @@ export default function PharmacyCredits() {
     } catch (e: any) {
       // Fallback if pharmacy_credit_payments table doesn't exist yet — use payment_status
       try {
-        const businessId = getPharmacyBusinessId();
+        const activeBizId = businessId || getPharmacyBusinessId();
         const { data } = await supabase
           .from("pharmacy_sales")
           .select("id, receipt_number, total, payment_status, created_at, customer:customer_id(first_name, last_name, phone)")
-          .eq("business_id", businessId)
+          .eq("business_id", activeBizId)
           .in("payment_status", ["credit", "partial"])
           .order("created_at", { ascending: false });
         setCredits((data || []).map((s: any) => ({ ...s, amount_paid: 0, balance: Number(s.total) })));
@@ -165,8 +167,8 @@ export default function PharmacyCredits() {
             <Card className="border-0 shadow-sm">
               <CardContent className="pt-5">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
-                    <Users className="h-5 w-5 text-violet-500" />
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Clients Débiteurs</p>

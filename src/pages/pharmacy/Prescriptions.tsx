@@ -33,6 +33,7 @@ export default function PharmacyPrescriptions() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       loadData();
     }
   }, [businessId]);
@@ -41,15 +42,13 @@ export default function PharmacyPrescriptions() {
     setLoading(true);
     try {
       const [prescs, custs] = await Promise.all([
-        salesService.getPrescriptions(),
-        salesService.getCustomers()
+        salesService.getPrescriptions(businessId || undefined),
+        salesService.getCustomers(businessId || undefined)
       ]);
       setData(prescs);
       setCustomers(custs);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }

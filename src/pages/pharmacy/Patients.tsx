@@ -29,6 +29,7 @@ export default function PharmacyPatients() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       load();
     }
   }, [businessId]);
@@ -36,12 +37,10 @@ export default function PharmacyPatients() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await salesService.getCustomers();
+      const res = await salesService.getCustomers(businessId || undefined);
       setData(res);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }

@@ -92,9 +92,9 @@ const getProductVisual = (name: string, form: string, imageUrl?: string | null) 
   }
   // Default
   return {
-    element: <Pill className="w-8 h-8 text-purple-500 transition-transform duration-300 group-hover:scale-110" />,
-    bg: "from-purple-500/10 to-purple-500/5",
-    border: "border-purple-500/20",
+    element: <Pill className="w-8 h-8 text-primary transition-transform duration-300 group-hover:scale-110" />,
+    bg: "from-primary/10 to-primary/5",
+    border: "border-primary/20",
     tag: form || "Médicament"
   };
 };
@@ -338,7 +338,7 @@ export default function PharmacyPOS() {
             {filteredProducts.map(p => {
               const visual = getProductVisual(p.name, p.form || "", p.image_url);
               return (
-                <Card key={p.id} className="group cursor-pointer hover:border-blue-500 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card" onClick={() => addToCart(p)}>
+                <Card key={p.id} className="group cursor-pointer hover:border-primary hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-full bg-card" onClick={() => addToCart(p)}>
                   {/* Visual Header representing the medication form */}
                   <div className={`h-24 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden`}>
                     {visual.element}
@@ -348,7 +348,7 @@ export default function PharmacyPOS() {
                   </div>
                   <CardContent className="p-3.5 flex flex-col flex-1 justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-sm leading-tight text-foreground line-clamp-2 min-h-[2.5rem] group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{p.name}</h3>
+                      <h3 className="font-bold text-sm leading-tight text-foreground line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">{p.name}</h3>
                       <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
                     </div>
                     <div className="flex justify-between items-end mt-auto">
@@ -374,7 +374,7 @@ export default function PharmacyPOS() {
         {/* RIGHT PANEL : CART & CHECKOUT */}
         <div className="bg-white dark:bg-gray-900 border rounded-xl flex flex-col shadow-sm">
           <div className="p-4 border-b bg-gray-50/50 dark:bg-gray-800/50 flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-blue-600" />
+            <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-bold text-lg">Panier Actuel</h2>
           </div>
 
@@ -443,7 +443,7 @@ export default function PharmacyPOS() {
 
             <div className="pt-2 flex justify-between items-center">
               <span className="text-lg font-bold">Total à Payer</span>
-              <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{format(totalAmount)}</span>
+              <span className="text-2xl font-black text-primary">{format(totalAmount)}</span>
             </div>
 
             {/* Clinical Alerts / Drug Interactions */}
@@ -463,7 +463,7 @@ export default function PharmacyPOS() {
             })()}
 
             <Button 
-              className="w-full h-12 text-lg font-bold bg-blue-600 hover:bg-blue-700" 
+              className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
               onClick={handleCheckout} 
               disabled={cart.length === 0 || isProcessing}
             >
@@ -503,7 +503,7 @@ export default function PharmacyPOS() {
             <Button variant="outline" className="text-gray-700" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); setLastSale(null); }}>
               Fermer
             </Button>
-            <Button onClick={handlePrint} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+            <Button onClick={handlePrint} className="bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">
               <Printer className="w-4 h-4" />
               Imprimer / PDF
             </Button>

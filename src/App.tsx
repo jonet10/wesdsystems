@@ -36,7 +36,9 @@ import PharmacyRegisters from "./pages/pharmacy/Registers";
 import PharmacyReports from "./pages/pharmacy/Reports";
 import PharmacyWhatsappSettings from "./pages/pharmacy/settings/WhatsappSettings";
 import PharmacyNotifications from "./pages/pharmacy/Notifications";
+import PharmacyStaff from "./pages/pharmacy/Staff";
 import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import Register from "./pages/auth/Register";
 import PartnerRegister from "./pages/auth/PartnerRegister";
 import MonCashConfirmation from "./pages/MonCashConfirmation";
@@ -176,8 +178,13 @@ const App = () => (
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth/login" element={<Login />} />
+                <Route path="/login" element={<Login />} />
                 <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/auth/register" element={<Register />} />
+                <Route path="/register" element={<Register />} />
                 <Route path="/register/partner" element={<PartnerRegister />} />
                 <Route path="/become-partner" element={<PartnerRegister />} />
                 <Route path="/inscription-partenaire" element={<PartnerRegister />} />
@@ -900,6 +907,7 @@ const App = () => (
                 <Route path="/pharmacie/prescriptions" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPrescriptions /></ProtectedRoute>} />
                 <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />
                 <Route path="/pharmacie/registers" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyRegisters /></ProtectedRoute>} />
+                <Route path="/pharmacie/employees" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyStaff /></ProtectedRoute>} />
                 <Route path="/pharmacie/reports" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyReports /></ProtectedRoute>} />
                 <Route path="/pharmacie/whatsapp-settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyWhatsappSettings /></ProtectedRoute>} />
                 <Route path="/pharmacie/notifications" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyNotifications /></ProtectedRoute>} />

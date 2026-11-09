@@ -104,11 +104,20 @@ export function computeDaysRemaining(endDate: string | null): number | null {
 }
 
 export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
-  const { profile, isAuthenticated } = useAuth();
-  const businessId = profile?.business_id ?? null;
-  const isBusinessOwner = Boolean(
-    profile?.role?.includes("admin") ||
-    profile?.role_normalized?.includes("admin") ||
+  const { profile, isAuthenticated, user } = useAuth();
+
+  const isSuperAdmin = Boolean(
+    profile?.role === "super_admin" ||
+    profile?.role_normalized === "super_admin" ||
+    profile?.email === "admin@wesdsystems.store" ||
+    user?.email === "admin@wesdsystems.store" ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/admin"))
+  );
+
+  const businessId = isSuperAdmin ? null : (profile?.business_id ?? null);
+  const isBusinessOwner = !isSuperAdmin && Boolean(
+    (profile?.role?.includes("admin") && profile?.role !== "super_admin") ||
+    (profile?.role_normalized?.includes("admin") && profile?.role_normalized !== "super_admin") ||
     profile?.role === "owner" ||
     profile?.role === "manager" ||
     profile?.role === "salon_admin" ||
@@ -347,6 +356,10 @@ export function useSubscriptionPaymentReminder(): SubscriptionPaymentReminder {
     }),
     []
   );
+
+  if (isSuperAdmin) {
+    return { ...fallbackValue, loading: false };
+  }
 
   if (!query.data) {
     return { ...fallbackValue, loading: query.isLoading };

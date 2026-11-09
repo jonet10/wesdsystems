@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/brand/Logo";
 import { FadeUp } from "@/components/animations/AnimatedContainers";
-import { Mail, ArrowLeft, Send } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Mail, ArrowLeft, Send, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useTranslation } from "react-i18next";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
@@ -15,38 +15,46 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const { toast } = useToast();
   const { t } = useTranslation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      toast.error("Veuillez saisir votre adresse email.");
+      return;
+    }
+
     setIsLoading(true);
 
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const redirectUrl = `${window.location.origin}/auth/reset-password`;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: redirectUrl,
       });
 
       if (error) throw error;
 
       setIsSuccess(true);
-      toast({
-        title: "Email envoyé",
-        description: "Veuillez vérifier votre boîte de réception pour réinitialiser votre mot de passe.",
-      });
+      toast.success("Email de réinitialisation envoyé ! Vérifiez votre boîte de réception.");
     } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible d'envoyer l'email de réinitialisation.",
-        variant: "destructive",
-      });
+      console.error("Password reset error:", error);
+      const msg = error.message || "";
+      if (msg.includes("rate_limit") || msg.includes("60 seconds") || msg.includes("security")) {
+        toast.error("Pour des raisons de sécurité, veuillez attendre 60 secondes avant de refaire une demande.");
+      } else {
+        toast.error(error.message || "Impossible d'envoyer l'email de réinitialisation.");
+      }
     } finally {
       clearTimeout(safetyTimer);
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background flex text-foreground">

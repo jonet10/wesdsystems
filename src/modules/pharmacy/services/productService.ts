@@ -1,14 +1,39 @@
 import { supabase } from "@/lib/supabase";
+import { glowupStore } from "@/lib/store";
 import type { PharmacyProduct, PharmacyCategory, PharmacyProductUnit } from "../types";
 
 let currentBusinessId: string | null = null;
 
-export const setPharmacyBusinessId = (id: string) => {
+export const setPharmacyBusinessId = (id: string | null) => {
   currentBusinessId = id;
 };
 
-export const getPharmacyBusinessId = () => {
-  if (!currentBusinessId) throw new Error("Business ID not set for Pharmacy Module");
+export const DEFAULT_PHARMACY_BUSINESS_ID = "51d05c41-50c6-4bea-b3e2-d9fa9d3fe733";
+
+export const getPharmacyBusinessId = (): string => {
+  if (currentBusinessId) return currentBusinessId;
+
+  if (typeof window !== "undefined") {
+    const localPharmBiz = localStorage.getItem("pharmacy_business_id");
+    if (localPharmBiz) {
+      currentBusinessId = localPharmBiz;
+      return currentBusinessId;
+    }
+    const localBiz = localStorage.getItem("glowup_business_id");
+    if (localBiz) {
+      currentBusinessId = localBiz;
+      return currentBusinessId;
+    }
+  }
+
+  // Auto-resolve fallback from store / localStorage
+  const fallbackSalon = glowupStore.getSalons()[0]?.business_id;
+  if (fallbackSalon) {
+    currentBusinessId = fallbackSalon;
+    return currentBusinessId;
+  }
+
+  currentBusinessId = DEFAULT_PHARMACY_BUSINESS_ID;
   return currentBusinessId;
 };
 
@@ -25,8 +50,8 @@ export const productService = {
     return data as PharmacyCategory[];
   },
 
-  async createCategory(payload: Partial<PharmacyCategory>) {
-    const businessId = getPharmacyBusinessId();
+  async createCategory(payload: Partial<PharmacyCategory>, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_categories")
       .insert([{ ...payload, business_id: businessId }])
@@ -36,6 +61,7 @@ export const productService = {
     if (error) throw error;
     return data as PharmacyCategory;
   },
+
 
   async updateCategory(id: string, payload: Partial<PharmacyCategory>) {
     const { data, error } = await supabase
@@ -71,8 +97,8 @@ export const productService = {
     return data as PharmacyProduct[];
   },
 
-  async createProduct(payload: Partial<PharmacyProduct>) {
-    const businessId = getPharmacyBusinessId();
+  async createProduct(payload: Partial<PharmacyProduct>, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_products")
       .insert([{ ...payload, business_id: businessId }])
@@ -104,8 +130,8 @@ export const productService = {
     if (error) throw error;
   },
 
-  async getProductUnits(productId: string) {
-    const businessId = getPharmacyBusinessId();
+  async getProductUnits(productId: string, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data, error } = await supabase
       .from("pharmacy_product_units")
       .select("*")

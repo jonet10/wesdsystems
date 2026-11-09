@@ -152,8 +152,16 @@ export const DashboardHeader = ({
     }
   }, [branches, branchId, setActiveBranchId]);
 
+  const isSuperAdminUser = Boolean(
+    userRole === "super_admin" ||
+    profile?.role === "super_admin" ||
+    profile?.role_normalized === "super_admin" ||
+    profile?.email === "admin@wesdsystems.store" ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/admin"))
+  );
+
   useEffect(() => {
-    if (!subscriptionReminder.shouldPrompt || !subscriptionReminder.storageKey) {
+    if (isSuperAdminUser || !subscriptionReminder.shouldPrompt || !subscriptionReminder.storageKey) {
       setSubscriptionDialogOpen(false);
       return;
     }
@@ -165,9 +173,13 @@ export const DashboardHeader = ({
 
     const dismissed = sessionStorage.getItem(subscriptionReminder.storageKey) === "1";
     setSubscriptionDialogOpen(!dismissed);
-  }, [subscriptionReminder.isCritical, subscriptionReminder.shouldPrompt, subscriptionReminder.storageKey]);
+  }, [subscriptionReminder.isCritical, subscriptionReminder.shouldPrompt, subscriptionReminder.storageKey, profile, isSuperAdminUser]);
 
   const handleSubscriptionDialogOpenChange = (open: boolean) => {
+    if (isSuperAdminUser) {
+      setSubscriptionDialogOpen(false);
+      return;
+    }
     if (subscriptionReminder.isCritical && !open) {
       return;
     }
@@ -180,8 +192,8 @@ export const DashboardHeader = ({
   return (
     <>
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 
-                      border-b border-purple-500/10 dark:border-white/5 bg-background/70 dark:bg-[#0A0A0F]/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60 dark:supports-[backdrop-filter]:bg-[#0A0A0F]/60
-                      px-6 shadow-lg shadow-purple-950/10 dark:shadow-black/30">
+                      border-b border-border/60 dark:border-white/5 bg-background/80 dark:bg-card/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/60 dark:supports-[backdrop-filter]:bg-card/60
+                      px-6 shadow-sm">
       
       {/* Mobile menu toggle */}
       {onMenuToggle && (
@@ -212,7 +224,7 @@ export const DashboardHeader = ({
               }
             }}
           />
-          <kbd className="hidden lg:inline-flex absolute right-2 top-1.5 h-5 select-none items-center gap-1 rounded border border-purple-500/15 bg-primary/10 px-1.5 font-mono text-[10px] font-medium text-primary/80">
+          <kbd className="hidden lg:inline-flex absolute right-2 top-1.5 h-5 select-none items-center gap-1 rounded border border-primary/20 bg-primary/10 px-1.5 font-mono text-[10px] font-medium text-primary/80">
             <span className="text-xs">⌘</span>K
           </kbd>
         </div>
@@ -405,7 +417,7 @@ export const DashboardHeader = ({
       </div>
     </header>
 
-      <Dialog open={subscriptionDialogOpen} onOpenChange={handleSubscriptionDialogOpenChange}>
+      <Dialog open={subscriptionDialogOpen && !isSuperAdminUser} onOpenChange={handleSubscriptionDialogOpenChange}>
         <DialogContent className="border-primary/20 bg-background">
           <DialogHeader>
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary sm:mx-0">

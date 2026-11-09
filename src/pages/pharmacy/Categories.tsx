@@ -16,6 +16,8 @@ import type { PharmacyCategory } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 
+import { setPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
+
 export default function PharmacyCategories() {
   const { t } = useTranslation();
   const [data, setData] = useState<PharmacyCategory[]>([]);
@@ -28,6 +30,7 @@ export default function PharmacyCategories() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       load();
     }
   }, [businessId]);
@@ -35,12 +38,10 @@ export default function PharmacyCategories() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await productService.getCategories();
+      const res = await productService.getCategories(businessId || undefined);
       setData(res);
     } catch (e: any) {
-      if (e.message !== "Business ID not set for Pharmacy Module") {
-        toast.error(e.message);
-      }
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -64,7 +65,7 @@ export default function PharmacyCategories() {
         await productService.updateCategory(editing.id, form);
         toast.success("Catégorie mise à jour");
       } else {
-        await productService.createCategory(form);
+        await productService.createCategory(form, businessId || undefined);
         toast.success("Catégorie créée");
       }
       setOpen(false);

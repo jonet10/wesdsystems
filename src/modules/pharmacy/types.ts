@@ -177,3 +177,19 @@ export interface PharmacySaleItem {
   unit?: PharmacyProductUnit;
   batch?: PharmacyBatch;
 }
+
+export interface PharmacyStockMovement {
+  id: string;
+  business_id: string;
+  product_id: string;
+  batch_id: string | null;
+  type: 'in' | 'out' | 'adjustment' | 'sale' | 'return' | 'expiry';
+  quantity: number;
+  reference: string | null;
+  notes?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  product?: PharmacyProduct;
+  batch?: PharmacyBatch;
+}
+

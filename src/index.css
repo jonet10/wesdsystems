@@ -69,7 +69,17 @@
     ────────────────────────────────────── */
     --border: 214 28% 88%;
     --input: 214 28% 88%;
-    --ring: 262 83% 65%;
+    --ring: #7F77DD;
+
+    /* Canaux RGB — compatibilité des modificateurs d'opacité Tailwind
+       (bg-primary/10, bg-card/80, border-primary/20, etc.).
+       Valeurs par défaut (thème Minuit) tant que le thème n'est pas appliqué. */
+    --primary-rgb: 127 119 221;
+    --primary-light-rgb: 153 147 228;
+    --primary-dark-rgb: 102 94 202;
+    --bg-base-rgb: 245 244 255;
+    --bg-surface-rgb: 255 255 255;
+    --bg-elevated-rgb: 238 237 254;
 
     --radius: 0.75rem;
 
@@ -144,7 +154,14 @@
 
     --border: 224 40% 14%;
     --input: 224 40% 14%;
-    --ring: 262 83% 65%;
+    --ring: #7F77DD;
+
+    --primary-rgb: 127 119 221;
+    --primary-light-rgb: 153 147 228;
+    --primary-dark-rgb: 102 94 202;
+    --bg-base-rgb: 15 13 26;
+    --bg-surface-rgb: 26 23 48;
+    --bg-elevated-rgb: 36 31 69;
 
     --gradient-hero: linear-gradient(135deg, hsl(224 71% 4%) 0%, hsl(258 63% 8%) 52%, hsl(224 71% 4%) 100%);
 
@@ -215,7 +232,7 @@
 
   /* Focus ring */
   :focus-visible {
-    outline: 2px solid hsl(var(--ring));
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 }

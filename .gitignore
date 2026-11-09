@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.wwebjs_cache
+.wwebjs_auth
+whatsapp-gateway/.wwebjs_cache/
+whatsapp-gateway/.wwebjs_auth/
 
 # Editor directories and files
 .vscode/*

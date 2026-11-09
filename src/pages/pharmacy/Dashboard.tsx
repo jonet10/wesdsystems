@@ -17,26 +17,47 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 
-// Reusable stat card adapted from Auto Parts / Stationery
+// Reusable stat card adapted to the medical emerald design
 function StatCard({
-  icon, label, value, sub, accent = "indigo",
+  icon, label, value, sub, accent = "green", featured = false,
 }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string;
-  accent?: "indigo" | "green" | "cyan" | "orange" | "violet" | "amber" | "rose" | "teal";
+  accent?: "indigo" | "green" | "cyan" | "orange" | "violet" | "amber" | "rose" | "teal" | "emerald";
+  featured?: boolean;
 }) {
+  if (featured) {
+    return (
+      <Card className="relative overflow-hidden border-0 shadow-md bg-gradient-to-br from-[#07A278] via-[#06956e] to-[#046A4E] text-white">
+        <CardContent className="pt-4 pb-4 pl-5">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-white/80 uppercase tracking-wide truncate">{label}</p>
+              <p className="text-2xl font-bold mt-1 font-display text-white">{value}</p>
+              {sub && <p className="text-xs text-white/80 mt-0.5">{sub}</p>}
+            </div>
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white/20 text-white backdrop-blur-sm">
+              {icon}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const accents: Record<string, { bar: string; bg: string; icon: string }> = {
-    indigo: { bar: "bg-indigo-500",  bg: "bg-indigo-50 dark:bg-indigo-500/10",  icon: "text-indigo-600 dark:text-indigo-400" },
-    green:  { bar: "bg-green-500",   bg: "bg-green-50 dark:bg-green-500/10",   icon: "text-green-600 dark:text-green-400" },
-    cyan:   { bar: "bg-cyan-500",    bg: "bg-cyan-50 dark:bg-cyan-500/10",    icon: "text-cyan-600 dark:text-cyan-400" },
-    orange: { bar: "bg-orange-500",  bg: "bg-orange-50 dark:bg-orange-500/10",  icon: "text-orange-600 dark:text-orange-400" },
-    violet: { bar: "bg-violet-500",  bg: "bg-violet-50 dark:bg-violet-500/10",  icon: "text-violet-600 dark:text-violet-400" },
-    amber:  { bar: "bg-amber-500",   bg: "bg-amber-50 dark:bg-amber-500/10",   icon: "text-amber-600 dark:text-amber-400" },
-    rose:   { bar: "bg-rose-500",    bg: "bg-rose-50 dark:bg-rose-500/10",    icon: "text-rose-600 dark:text-rose-400" },
-    teal:   { bar: "bg-teal-500",    bg: "bg-teal-50 dark:bg-teal-500/10",    icon: "text-teal-600 dark:text-teal-400" },
+    indigo: { bar: "bg-[#07A278]",  bg: "bg-[#07A278]/10",  icon: "text-[#07A278]" },
+    green:  { bar: "bg-[#07A278]",  bg: "bg-[#07A278]/10",  icon: "text-[#07A278]" },
+    emerald:{ bar: "bg-[#07A278]",  bg: "bg-[#07A278]/10",  icon: "text-[#07A278]" },
+    cyan:   { bar: "bg-teal-500",   bg: "bg-teal-500/10",   icon: "text-teal-600 dark:text-teal-400" },
+    orange: { bar: "bg-amber-500",  bg: "bg-amber-500/10",  icon: "text-amber-600 dark:text-amber-400" },
+    violet: { bar: "bg-[#07A278]",  bg: "bg-[#07A278]/10",  icon: "text-[#07A278]" },
+    amber:  { bar: "bg-amber-500",  bg: "bg-amber-500/10",  icon: "text-amber-600 dark:text-amber-400" },
+    rose:   { bar: "bg-rose-500",   bg: "bg-rose-500/10",   icon: "text-rose-600 dark:text-rose-400" },
+    teal:   { bar: "bg-teal-500",   bg: "bg-teal-500/10",   icon: "text-teal-600 dark:text-teal-400" },
   };
-  const c = accents[accent] ?? accents.indigo;
+  const c = accents[accent] ?? accents.green;
   return (
-    <Card className="relative overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="relative overflow-hidden border border-border/60 shadow-sm hover:shadow-md transition-shadow">
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${c.bar}`} />
       <CardContent className="pt-4 pb-4 pl-5">
         <div className="flex items-start justify-between">
@@ -134,35 +155,36 @@ export default function PharmacyDashboard() {
               label="CA aujourd'hui"
               value={format(stats?.salesToday ?? 0)}
               sub="Ventes actives"
-              accent="green"
+              accent="emerald"
+              featured={true}
             />
             <StatCard
               icon={<TrendingUp className="h-5 w-5" />}
               label="CA du mois"
               value={format(stats?.salesMonth ?? 0)}
               sub="Mois en cours"
-              accent="indigo"
+              accent="green"
             />
             <StatCard
               icon={<ShoppingCart className="h-5 w-5" />}
               label="Ventes aujourd'hui"
               value={stats?.invoicesToday ?? 0}
               sub="Tickets émis"
-              accent="violet"
+              accent="emerald"
             />
             <StatCard
               icon={<FileText className="h-5 w-5" />}
               label="Ventes du mois"
               value={stats?.invoicesMonth ?? 0}
               sub="Total des tickets"
-              accent="cyan"
+              accent="green"
             />
             <StatCard
               icon={<Pill className="h-5 w-5" />}
               label="Catalogue"
               value={stats?.totalProducts ?? 0}
               sub="Produits référencés"
-              accent="orange"
+              accent="cyan"
             />
           </div>
         </StaggerItem>
@@ -176,13 +198,13 @@ export default function PharmacyDashboard() {
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-900/30 bg-amber-950/20 text-amber-400 text-sm font-medium">
               <AlertTriangle className="h-4 w-4" /> {stats?.lowStock || 0} références à stock faible
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-blue-900/30 bg-blue-950/20 text-blue-400 text-sm font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/30 bg-primary/10 text-primary text-sm font-medium">
               <Package className="h-4 w-4" /> Valeur du stock : {format(stats?.totalStockValue || 0)}
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-emerald-900/30 bg-emerald-950/20 text-emerald-400 text-sm font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/15 text-primary text-sm font-medium">
               <TrendingUp className="h-4 w-4" /> Valeur potentielle : {format(stats?.totalPotentialRevenue || 0)}
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-purple-900/30 bg-purple-950/20 text-purple-400 text-sm font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/30 bg-primary/10 text-primary text-sm font-medium">
               <DollarSign className="h-4 w-4" /> Marge potentielle : {format(stats?.potentialMargin || 0)}
             </div>
           </div>
@@ -190,7 +212,7 @@ export default function PharmacyDashboard() {
 
         {/* ── Graphique d'évolution des ventes ── */}
         <StaggerItem>
-          <Card className="border-0 shadow-sm p-4">
+          <Card className="border border-border/60 shadow-sm p-4">
             <div className="flex justify-between items-center mb-6">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Evolution des ventes</p>
               <div className="flex gap-2">
@@ -209,7 +231,7 @@ export default function PharmacyDashboard() {
                     formatter={(value: number) => [`${format(value)}`, 'Ventes']}
                     labelStyle={{ color: '#64748b', marginBottom: '4px' }}
                   />
-                  <Line type="monotone" dataKey="total" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} />
+                  <Line type="monotone" dataKey="total" stroke="#07A278" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#07A278', stroke: '#fff', strokeWidth: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -221,7 +243,7 @@ export default function PharmacyDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Top Produits */}
-            <Card className="border-0 shadow-sm p-4">
+            <Card className="border border-border/60 shadow-sm p-4">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top Médicaments</p>
               <div className="space-y-4">
                 {topProducts.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Pas assez de données.</p>}
@@ -235,7 +257,7 @@ export default function PharmacyDashboard() {
                         <span className="text-muted-foreground flex-shrink-0">{p.quantity} ventes</span>
                       </div>
                       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
@@ -244,7 +266,7 @@ export default function PharmacyDashboard() {
             </Card>
 
             {/* Ruptures */}
-            <Card className="border-0 shadow-sm p-4">
+            <Card className="border border-border/60 shadow-sm p-4">
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Rupture de Stock</p>
                 <span className="bg-red-900/30 text-red-400 text-xs px-2 py-0.5 rounded-full font-medium">{stats?.outOfStock || 0}</span>
@@ -263,7 +285,7 @@ export default function PharmacyDashboard() {
             </Card>
 
             {/* Catégories */}
-            <Card className="border-0 shadow-sm p-4">
+            <Card className="border border-border/60 shadow-sm p-4">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Par Catégorie</p>
               <div className="flex items-center justify-between">
                 <div className="h-[120px] w-[120px]">
@@ -320,7 +342,7 @@ export default function PharmacyDashboard() {
                   <div className="w-16 text-muted-foreground">{act.time}</div>
                   <div className="flex-1 font-medium">Ticket #{act.invoice}</div>
                   <div className="w-16 text-center text-muted-foreground">{act.initials}</div>
-                  <div className="w-24 text-right font-medium text-emerald-500">{format(act.amount)}</div>
+                  <div className="w-24 text-right font-semibold text-primary">{format(act.amount)}</div>
                 </div>
               ))}
             </div>

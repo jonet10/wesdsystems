@@ -148,10 +148,10 @@ export default function PharmacyWhatsappSettings() {
         
         {/* CONFIGURATION GENERALE */}
         <StaggerItem className="lg:col-span-2 space-y-6">
-          <Card className="shadow-sm border border-purple-500/10">
+          <Card className="shadow-sm border border-border/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-purple-600" />
+                <Settings className="w-5 h-5 text-primary" />
                 Configuration de la connexion API
               </CardTitle>
               <CardDescription>
@@ -159,7 +159,7 @@ export default function PharmacyWhatsappSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-purple-50/50 dark:bg-purple-950/10 rounded-lg border border-purple-100 dark:border-purple-900/50">
+              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
                 <div>
                   <Label className="font-bold text-sm">Activer les Notifications WhatsApp</Label>
                   <p className="text-xs text-muted-foreground">Active ou désactive globalement tous les envois automatiques</p>
@@ -289,7 +289,7 @@ export default function PharmacyWhatsappSettings() {
 
         {/* ACTIVATION INDIVIDUELLE DES ALERTES */}
         <StaggerItem className="space-y-6">
-          <Card className="shadow-sm border border-purple-500/10 h-full">
+          <Card className="shadow-sm border border-border/60 h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-amber-500" />

@@ -122,11 +122,11 @@ export default function PharmacyNotifications() {
       <StaggerContainer className="p-6 space-y-6">
         
         <StaggerItem>
-          <Card className="shadow-sm border border-purple-500/10">
+          <Card className="shadow-sm border border-primary/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <BellRing className="w-5 h-5 text-purple-600" />
+                  <BellRing className="w-5 h-5 text-primary" />
                   Historique des messages envoyés
                 </CardTitle>
                 <CardDescription>
@@ -242,7 +242,7 @@ export default function PharmacyNotifications() {
                               size="sm" 
                               onClick={() => handleRetry(log.id)}
                               disabled={retryingId === log.id}
-                              className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 shrink-0 gap-1.5"
+                              className="text-primary hover:text-primary hover:bg-primary/10 shrink-0 gap-1.5"
                             >
                               <Send className="w-3.5 h-3.5" />
                               {retryingId === log.id ? "Renvoi..." : "Réessayer"}

@@ -48,6 +48,7 @@ export default function PharmacyRegisters() {
 
   useEffect(() => {
     if (businessId) {
+      setPharmacyBusinessId(businessId);
       load();
     }
   }, [businessId]);
@@ -55,17 +56,57 @@ export default function PharmacyRegisters() {
   const load = async () => {
     setLoading(true);
     try {
-      const businessId = getPharmacyBusinessId();
+      const activeBizId = businessId || getPharmacyBusinessId();
       const { data, error } = await supabase
-        .from("pharmacy_registers")
+        .from("pharmacy_cash_registers")
         .select("*")
-        .eq("business_id", businessId)
+        .eq("business_id", activeBizId)
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      setRegisters(data || []);
+
+      const mapped: Register[] = (data || []).map((row: any) => {
+        let name = "Caisse";
+        let description: string | null = null;
+        try {
+          const parsed = JSON.parse(row.notes || "{}");
+          if (parsed && typeof parsed === "object" && parsed.name) {
+            name = parsed.name;
+            description = parsed.description || null;
+          } else {
+            name = row.notes || "Caisse";
+          }
+        } catch {
+          name = row.notes || "Caisse";
+        }
+
+        return {
+          id: row.id,
+          business_id: row.business_id,
+          name,
+          description,
+          opening_balance: Number(row.initial_amount) || 0,
+          current_balance: Number(row.expected_amount ?? row.initial_amount) || 0,
+          status: (row.status as "open" | "closed") || "closed",
+          opened_by: row.opened_by || null,
+          opened_at: row.opened_at || null,
+          closed_at: row.closed_at || null,
+          created_at: row.created_at,
+        };
+      });
+
+      setRegisters(mapped);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("pharmacy_cached_registers_" + activeBizId, JSON.stringify(mapped));
+      }
     } catch (e: any) {
-      // Table may not exist yet — show empty state gracefully
-      setRegisters([]);
+      const activeBizId = businessId || getPharmacyBusinessId();
+      const cached = typeof window !== "undefined" ? localStorage.getItem("pharmacy_cached_registers_" + activeBizId) : null;
+      if (cached) {
+        try { setRegisters(JSON.parse(cached)); } catch { setRegisters([]); }
+      } else {
+        setRegisters([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -87,21 +128,38 @@ export default function PharmacyRegisters() {
     if (!form.name.trim()) { toast.error("Le nom est requis"); return; }
     setSaving(true);
     try {
-      const businessId = getPharmacyBusinessId();
-      const payload = {
+      const activeBizId = businessId || getPharmacyBusinessId();
+      const openingBal = Number(form.opening_balance) || 0;
+      const notesPayload = JSON.stringify({
         name: form.name.trim(),
-        description: form.description || null,
-        opening_balance: Number(form.opening_balance) || 0,
-        business_id: businessId,
-      };
+        description: form.description?.trim() || null,
+      });
+
       if (editing) {
-        const { error } = await supabase.from("pharmacy_registers").update({ name: payload.name, description: payload.description }).eq("id", editing.id);
+        const { error } = await supabase
+          .from("pharmacy_cash_registers")
+          .update({
+            notes: notesPayload,
+            initial_amount: openingBal,
+          })
+          .eq("id", editing.id);
+
         if (error) throw error;
         toast.success("Caisse modifiée");
       } else {
-        const { error } = await supabase.from("pharmacy_registers").insert([{ ...payload, current_balance: payload.opening_balance, status: "closed" }]);
+        const { error } = await supabase
+          .from("pharmacy_cash_registers")
+          .insert([{
+            business_id: activeBizId,
+            initial_amount: openingBal,
+            expected_amount: openingBal,
+            status: "closed",
+            notes: notesPayload,
+            opened_by: profile?.id || null,
+          }]);
+
         if (error) throw error;
-        toast.success("Caisse créée");
+        toast.success("Caisse créée avec succès");
       }
       setOpen(false);
       load();
@@ -114,29 +172,28 @@ export default function PharmacyRegisters() {
 
   const handleToggle = async (reg: Register) => {
     try {
+      const activeBizId = businessId || getPharmacyBusinessId();
       const newStatus = reg.status === "open" ? "closed" : "open";
-      const updatePayload: any = { status: newStatus };
+      const updatePayload: any = { 
+        status: newStatus,
+        closed_at: newStatus === "closed" ? new Date().toISOString() : null,
+        opened_at: newStatus === "open" ? new Date().toISOString() : reg.opened_at,
+        closed_by: newStatus === "closed" ? (profile?.id || null) : null,
+      };
+
       if (newStatus === "open") {
-        updatePayload.opened_at = new Date().toISOString();
-        updatePayload.closed_at = null;
-
         // WhatsApp Alert
-        if (businessId) {
-          const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-          const msg = `🟢 Caisse ouverte\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
-          whatsappService.sendWhatsAppMessageAsync(businessId, msg, "register_open", businessId);
-        }
+        const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        const msg = `🟢 Caisse ouverte\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+        whatsappService.sendWhatsAppMessageAsync(activeBizId, msg, "register_open", activeBizId);
       } else {
-        updatePayload.closed_at = new Date().toISOString();
-
         // WhatsApp Alert
-        if (businessId) {
-          const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-          const msg = `🔒 Caisse fermée\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse final : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
-          whatsappService.sendWhatsAppMessageAsync(businessId, msg, "register_close", businessId);
-        }
+        const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        const msg = `🔒 Caisse fermée\n\nCaissier : ${profile?.full_name || "Caissier"}\nCaisse : ${reg.name}\nFond de caisse final : ${Number(reg.current_balance || 0).toLocaleString()} HTG\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+        whatsappService.sendWhatsAppMessageAsync(activeBizId, msg, "register_close", activeBizId);
       }
-      const { error } = await supabase.from("pharmacy_registers").update(updatePayload).eq("id", reg.id);
+
+      const { error } = await supabase.from("pharmacy_cash_registers").update(updatePayload).eq("id", reg.id);
       if (error) throw error;
       toast.success(newStatus === "open" ? "Caisse ouverte" : "Caisse fermée");
       load();
@@ -148,7 +205,7 @@ export default function PharmacyRegisters() {
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
-      const { error } = await supabase.from("pharmacy_registers").delete().eq("id", deleteConfirm.id);
+      const { error } = await supabase.from("pharmacy_cash_registers").delete().eq("id", deleteConfirm.id);
       if (error) throw error;
       toast.success("Caisse supprimée");
       setDeleteConfirm(null);
@@ -169,7 +226,7 @@ export default function PharmacyRegisters() {
           {[
             { label: "Caisses totales", value: registers.length, icon: <Monitor className="h-5 w-5 text-blue-500" />, bg: "bg-blue-50 dark:bg-blue-500/10" },
             { label: "Caisses ouvertes", value: totalOpen, icon: <ShoppingBag className="h-5 w-5 text-green-500" />, bg: "bg-green-50 dark:bg-green-500/10" },
-            { label: "Solde total", value: format(totalBalance), icon: <DollarSign className="h-5 w-5 text-violet-500" />, bg: "bg-violet-50 dark:bg-violet-500/10" },
+            { label: "Solde total", value: format(totalBalance), icon: <DollarSign className="h-5 w-5 text-primary" />, bg: "bg-primary/10" },
           ].map((kpi, i) => (
             <StaggerItem key={i}>
               <Card className="border-0 shadow-sm">

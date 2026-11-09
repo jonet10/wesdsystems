@@ -40,6 +40,7 @@ export default function Login() {
     if (role === 'partner' || role?.startsWith('partner')) return 'partner';
     if (['studio_admin', 'salon_admin', 'owner'].includes(role)) return 'studio_admin';
     if (['school_admin', 'school_accountant', 'school_cashier', 'school_teacher', 'school_parent'].includes(role)) return role;
+    if (['pharmacy_admin', 'pharmacy_manager', 'pharmacy_cashier', 'pharmacy_stock_manager', 'pharmacy_accountant'].includes(role)) return role;
     return null;
   };
 
@@ -64,16 +65,23 @@ export default function Login() {
 
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     try {
+      // Clear any conflicting staff or employee session
+      localStorage.removeItem('glowup_employee_session');
+      localStorage.removeItem('auto_parts_staff_session');
+
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: cleanEmail,
+        password: cleanPassword,
       });
 
       if (error) throw error;
 
       if (rememberMe) {
-        localStorage.setItem("wesd_saved_email", email);
+        localStorage.setItem("wesd_saved_email", cleanEmail);
         localStorage.setItem("wesd_remember_me", "true");
       } else {
         localStorage.removeItem("wesd_saved_email");
@@ -91,7 +99,7 @@ export default function Login() {
 
         if (profileError) {
           console.warn('Login: profil non trouvé, utilisation du fallback de rôle', profileError);
-          if (localSuperAdminEmails.has(data.user.email ?? email)) {
+          if (localSuperAdminEmails.has(data.user.email ?? cleanEmail)) {
             targetRoute = "/admin";
           }
         } else {
@@ -100,12 +108,24 @@ export default function Login() {
           const normalized = normalizeRole(rawRole);
           const businessType = profile?.business_type || metadata.business_type || null;
 
-          if (normalized === 'super_admin') {
+          if (normalized === 'super_admin' || localSuperAdminEmails.has(cleanEmail) || localSuperAdminEmails.has(data.user.email ?? '')) {
             targetRoute = "/admin";
           } else if (normalized === 'partner') {
             targetRoute = "/partner";
           } else if (normalized === 'employee') {
             targetRoute = "/employee";
+          } else if (normalized === 'pharmacy_cashier') {
+            targetRoute = "/pharmacie/pos";
+            glowupStore.setActiveBusiness("pharmacie");
+          } else if (normalized === 'pharmacy_stock_manager') {
+            targetRoute = "/pharmacie/stock";
+            glowupStore.setActiveBusiness("pharmacie");
+          } else if (normalized === 'pharmacy_accountant') {
+            targetRoute = "/pharmacie/reports";
+            glowupStore.setActiveBusiness("pharmacie");
+          } else if (normalized === 'pharmacy_admin' || normalized === 'pharmacy_manager') {
+            targetRoute = "/pharmacie";
+            glowupStore.setActiveBusiness("pharmacie");
           } else {
             targetRoute = moduleRoute(businessType);
             if (businessType) glowupStore.setActiveBusiness(businessType as any);
@@ -204,9 +224,19 @@ export default function Login() {
         glowupStore.setActiveBusiness("auto_parts");
       } else if (res.staff_type === "salon") {
         glowupStore.setActiveBusiness("salon");
+      } else if (res.staff_type === "pharmacy") {
+        glowupStore.setActiveBusiness("pharmacie");
+        if (res.business_id) {
+          localStorage.setItem("pharmacy_business_id", res.business_id);
+        }
       }
       
-      const route = res.staff_type === "auto_parts" ? "/auto-parts/pos" : "/employee";
+      const route =
+        res.staff_type === "auto_parts"
+          ? "/auto-parts/pos"
+          : res.staff_type === "pharmacy"
+          ? "/pharmacie/pos"
+          : "/employee";
       navigate(route);
 
       toast({
