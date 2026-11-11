@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
+import { AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { toast } from "sonner";
 import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw, Search } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
@@ -160,82 +160,153 @@ export default function PharmacyProducts() {
 
   return (
     <DashboardLayout role="salon_admin" title="Catalogue Médicaments" subtitle="Gestion des produits et médicaments">
-      <StaggerContainer>
-        <StaggerItem>
-          <AutoPartsPageHeader 
-            title="Produits" 
-            description={searchQuery.trim() ? `${filteredData.length} résultat(s) sur ${data.length} produit(s)` : `${data.length} produit(s) enregistré(s)`} 
-            action={{ label: "Nouveau Produit", onClick: openCreate }} 
-          />
-          
-          {data.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 mt-6">
-              <Pill className="h-12 w-12 text-primary mb-4 animate-bounce" />
-              <h3 className="text-lg font-semibold mb-2">Votre catalogue de médicaments est vide</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
-                Vous pouvez importer instantanément la liste standard de plus de 100 médicaments essentiels et 18 catégories recommandées pour commencer rapidement.
-              </p>
-              <Button onClick={handleImportCatalog} className="bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">
-                <RefreshCw className="h-4 w-4" />
-                Importer le catalogue standard
-              </Button>
-            </div>
-          )}
+      <AutoPartsPageHeader 
+        title="Produits" 
+        description={searchQuery.trim() ? `${filteredData.length} résultat(s) sur ${data.length} produit(s)` : `${data.length} produit(s) enregistré(s)`} 
+        action={{ label: "Nouveau Produit", onClick: openCreate }} 
+      />
+      
+      {data.length === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 mt-6">
+          <Pill className="h-12 w-12 text-primary mb-4 animate-bounce" />
+          <h3 className="text-lg font-semibold mb-2">Votre catalogue de médicaments est vide</h3>
+          <p className="text-sm text-muted-foreground text-center max-w-md mb-6">
+            Vous pouvez importer instantanément la liste standard de plus de 100 médicaments essentiels et 18 catégories recommandées pour commencer rapidement.
+          </p>
+          <Button onClick={handleImportCatalog} className="bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">
+            <RefreshCw className="h-4 w-4" />
+            Importer le catalogue standard
+          </Button>
+        </div>
+      )}
 
-          {data.length > 0 && (
-            <div className="relative mb-4 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un produit (nom, DCI, code barre, forme, catégorie)..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          )}
-
-          {data.length > 0 && (
-            <AutoPartsDataTable
-              rows={filteredData}
-              columns={[
-                { key: "name", label: "Nom du Produit", render: (r) => (
-                  <div>
-                    <div className="font-medium flex items-center gap-2">
-                      {r.name}
-                      {r.requires_prescription && <ShieldAlert className="w-4 h-4 text-red-500" aria-label="Ordonnance requise" />}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{r.generic_name}</div>
-                  </div>
-                ) },
-                { key: "category", label: "Catégorie", render: (r) => (
-                  <span className="px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${r.category?.color || '#ccc'}20`, color: r.category?.color || '#666' }}>
-                    {r.category?.name || "Non classé"}
-                  </span>
-                ) },
-                { key: "form", label: "Forme", render: (r) => r.form || "-" },
-                { key: "cost_price", label: "Prix d'Achat", render: (r) => format(r.cost_price || 0) },
-                { key: "sale_price", label: "Prix de Vente", render: (r) => format(r.sale_price || 0) },
-                { key: "stock", label: "Stock Total", render: (r) => {
-                  const stock = Number(r.total_stock_quantity || 0);
-                  const min = Number(r.min_stock_alert || 0);
-                  const color = stock <= 0
-                    ? "text-red-600 font-bold"
-                    : stock <= min
-                      ? "text-orange-500 font-bold"
-                      : "text-green-600 font-bold";
-                  return <span className={color}>{stock}</span>;
-                } },
-                { key: "actions", label: "Actions", render: (r) => (
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(r.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                  </div>
-                )},
-              ]}
+      {data.length > 0 && (
+        <>
+          <div className="relative mb-6 max-w-xl">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un produit (nom, DCI, code barre, forme, catégorie)..."
+              className="h-12 pl-10 text-base"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+
+          {filteredData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-12 text-center">
+              <Search className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <p className="font-semibold">Aucun produit trouvé</p>
+              <p className="text-sm text-muted-foreground">
+                Aucun résultat pour « {searchQuery} ».
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {filteredData.map((r) => {
+                const stock = Number(r.total_stock_quantity || 0);
+                const min = Number(r.min_stock_alert || 0);
+                const categoryColor = r.category?.color || "#07A278";
+                const stockStyles =
+                  stock <= 0
+                    ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
+                    : stock <= min
+                      ? "border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+                const stockLabel =
+                  stock <= 0 ? "Rupture" : stock <= min ? "Stock faible" : "En stock";
+
+                return (
+                  <Card key={r.id} className="flex flex-col border-border/60 shadow-sm transition-shadow hover:shadow-md">
+                    <CardContent className="flex flex-1 flex-col gap-4 p-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${categoryColor}1a`, color: categoryColor }}
+                        >
+                          <Pill className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-2">
+                            <h3 className="break-words text-base font-semibold leading-snug text-foreground">
+                              {r.name}
+                            </h3>
+                            {r.requires_prescription && (
+                              <ShieldAlert
+                                className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
+                                aria-label="Ordonnance requise"
+                              />
+                            )}
+                          </div>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {r.generic_name || "DCI non renseignée"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className="rounded-full px-2.5 py-1 text-xs font-medium"
+                          style={{
+                            backgroundColor: `${categoryColor}20`,
+                            color: categoryColor,
+                          }}
+                        >
+                          {r.category?.name || "Non classé"}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {r.form || "Forme non précisée"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/50 p-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Prix d'achat</p>
+                          <p className="text-sm font-semibold">{format(r.cost_price || 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Prix de vente</p>
+                          <p className="text-sm font-semibold">{format(r.sale_price || 0)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm font-semibold ${stockStyles}`}>
+                          <span className="h-2 w-2 rounded-full bg-current" />
+                          {stockLabel} · {stock}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Seuil min. {min}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2 border-t border-border/60 pt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => openEdit(r)}
+                        >
+                          <Pencil className="mr-1 h-4 w-4" />
+                          Modifier
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(r.id)}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Désactiver
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )}
-        </StaggerItem>
-      </StaggerContainer>
+        </>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">
