@@ -41,7 +41,8 @@
        MUTED — Deep neutral surface
     ────────────────────────────────────── */
     --muted: 214 32% 95%;
-    --muted-foreground: 215 18% 34%;
+    /* Texte secondaire : noir en mode jour (demande utilisateur) */
+    --muted-foreground: 224 71% 4%;
 
     /* ──────────────────────────────────────
        ACCENT — Violet glass

@@ -125,6 +125,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
         return [
           { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/pharmacie", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Receipt, labelKey: "sidebar.pos", path: "/pharmacie/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Receipt, label: "Ventes", path: "/pharmacie/sales", permission: PERMISSIONS.SALES_TODAY },
           { icon: Pill, labelKey: "sidebar.products", path: "/pharmacie/products", permission: PERMISSIONS.PRODUCTS_READ },
           { icon: Layers, labelKey: "sidebar.categories", path: "/pharmacie/categories", permission: PERMISSIONS.PRODUCTS_READ },
           { icon: Container, labelKey: "sidebar.batches", path: "/pharmacie/batches", permission: PERMISSIONS.STOCK_VIEW },

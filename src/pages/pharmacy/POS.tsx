@@ -560,7 +560,7 @@ export default function PharmacyPOS() {
       }}>
         <DialogContent className="max-w-md bg-white text-black p-0 overflow-hidden">
           <DialogHeader className="p-4 border-b">
-            <DialogTitle className="text-center font-bold text-gray-800">Fiche de Vente (Ticket)</DialogTitle>
+            <DialogTitle className="text-center font-bold text-foreground">Fiche de Vente (Ticket)</DialogTitle>
           </DialogHeader>
           
           <div className="p-6 max-h-[60vh] overflow-y-auto bg-gray-100 flex justify-center">
@@ -576,7 +576,7 @@ export default function PharmacyPOS() {
           </div>
           
           <DialogFooter className="p-4 border-t bg-gray-50 flex gap-2 justify-end">
-            <Button variant="outline" className="text-gray-700" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); setLastSale(null); }}>
+            <Button variant="outline" className="text-foreground" onClick={() => { setShowReceipt(false); setReceiptSnapshot(null); setLastSale(null); }}>
               Fermer
             </Button>
             <Button onClick={handlePrint} className="bg-primary hover:bg-primary-dark text-primary-fg gap-2 shadow-sm">

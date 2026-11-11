@@ -248,6 +248,141 @@ export const salesService = {
     return newSale;
   },
 
+  /**
+   * Supprime définitivement une vente (erreur de saisie, vente de test...).
+   * - restaure les quantités dans les lots concernés,
+   * - supprime les mouvements de stock générés par la vente,
+   * - supprime la vente (les lignes de vente et crédits liés suivent en cascade).
+   *
+   * Les totaux de caisse étant recalculés à partir des ventes, la caisse est
+   * automatiquement corrigée après suppression.
+   */
+  async deleteSale(saleId: string, explicitBusinessId?: string) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
+
+    const { data: sale, error: saleError } = await supabase
+      .from("pharmacy_sales")
+      .select("id, receipt_number, register_id")
+      .eq("id", saleId)
+      .eq("business_id", businessId)
+      .single();
+
+    if (saleError) throw saleError;
+    if (!sale) throw new Error("Vente introuvable");
+
+    // 1. Restaurer le stock des lots utilisés par la vente.
+    const { data: items, error: itemsError } = await supabase
+      .from("pharmacy_sale_items")
+      .select("product_id, batch_id, quantity")
+      .eq("sale_id", saleId);
+
+    if (itemsError) throw itemsError;
+
+    for (const item of items || []) {
+      if (!item.batch_id) continue;
+
+      const { data: batch, error: batchError } = await supabase
+        .from("pharmacy_batches")
+        .select("id, current_quantity")
+        .eq("id", item.batch_id)
+        .maybeSingle();
+
+      if (batchError) throw batchError;
+      if (!batch) continue;
+
+      const restored =
+        Number(batch.current_quantity || 0) + Number(item.quantity || 0);
+
+      const { error: updateError } = await supabase
+        .from("pharmacy_batches")
+        .update({ current_quantity: restored })
+        .eq("id", item.batch_id);
+
+      if (updateError) throw updateError;
+    }
+
+    // 2. Supprimer les mouvements de stock liés à cette vente.
+    const { error: movementError } = await supabase
+      .from("pharmacy_stock_movements")
+      .delete()
+      .eq("business_id", businessId)
+      .eq("type", "sale")
+      .eq("reference", `Sale ${sale.receipt_number}`);
+
+    if (movementError) throw movementError;
+
+    // 3. Supprimer la vente elle-même.
+    const { error: deleteError } = await supabase
+      .from("pharmacy_sales")
+      .delete()
+      .eq("id", saleId)
+      .eq("business_id", businessId);
+
+    if (deleteError) throw deleteError;
+
+    // 4. Si la vente appartenait à une caisse déjà fermée, recalculer son
+    //    rapprochement (les caisses ouvertes sont recalculées à l'affichage).
+    if (sale.register_id) {
+      try {
+        const { data: register } = await supabase
+          .from("pharmacy_cash_registers")
+          .select("id, status, initial_amount, actual_amount")
+          .eq("id", sale.register_id)
+          .maybeSingle();
+
+        if (register && register.status === "closed") {
+          const [remainingSalesResult, expensesResult] = await Promise.all([
+            supabase
+              .from("pharmacy_sales")
+              .select("total, payment_method, payment_status")
+              .eq("business_id", businessId)
+              .eq("register_id", register.id),
+            supabase
+              .from("pharmacy_expenses")
+              .select("amount")
+              .eq("business_id", businessId)
+              .eq("register_id", register.id),
+          ]);
+
+          const cashSales = (remainingSalesResult.data || [])
+            .filter(
+              (row: any) =>
+                row.payment_method === "cash" && row.payment_status === "paid",
+            )
+            .reduce((sum: number, row: any) => sum + (Number(row.total) || 0), 0);
+
+          const expenses = (expensesResult.data || []).reduce(
+            (sum: number, row: any) => sum + (Number(row.amount) || 0),
+            0,
+          );
+
+          const expected =
+            (Number(register.initial_amount) || 0) + cashSales - expenses;
+          const actual =
+            register.actual_amount === null || register.actual_amount === undefined
+              ? null
+              : Number(register.actual_amount);
+
+          await supabase
+            .from("pharmacy_cash_registers")
+            .update({
+              expected_amount: expected,
+              difference: actual === null ? null : actual - expected,
+            })
+            .eq("id", register.id);
+        }
+      } catch (recalcError) {
+        // La vente est déjà supprimée : on n'échoue pas à cause du recalcul.
+        console.warn(
+          "[Sales Service] Recalcul de caisse après suppression impossible:",
+          recalcError,
+        );
+      }
+    }
+
+    return true;
+  },
+
   async voidSale(saleId: string, cashierName: string, reason: string, explicitBusinessId?: string) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
     const { data: sale } = await supabase

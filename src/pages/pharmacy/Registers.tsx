@@ -14,7 +14,11 @@ import { supabase } from "@/lib/supabase";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { setPharmacyBusinessId, getPharmacyBusinessId } from "@/modules/pharmacy/services/productService";
 import { getRegisterSummaries, parseRegisterMeta } from "@/modules/pharmacy/services/registerService";
-import { listPharmacyStaff, pharmacyRoleLabel } from "@/modules/pharmacy/services/staffService";
+import {
+  listPharmacyCashiers,
+  listPharmacyStaff,
+  pharmacyRoleLabel,
+} from "@/modules/pharmacy/services/staffService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, DollarSign, ShoppingBag, Monitor, Lock, Unlock, TrendingUp } from "lucide-react";
@@ -64,7 +68,7 @@ export default function PharmacyRegisters() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Register | null>(null);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", cashier_id: "" });
 
   const [openDialog, setOpenDialog] = useState<Register | null>(null);
   const [openForm, setOpenForm] = useState({ cashier_id: "", opening_balance: "0" });
@@ -85,18 +89,28 @@ export default function PharmacyRegisters() {
 
   const fetchCashiers = async (activeBizId: string): Promise<CashierOption[]> => {
     let list: CashierOption[] = [];
+    let staff: any[] = [];
+
+    // 1. RPC dédiée : lisible par tous les utilisateurs de la pharmacie.
     try {
-      const staff = await listPharmacyStaff(activeBizId);
-      list = staff
-        .filter((member) => member.is_active)
-        .map((member) => ({
-          id: member.id,
-          name: member.full_name || member.username || "Employé",
-          role: member.role,
-        }));
+      staff = await listPharmacyCashiers(activeBizId);
     } catch {
-      // RPC de gestion des employés pas encore déployée : repli sur l'utilisateur courant.
+      // 2. Repli : RPC de gestion des employés (admin/gérant uniquement).
+      try {
+        staff = await listPharmacyStaff(activeBizId);
+      } catch {
+        // 3. Dernier repli : l'utilisateur courant seulement.
+        staff = [];
+      }
     }
+
+    list = (staff || [])
+      .filter((member) => member?.is_active !== false)
+      .map((member) => ({
+        id: member.id,
+        name: member.full_name || member.username || "Employé",
+        role: member.role,
+      }));
 
     if (profile?.id && !list.some((cashier) => cashier.id === profile.id)) {
       list = [
@@ -208,13 +222,17 @@ export default function PharmacyRegisters() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", description: "" });
+    setForm({ name: "", description: "", cashier_id: "" });
     setOpen(true);
   };
 
   const openEdit = (register: Register) => {
     setEditing(register);
-    setForm({ name: register.name, description: register.description || "" });
+    setForm({
+      name: register.name,
+      description: register.description || "",
+      cashier_id: register.opened_by || "",
+    });
     setOpen(true);
   };
 
@@ -232,10 +250,22 @@ export default function PharmacyRegisters() {
         description: form.description.trim() || null,
       });
 
+      // `opened_by` sert aussi de caissier assigné lorsque la caisse est fermée.
+      // L'admin peut donc affecter une caissière dès la création, puis la
+      // retrouver pré-sélectionnée au moment de l'ouverture.
+      const cashierId = form.cashier_id || null;
+
       if (editing) {
+        // Ne pas réécrire le caissier d'une caisse déjà ouverte : `opened_by`
+        // désigne alors la personne qui a réellement ouvert la session.
+        const updatePayload: Record<string, unknown> = { notes: notesPayload };
+        if (editing.status !== "open") {
+          updatePayload.opened_by = cashierId;
+        }
+
         const { error } = await supabase
           .from("pharmacy_cash_registers")
-          .update({ notes: notesPayload })
+          .update(updatePayload)
           .eq("id", editing.id);
         if (error) throw error;
         toast.success("Caisse modifiée");
@@ -246,6 +276,7 @@ export default function PharmacyRegisters() {
             initial_amount: 0,
             expected_amount: 0,
             status: "closed",
+            opened_by: cashierId,
             notes: notesPayload,
           },
         ]);
@@ -711,9 +742,41 @@ export default function PharmacyRegisters() {
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label>Caissier(ère) assigné(e)</Label>
+              <Select
+                value={form.cashier_id || "unassigned"}
+                onValueChange={(value) =>
+                  setForm({ ...form, cashier_id: value === "unassigned" ? "" : value })
+                }
+                disabled={
+                  profile?.role === "pharmacy_cashier" || editing?.status === "open"
+                }
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Choisir une caissière" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Non assigné</SelectItem>
+                  {cashiers.map((cashier) => (
+                    <SelectItem key={cashier.id} value={cashier.id}>
+                      {cashier.name}
+                      {cashier.role?.startsWith("pharmacy_")
+                        ? ` · ${pharmacyRoleLabel(cashier.role)}`
+                        : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {editing?.status === "open"
+                  ? "Caisse ouverte : le caissier responsable ne peut plus être modifié."
+                  : "La caissière pourra être changée au moment de l'ouverture de la caisse."}
+              </p>
+            </div>
             {!editing && (
               <p className="text-xs text-muted-foreground">
-                Le caissier et le fond de caisse se définissent au moment de l'ouverture.
+                Le fond de caisse se définit au moment de l'ouverture.
               </p>
             )}
           </div>

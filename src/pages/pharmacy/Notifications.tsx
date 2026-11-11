@@ -105,7 +105,7 @@ export default function PharmacyNotifications() {
       case "void_alert":
         return "bg-red-500/10 text-red-600 border-red-500/20";
       default:
-        return "bg-gray-500/10 text-gray-600 border-gray-500/20";
+        return "bg-gray-500/10 text-foreground border-gray-500/20";
     }
   };
 
@@ -213,7 +213,7 @@ export default function PharmacyNotifications() {
                               {getAlertLabel(log.type)}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-md font-mono text-[10px] whitespace-pre-wrap leading-relaxed py-3 text-gray-700 dark:text-gray-300">
+                          <TableCell className="max-w-md font-mono text-[10px] whitespace-pre-wrap leading-relaxed py-3 text-foreground">
                             {log.message}
                           </TableCell>
                           <TableCell>

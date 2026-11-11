@@ -37,6 +37,19 @@ export async function listPharmacyStaff(businessId: string): Promise<PharmacySta
   return (data as PharmacyStaffMember[]) || [];
 }
 
+/**
+ * Liste les employés actifs de la pharmacie pour les affecter à une caisse.
+ * Contrairement à `listPharmacyStaff`, cette RPC est accessible à tous les
+ * utilisateurs de la pharmacie (caissier, gérant, comptable...).
+ */
+export async function listPharmacyCashiers(businessId: string): Promise<PharmacyStaffMember[]> {
+  const { data, error } = await supabase.rpc("pharmacy_list_cashiers", {
+    p_business_id: businessId,
+  });
+  if (error) throw error;
+  return (data as PharmacyStaffMember[]) || [];
+}
+
 export async function createPharmacyStaffMember(params: {
   businessId: string;
   fullName: string;
