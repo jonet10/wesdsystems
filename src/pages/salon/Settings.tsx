@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle, CalendarDays } from "lucide-react";
+import { Building2, Save, Sparkles, MapPin, Clock, Globe, Smartphone, FileText, Hash, CreditCard, AlertCircle, CalendarDays, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDashboard";
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
+import { AccountSecuritySettings } from "@/components/settings/AccountSecuritySettings";
 import { printUnifiedReceipt } from "@/components/printing/receipt-engine";
 import { ReceiptTemplate } from "@/components/printing/ReceiptTemplate";
 import { Printer, Eye } from "lucide-react";
@@ -450,6 +451,9 @@ export default function SalonSettingsPage() {
               <TabsTrigger value="printing" className="gap-2">
                 <FileText className="h-4 w-4" /> Impression
               </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <ShieldCheck className="h-4 w-4" /> Sécurité & Connexion
+              </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
               </TabsTrigger>
@@ -865,6 +869,12 @@ export default function SalonSettingsPage() {
                     </p>
                   </div>
                 </div>
+              </StaggerItem>
+            </TabsContent>
+
+            <TabsContent value="security" className="space-y-6">
+              <StaggerItem>
+                <AccountSecuritySettings />
               </StaggerItem>
             </TabsContent>
 

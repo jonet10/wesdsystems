@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Save, FileText, Package, CalendarDays, Globe, MapPin, Smartphone, Hash, CreditCard, AlertCircle, Sparkles } from "lucide-react";
+import { Building2, Save, FileText, Package, CalendarDays, Globe, MapPin, Smartphone, Hash, CreditCard, AlertCircle, Sparkles, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { ImageUploader } from "@/components/shared/ImageUploader";
@@ -20,6 +20,7 @@ import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDas
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
 import { getBusinessSettings, upsertBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
 import type { AutoPartsBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
+import { AccountSecuritySettings } from "@/components/settings/AccountSecuritySettings";
 
 export default function AutoPartsSettingsPage() {
   const { t } = useTranslation();
@@ -197,6 +198,9 @@ export default function AutoPartsSettingsPage() {
               </TabsTrigger>
               <TabsTrigger value="stock" className="gap-2">
                 <Package className="h-4 w-4" /> Stock
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <ShieldCheck className="h-4 w-4" /> Sécurité & Connexion
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
@@ -424,6 +428,12 @@ export default function AutoPartsSettingsPage() {
                     <p className="text-xs text-muted-foreground">Une alerte sera générée quand le stock passe en dessous de ce seuil.</p>
                   </div>
                 </div>
+              </StaggerItem>
+            </TabsContent>
+
+            <TabsContent value="security" className="space-y-6">
+              <StaggerItem>
+                <AccountSecuritySettings />
               </StaggerItem>
             </TabsContent>
 

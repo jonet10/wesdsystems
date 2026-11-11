@@ -57,6 +57,7 @@ import ServicesPage from "./pages/salon/Services";
 import AppointmentsPage from "./pages/salon/Appointments";
 import SalonEmployees from "./pages/salon/Employees";
 import SalonSettings from "./pages/salon/Settings";
+import ProfilePage from "./pages/shared/ProfilePage";
 import InventoryPage from "./pages/salon/Inventory";
 import POSPage from "./pages/salon/POS";
 import SalesAnalyticsPage from "./pages/salon/SalesAnalytics";
@@ -147,6 +148,7 @@ const salonAdminRoutes: { path: string; element: JSX.Element; permission?: Permi
   { path: "/appointments", element: <AppointmentsPage />, permission: PERMISSIONS.APPOINTMENTS_VIEW },
   { path: "/employees", element: <SalonEmployees />, permission: PERMISSIONS.STAFF_MANAGE },
   { path: "/settings", element: <SalonSettings />, permission: PERMISSIONS.SETTINGS_MANAGE },
+  { path: "/profile", element: <ProfilePage /> },
   { path: "/inventory", element: <InventoryPage />, permission: PERMISSIONS.STOCK_VIEW },
   { path: "/pos", element: <POSPage />, permission: PERMISSIONS.POS_VIEW },
   { path: "/sales-analytics", element: <SalesAnalyticsPage />, permission: PERMISSIONS.ANALYTICS_VIEW },
@@ -255,6 +257,16 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["super_admin"]}>
                       <SuperAdminManualPaymentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Global Account & Profile Route for all business admins */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute allowAuthenticatedWithoutRole>
+                      <ProfilePage />
                     </ProtectedRoute>
                   }
                 />
@@ -911,6 +923,7 @@ const App = () => (
                 <Route path="/pharmacie/reports" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyReports /></ProtectedRoute>} />
                 <Route path="/pharmacie/whatsapp-settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyWhatsappSettings /></ProtectedRoute>} />
                 <Route path="/pharmacie/notifications" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyNotifications /></ProtectedRoute>} />
+                <Route path="/pharmacie/profile" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><ProfilePage /></ProtectedRoute>} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

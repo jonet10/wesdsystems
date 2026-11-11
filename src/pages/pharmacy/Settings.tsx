@@ -20,6 +20,7 @@ import { SubscriptionDashboard } from "@/components/subscription/SubscriptionDas
 import { SubscriptionPaymentCard } from "@/components/dashboard/SubscriptionPaymentCard";
 import { getBusinessSettings, upsertBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
 import { Switch } from "@/components/ui/switch";
+import { AccountSecuritySettings } from "@/components/settings/AccountSecuritySettings";
 
 export default function PharmacySettings() {
   const { t } = useTranslation();
@@ -203,7 +204,7 @@ export default function PharmacySettings() {
                 <Package className="h-4 w-4" /> Stock / Inventaire
               </TabsTrigger>
               <TabsTrigger value="security" className="gap-2">
-                <Shield className="h-4 w-4" /> Sécurité
+                <Shield className="h-4 w-4" /> Sécurité & Connexion
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
@@ -475,6 +476,9 @@ export default function PharmacySettings() {
                     <Switch checked={requirePrescriptionUpload} onCheckedChange={setRequirePrescriptionUpload} />
                   </div>
                 </div>
+              </StaggerItem>
+              <StaggerItem>
+                <AccountSecuritySettings />
               </StaggerItem>
             </TabsContent>
 

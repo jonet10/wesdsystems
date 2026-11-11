@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check, AlertCircle, CreditCard, Menu } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Building2, Check, AlertCircle, CreditCard, Menu, Shield } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -399,13 +399,22 @@ export const DashboardHeader = ({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : userRole === "employee" ? "/employee" : "/salon/settings")}>
+            <DropdownMenuItem onClick={() => navigate(
+              userRole === "partner" ? "/partner" :
+              userRole === "employee" ? "/employee" :
+              userRole === "super_admin" ? "/admin/settings" :
+              window.location.pathname.startsWith("/pharmacie") ? "/pharmacie/settings" :
+              window.location.pathname.startsWith("/pieces-auto") ? "/pieces-auto/settings" :
+              window.location.pathname.startsWith("/ecole") ? "/ecole/settings" :
+              window.location.pathname.startsWith("/papeterie") ? "/papeterie/settings" :
+              "/salon/settings"
+            )}>
               <Settings className="mr-2 h-4 w-4" />
               Paramètres
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate(userRole === "partner" ? "/partner" : userRole === "employee" ? "/employee" : "/salon/employees")}>
-              <User className="mr-2 h-4 w-4" />
-              Mon profil
+            <DropdownMenuItem onClick={() => navigate("/profile")}>
+              <Shield className="mr-2 h-4 w-4" />
+              Mon profil & Sécurité
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">

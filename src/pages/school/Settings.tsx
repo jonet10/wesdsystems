@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
   Building2, Save, Globe, Smartphone, FileText, Hash, MessageSquare,
-  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock, GraduationCap
+  CreditCard, AlertCircle, Sparkles, MapPin, Package, CalendarDays, Lock, Unlock, GraduationCap, ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -28,6 +28,7 @@ import { useSchool } from "@/hooks/useSchool";
 import { SchoolType } from "@/modules/school/engine/types";
 import type { SchoolSetting } from "@/modules/school/types";
 import { DocxParserPlugin } from "@/modules/document-engine/plugins/DocxParserPlugin";
+import { AccountSecuritySettings } from "@/components/settings/AccountSecuritySettings";
 import { TemplateRepository } from "@/modules/document-engine/storage/TemplateRepository";
 
 export default function SchoolSettingsPage() {
@@ -440,6 +441,9 @@ export default function SchoolSettingsPage() {
               </TabsTrigger>
               <TabsTrigger value="sms" className="gap-2">
                 <MessageSquare className="h-4 w-4" /> WhatsApp Gateway
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <ShieldCheck className="h-4 w-4" /> Sécurité & Connexion
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2">
                 <CalendarDays className="h-4 w-4" /> Abonnement
@@ -954,6 +958,12 @@ export default function SchoolSettingsPage() {
             </TabsContent>
 
             {/* ── ABONNEMENT ── */}
+            <TabsContent value="security" className="space-y-6">
+              <StaggerItem>
+                <AccountSecuritySettings />
+              </StaggerItem>
+            </TabsContent>
+
             <TabsContent value="subscription" className="space-y-6">
               <SubscriptionDashboard />
             </TabsContent>
