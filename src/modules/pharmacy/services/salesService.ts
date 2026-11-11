@@ -400,20 +400,237 @@ export const salesService = {
     return true;
   },
 
-  async returnProduct(saleId: string, productSelector: { id: string; name: string }, quantity: number, customerName: string, cashierName: string, reason: string, explicitBusinessId?: string) {
+  /**
+   * Recherche une vente par numéro de reçu et prépare les quantités
+   * retournables (quantité vendue - quantité déjà retournée).
+   */
+  async findSaleByReceipt(receiptNumber: string, explicitBusinessId?: string) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
-    const { data: sale } = await supabase
+    const receipt = receiptNumber.trim();
+
+    if (!receipt) {
+      throw new Error("Veuillez saisir le numéro du reçu.");
+    }
+
+    const { data, error } = await supabase
       .from("pharmacy_sales")
-      .select("*")
-      .eq("id", saleId)
-      .single();
+      .select(
+        "id, receipt_number, created_at, total, payment_method, payment_status, register_id, customer:customer_id(first_name, last_name), items:pharmacy_sale_items(id, product_id, batch_id, quantity, unit_price, total_price, product:product_id(name))",
+      )
+      .eq("business_id", businessId)
+      .ilike("receipt_number", receipt)
+      .maybeSingle();
 
-    if (!sale) throw new Error("Vente introuvable");
+    if (error) throw error;
+    if (!data) {
+      throw new Error(`Aucune vente trouvée pour le reçu « ${receipt} ».`);
+    }
 
-    const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-    const msg = `↩️ Retour produit\n\nProduit : ${productSelector.name}\nQuantité : ${quantity}\nClient : ${customerName}\nCaissier : ${cashierName}\nRaison : ${reason}\nHeure : ${timeStr}\n\nWesdSystems Pharmacy`;
+    const canonicalReceipt = (data as any).receipt_number as string;
 
-    whatsappService.sendWhatsAppMessageAsync(businessId, msg, "return_alert", sale.branch_id || businessId);
-    return true;
+    // Les retours sont tracés dans les mouvements de stock avec la référence
+    // "Retour <reçu>". On additionne les quantités déjà retournées par
+    // produit + lot pour calculer ce qui reste retournable.
+    const { data: returnMovements, error: movementsError } = await supabase
+      .from("pharmacy_stock_movements")
+      .select("product_id, batch_id, quantity")
+      .eq("business_id", businessId)
+      .eq("type", "return")
+      .eq("reference", `Retour ${canonicalReceipt}`);
+
+    if (movementsError) throw movementsError;
+
+    const returnedByKey = new Map<string, number>();
+    (returnMovements || []).forEach((movement: any) => {
+      const key = `${movement.product_id || ""}::${movement.batch_id || ""}`;
+      returnedByKey.set(
+        key,
+        (returnedByKey.get(key) || 0) + (Number(movement.quantity) || 0),
+      );
+    });
+
+    const sale = data as any;
+    const customer = sale.customer;
+    const customerName = customer
+      ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim()
+      : "";
+
+    const items = ((sale.items as any[]) || []).map((item) => {
+      const key = `${item.product_id || ""}::${item.batch_id || ""}`;
+      return {
+        id: item.id,
+        product_id: item.product_id,
+        batch_id: item.batch_id,
+        quantity: Number(item.quantity) || 0,
+        unit_price: Number(item.unit_price) || 0,
+        total_price: Number(item.total_price) || 0,
+        product_name: item.product?.name || "Produit supprimé",
+        returned_quantity: returnedByKey.get(key) || 0,
+      };
+    });
+
+    return {
+      id: sale.id,
+      receipt_number: sale.receipt_number,
+      created_at: sale.created_at,
+      total: Number(sale.total) || 0,
+      payment_method: sale.payment_method,
+      payment_status: sale.payment_status,
+      register_id: sale.register_id,
+      customer_name: customerName || "Client de passage",
+      items,
+    };
+  },
+
+  /**
+   * Enregistre un retour produit :
+   * - remet les quantités retournées dans les lots d'origine,
+   * - crée un mouvement de stock de type "return",
+   * - si demandé, enregistre le remboursement en espèces comme dépense de caisse.
+   */
+  async processReturn(
+    sale: {
+      id: string;
+      receipt_number: string;
+      payment_method: string;
+      register_id: string | null;
+      items: Array<{
+        id: string;
+        product_id: string | null;
+        batch_id: string | null;
+        quantity: number;
+        unit_price: number;
+        product_name: string;
+        returned_quantity: number;
+      }>;
+    },
+    quantities: Record<string, number>,
+    options: { reason?: string; refund?: boolean } = {},
+    explicitBusinessId?: string,
+  ) {
+    const businessId = explicitBusinessId || getPharmacyBusinessId();
+
+    const entries = sale.items
+      .map((item) => ({
+        item,
+        quantity: Number(quantities[item.id]) || 0,
+      }))
+      .filter((entry) => entry.quantity > 0);
+
+    if (entries.length === 0) {
+      throw new Error("Veuillez indiquer au moins une quantité à retourner.");
+    }
+
+    for (const { item, quantity } of entries) {
+      const returnable = item.quantity - item.returned_quantity;
+      if (quantity > returnable + 0.0001) {
+        throw new Error(
+          `Quantité trop élevée pour ${item.product_name} : ${returnable} retournable(s).`,
+        );
+      }
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id || null;
+    const reason = options.reason?.trim();
+    const notes = reason ? `Retour produit — ${reason}` : "Retour produit";
+    const reference = `Retour ${sale.receipt_number}`;
+
+    let refundTotal = 0;
+    let returnedUnits = 0;
+
+    for (const { item, quantity } of entries) {
+      // Remettre la quantité dans le lot d'origine (ou dans le premier lot
+      // disponible si la vente n'avait pas de lot rattaché).
+      let batchId = item.batch_id;
+      let batchQuantity: number | null = null;
+
+      if (batchId) {
+        const { data: batch, error: batchError } = await supabase
+          .from("pharmacy_batches")
+          .select("id, current_quantity")
+          .eq("id", batchId)
+          .maybeSingle();
+
+        if (batchError) throw batchError;
+        if (batch) {
+          batchQuantity = Number(batch.current_quantity) || 0;
+        } else {
+          batchId = null;
+        }
+      }
+
+      if (!batchId && item.product_id) {
+        const { data: fallbackBatch } = await supabase
+          .from("pharmacy_batches")
+          .select("id, current_quantity")
+          .eq("business_id", businessId)
+          .eq("product_id", item.product_id)
+          .order("expiration_date", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackBatch) {
+          batchId = fallbackBatch.id;
+          batchQuantity = Number(fallbackBatch.current_quantity) || 0;
+        }
+      }
+
+      if (batchId && batchQuantity !== null) {
+        const { error: updateError } = await supabase
+          .from("pharmacy_batches")
+          .update({ current_quantity: batchQuantity + quantity })
+          .eq("id", batchId);
+
+        if (updateError) throw updateError;
+      }
+
+      const { error: movementError } = await supabase
+        .from("pharmacy_stock_movements")
+        .insert([
+          {
+            business_id: businessId,
+            product_id: item.product_id,
+            batch_id: batchId,
+            type: "return",
+            quantity,
+            reference,
+            notes,
+            created_by: userId,
+          },
+        ]);
+
+      if (movementError) throw movementError;
+
+      refundTotal += quantity * item.unit_price;
+      returnedUnits += quantity;
+    }
+
+    // Remboursement en espèces : on l'enregistre comme sortie de caisse afin
+    // que le rapprochement de la caisse reste exact.
+    if (
+      options.refund &&
+      sale.payment_method === "cash" &&
+      sale.register_id &&
+      refundTotal > 0
+    ) {
+      const { error: expenseError } = await supabase
+        .from("pharmacy_expenses")
+        .insert([
+          {
+            business_id: businessId,
+            register_id: sale.register_id,
+            category: "return",
+            description: `Remboursement retour produit — Ticket ${sale.receipt_number}`,
+            amount: refundTotal,
+            expense_date: new Date().toISOString().slice(0, 10),
+            created_by: userId,
+          },
+        ]);
+
+      if (expenseError) throw expenseError;
+    }
+
+    return { refundTotal, returnedUnits };
   }
 };

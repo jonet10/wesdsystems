@@ -12,10 +12,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
+import { ReturnProductDialog } from "@/modules/pharmacy/components/ReturnProductDialog";
 import { getOpenRegisterForCurrentUser } from "@/modules/pharmacy/services/registerService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { useAuth } from "@/hooks/useAuth";
@@ -122,6 +123,7 @@ export default function PharmacyPOS() {
   const [lastSale, setLastSale] = useState<any>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptData | null>(null);
   const [openRegister, setOpenRegister] = useState<{ id: string; name: string } | null>(null);
+  const [returnOpen, setReturnOpen] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -375,10 +377,10 @@ export default function PharmacyPOS() {
 
   return (
     <DashboardLayout role="salon_admin" title="Point de Vente (Caisse)" subtitle="Vente au comptoir">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-4 md:p-6 min-h-[calc(100vh-140px)]">
+      <div className="flex flex-col gap-4 md:h-[calc(100vh-7rem)] md:min-h-0">
 
         {!openRegister && (
-          <div className="md:col-span-12 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <div className="shrink-0 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
             <AlertTriangle className="h-4 w-4" />
             <span>
               Aucune caisse n'est ouverte à votre nom. Les ventes ne seront pas rattachées à une caisse.
@@ -392,22 +394,41 @@ export default function PharmacyPOS() {
           </div>
         )}
 
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 min-h-0">
+
         {/* LEFT PANEL : PRODUCTS CATALOG */}
-        <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-            <Input 
-              placeholder="Rechercher un médicament (Nom, DCI, Code barre)..." 
-              className="pl-10 text-lg py-6 shadow-sm border-border/60 bg-card"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-4 min-h-0">
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+              <Input 
+                placeholder="Rechercher un médicament (Nom, DCI, Code barre)..." 
+                className="pl-10 text-lg py-6 shadow-sm border-border/60 bg-card"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="h-[52px] shrink-0 gap-2"
+              onClick={() => setReturnOpen(true)}
+              title="Retourner un produit à partir du numéro de reçu"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">Retour produit</span>
+            </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+          <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
             {filteredProducts.map(p => {
               const visual = getProductVisual(p.name, p.form || "", p.image_url);
               const stock = Number(p.total_stock_quantity || 0);
+              const minStock = Number(p.min_stock_alert || 0);
+              const stockClass = stock <= 0
+                ? "bg-destructive/10 text-destructive border-destructive/20"
+                : stock <= minStock
+                  ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                  : "bg-primary/10 text-primary border-primary/20";
               return (
                 <Card key={p.id} className={`group transition-all duration-300 overflow-hidden flex flex-col h-full bg-card border-border/60 ${stock > 0 ? "cursor-pointer hover:border-primary hover:shadow-md" : "opacity-70"}`} onClick={() => addToCart(p)}>
                   {/* Visual Header representing the medication form */}
@@ -423,7 +444,7 @@ export default function PharmacyPOS() {
                       <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
                     </div>
                     <div className="flex justify-between items-end mt-auto">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stock > 0 ? "bg-primary/10 text-primary border-primary/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stockClass}`}>
                         {stock > 0 ? `Stock: ${stock}` : "Rupture de stock"}
                       </span>
                       {p.requires_prescription && (
@@ -443,8 +464,8 @@ export default function PharmacyPOS() {
         </div>
 
         {/* RIGHT PANEL : CART & CHECKOUT */}
-        <div className="md:col-span-5 lg:col-span-4 bg-card border border-border/60 rounded-xl flex flex-col shadow-sm">
-          <div className="p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
+        <div className="md:col-span-5 lg:col-span-4 bg-card border border-border/60 rounded-xl flex flex-col shadow-sm min-h-0 overflow-hidden">
+          <div className="shrink-0 p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-primary" />
             <h2 className="font-bold text-lg">Panier Actuel</h2>
             {openRegister && (
@@ -454,7 +475,7 @@ export default function PharmacyPOS() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
             {cart.length === 0 ? (
               <div className="text-center text-muted-foreground py-10">Panier vide</div>
             ) : (
@@ -480,8 +501,9 @@ export default function PharmacyPOS() {
             )}
           </div>
 
-          <div className="p-4 border-t border-border/60 bg-muted/30 space-y-4">
-            
+          <div className="p-4 border-t border-border/60 bg-muted/30 shrink-0 max-h-[65%] flex flex-col min-h-0">
+
+            <div className="space-y-4 overflow-y-auto min-h-0 pr-1">
             <div className="space-y-2">
               <Label className="flex items-center gap-1 text-xs"><User className="w-3 h-3"/> Patient (Optionnel)</Label>
               <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
@@ -537,9 +559,10 @@ export default function PharmacyPOS() {
                 </div>
               );
             })()}
+            </div>
 
             <Button 
-              className="w-full h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
+              className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
               onClick={handleCheckout} 
               disabled={cart.length === 0 || isProcessing}
             >
@@ -548,6 +571,7 @@ export default function PharmacyPOS() {
           </div>
         </div>
 
+        </div>
       </div>
 
       {/* Receipt Preview & Print Dialog */}
@@ -586,6 +610,15 @@ export default function PharmacyPOS() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReturnProductDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        businessId={businessId}
+        onCompleted={() => {
+          if (businessId) loadData(businessId);
+        }}
+      />
     </DashboardLayout>
   );
 }

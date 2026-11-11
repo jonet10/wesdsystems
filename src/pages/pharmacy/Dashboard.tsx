@@ -195,7 +195,7 @@ export default function PharmacyDashboard() {
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-red-900/30 bg-red-950/20 text-red-400 text-sm font-medium">
               <AlertTriangle className="h-4 w-4" /> {stats?.outOfStock || 0} références en rupture
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-900/30 bg-amber-950/20 text-amber-400 text-sm font-medium">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm font-medium">
               <AlertTriangle className="h-4 w-4" /> {stats?.lowStock || 0} références à stock faible
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/30 bg-primary/10 text-primary text-sm font-medium">

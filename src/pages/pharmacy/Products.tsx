@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { AutoPartsDataTable, AutoPartsPageHeader } from "@/modules/auto-parts/components";
 import { toast } from "sonner";
-import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw } from "lucide-react";
+import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw, Search } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
@@ -26,6 +26,7 @@ export default function PharmacyProducts() {
   const [data, setData] = useState<PharmacyProduct[]>([]);
   const [categories, setCategories] = useState<PharmacyCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PharmacyProduct | null>(null);
   
@@ -42,6 +43,16 @@ export default function PharmacyProducts() {
   });
 
   const businessId = usePharmacyBusinessId();
+
+  const filteredData = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return data;
+    return data.filter((p) =>
+      [p.name, p.generic_name, p.barcode, p.form, p.category?.name]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    );
+  }, [data, searchQuery]);
 
   useEffect(() => {
     if (businessId) {
@@ -153,7 +164,7 @@ export default function PharmacyProducts() {
         <StaggerItem>
           <AutoPartsPageHeader 
             title="Produits" 
-            description={`${data.length} produit(s) enregistré(s)`} 
+            description={searchQuery.trim() ? `${filteredData.length} résultat(s) sur ${data.length} produit(s)` : `${data.length} produit(s) enregistré(s)`} 
             action={{ label: "Nouveau Produit", onClick: openCreate }} 
           />
           
@@ -172,14 +183,26 @@ export default function PharmacyProducts() {
           )}
 
           {data.length > 0 && (
+            <div className="relative mb-4 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un produit (nom, DCI, code barre, forme, catégorie)..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          )}
+
+          {data.length > 0 && (
             <AutoPartsDataTable
-              rows={data}
+              rows={filteredData}
               columns={[
                 { key: "name", label: "Nom du Produit", render: (r) => (
                   <div>
                     <div className="font-medium flex items-center gap-2">
                       {r.name}
-                      {r.requires_prescription && <ShieldAlert className="w-4 h-4 text-red-500" title="Ordonnance requise" />}
+                      {r.requires_prescription && <ShieldAlert className="w-4 h-4 text-red-500" aria-label="Ordonnance requise" />}
                     </div>
                     <div className="text-xs text-muted-foreground">{r.generic_name}</div>
                   </div>
@@ -192,11 +215,16 @@ export default function PharmacyProducts() {
                 { key: "form", label: "Forme", render: (r) => r.form || "-" },
                 { key: "cost_price", label: "Prix d'Achat", render: (r) => format(r.cost_price || 0) },
                 { key: "sale_price", label: "Prix de Vente", render: (r) => format(r.sale_price || 0) },
-                { key: "stock", label: "Stock Total", render: (r) => (
-                  <span className={r.total_stock_quantity <= r.min_stock_alert ? "text-red-500 font-bold" : "text-green-600 font-bold"}>
-                    {r.total_stock_quantity}
-                  </span>
-                ) },
+                { key: "stock", label: "Stock Total", render: (r) => {
+                  const stock = Number(r.total_stock_quantity || 0);
+                  const min = Number(r.min_stock_alert || 0);
+                  const color = stock <= 0
+                    ? "text-red-600 font-bold"
+                    : stock <= min
+                      ? "text-orange-500 font-bold"
+                      : "text-green-600 font-bold";
+                  return <span className={color}>{stock}</span>;
+                } },
                 { key: "actions", label: "Actions", render: (r) => (
                   <div className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>

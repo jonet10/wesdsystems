@@ -26,11 +26,13 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { salesService } from "@/modules/pharmacy/services/salesService";
 import { listPharmacyCashiers } from "@/modules/pharmacy/services/staffService";
+import { ReturnProductDialog } from "@/modules/pharmacy/components/ReturnProductDialog";
 import { toast } from "sonner";
 import {
   AlertTriangle,
   Receipt,
   RefreshCw,
+  RotateCcw,
   Search,
   Trash2,
 } from "lucide-react";
@@ -71,6 +73,8 @@ export default function PharmacySales() {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SaleRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnReceipt, setReturnReceipt] = useState("");
 
   const canDelete = ["salon_admin", "pharmacy_admin", "pharmacy_manager"].includes(
     profile?.role || "",
@@ -189,6 +193,16 @@ export default function PharmacySales() {
                       className="pl-8 sm:w-64"
                     />
                   </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setReturnReceipt("");
+                      setReturnOpen(true);
+                    }}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" />
+                    Retour produit
+                  </Button>
                   <Button variant="outline" onClick={load} disabled={loading}>
                     <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
                     Actualiser
@@ -259,19 +273,30 @@ export default function PharmacySales() {
                             {format(sale.total)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {canDelete ? (
+                            <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setDeleteTarget(sale)}
-                                title="Supprimer la vente"
+                                onClick={() => {
+                                  setReturnReceipt(sale.receipt_number);
+                                  setReturnOpen(true);
+                                }}
+                                title="Retour produit"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <RotateCcw className="h-4 w-4" />
                               </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
+                              {canDelete ? (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => setDeleteTarget(sale)}
+                                  title="Supprimer la vente"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -326,6 +351,14 @@ export default function PharmacySales() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReturnProductDialog
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        businessId={businessId}
+        initialReceipt={returnReceipt}
+        onCompleted={load}
+      />
     </DashboardLayout>
   );
 }
