@@ -11,6 +11,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
@@ -124,6 +125,7 @@ export default function PharmacyPOS() {
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptData | null>(null);
   const [openRegister, setOpenRegister] = useState<{ id: string; name: string } | null>(null);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -355,6 +357,7 @@ export default function PharmacyPOS() {
 
       setLastSale(newSale);
       setReceiptSnapshot(snapshot);
+      setCartSheetOpen(false);
       setShowReceipt(true);
 
       toast.success("Vente effectuée avec succès !");
@@ -375,9 +378,126 @@ export default function PharmacyPOS() {
     }
   };
 
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  const renderCartPanel = ({ embedded = false }: { embedded?: boolean } = {}) => (
+    <div
+      className={`flex min-h-0 flex-col overflow-hidden bg-card ${
+        embedded ? "h-full" : "rounded-xl border border-border/60 shadow-sm"
+      }`}
+    >
+      {!embedded && (
+        <div className="shrink-0 p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
+          <ShoppingCart className="w-5 h-5 text-primary" />
+          <h2 className="font-bold text-lg">Panier Actuel</h2>
+          {openRegister && (
+            <span className="ml-auto text-[11px] font-medium bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">
+              {openRegister.name}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+        {cart.length === 0 ? (
+          <div className="text-center text-muted-foreground py-10">Panier vide</div>
+        ) : (
+          cart.map(item => (
+            <div key={item.product_id} className="flex justify-between items-center border-b pb-2">
+              <div className="flex-1">
+                <div className="font-medium flex items-center gap-1">
+                  {item.name}
+                  {item.requires_prescription && <FileText className="w-3 h-3 text-red-500" />}
+                </div>
+                <div className="text-sm text-muted-foreground">{format(item.unit_price)} x {item.quantity}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md">
+                  <button onClick={() => updateQuantity(item.product_id, -1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-l-md"><Minus className="w-4 h-4"/></button>
+                  <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.product_id, 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-r-md"><Plus className="w-4 h-4"/></button>
+                </div>
+                <Button variant="ghost" size="icon" className="text-red-500 h-8 w-8" onClick={() => removeFromCart(item.product_id)}><Trash2 className="w-4 h-4"/></Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="p-4 border-t border-border/60 bg-muted/30 shrink-0 max-h-[65%] flex flex-col min-h-0">
+
+        <div className="space-y-4 overflow-y-auto min-h-0 pr-1">
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1 text-xs"><User className="w-3 h-3"/> Patient (Optionnel)</Label>
+          <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Client de passage" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Client de passage</SelectItem>
+              {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {requiresPrescription && (
+          <div className="space-y-2 border border-red-200 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
+            <Label className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-bold"><FileText className="w-3 h-3"/> Ordonnance Requise *</Label>
+            <Select value={selectedPrescription} onValueChange={setSelectedPrescription}>
+              <SelectTrigger className="h-8 text-sm border-red-300"><SelectValue placeholder="Lier une ordonnance..." /></SelectTrigger>
+              <SelectContent>
+                {prescriptions.map(p => <SelectItem key={p.id} value={p.id}>Ord. du {new Date(p.prescription_date).toLocaleDateString()} - Dr. {p.doctor_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label className="text-xs">Moyen de Paiement</Label>
+          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">Espèces</SelectItem>
+              <SelectItem value="card">Carte Bancaire</SelectItem>
+              <SelectItem value="moncash">MonCash</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="pt-2 flex justify-between items-center">
+          <span className="text-lg font-bold">Total à Payer</span>
+          <span className="text-2xl font-black text-primary">{format(totalAmount)}</span>
+        </div>
+
+        {/* Clinical Alerts / Drug Interactions */}
+        {cart.length > 0 && (() => {
+          const warnings = checkDrugInteractions(cart);
+          if (warnings.length === 0) return null;
+          return (
+            <div className="space-y-1.5 p-3 rounded-lg border border-amber-200 bg-amber-50/90 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs animate-pulse">
+              {warnings.map((w, index) => (
+                <div key={index} className="flex gap-2 items-start font-medium">
+                  <span className="shrink-0 text-sm">⚠️</span>
+                  <p>{w}</p>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+        </div>
+
+        <Button 
+          className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
+          onClick={handleCheckout} 
+          disabled={cart.length === 0 || isProcessing}
+        >
+          {isProcessing ? "Encaissement..." : "Encaisser & Facturer"}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <DashboardLayout role="salon_admin" title="Point de Vente (Caisse)" subtitle="Vente au comptoir">
-      <div className="flex flex-col gap-4 md:h-[calc(100vh-7rem)] md:min-h-0">
+      <div className="flex flex-col gap-4 pb-28 lg:pb-0 lg:h-[calc(100dvh-7rem)] lg:min-h-0">
 
         {!openRegister && (
           <div className="shrink-0 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
@@ -394,10 +514,10 @@ export default function PharmacyPOS() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 min-h-0">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:flex-1 lg:min-h-0">
 
         {/* LEFT PANEL : PRODUCTS CATALOG */}
-        <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-4 min-h-0">
+        <div className="lg:col-span-8 flex flex-col gap-4 min-h-0">
           <div className="flex shrink-0 items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
@@ -419,7 +539,7 @@ export default function PharmacyPOS() {
             </Button>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+          <div className="grid grid-cols-2 gap-4 pb-4 md:grid-cols-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
             {filteredProducts.map(p => {
               const visual = getProductVisual(p.name, p.form || "", p.image_url);
               const stock = Number(p.total_stock_quantity || 0);
@@ -463,116 +583,51 @@ export default function PharmacyPOS() {
           </div>
         </div>
 
-        {/* RIGHT PANEL : CART & CHECKOUT */}
-        <div className="md:col-span-5 lg:col-span-4 bg-card border border-border/60 rounded-xl flex flex-col shadow-sm min-h-0 overflow-hidden">
-          <div className="shrink-0 p-4 border-b border-border/60 bg-muted/30 flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary" />
-            <h2 className="font-bold text-lg">Panier Actuel</h2>
-            {openRegister && (
-              <span className="ml-auto text-[11px] font-medium bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">
-                {openRegister.name}
-              </span>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-            {cart.length === 0 ? (
-              <div className="text-center text-muted-foreground py-10">Panier vide</div>
-            ) : (
-              cart.map(item => (
-                <div key={item.product_id} className="flex justify-between items-center border-b pb-2">
-                  <div className="flex-1">
-                    <div className="font-medium flex items-center gap-1">
-                      {item.name}
-                      {item.requires_prescription && <FileText className="w-3 h-3 text-red-500" />}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{format(item.unit_price)} x {item.quantity}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md">
-                      <button onClick={() => updateQuantity(item.product_id, -1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-l-md"><Minus className="w-4 h-4"/></button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.product_id, 1)} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-r-md"><Plus className="w-4 h-4"/></button>
-                    </div>
-                    <Button variant="ghost" size="icon" className="text-red-500 h-8 w-8" onClick={() => removeFromCart(item.product_id)}><Trash2 className="w-4 h-4"/></Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className="p-4 border-t border-border/60 bg-muted/30 shrink-0 max-h-[65%] flex flex-col min-h-0">
-
-            <div className="space-y-4 overflow-y-auto min-h-0 pr-1">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1 text-xs"><User className="w-3 h-3"/> Patient (Optionnel)</Label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Client de passage" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Client de passage</SelectItem>
-                  {customers.map(c => <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {requiresPrescription && (
-              <div className="space-y-2 border border-red-200 bg-red-50 dark:bg-red-950/20 p-2 rounded-md">
-                <Label className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 font-bold"><FileText className="w-3 h-3"/> Ordonnance Requise *</Label>
-                <Select value={selectedPrescription} onValueChange={setSelectedPrescription}>
-                  <SelectTrigger className="h-8 text-sm border-red-300"><SelectValue placeholder="Lier une ordonnance..." /></SelectTrigger>
-                  <SelectContent>
-                    {prescriptions.map(p => <SelectItem key={p.id} value={p.id}>Ord. du {new Date(p.prescription_date).toLocaleDateString()} - Dr. {p.doctor_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label className="text-xs">Moyen de Paiement</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Espèces</SelectItem>
-                  <SelectItem value="card">Carte Bancaire</SelectItem>
-                  <SelectItem value="moncash">MonCash</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="pt-2 flex justify-between items-center">
-              <span className="text-lg font-bold">Total à Payer</span>
-              <span className="text-2xl font-black text-primary">{format(totalAmount)}</span>
-            </div>
-
-            {/* Clinical Alerts / Drug Interactions */}
-            {cart.length > 0 && (() => {
-              const warnings = checkDrugInteractions(cart);
-              if (warnings.length === 0) return null;
-              return (
-                <div className="space-y-1.5 p-3 rounded-lg border border-amber-200 bg-amber-50/90 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs animate-pulse">
-                  {warnings.map((w, index) => (
-                    <div key={index} className="flex gap-2 items-start font-medium">
-                      <span className="shrink-0 text-sm">⚠️</span>
-                      <p>{w}</p>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-            </div>
-
-            <Button 
-              className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
-              onClick={handleCheckout} 
-              disabled={cart.length === 0 || isProcessing}
-            >
-              {isProcessing ? "Encaissement..." : "Encaisser & Facturer"}
-            </Button>
-          </div>
+        {/* RIGHT PANEL : CART & CHECKOUT (desktop) */}
+        <div className="hidden lg:col-span-4 lg:flex lg:min-h-0">
+          {renderCartPanel()}
         </div>
 
         </div>
       </div>
+
+      {/* Barre mobile : le panier reste accessible sans suivre la liste des produits */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-card/95 px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground">
+              {cartItemCount} article(s) dans le panier
+            </p>
+            <p className="text-lg font-bold text-primary">{format(totalAmount)}</p>
+          </div>
+          <Button
+            className="h-12 gap-2 bg-primary px-5 text-base font-bold text-primary-fg hover:bg-primary-dark"
+            onClick={() => setCartSheetOpen(true)}
+          >
+            <ShoppingCart className="h-5 w-5" />
+            Panier
+          </Button>
+        </div>
+      </div>
+
+      <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+        <SheetContent side="bottom" className="flex h-[88dvh] flex-col gap-0 rounded-t-2xl p-0">
+          <SheetHeader className="shrink-0 border-b border-border/60 px-4 py-3 text-left">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              Panier & Encaissement
+              {openRegister && (
+                <span className="ml-auto text-[11px] font-medium bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">
+                  {openRegister.name}
+                </span>
+              )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 p-4">
+            {renderCartPanel({ embedded: true })}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Receipt Preview & Print Dialog */}
       <Dialog open={showReceipt} onOpenChange={(open) => {
