@@ -415,7 +415,7 @@ export const salesService = {
     const { data, error } = await supabase
       .from("pharmacy_sales")
       .select(
-        "id, receipt_number, created_at, total, payment_method, payment_status, register_id, customer:customer_id(first_name, last_name), items:pharmacy_sale_items(id, product_id, batch_id, quantity, unit_price, total_price, product:product_id(name))",
+        "id, receipt_number, created_at, subtotal, discount_amount, tax_amount, total, payment_method, payment_status, register_id, customer:customer_id(first_name, last_name), items:pharmacy_sale_items(id, product_id, batch_id, quantity, unit_price, total_price, product:product_id(name))",
       )
       .eq("business_id", businessId)
       .ilike("receipt_number", receipt)
@@ -457,15 +457,19 @@ export const salesService = {
 
     const items = ((sale.items as any[]) || []).map((item) => {
       const key = `${item.product_id || ""}::${item.batch_id || ""}`;
+      const remaining = Number(item.quantity) || 0;
+      const returned = returnedByKey.get(key) || 0;
       return {
         id: item.id,
         product_id: item.product_id,
         batch_id: item.batch_id,
-        quantity: Number(item.quantity) || 0,
+        quantity: remaining,
+        sold_quantity: remaining + returned,
+        returnable_quantity: remaining,
         unit_price: Number(item.unit_price) || 0,
         total_price: Number(item.total_price) || 0,
         product_name: item.product?.name || "Produit supprimé",
-        returned_quantity: returnedByKey.get(key) || 0,
+        returned_quantity: returned,
       };
     });
 
@@ -473,6 +477,9 @@ export const salesService = {
       id: sale.id,
       receipt_number: sale.receipt_number,
       created_at: sale.created_at,
+      subtotal: Number(sale.subtotal) || 0,
+      discount_amount: Number(sale.discount_amount) || 0,
+      tax_amount: Number(sale.tax_amount) || 0,
       total: Number(sale.total) || 0,
       payment_method: sale.payment_method,
       payment_status: sale.payment_status,
@@ -483,29 +490,35 @@ export const salesService = {
   },
 
   /**
-   * Enregistre un retour produit :
+   * Enregistre un retour produit et annule la vente correspondante :
    * - remet les quantités retournées dans les lots d'origine,
    * - crée un mouvement de stock de type "return",
-   * - si demandé, enregistre le remboursement en espèces comme dépense de caisse.
+   * - réduit la quantité vendue sur la ligne de vente,
+   * - réduit le sous-total et le total de la vente.
    */
   async processReturn(
     sale: {
       id: string;
       receipt_number: string;
+      subtotal: number;
+      discount_amount: number;
+      tax_amount: number;
+      total: number;
       payment_method: string;
+      payment_status: string;
       register_id: string | null;
       items: Array<{
         id: string;
         product_id: string | null;
         batch_id: string | null;
         quantity: number;
+        returnable_quantity: number;
         unit_price: number;
         product_name: string;
-        returned_quantity: number;
       }>;
     },
     quantities: Record<string, number>,
-    options: { reason?: string; refund?: boolean } = {},
+    options: { reason?: string } = {},
     explicitBusinessId?: string,
   ) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
@@ -522,7 +535,7 @@ export const salesService = {
     }
 
     for (const { item, quantity } of entries) {
-      const returnable = item.quantity - item.returned_quantity;
+      const returnable = Number(item.returnable_quantity ?? item.quantity) || 0;
       if (quantity > returnable + 0.0001) {
         throw new Error(
           `Quantité trop élevée pour ${item.product_name} : ${returnable} retournable(s).`,
@@ -540,8 +553,8 @@ export const salesService = {
     let returnedUnits = 0;
 
     for (const { item, quantity } of entries) {
-      // Remettre la quantité dans le lot d'origine (ou dans le premier lot
-      // disponible si la vente n'avait pas de lot rattaché).
+      // 1. Remettre la quantité dans le lot d'origine (ou dans le premier lot
+      //    disponible si la vente n'avait pas de lot rattaché).
       let batchId = item.batch_id;
       let batchQuantity: number | null = null;
 
@@ -585,6 +598,19 @@ export const salesService = {
         if (updateError) throw updateError;
       }
 
+      // 2. Annuler la quantité vendue sur la ligne de vente.
+      const newQuantity = Math.max(0, Number(item.quantity) - quantity);
+      const { error: itemError } = await supabase
+        .from("pharmacy_sale_items")
+        .update({
+          quantity: newQuantity,
+          total_price: newQuantity * item.unit_price,
+        })
+        .eq("id", item.id);
+
+      if (itemError) throw itemError;
+
+      // 3. Tracer le retour dans les mouvements de stock.
       const { error: movementError } = await supabase
         .from("pharmacy_stock_movements")
         .insert([
@@ -606,31 +632,72 @@ export const salesService = {
       returnedUnits += quantity;
     }
 
-    // Remboursement en espèces : on l'enregistre comme sortie de caisse afin
-    // que le rapprochement de la caisse reste exact.
-    if (
-      options.refund &&
-      sale.payment_method === "cash" &&
-      sale.register_id &&
-      refundTotal > 0
-    ) {
-      const { error: expenseError } = await supabase
-        .from("pharmacy_expenses")
-        .insert([
-          {
-            business_id: businessId,
-            register_id: sale.register_id,
-            category: "return",
-            description: `Remboursement retour produit — Ticket ${sale.receipt_number}`,
-            amount: refundTotal,
-            expense_date: new Date().toISOString().slice(0, 10),
-            created_by: userId,
-          },
-        ]);
+    // 4. Ajuster les montants de la vente : le total et le sous-total
+    //    diminuent du montant retourné.
+    const { data: remainingItems, error: remainingError } = await supabase
+      .from("pharmacy_sale_items")
+      .select("quantity")
+      .eq("sale_id", sale.id);
 
-      if (expenseError) throw expenseError;
+    if (remainingError) throw remainingError;
+
+    const remainingQuantity = (remainingItems || []).reduce(
+      (sum: number, row: any) => sum + (Number(row.quantity) || 0),
+      0,
+    );
+    const fullyReturned = remainingQuantity <= 0.0001;
+
+    const newSubtotal = fullyReturned
+      ? 0
+      : Math.max(0, Number(sale.subtotal || 0) - refundTotal);
+    const newTotal = fullyReturned
+      ? 0
+      : Math.max(0, Number(sale.total || 0) - refundTotal);
+
+    const { error: saleUpdateError } = await supabase
+      .from("pharmacy_sales")
+      .update({ subtotal: newSubtotal, total: newTotal })
+      .eq("id", sale.id)
+      .eq("business_id", businessId);
+
+    if (saleUpdateError) throw saleUpdateError;
+
+    // 5. Si la vente était à crédit, réduire aussi l'encours du client.
+    if (sale.payment_status !== "paid" && refundTotal > 0) {
+      try {
+        const { data: credit } = await supabase
+          .from("pharmacy_customer_credits")
+          .select("id, total_amount, balance")
+          .eq("sale_id", sale.id)
+          .maybeSingle();
+
+        if (credit) {
+          const newCreditTotal = Math.max(
+            0,
+            (Number(credit.total_amount) || 0) - refundTotal,
+          );
+          const newBalance = Math.max(
+            0,
+            (Number(credit.balance) || 0) - refundTotal,
+          );
+
+          await supabase
+            .from("pharmacy_customer_credits")
+            .update({
+              total_amount: newCreditTotal,
+              balance: newBalance,
+              status: newBalance <= 0 ? "paid" : "pending",
+            })
+            .eq("id", credit.id);
+        }
+      } catch (creditError) {
+        console.warn(
+          "[Sales Service] Ajustement du crédit après retour impossible:",
+          creditError,
+        );
+      }
     }
 
-    return { refundTotal, returnedUnits };
+    return { refundTotal, returnedUnits, newTotal };
   }
 };

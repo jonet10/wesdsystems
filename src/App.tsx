@@ -29,7 +29,6 @@ import PharmacySuppliers from "./pages/pharmacy/Suppliers";
 import PharmacyPurchases from "./pages/pharmacy/Purchases";
 import PharmacyStock from "./pages/pharmacy/Stock";
 import PharmacyPOS from "./pages/pharmacy/POS";
-import PharmacySales from "./pages/pharmacy/Sales";
 import PharmacyPatients from "./pages/pharmacy/Patients";
 import PharmacyPrescriptions from "./pages/pharmacy/Prescriptions";
 import PharmacyCredits from "./pages/pharmacy/Credits";
@@ -916,7 +915,6 @@ const App = () => (
                 <Route path="/pharmacie/purchases" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyPurchases /></ProtectedRoute>} />
                 <Route path="/pharmacie/stock" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyStock /></ProtectedRoute>} />
                 <Route path="/pharmacie/pos" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPOS /></ProtectedRoute>} />
-                <Route path="/pharmacie/sales" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacySales /></ProtectedRoute>} />
                 <Route path="/pharmacie/patients" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPatients /></ProtectedRoute>} />
                 <Route path="/pharmacie/prescriptions" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPrescriptions /></ProtectedRoute>} />
                 <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />

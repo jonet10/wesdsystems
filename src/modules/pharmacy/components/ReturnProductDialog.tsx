@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +28,8 @@ interface ReturnableItem {
   product_id: string | null;
   batch_id: string | null;
   quantity: number;
+  sold_quantity: number;
+  returnable_quantity: number;
   unit_price: number;
   product_name: string;
   returned_quantity: number;
@@ -38,6 +39,9 @@ interface ReturnableSale {
   id: string;
   receipt_number: string;
   created_at: string;
+  subtotal: number;
+  discount_amount: number;
+  tax_amount: number;
   total: number;
   payment_method: string;
   payment_status: string;
@@ -70,7 +74,6 @@ export function ReturnProductDialog({
   const [searchError, setSearchError] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
-  const [refund, setRefund] = useState(false);
 
   const search = async (value: string) => {
     const receiptNumber = value.trim();
@@ -86,9 +89,6 @@ export function ReturnProductDialog({
     try {
       const result = await salesService.findSaleByReceipt(receiptNumber, businessId);
       setSale(result as ReturnableSale);
-      setRefund(
-        result.payment_method === "cash" && !!result.register_id,
-      );
     } catch (e: any) {
       setSearchError(e.message || "Vente introuvable.");
     } finally {
@@ -103,7 +103,6 @@ export function ReturnProductDialog({
     setQuantities({});
     setReason("");
     setSearchError("");
-    setRefund(false);
 
     const preset = (initialReceipt || "").trim();
     setReceipt(preset);
@@ -116,7 +115,7 @@ export function ReturnProductDialog({
   const lines = useMemo(() => {
     if (!sale) return [];
     return sale.items.map((item) => {
-      const returnable = Math.max(0, item.quantity - item.returned_quantity);
+      const returnable = Math.max(0, Number(item.returnable_quantity ?? item.quantity) || 0);
       const selected = quantities[item.id] || 0;
       return {
         ...item,
@@ -129,7 +128,6 @@ export function ReturnProductDialog({
 
   const refundTotal = lines.reduce((sum, line) => sum + line.lineTotal, 0);
   const hasSelection = lines.some((line) => line.selected > 0);
-  const canRefund = !!sale && sale.payment_method === "cash" && !!sale.register_id;
 
   const handleQuantityChange = (itemId: string, raw: string, max: number) => {
     const parsed = Number(raw);
@@ -147,15 +145,12 @@ export function ReturnProductDialog({
       const result = await salesService.processReturn(
         sale,
         quantities,
-        { reason, refund },
+        { reason },
         businessId,
       );
       toast.success(
-        `${result.returnedUnits} unité(s) retournée(s) et remise(s) en stock.`,
+        `${result.returnedUnits} unité(s) retournée(s). Vente et stock ajustés.`,
       );
-      if (result.refundTotal > 0) {
-        toast.info(`Remboursement enregistré : ${format(result.refundTotal)}`);
-      }
       onOpenChange(false);
       onCompleted?.();
     } catch (e: any) {
@@ -174,8 +169,9 @@ export function ReturnProductDialog({
             Retour produit
           </DialogTitle>
           <DialogDescription>
-            Saisissez le numéro du reçu du client pour retrouver la vente et
-            remettre les produits en stock.
+            Saisissez le numéro du reçu du client pour retrouver la vente. Les
+            quantités vendues, le montant de la vente et le stock seront
+            ajustés automatiquement.
           </DialogDescription>
         </DialogHeader>
 
@@ -258,7 +254,7 @@ export function ReturnProductDialog({
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">{line.quantity}</TableCell>
+                        <TableCell className="text-right">{line.sold_quantity}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
                           {line.returned_quantity}
                         </TableCell>
@@ -299,17 +295,10 @@ export function ReturnProductDialog({
                 />
               </div>
 
-              {canRefund && (
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                  <div>
-                    <Label className="text-sm">Rembourser le client en espèces</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Le montant sera enregistré comme sortie de caisse.
-                    </p>
-                  </div>
-                  <Switch checked={refund} onCheckedChange={setRefund} />
-                </div>
-              )}
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
+                Le retour annule la quantité vendue et réduit le montant de la
+                vente. Le stock est remis à jour automatiquement.
+              </div>
 
               <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
                 <span className="text-sm font-medium">Montant du retour</span>
