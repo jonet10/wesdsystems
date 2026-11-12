@@ -121,6 +121,8 @@ export default function PharmacyPOS() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [amountReceivedInput, setAmountReceivedInput] = useState("");
   const [lastSale, setLastSale] = useState<any>(null);
   const [receiptSnapshot, setReceiptSnapshot] = useState<ReceiptData | null>(null);
   const [openRegister, setOpenRegister] = useState<{ id: string; name: string } | null>(null);
@@ -262,12 +264,8 @@ export default function PharmacyPOS() {
     return warnings;
   };
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    if (requiresPrescription && !selectedPrescription) {
-      toast.error("Cette vente contient des médicaments sur ordonnance. Veuillez lier une ordonnance valide.");
-      return;
-    }
+  const completeCheckout = async (receivedAmount: number) => {
+    if (cart.length === 0) return false;
 
     setIsProcessing(true);
     try {
@@ -285,7 +283,7 @@ export default function PharmacyPOS() {
             `Stock insuffisant pour ${item.name} : ${available} disponible(s), ${item.quantity} demandé(s).`
           );
           if (businessId) loadData(businessId);
-          return;
+          return false;
         }
       }
 
@@ -293,6 +291,7 @@ export default function PharmacyPOS() {
         ? await getOpenRegisterForCurrentUser(businessId, profile?.id).catch(() => null)
         : null;
 
+      const changeGiven = Math.max(0, receivedAmount - totalAmount);
       const salePayload = {
         customer_id: selectedCustomer && selectedCustomer !== "none" ? selectedCustomer : null,
         prescription_id: selectedPrescription || null,
@@ -304,6 +303,9 @@ export default function PharmacyPOS() {
         total: totalAmount,
         payment_method: paymentMethod as any,
         payment_status: "paid" as const,
+        notes: changeGiven > 0
+          ? `Reçu: ${receivedAmount.toFixed(2)} | Rendu: ${changeGiven.toFixed(2)}`
+          : null,
         receipt_number: `REC-${Date.now().toString().slice(-6)}`
       };
 
@@ -349,8 +351,8 @@ export default function PharmacyPOS() {
                   paymentMethod === "natcash" ? "NATCASH" :
                   paymentMethod === "transfer" ? "VIREMENT" : "CRÉDIT",
           amountReceived: totalAmount,
-          amountTendered: totalAmount,
-          changeGiven: 0
+          amountTendered: changeGiven > 0 ? receivedAmount : undefined,
+          changeGiven: changeGiven > 0 ? changeGiven : undefined
         },
         currencyCode: "HTG"
       };
@@ -365,12 +367,54 @@ export default function PharmacyPOS() {
       setSelectedCustomer("");
       setSelectedPrescription("");
       if (businessId) loadData(businessId); // Reload stock
+      return true;
     } catch (e: any) {
       toast.error(e.message);
+      return false;
     } finally {
       setIsProcessing(false);
     }
   };
+
+  const isCashPayment = paymentMethod === "cash";
+  const receivedAmount = Number(amountReceivedInput) || 0;
+  const changeAmount = Math.max(0, receivedAmount - totalAmount);
+  const isPaymentAmountValid = isCashPayment
+    ? receivedAmount >= totalAmount - 0.001
+    : true;
+
+  const openPaymentDialog = () => {
+    if (cart.length === 0) {
+      toast.error("Le panier est vide.");
+      return;
+    }
+    if (requiresPrescription && !selectedPrescription) {
+      toast.error("Cette vente contient des médicaments sur ordonnance. Veuillez lier une ordonnance valide.");
+      return;
+    }
+    setAmountReceivedInput(totalAmount.toFixed(2));
+    setCartSheetOpen(false);
+    setPaymentDialogOpen(true);
+  };
+
+  const confirmPayment = async () => {
+    if (!isPaymentAmountValid) {
+      toast.error("Le montant reçu est inférieur au total à payer.");
+      return;
+    }
+    const received = isCashPayment ? receivedAmount : totalAmount;
+    const success = await completeCheckout(received);
+    if (success) {
+      setPaymentDialogOpen(false);
+      setAmountReceivedInput("");
+    }
+  };
+
+  const quickCashAmounts = (() => {
+    const base = Math.ceil(totalAmount);
+    const suggestions = [base, base + 50, base + 100, base + 500];
+    return Array.from(new Set(suggestions)).slice(0, 4);
+  })();
 
   const handlePrint = async () => {
     if (receiptRef.current) {
@@ -486,7 +530,7 @@ export default function PharmacyPOS() {
 
         <Button 
           className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
-          onClick={handleCheckout} 
+          onClick={openPaymentDialog} 
           disabled={cart.length === 0 || isProcessing}
         >
           {isProcessing ? "Encaissement..." : "Encaisser & Facturer"}
@@ -628,6 +672,112 @@ export default function PharmacyPOS() {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Popup d'encaissement : montant reçu et monnaie à rendre */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              Encaissement
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Total à payer
+              </p>
+              <p className="text-3xl font-black text-primary">{format(totalAmount)}</p>
+            </div>
+
+            {isCashPayment ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="amount-received">Montant reçu du client</Label>
+                  <Input
+                    id="amount-received"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    className="h-14 text-right text-2xl font-bold"
+                    value={amountReceivedInput}
+                    onChange={(e) => setAmountReceivedInput(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {quickCashAmounts.map((amount) => (
+                    <Button
+                      key={amount}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="px-1 text-xs"
+                      onClick={() => setAmountReceivedInput(amount.toFixed(2))}
+                    >
+                      {format(amount)}
+                    </Button>
+                  ))}
+                </div>
+
+                <div
+                  className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
+                    isPaymentAmountValid
+                      ? "border-emerald-500/30 bg-emerald-500/10"
+                      : "border-destructive/30 bg-destructive/10"
+                  }`}
+                >
+                  <span className="text-sm font-medium">
+                    {isPaymentAmountValid ? "Monnaie à rendre" : "Montant insuffisant"}
+                  </span>
+                  <span
+                    className={`text-xl font-black ${
+                      isPaymentAmountValid
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {isPaymentAmountValid
+                      ? format(changeAmount)
+                      : format(Math.max(0, totalAmount - receivedAmount))}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                Paiement par{" "}
+                {paymentMethod === "card"
+                  ? "carte bancaire"
+                  : paymentMethod === "moncash"
+                    ? "MonCash"
+                    : "un autre moyen"}{" "}
+                : le montant exact sera encaissé.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPaymentDialogOpen(false)}
+              disabled={isProcessing}
+            >
+              Annuler
+            </Button>
+            <Button
+              className="h-11 min-w-[170px] bg-primary text-primary-fg hover:bg-primary-dark"
+              onClick={confirmPayment}
+              disabled={isProcessing || (isCashPayment && !isPaymentAmountValid)}
+            >
+              {isProcessing ? "Encaissement..." : "Valider & Facturer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Receipt Preview & Print Dialog */}
       <Dialog open={showReceipt} onOpenChange={(open) => {

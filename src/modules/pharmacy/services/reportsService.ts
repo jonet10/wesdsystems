@@ -28,12 +28,16 @@ export const reportsService = {
 
     if (sError) throw sError;
 
+    // Les ventes entièrement retournées ont un total de 0. Elles restent dans
+    // l'historique (audit) mais ne doivent plus compter comme tickets émis.
+    const activeSales = sales.filter((sale) => Number(sale.total) > 0);
+
     let salesToday = 0;
     let salesMonth = 0;
     let invoicesToday = 0;
-    let invoicesMonth = sales.length;
+    let invoicesMonth = activeSales.length;
 
-    sales.forEach(sale => {
+    activeSales.forEach(sale => {
       const saleDate = new Date(sale.created_at);
       salesMonth += Number(sale.total);
       if (saleDate >= today) {
@@ -175,6 +179,7 @@ export const reportsService = {
       .from("pharmacy_sales")
       .select("receipt_number, total, created_at")
       .eq("business_id", businessId)
+      .gt("total", 0)
       .order("created_at", { ascending: false })
       .limit(limit);
 

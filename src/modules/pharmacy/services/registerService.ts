@@ -107,9 +107,13 @@ export async function getRegisterSummaries(
     (salesResult.data || []).forEach((sale: any) => {
       const entry = summary[sale.register_id];
       if (!entry) return;
+      const total = Number(sale.total) || 0;
+      // Une vente entièrement retournée a un total de 0 : elle ne compte plus
+      // comme ticket encaissé dans le récapitulatif de caisse.
+      if (total <= 0) return;
       entry.salesCount += 1;
       if (sale.payment_method === "cash" && sale.payment_status === "paid") {
-        entry.cashSales += Number(sale.total) || 0;
+        entry.cashSales += total;
       }
     });
   }

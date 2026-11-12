@@ -448,7 +448,8 @@ export const whatsappService = {
       const bizName = bizRes.data?.name || "Pharmacie";
 
       const totalSalesAmt = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-      const transactionCount = sales.length;
+      // Ignorer les ventes entièrement retournées (total = 0) dans le nombre de tickets.
+      const transactionCount = sales.filter(s => Number(s.total || 0) > 0).length;
 
       // Estimate profit, stock value
       let stockValue = 0;
@@ -503,7 +504,7 @@ WesdSystems Pharmacy`;
       const bizName = bizRes.data?.name || "Pharmacie";
 
       const totalSalesAmt = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-      const transactionCount = sales.length;
+      const transactionCount = sales.filter(s => Number(s.total || 0) > 0).length;
 
       const lowStockCount = products.filter(p => Number(p.total_stock_quantity) <= Number(p.min_stock_alert)).length;
 
@@ -540,7 +541,7 @@ WesdSystems Pharmacy`;
       const bizName = bizRes.data?.name || "Pharmacie";
 
       const totalSalesAmt = sales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-      const transactionCount = sales.length;
+      const transactionCount = sales.filter(s => Number(s.total || 0) > 0).length;
 
       const message = `📊 RAPPORT MENSUEL - ${bizName}
 

@@ -26,6 +26,7 @@ export default function PharmacyProducts() {
   const [data, setData] = useState<PharmacyProduct[]>([]);
   const [categories, setCategories] = useState<PharmacyCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PharmacyProduct | null>(null);
@@ -55,14 +56,20 @@ export default function PharmacyProducts() {
   }, [data, searchQuery]);
 
   useEffect(() => {
-    if (businessId) {
-      loadData();
+    if (!businessId) {
+      setLoading(false);
+      return;
     }
+    loadData();
   }, [businessId]);
 
   const loadData = async () => {
-    if (!businessId) return;
+    if (!businessId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setLoadError("");
     try {
       const [prods, cats] = await Promise.all([
         productService.getProducts(businessId),
@@ -71,6 +78,7 @@ export default function PharmacyProducts() {
       setData(prods);
       setCategories(cats);
     } catch (e: any) {
+      setLoadError(e?.message || "Impossible de charger les produits.");
       toast.error(e.message);
     } finally {
       setLoading(false);
@@ -166,7 +174,27 @@ export default function PharmacyProducts() {
         action={{ label: "Nouveau Produit", onClick: openCreate }} 
       />
       
-      {data.length === 0 && !loading && (
+      {loading && (
+        <div className="mt-6 flex items-center justify-center gap-3 rounded-xl border border-dashed border-border p-10 text-muted-foreground">
+          <RefreshCw className="h-5 w-5 animate-spin" />
+          Chargement des produits...
+        </div>
+      )}
+
+      {!loading && loadError && (
+        <div className="mt-6 flex flex-col items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">Impossible de charger les produits</p>
+            <p className="text-sm">{loadError}</p>
+          </div>
+          <Button variant="outline" onClick={loadData} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Réessayer
+          </Button>
+        </div>
+      )}
+
+      {data.length === 0 && !loading && !loadError && (
         <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 mt-6">
           <Pill className="h-12 w-12 text-primary mb-4 animate-bounce" />
           <h3 className="text-lg font-semibold mb-2">Votre catalogue de médicaments est vide</h3>
