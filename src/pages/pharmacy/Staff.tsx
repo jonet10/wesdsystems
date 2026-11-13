@@ -187,21 +187,27 @@ export default function PharmacyStaff() {
 
   const handleDelete = async () => {
     if (!businessId || !deleteConfirm) return;
+    const target = deleteConfirm;
     setSaving(true);
+    // Retrait immédiat de l'affichage local
+    setStaff((prev) => prev.filter((m) => m.id !== target.id));
+    setDeleteConfirm(null);
+
     try {
       const res = await deletePharmacyStaffMember({
-        userId: deleteConfirm.id,
+        userId: target.id,
         businessId,
       });
       if (!res.success) {
         toast.error(res.error || "Erreur lors de la suppression");
+        load();
         return;
       }
-      toast.success(`Le compte de "${deleteConfirm.full_name || deleteConfirm.username}" a été supprimé`);
-      setDeleteConfirm(null);
-      load();
+      toast.success(`Le compte de "${target.full_name || target.username}" a été supprimé`);
+      await load();
     } catch (err: any) {
       toast.error(err.message || "Erreur de suppression");
+      await load();
     } finally {
       setSaving(false);
     }

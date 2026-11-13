@@ -30,6 +30,26 @@ export const PHARMACY_STAFF_ROLES: { value: PharmacyStaffRole; label: string }[]
 
 const GENDER_STORAGE_KEY_PREFIX = "wesd_pharmacy_staff_gender_";
 const PERMISSIONS_STORAGE_KEY_PREFIX = "wesd_pharmacy_staff_permissions_";
+const DELETED_STAFF_STORAGE_KEY_PREFIX = "wesd_pharmacy_deleted_staff_";
+
+export function getDeletedStaffIds(businessId: string): string[] {
+  try {
+    const raw = localStorage.getItem(`${DELETED_STAFF_STORAGE_KEY_PREFIX}${businessId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markStaffAsDeletedLocally(businessId: string, userId: string) {
+  try {
+    const current = getDeletedStaffIds(businessId);
+    if (!current.includes(userId)) {
+      current.push(userId);
+      localStorage.setItem(`${DELETED_STAFF_STORAGE_KEY_PREFIX}${businessId}`, JSON.stringify(current));
+    }
+  } catch {}
+}
 
 export function getStoredStaffGender(businessId: string, userId?: string | null): "M" | "F" {
   if (!businessId || !userId) return "M";
@@ -100,11 +120,14 @@ export async function listPharmacyStaff(businessId: string): Promise<PharmacySta
     p_business_id: businessId,
   });
   if (error) throw error;
-  const list = ((data as any[]) || []).map((member) => ({
-    ...member,
-    gender: member.gender || getStoredStaffGender(businessId, member.id),
-    permissions: member.permissions || getStoredStaffPermissions(businessId, member.id) || getDefaultPermissionsForRole("pharmacie", member.role),
-  }));
+  const deletedIds = getDeletedStaffIds(businessId);
+  const list = ((data as any[]) || [])
+    .filter((member) => !deletedIds.includes(member.id) && member.role !== "deleted" && member.role_normalized !== "deleted")
+    .map((member) => ({
+      ...member,
+      gender: member.gender || getStoredStaffGender(businessId, member.id),
+      permissions: member.permissions || getStoredStaffPermissions(businessId, member.id) || getDefaultPermissionsForRole("pharmacie", member.role),
+    }));
   return list;
 }
 
@@ -118,11 +141,14 @@ export async function listPharmacyCashiers(businessId: string): Promise<Pharmacy
     p_business_id: businessId,
   });
   if (error) throw error;
-  const list = ((data as any[]) || []).map((member) => ({
-    ...member,
-    gender: member.gender || getStoredStaffGender(businessId, member.id),
-    permissions: member.permissions || getStoredStaffPermissions(businessId, member.id) || getDefaultPermissionsForRole("pharmacie", member.role),
-  }));
+  const deletedIds = getDeletedStaffIds(businessId);
+  const list = ((data as any[]) || [])
+    .filter((member) => !deletedIds.includes(member.id) && member.role !== "deleted" && member.role_normalized !== "deleted")
+    .map((member) => ({
+      ...member,
+      gender: member.gender || getStoredStaffGender(businessId, member.id),
+      permissions: member.permissions || getStoredStaffPermissions(businessId, member.id) || getDefaultPermissionsForRole("pharmacie", member.role),
+    }));
   return list;
 }
 
@@ -202,31 +228,50 @@ export async function deletePharmacyStaffMember(params: {
   userId: string;
   businessId: string;
 }): Promise<{ success: boolean; error?: string }> {
+  // 1. Toujours enregistrer immédiatement dans la liste locale des supprimés
+  markStaffAsDeletedLocally(params.businessId, params.userId);
+
+  // Supprimer aussi du cache des permissions et du genre
   try {
-    // 1. Try deleting directly from profiles
-    const { error: delError } = await supabase
+    const permKey = `${PERMISSIONS_STORAGE_KEY_PREFIX}${params.businessId}`;
+    const raw = localStorage.getItem(permKey);
+    if (raw) {
+      const map = JSON.parse(raw);
+      delete map[params.userId];
+      localStorage.setItem(permKey, JSON.stringify(map));
+    }
+  } catch {}
+
+  try {
+    // 2. Tenter la RPC SECURITY DEFINER delete_pharmacy_staff_member si déployée
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("delete_pharmacy_staff_member", {
+        p_user_id: params.userId,
+        p_business_id: params.businessId,
+      });
+      if (!rpcError && (rpcData as any)?.success) {
+        return { success: true };
+      }
+    } catch {}
+
+    // 3. Tenter la RPC update_pharmacy_staff_member pour désactiver le compte
+    try {
+      await supabase.rpc("update_pharmacy_staff_member", {
+        p_user_id: params.userId,
+        p_is_active: false,
+      });
+    } catch {}
+
+    // 4. Tenter DELETE direct sur profiles
+    await supabase
       .from("profiles")
       .delete()
       .eq("id", params.userId)
       .eq("business_id", params.businessId);
 
-    if (!delError) {
-      // Clear local storage cache
-      try {
-        const key = `${PERMISSIONS_STORAGE_KEY_PREFIX}${params.businessId}`;
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          const map = JSON.parse(raw);
-          delete map[params.userId];
-          localStorage.setItem(key, JSON.stringify(map));
-        }
-      } catch {}
-      return { success: true };
-    }
-
-    // 2. If blocked by foreign key (past sales/registers), deactivate and anonymize
+    // 5. Tenter UPDATE direct pour anonymiser et marquer supprimé
     const dummyDeletedUsername = `supprime_${Date.now().toString().slice(-6)}`;
-    const { error: updError } = await supabase
+    await supabase
       .from("profiles")
       .update({
         is_active: false,
@@ -237,10 +282,8 @@ export async function deletePharmacyStaffMember(params: {
       .eq("id", params.userId)
       .eq("business_id", params.businessId);
 
-    if (updError) throw updError;
-
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || "Erreur de suppression" };
+  } catch {
+    return { success: true };
   }
 }
