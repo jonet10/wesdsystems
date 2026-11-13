@@ -518,7 +518,13 @@ export const salesService = {
       }>;
     },
     quantities: Record<string, number>,
-    options: { reason?: string } = {},
+    options: {
+      reason?: string;
+      authorizedBy?: {
+        name: string;
+        role: string;
+      };
+    } = {},
     explicitBusinessId?: string,
   ) {
     const businessId = explicitBusinessId || getPharmacyBusinessId();
@@ -611,6 +617,10 @@ export const salesService = {
       if (itemError) throw itemError;
 
       // 3. Tracer le retour dans les mouvements de stock.
+      const movementNotes = options.authorizedBy
+        ? `${notes} — Validé par ${options.authorizedBy.name} (${options.authorizedBy.role})`
+        : notes;
+
       const { error: movementError } = await supabase
         .from("pharmacy_stock_movements")
         .insert([
@@ -621,7 +631,7 @@ export const salesService = {
             type: "return",
             quantity,
             reference,
-            notes,
+            notes: movementNotes,
             created_by: userId,
           },
         ]);
@@ -654,8 +664,11 @@ export const salesService = {
       ? 0
       : Math.max(0, Number(sale.total || 0) - refundTotal);
 
+    const authorTag = options.authorizedBy
+      ? ` [AUTORISE_PAR: ${options.authorizedBy.name} | ROLE: ${options.authorizedBy.role}]`
+      : "";
     const returnNotes = fullyReturned ? "Retour total en stock" : "Retour partiel en stock";
-    const fullNotes = notes ? `${notes} (${returnNotes})` : returnNotes;
+    const fullNotes = `${notes || "Retour produit"} (${returnNotes})${authorTag}`;
 
     const { error: saleUpdateError } = await supabase
       .from("pharmacy_sales")

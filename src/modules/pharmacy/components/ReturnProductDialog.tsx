@@ -18,7 +18,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { salesService } from "@/modules/pharmacy/services/salesService";
+import {
+  listPharmacyStaff,
+  pharmacyRoleLabel,
+  type PharmacyStaffMember,
+} from "@/modules/pharmacy/services/staffService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -81,6 +93,8 @@ export function ReturnProductDialog({
   const [reason, setReason] = useState("");
   const [authCode, setAuthCode] = useState("");
   const [expectedAuthCode, setExpectedAuthCode] = useState("1234");
+  const [approvers, setApprovers] = useState<PharmacyStaffMember[]>([]);
+  const [selectedApproverId, setSelectedApproverId] = useState<string>("super_admin");
 
   const search = async (value: string) => {
     const receiptNumber = value.trim();
@@ -111,8 +125,9 @@ export function ReturnProductDialog({
     setReason("");
     setSearchError("");
     setAuthCode("");
+    setSelectedApproverId("super_admin");
 
-    const fetchCode = async () => {
+    const fetchCodeAndApprovers = async () => {
       try {
         const { data } = await supabase
           .from("app_config")
@@ -130,8 +145,17 @@ export function ReturnProductDialog({
         const cached = localStorage.getItem("wesd_return_product_auth_code");
         if (cached) setExpectedAuthCode(cached);
       }
+
+      // Charger les gérants et admins de la pharmacie pour l'autorisation
+      try {
+        const staff = await listPharmacyStaff(businessId);
+        const managers = (staff || []).filter(
+          (m) => m.is_active && (m.role === "pharmacy_manager" || m.role === "pharmacy_admin")
+        );
+        setApprovers(managers);
+      } catch {}
     };
-    fetchCode();
+    fetchCodeAndApprovers();
 
     const preset = (initialReceipt || "").trim();
     setReceipt(preset);
@@ -169,14 +193,56 @@ export function ReturnProductDialog({
   const handleSubmit = async () => {
     if (!sale || !hasSelection) return;
 
+    let authorizedBy = {
+      name: profile?.full_name || profile?.username || "Responsable",
+      role: profile?.role === "pharmacy_manager" ? "Gérant" : "Admin",
+    };
+
     if (isCashier) {
       if (!authCode.trim()) {
-        toast.error("Veuillez saisir le mot de passe d'autorisation Super Admin / Gérant.");
+        toast.error("Veuillez saisir le code d'autorisation du responsable.");
         return;
       }
-      if (authCode.trim() !== expectedAuthCode.trim()) {
-        toast.error("Mot de passe d'autorisation incorrect ! Veuillez demander l'accord au responsable.");
-        return;
+
+      if (selectedApproverId === "super_admin") {
+        if (authCode.trim() !== expectedAuthCode.trim()) {
+          toast.error("Mot de passe Super Admin incorrect !");
+          return;
+        }
+        authorizedBy = {
+          name: "Super Administrateur",
+          role: "Super Admin",
+        };
+      } else {
+        const approver = approvers.find((m) => m.id === selectedApproverId);
+        if (!approver) {
+          toast.error("Veuillez sélectionner un responsable.");
+          return;
+        }
+
+        try {
+          const { data: authData, error: authError } = await supabase.rpc("get_pharmacy_login_email", {
+            p_username: approver.username,
+            p_pin: authCode.trim(),
+          });
+          const isValid = !authError && (authData as any)?.success;
+          if (!isValid) {
+            if (authCode.trim() !== expectedAuthCode.trim()) {
+              toast.error(`Code d'autorisation incorrect pour ${approver.full_name}.`);
+              return;
+            }
+          }
+        } catch {
+          if (authCode.trim() !== expectedAuthCode.trim()) {
+            toast.error(`Code d'autorisation incorrect pour ${approver.full_name}.`);
+            return;
+          }
+        }
+
+        authorizedBy = {
+          name: approver.full_name || approver.username,
+          role: pharmacyRoleLabel(approver.role, approver.gender),
+        };
       }
     }
 
@@ -185,11 +251,11 @@ export function ReturnProductDialog({
       const result = await salesService.processReturn(
         sale,
         quantities,
-        { reason },
+        { reason, authorizedBy },
         businessId,
       );
       toast.success(
-        `${result.returnedUnits} unité(s) retournée(s). Vente et stock ajustés.`,
+        `${result.returnedUnits} unité(s) retournée(s) — Validé par ${authorizedBy.name} (${authorizedBy.role})`,
       );
       onOpenChange(false);
       onCompleted?.();
@@ -336,26 +402,48 @@ export function ReturnProductDialog({
               </div>
 
               {isCashier && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-3">
                   <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-xs">
                     <ShieldAlert className="h-4 w-4" />
-                    Autorisation Super Admin requise pour la caissière
+                    Autorisation requise pour la caissière
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Pour valider ce retour de marchandise, veuillez saisir le mot de passe d'autorisation configuré par le Super Admin dans les paramètres de sécurité.
+                    Ce retour doit être validé par un Gérant ou l'Administrateur. Son nom et son rôle seront enregistrés sur le rapport officiel.
                   </p>
-                  <div className="space-y-1 pt-1">
-                    <Label htmlFor="return-auth-code" className="text-xs font-medium flex items-center gap-1.5">
-                      <Lock className="h-3.5 w-3.5" /> Mot de passe d'autorisation *
-                    </Label>
-                    <Input
-                      id="return-auth-code"
-                      type="password"
-                      value={authCode}
-                      onChange={(event) => setAuthCode(event.target.value)}
-                      placeholder="Mot de passe Super Admin"
-                      className="font-mono bg-background"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <Label htmlFor="approver-select" className="text-xs font-medium">
+                        Responsable qui valide *
+                      </Label>
+                      <Select value={selectedApproverId} onValueChange={setSelectedApproverId}>
+                        <SelectTrigger id="approver-select" className="h-9 text-xs bg-background">
+                          <SelectValue placeholder="Choisir un responsable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="super_admin">🔑 Super Administrateur</SelectItem>
+                          {approvers.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              👤 {m.full_name} ({pharmacyRoleLabel(m.role, m.gender)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="return-auth-code" className="text-xs font-medium flex items-center gap-1.5">
+                        <Lock className="h-3.5 w-3.5" /> Mot de passe / PIN *
+                      </Label>
+                      <Input
+                        id="return-auth-code"
+                        type="password"
+                        value={authCode}
+                        onChange={(event) => setAuthCode(event.target.value)}
+                        placeholder={selectedApproverId === "super_admin" ? "Mot de passe Super Admin" : "PIN du responsable"}
+                        className="font-mono bg-background h-9"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter } from "lucide-react";
+import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { reportsService } from "@/modules/pharmacy/services/reportsService";
+import { parseRegisterMeta } from "@/modules/pharmacy/services/registerService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +25,8 @@ export default function PharmacyReports() {
   const [expiredLosses, setExpiredLosses] = useState(0);
   const [expiredCount, setExpiredCount] = useState(0);
   const [salesFilter, setSalesFilter] = useState<"all" | "valid_only" | "returns_only">("all");
+  const [registers, setRegisters] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedRegisterId, setSelectedRegisterId] = useState<string>("all");
   const [businessInfo, setBusinessInfo] = useState<{
     name: string;
     logo_url?: string | null;
@@ -36,12 +39,27 @@ export default function PharmacyReports() {
     if (!businessId) return;
     const fetchBiz = async () => {
       try {
-        const { data } = await supabase
-          .from("businesses")
-          .select("name, logo_url, phone, email, address")
-          .eq("id", businessId)
-          .maybeSingle();
-        if (data) setBusinessInfo(data);
+        const [bizResult, regResult] = await Promise.all([
+          supabase
+            .from("businesses")
+            .select("name, logo_url, phone, email, address")
+            .eq("id", businessId)
+            .maybeSingle(),
+          supabase
+            .from("pharmacy_cash_registers")
+            .select("id, notes")
+            .eq("business_id", businessId)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (bizResult.data) setBusinessInfo(bizResult.data);
+        if (regResult.data) {
+          const list = regResult.data.map((r: any) => ({
+            id: r.id,
+            name: parseRegisterMeta(r.notes).name,
+          }));
+          setRegisters(list);
+        }
       } catch {}
     };
     fetchBiz();
@@ -401,9 +419,14 @@ export default function PharmacyReports() {
     setLoading(true);
     try {
       if (type === "Ventes") {
+        const regMap: Record<string, string> = {};
+        registers.forEach((r) => {
+          regMap[r.id] = r.name;
+        });
+
         const { data: sales, error } = await supabase
           .from("pharmacy_sales")
-          .select("created_at, receipt_number, total, payment_method, payment_status, notes, customer:customer_id(first_name, last_name)")
+          .select("created_at, receipt_number, total, payment_method, payment_status, notes, register_id, customer:customer_id(first_name, last_name)")
           .eq("business_id", businessId)
           .order("created_at", { ascending: false });
 
@@ -413,11 +436,14 @@ export default function PharmacyReports() {
           return;
         }
 
-        // Filtrage selon le choix :
-        // - "valid_only" : supprime du rapport les produits retournés à 0 G
-        // - "returns_only" : n'affiche que les retours
-        // - "all" : affiche tout avec statut explicite "Retourné en stock"
-        const filteredSales = sales.filter((s: any) => {
+        // 1. Filtrage par Caisse (si spécifique)
+        let filteredSales = sales;
+        if (selectedRegisterId !== "all") {
+          filteredSales = filteredSales.filter((s: any) => s.register_id === selectedRegisterId);
+        }
+
+        // 2. Filtrage par statut de vente / retours
+        filteredSales = filteredSales.filter((s: any) => {
           const isReturn = Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour")) || s.payment_status === "returned";
           if (salesFilter === "valid_only") return !isReturn;
           if (salesFilter === "returns_only") return isReturn;
@@ -425,16 +451,30 @@ export default function PharmacyReports() {
         });
 
         if (filteredSales.length === 0) {
-          toast.info(salesFilter === "valid_only" ? "Aucune vente active trouvée (toutes ont été retournées)." : "Aucun retour produit trouvé.");
+          toast.info("Aucune transaction trouvée pour ces critères.");
           return;
         }
 
-        const headers = ["Date", "N° Reçu", "Client", "Mode de Paiement", "Total", "Statut"];
+        const headers = ["Date", "N° Reçu", "Caisse", "Client", "Mode de Paiement", "Total", "Statut & Autorisation"];
         const rows: (string | number)[][] = filteredSales.map((s: any) => {
           const isReturn = Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour")) || s.payment_status === "returned";
+          const registerName = (s.register_id && regMap[s.register_id]) || "Caisse Principale";
+
+          // Extraction du nom et rôle du responsable ayant validé le retour
+          let authorText = "";
+          if (s.notes) {
+            const match = String(s.notes).match(/\[AUTORISE_PAR:\s*([^|]+)\s*\|\s*ROLE:\s*([^\]]+)\]/i);
+            if (match) {
+              authorText = ` (Validé par : ${match[1].trim()} — ${match[2].trim()})`;
+            } else if (String(s.notes).toLowerCase().includes("validé par")) {
+              const part = String(s.notes).split(/validé par/i)[1]?.trim();
+              if (part) authorText = ` (Validé par ${part.replace(/^\(|\)$/g, "")})`;
+            }
+          }
+
           let statusLabel = "Payé";
           if (isReturn) {
-            statusLabel = "Retourné en stock";
+            statusLabel = "Retourné en stock" + authorText;
           } else if (s.payment_status === "credit") {
             statusLabel = "Crédit (En attente)";
           } else if (s.payment_status === "partial") {
@@ -444,6 +484,7 @@ export default function PharmacyReports() {
           return [
             new Date(s.created_at).toLocaleString("fr-FR"),
             s.receipt_number || "-",
+            registerName,
             s.customer ? `${s.customer.first_name || ""} ${s.customer.last_name || ""}`.trim() : "Client de passage",
             s.payment_method?.toUpperCase() || "CASH",
             s.total || 0,
@@ -451,11 +492,12 @@ export default function PharmacyReports() {
           ];
         });
 
+        const activeRegName = selectedRegisterId === "all" ? "Toutes les caisses" : (regMap[selectedRegisterId] || "Caisse");
         const reportTitle = salesFilter === "returns_only"
-          ? "Rapport des Retours Produits en Stock — Pharmacie"
+          ? `Rapport des Retours Produits en Stock — ${activeRegName}`
           : salesFilter === "valid_only"
-          ? "Rapport des Ventes Nettes — Pharmacie"
-          : "Rapport des Ventes — Pharmacie";
+          ? `Rapport des Ventes Nettes — ${activeRegName}`
+          : `Rapport des Ventes — ${activeRegName}`;
 
         const totalSalesAmount = filteredSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
         const returnsCount = filteredSales.filter((s: any) => Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour"))).length;
@@ -463,16 +505,12 @@ export default function PharmacyReports() {
 
         const summaryCards = [
           { label: "Transactions", value: filteredSales.length },
-          { label: "Ventes Valides", value: validSalesCount, color: "#166534" },
-          { label: "Total Encaissé", value: format(totalSalesAmount), color: "#0f766e" },
+          { label: "Caisse Filtrée", value: activeRegName },
+          { label: "Total Réel Encaissé", value: format(totalSalesAmount), color: "#0f766e" },
           { label: "Retours en Stock", value: `${returnsCount} transaction(s)`, color: returnsCount > 0 ? "#b91c1c" : "#64748b" },
         ];
 
-        const filterLabel = salesFilter === "returns_only"
-          ? "Retours en stock uniquement"
-          : salesFilter === "valid_only"
-          ? "Ventes valides (retours à 0 G masqués)"
-          : "Toutes transactions confondues";
+        const filterLabel = `${salesFilter === "returns_only" ? "Retours en stock uniquement" : salesFilter === "valid_only" ? "Ventes valides (retours masqués)" : "Toutes transactions"} • Caisse : ${activeRegName}`;
 
         if (exportFormat === "pdf") {
           printReport(reportTitle, headers, rows, summaryCards, filterLabel);
@@ -660,33 +698,60 @@ export default function PharmacyReports() {
                 Historique des transactions, avec détection automatique des retours produits et ajustements de stock.
               </p>
 
-              <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/30 p-2.5">
-                <Label htmlFor="sales-filter-select" className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                  <Filter className="h-3.5 w-3.5 text-primary" /> Filtrer le contenu du rapport :
-                </Label>
-                <Select
-                  value={salesFilter}
-                  onValueChange={(val: any) => setSalesFilter(val)}
-                >
-                  <SelectTrigger id="sales-filter-select" className="h-8 text-xs bg-background">
-                    <SelectValue placeholder="Sélectionner un filtre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      📋 Toutes les transactions (avec mention « Retourné en stock »)
-                    </SelectItem>
-                    <SelectItem value="valid_only">
-                      ✨ Ventes valides uniquement (masquer les retours à 0 G)
-                    </SelectItem>
-                    <SelectItem value="returns_only">
-                      ↩️ Retours en stock uniquement (audit)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground">
+              <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="register-filter-select" className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <Monitor className="h-3.5 w-3.5 text-primary" /> Caisse enregistreuse :
+                    </Label>
+                    <Select
+                      value={selectedRegisterId}
+                      onValueChange={(val: any) => setSelectedRegisterId(val)}
+                    >
+                      <SelectTrigger id="register-filter-select" className="h-8 text-xs bg-background">
+                        <SelectValue placeholder="Toutes les caisses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">🖥️ Toutes les caisses</SelectItem>
+                        {registers.map((reg) => (
+                          <SelectItem key={reg.id} value={reg.id}>
+                            🖥️ {reg.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="sales-filter-select" className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                      <Filter className="h-3.5 w-3.5 text-primary" /> Périmètre des ventes :
+                    </Label>
+                    <Select
+                      value={salesFilter}
+                      onValueChange={(val: any) => setSalesFilter(val)}
+                    >
+                      <SelectTrigger id="sales-filter-select" className="h-8 text-xs bg-background">
+                        <SelectValue placeholder="Sélectionner un filtre" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          📋 Toutes les transactions
+                        </SelectItem>
+                        <SelectItem value="valid_only">
+                          ✨ Ventes valides uniquement
+                        </SelectItem>
+                        <SelectItem value="returns_only">
+                          ↩️ Retours en stock uniquement
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground pt-0.5">
                   {salesFilter === "valid_only" && "Les produits retournés à 0 G sont masqués du rapport."}
-                  {salesFilter === "all" && "Les produits retournés affichent explicitement le statut « Retourné en stock »."}
-                  {salesFilter === "returns_only" && "Seules les ventes retournées et réintégrées au stock seront listées."}
+                  {salesFilter === "all" && "Les retours affichent le badge « Retourné en stock » avec le nom et rôle du valideur."}
+                  {salesFilter === "returns_only" && "Seules les ventes retournées et réintégrées au stock seront listées pour audit."}
                 </p>
               </div>
 
