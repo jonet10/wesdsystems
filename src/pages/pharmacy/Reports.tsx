@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter, Monitor } from "lucide-react";
+import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter, Monitor, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { reportsService } from "@/modules/pharmacy/services/reportsService";
@@ -13,6 +13,8 @@ import { parseRegisterMeta } from "@/modules/pharmacy/services/registerService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import jsPDF from "jspdf";
+import { autoTable } from "jspdf-autotable";
 
 export default function PharmacyReports() {
   const businessId = usePharmacyBusinessId();
@@ -111,6 +113,210 @@ export default function PharmacyReports() {
   useEffect(() => {
     loadStats();
   }, [businessId]);
+
+  const getBase64ImageFromUrl = async (imageUrl: string): Promise<string | null> => {
+    try {
+      const res = await fetch(imageUrl);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const exportToPdf = async (
+    filename: string,
+    title: string,
+    headers: string[],
+    rows: (string | number)[][],
+    summaryCards?: Array<{ label: string; value: string | number; color?: string }>,
+    filterText?: string
+  ) => {
+    try {
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      let currentY = 28;
+
+      // Bandeau vert supérieur
+      doc.setFillColor(15, 118, 110);
+      doc.rect(0, 0, pageWidth, 5, "F");
+
+      const companyName = (businessInfo?.name || "Établissement Pharmaceutique").toUpperCase();
+      const companyAddress = businessInfo?.address || "";
+      const companyPhone = businessInfo?.phone ? `Tél : ${businessInfo.phone}` : "";
+      const companyEmail = businessInfo?.email ? `Email : ${businessInfo.email}` : "";
+      const operatorName = profile?.full_name || profile?.username || "Direction";
+      const todayStr = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+      const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+      // Logo (si disponible)
+      let leftX = 40;
+      if (businessInfo?.logo_url) {
+        try {
+          const base64 = await getBase64ImageFromUrl(businessInfo.logo_url);
+          if (base64) {
+            doc.addImage(base64, "PNG", leftX, currentY, 40, 40);
+            leftX += 48;
+          }
+        } catch {}
+      }
+
+      // Nom entreprise & coordonnées (Marque Blanche - Zéro mention du système)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(15, 118, 110);
+      doc.text(companyName, leftX, currentY + 12);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      let metaY = currentY + 24;
+      const contactLine = [companyAddress, companyPhone, companyEmail].filter(Boolean).join("  •  ");
+      if (contactLine) {
+        doc.text(contactLine, leftX, metaY);
+        metaY += 11;
+      }
+
+      // Bloc Droite (Document Meta)
+      const rightX = pageWidth - 40;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(15, 118, 110);
+      doc.text("DOCUMENT COMPTABLE & ADMINISTRATIF", rightX, currentY + 8, { align: "right" });
+
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text(title, rightX, currentY + 22, { align: "right" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Émis le : ${todayStr} à ${timeStr}`, rightX, currentY + 33, { align: "right" });
+      doc.text(`Édité par : ${operatorName}`, rightX, currentY + 43, { align: "right" });
+      if (filterText) {
+        doc.text(`Périmètre : ${filterText}`, rightX, currentY + 53, { align: "right" });
+      }
+
+      currentY = Math.max(metaY + 8, currentY + (filterText ? 60 : 50));
+
+      // Ligne de séparation
+      doc.setDrawColor(15, 118, 110);
+      doc.setLineWidth(1.2);
+      doc.line(40, currentY, pageWidth - 40, currentY);
+      currentY += 12;
+
+      // Synthèse chiffrée (Summary cards)
+      if (summaryCards && summaryCards.length > 0) {
+        const cardCount = summaryCards.length;
+        const totalAvailableWidth = pageWidth - 80;
+        const gap = 10;
+        const cardWidth = (totalAvailableWidth - (cardCount - 1) * gap) / cardCount;
+        const cardHeight = 36;
+
+        summaryCards.forEach((c, idx) => {
+          const cardX = 40 + idx * (cardWidth + gap);
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.8);
+          doc.roundedRect(cardX, currentY, cardWidth, cardHeight, 3, 3, "FD");
+
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text(c.label.toUpperCase(), cardX + 8, currentY + 12);
+
+          doc.setFontSize(10);
+          if (c.color === "#b91c1c" || c.color?.includes("red")) {
+            doc.setTextColor(185, 28, 28);
+          } else if (c.color === "#0f766e" || c.color?.includes("green")) {
+            doc.setTextColor(15, 118, 110);
+          } else if (c.color === "#ea580c" || c.color?.includes("orange")) {
+            doc.setTextColor(234, 88, 12);
+          } else {
+            doc.setTextColor(15, 23, 42);
+          }
+          doc.text(String(c.value), cardX + 8, currentY + 26);
+        });
+
+        currentY += cardHeight + 12;
+      }
+
+      // AutoTable
+      autoTable(doc, {
+        startY: currentY,
+        head: [headers],
+        body: rows,
+        theme: "striped",
+        headStyles: {
+          fillColor: [15, 118, 110],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8,
+          cellPadding: 5,
+        },
+        bodyStyles: {
+          fontSize: 7.5,
+          cellPadding: 4,
+          textColor: [30, 41, 59],
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252],
+        },
+        margin: { left: 40, right: 40, bottom: 40, top: 35 },
+      });
+
+      // Signature et numérotation des pages
+      const lastFinalY = (doc as any).lastAutoTable?.finalY || currentY + 20;
+      const spaceRemaining = pageHeight - lastFinalY;
+
+      if (spaceRemaining < 65) {
+        doc.addPage();
+        const sigY = 45;
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(1);
+        doc.line(pageWidth - 210, sigY, pageWidth - 40, sigY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Visa & Signature de la Direction", pageWidth - 125, sigY + 11, { align: "center" });
+      } else {
+        const sigY = lastFinalY + 30;
+        doc.setDrawColor(15, 23, 42);
+        doc.setLineWidth(1);
+        doc.line(pageWidth - 210, sigY, pageWidth - 40, sigY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(15, 23, 42);
+        doc.text("Visa & Signature de la Direction", pageWidth - 125, sigY + 11, { align: "center" });
+      }
+
+      // Pied de page sur toutes les pages
+      const finalTotalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= finalTotalPages; i++) {
+        doc.setPage(i);
+        const footerY = pageHeight - 16;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Rapport certifié exact et conforme aux écritures de caisse et de stock.", 40, footerY);
+        doc.text(`Page ${i} sur ${finalTotalPages}`, pageWidth - 40, footerY, { align: "right" });
+      }
+
+      doc.save(`${filename}_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("Fichier PDF téléchargé avec succès !");
+    } catch (err: any) {
+      console.error("PDF Generation error:", err);
+      toast.error("Erreur lors de la génération du PDF : " + (err.message || "Erreur inconnue"));
+    }
+  };
 
   const exportToCsv = (filename: string, rows: (string | number)[][]) => {
     const csvContent = "\uFEFF" + rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
@@ -410,7 +616,7 @@ export default function PharmacyReports() {
     printWindow.document.close();
   };
 
-  const downloadReport = async (type: string, exportFormat: "excel" | "pdf" = "excel") => {
+  const downloadReport = async (type: string, exportFormat: "excel" | "pdf" | "print" = "excel") => {
     if (!businessId) {
       toast.error("Veuillez sélectionner une pharmacie");
       return;
@@ -501,7 +707,6 @@ export default function PharmacyReports() {
 
         const totalSalesAmount = filteredSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
         const returnsCount = filteredSales.filter((s: any) => Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour"))).length;
-        const validSalesCount = filteredSales.length - returnsCount;
 
         const summaryCards = [
           { label: "Transactions", value: filteredSales.length },
@@ -513,11 +718,13 @@ export default function PharmacyReports() {
         const filterLabel = `${salesFilter === "returns_only" ? "Retours en stock uniquement" : salesFilter === "valid_only" ? "Ventes valides (retours masqués)" : "Toutes transactions"} • Caisse : ${activeRegName}`;
 
         if (exportFormat === "pdf") {
+          await exportToPdf("rapport_ventes_pharmacie", reportTitle, headers, rows, summaryCards, filterLabel);
+        } else if (exportFormat === "print") {
           printReport(reportTitle, headers, rows, summaryCards, filterLabel);
         } else {
           exportToCsv("rapport_ventes_pharmacie", [headers, ...rows]);
+          toast.success("Rapport des ventes exporté en CSV !");
         }
-        toast.success("Rapport des ventes généré avec succès !");
 
       } else if (type === "Inventaire") {
         const { data: prods, error } = await supabase
@@ -562,11 +769,13 @@ export default function PharmacyReports() {
         ];
 
         if (exportFormat === "pdf") {
+          await exportToPdf("inventaire_pharmacie", "Inventaire Actuel & Valeur du Stock", headers, rows, summaryCards, "Stock global actif");
+        } else if (exportFormat === "print") {
           printReport("Inventaire Actuel & Valeur du Stock", headers, rows, summaryCards, "Stock global actif");
         } else {
           exportToCsv("inventaire_pharmacie", [headers, ...rows]);
+          toast.success("Inventaire exporté en CSV !");
         }
-        toast.success("Inventaire généré avec succès !");
 
       } else if (type === "Péremptions") {
         const { data: batches, error } = await supabase
@@ -612,11 +821,13 @@ export default function PharmacyReports() {
         ];
 
         if (exportFormat === "pdf") {
+          await exportToPdf("rapport_peremptions_pharmacie", "Rapport des Péremptions & Lots à Risque", headers, rows, summaryCards, "Lots en stock");
+        } else if (exportFormat === "print") {
           printReport("Rapport des Péremptions & Lots à Risque", headers, rows, summaryCards, "Lots en stock");
         } else {
           exportToCsv("rapport_peremptions_pharmacie", [headers, ...rows]);
+          toast.success("Rapport des péremptions exporté en CSV !");
         }
-        toast.success("Rapport des péremptions généré avec succès !");
       }
     } catch (err: any) {
       toast.error("Erreur lors de l'export : " + err.message);
@@ -756,11 +967,14 @@ export default function PharmacyReports() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <Button onClick={() => downloadReport("Ventes", "excel")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                <Button onClick={() => downloadReport("Ventes", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+                </Button>
+                <Button onClick={() => downloadReport("Ventes", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
                   <Download className="w-4 h-4" /> Excel (.csv)
                 </Button>
-                <Button onClick={() => downloadReport("Ventes", "pdf")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Printer className="w-4 h-4" /> Imprimer / PDF
+                <Button onClick={() => downloadReport("Ventes", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
+                  <Printer className="w-4 h-4" /> Imprimer
                 </Button>
               </div>
             </CardContent>
@@ -772,11 +986,14 @@ export default function PharmacyReports() {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">Liste de tous les produits en stock, incluant la valorisation FEFO et les ruptures.</p>
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => downloadReport("Inventaire", "excel")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                <Button onClick={() => downloadReport("Inventaire", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+                </Button>
+                <Button onClick={() => downloadReport("Inventaire", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
                   <Download className="w-4 h-4" /> Excel (.csv)
                 </Button>
-                <Button onClick={() => downloadReport("Inventaire", "pdf")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Printer className="w-4 h-4" /> Imprimer / PDF
+                <Button onClick={() => downloadReport("Inventaire", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
+                  <Printer className="w-4 h-4" /> Imprimer
                 </Button>
               </div>
             </CardContent>
@@ -788,11 +1005,14 @@ export default function PharmacyReports() {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">Identification des lots expirant dans les 3 prochains mois pour actions de déstockage.</p>
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => downloadReport("Péremptions", "excel")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                <Button onClick={() => downloadReport("Péremptions", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
+                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+                </Button>
+                <Button onClick={() => downloadReport("Péremptions", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
                   <Download className="w-4 h-4" /> Excel (.csv)
                 </Button>
-                <Button onClick={() => downloadReport("Péremptions", "pdf")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Printer className="w-4 h-4" /> Imprimer / PDF
+                <Button onClick={() => downloadReport("Péremptions", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
+                  <Printer className="w-4 h-4" /> Imprimer
                 </Button>
               </div>
             </CardContent>
