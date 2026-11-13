@@ -13,8 +13,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { AutoPartsPageHeader } from "@/modules/auto-parts/components";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw, Search } from "lucide-react";
+import { Pencil, Trash2, ShieldAlert, Pill, RefreshCw, Search, TrendingUp, CheckSquare, Square, Percent } from "lucide-react";
 import type { PharmacyProduct, PharmacyCategory } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
@@ -30,6 +31,13 @@ export default function PharmacyProducts() {
   const [searchQuery, setSearchQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PharmacyProduct | null>(null);
+
+  // Bulk margin states
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [marginDialogOpen, setMarginDialogOpen] = useState(false);
+  const [marginPercent, setMarginPercent] = useState<string>("30");
+  const [roundUpPrice, setRoundUpPrice] = useState<boolean>(true);
+  const [isApplyingMargin, setIsApplyingMargin] = useState(false);
   
   const [form, setForm] = useState({
     name: "",
@@ -42,6 +50,87 @@ export default function PharmacyProducts() {
     cost_price: "0",
     sale_price: "0"
   });
+
+  const calculatedFormMargin = useMemo(() => {
+    const cost = Number(form.cost_price || 0);
+    const sale = Number(form.sale_price || 0);
+    if (cost > 0 && sale > 0) {
+      const margin = ((sale - cost) / cost) * 100;
+      return margin.toFixed(1);
+    }
+    return null;
+  }, [form.cost_price, form.sale_price]);
+
+  const applyMarginToForm = (percentage: number) => {
+    const cost = Number(form.cost_price || 0);
+    if (cost <= 0) {
+      toast.warning("Veuillez d'abord renseigner un prix d'achat supérieur à 0.");
+      return;
+    }
+    let newSale = cost * (1 + percentage / 100);
+    newSale = Number(newSale.toFixed(2));
+    setForm((prev) => ({ ...prev, sale_price: String(newSale) }));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredData.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredData.map((p) => p.id));
+    }
+  };
+
+  const selectedProducts = useMemo(() => {
+    return data.filter((p) => selectedIds.includes(p.id));
+  }, [data, selectedIds]);
+
+  const handleApplyBulkMargin = async () => {
+    const margin = parseFloat(marginPercent);
+    if (isNaN(margin) || margin < 0) {
+      toast.error("Veuillez saisir un pourcentage de marge valide (ex: 15, 30 ou 40).");
+      return;
+    }
+
+    if (selectedProducts.length === 0) {
+      toast.error("Aucun produit sélectionné.");
+      return;
+    }
+
+    setIsApplyingMargin(true);
+    try {
+      const updates = selectedProducts.map((p) => {
+        const cost = Number(p.cost_price || 0);
+        let newPrice = cost * (1 + margin / 100);
+        if (roundUpPrice) {
+          newPrice = Math.ceil(newPrice);
+        } else {
+          newPrice = Number(newPrice.toFixed(2));
+        }
+        return {
+          id: p.id,
+          sale_price: newPrice,
+        };
+      });
+
+      await productService.updateBulkPrices(updates);
+      toast.success(
+        `Marge de ${margin}% appliquée avec succès à ${updates.length} médicament(s) !`
+      );
+      setMarginDialogOpen(false);
+      setSelectedIds([]);
+      await loadData();
+    } catch (err: any) {
+      toast.error("Erreur lors de l'application de la marge : " + err.message);
+    } finally {
+      setIsApplyingMargin(false);
+    }
+  };
 
   const businessId = usePharmacyBusinessId();
 
@@ -210,14 +299,77 @@ export default function PharmacyProducts() {
 
       {data.length > 0 && (
         <>
-          <div className="relative mb-6 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher un produit (nom, DCI, code barre, forme, catégorie)..."
-              className="h-12 pl-10 text-base"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex flex-col gap-3 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-xl">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher un produit (nom, DCI, code barre, forme, catégorie)..."
+                  className="h-12 pl-10 text-base"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={toggleSelectAll}
+                  className="gap-2 text-sm h-11"
+                >
+                  {selectedIds.length === filteredData.length && filteredData.length > 0 ? (
+                    <>
+                      <CheckSquare className="w-4 h-4 text-primary" />
+                      Tout désélectionner
+                    </>
+                  ) : (
+                    <>
+                      <Square className="w-4 h-4" />
+                      Tout sélectionner ({filteredData.length})
+                    </>
+                  )}
+                </Button>
+
+                {selectedIds.length > 0 && (
+                  <Button
+                    onClick={() => setMarginDialogOpen(true)}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-2 shadow-sm h-11"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    Fixer marge % ({selectedIds.length})
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {selectedIds.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-primary/30 bg-primary/10 text-primary text-sm font-medium animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                    {selectedIds.length}
+                  </span>
+                  <span>médicament(s) sélectionné(s) pour ajustement tarifaire</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setMarginDialogOpen(true)}
+                    className="h-8 gap-1.5 font-bold"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Appliquer marge %
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedIds([])}
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Annuler sélection
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {filteredData.length === 0 ? (
@@ -234,6 +386,7 @@ export default function PharmacyProducts() {
                 const stock = Number(r.total_stock_quantity || 0);
                 const min = Number(r.min_stock_alert || 0);
                 const categoryColor = r.category?.color || "#07A278";
+                const isSelected = selectedIds.includes(r.id);
                 const stockStyles =
                   stock <= 0
                     ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"
@@ -243,10 +396,26 @@ export default function PharmacyProducts() {
                 const stockLabel =
                   stock <= 0 ? "Rupture" : stock <= min ? "Stock faible" : "En stock";
 
+                const cost = Number(r.cost_price || 0);
+                const sale = Number(r.sale_price || 0);
+                const currentMargin = cost > 0 && sale > 0 ? (((sale - cost) / cost) * 100).toFixed(0) : null;
+
                 return (
-                  <Card key={r.id} className="flex flex-col border-border/60 shadow-sm transition-shadow hover:shadow-md">
-                    <CardContent className="flex flex-1 flex-col gap-4 p-4">
+                  <Card 
+                    key={r.id} 
+                    className={`flex flex-col border-border/60 shadow-sm transition-all hover:shadow-md ${
+                      isSelected ? "ring-2 ring-primary border-primary bg-primary/5" : ""
+                    }`}
+                  >
+                    <CardContent className="flex flex-1 flex-col gap-3.5 p-4">
                       <div className="flex items-start gap-3">
+                        <div className="pt-0.5">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelect(r.id)}
+                            className="h-5 w-5 data-[state=checked]:bg-primary"
+                          />
+                        </div>
                         <div
                           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                           style={{ backgroundColor: `${categoryColor}1a`, color: categoryColor }}
@@ -289,11 +458,18 @@ export default function PharmacyProducts() {
                       <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/50 p-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Prix d'achat</p>
-                          <p className="text-sm font-semibold">{format(r.cost_price || 0)}</p>
+                          <p className="text-sm font-semibold">{format(cost)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Prix de vente</p>
-                          <p className="text-sm font-semibold">{format(r.sale_price || 0)}</p>
+                          <div className="flex justify-between items-baseline">
+                            <p className="text-xs text-muted-foreground">Prix de vente</p>
+                            {currentMargin && (
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                +{currentMargin}%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-primary">{format(sale)}</p>
                         </div>
                       </div>
 
@@ -383,12 +559,55 @@ export default function PharmacyProducts() {
             </div>
             <div className="space-y-2">
               <Label>Prix d'Achat</Label>
-              <Input type="number" step="0.01" value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
+              <Input 
+                type="number" 
+                step="0.01" 
+                value={form.cost_price} 
+                onChange={(e) => setForm({ ...form, cost_price: e.target.value })} 
+              />
             </div>
             <div className="space-y-2">
-              <Label>Prix de Vente</Label>
-              <Input type="number" step="0.01" value={form.sale_price} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} />
+              <div className="flex justify-between items-center">
+                <Label>Prix de Vente</Label>
+                {calculatedFormMargin && (
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${Number(calculatedFormMargin) >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600"}`}>
+                    Marge : {Number(calculatedFormMargin) > 0 ? `+${calculatedFormMargin}%` : `${calculatedFormMargin}%`}
+                  </span>
+                )}
+              </div>
+              <Input 
+                type="number" 
+                step="0.01" 
+                value={form.sale_price} 
+                onChange={(e) => setForm({ ...form, sale_price: e.target.value })} 
+              />
             </div>
+
+            <div className="col-span-2 rounded-lg bg-muted/40 p-3 border border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-primary" /> Fixer par pourcentage de marge :
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  (calculé sur le prix d'achat)
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[15, 20, 25, 30, 40, 50, 100].map((pct) => (
+                  <Button
+                    key={pct}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs font-bold"
+                    onClick={() => applyMarginToForm(pct)}
+                  >
+                    +{pct}%
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             <div className="col-span-2 flex items-center justify-between border p-4 rounded-lg mt-2">
               <div>
                 <Label className="text-base">Sur Ordonnance Uniquement</Label>
@@ -400,6 +619,117 @@ export default function PharmacyProducts() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleSave} disabled={!form.name}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOGUE POUR DEFINIR LA MARGE EN POURCENTAGE SUR 1 OU PLUSIEURS PRODUITS */}
+      <Dialog open={marginDialogOpen} onOpenChange={setMarginDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Définir le prix de vente par pourcentage de marge
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Appliquer un taux de marge bénéficiaire sur le prix d'achat pour{" "}
+              <strong className="text-foreground">{selectedIds.length}</strong> médicament(s) sélectionné(s).
+            </p>
+
+            <div className="space-y-2">
+              <Label>Pourcentage de marge souhaité (%)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="Ex: 40"
+                  value={marginPercent}
+                  onChange={(e) => setMarginPercent(e.target.value)}
+                  className="text-lg font-bold"
+                />
+                <span className="text-lg font-bold text-muted-foreground px-1">%</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Raccourcis en un clic :</Label>
+              <div className="flex flex-wrap gap-2">
+                {[10, 15, 20, 25, 30, 40, 50, 100].map((pct) => (
+                  <Button
+                    key={pct}
+                    type="button"
+                    variant={marginPercent === String(pct) ? "default" : "outline"}
+                    size="sm"
+                    className="font-bold text-xs"
+                    onClick={() => setMarginPercent(String(pct))}
+                  >
+                    +{pct}%
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border p-3 rounded-lg bg-muted/20">
+              <div>
+                <Label className="text-sm font-semibold">Arrondir le prix à l'entier supérieur</Label>
+                <p className="text-xs text-muted-foreground">Ex: 114,40 G deviendra 115,00 G</p>
+              </div>
+              <Switch checked={roundUpPrice} onCheckedChange={setRoundUpPrice} />
+            </div>
+
+            {/* Aperçu dynamique */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground border-b flex justify-between">
+                <span>Aperçu des prix calculés ({selectedProducts.length} produit{selectedProducts.length > 1 ? "s" : ""})</span>
+                <span>Prix Achat ➔ Nouveau Prix Vente</span>
+              </div>
+              <div className="max-h-52 overflow-y-auto divide-y divide-border/50 text-xs">
+                {selectedProducts.slice(0, 8).map((p) => {
+                  const cost = Number(p.cost_price || 0);
+                  const margin = parseFloat(marginPercent) || 0;
+                  let newPrice = cost * (1 + margin / 100);
+                  if (roundUpPrice) newPrice = Math.ceil(newPrice);
+                  else newPrice = Number(newPrice.toFixed(2));
+                  const profit = newPrice - cost;
+
+                  return (
+                    <div key={p.id} className="p-2.5 flex items-center justify-between">
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold truncate text-foreground">{p.name}</p>
+                        <p className="text-[10px] text-muted-foreground">Prix actuel : {format(p.sale_price || 0)}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-primary">
+                          {format(cost)} ➔ {format(newPrice)}
+                        </p>
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                          Bénéfice : +{format(profit)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {selectedProducts.length > 8 && (
+                  <div className="p-2 text-center text-muted-foreground text-[11px] bg-muted/20">
+                    ... et {selectedProducts.length - 8} autre(s) médicament(s)
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarginDialogOpen(false)} disabled={isApplyingMargin}>
+              Annuler
+            </Button>
+            <Button onClick={handleApplyBulkMargin} disabled={isApplyingMargin || !marginPercent} className="gap-2">
+              <TrendingUp className="w-4 h-4" />
+              {isApplyingMargin ? "Application..." : `Appliquer à ${selectedIds.length} produit(s)`}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

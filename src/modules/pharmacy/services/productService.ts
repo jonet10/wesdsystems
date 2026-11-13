@@ -121,6 +121,24 @@ export const productService = {
     return data as PharmacyProduct;
   },
 
+  async updateBulkPrices(updates: { id: string; sale_price: number }[]) {
+    if (updates.length === 0) return;
+    const batchSize = 25;
+    for (let i = 0; i < updates.length; i += batchSize) {
+      const batch = updates.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map((item) =>
+          supabase
+            .from("pharmacy_products")
+            .update({ sale_price: item.sale_price })
+            .eq("id", item.id)
+        )
+      );
+      const error = results.find(r => r.error)?.error;
+      if (error) throw error;
+    }
+  },
+
   async deleteProduct(id: string) {
     const { error } = await supabase
       .from("pharmacy_products")

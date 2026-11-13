@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw, RefreshCw } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
@@ -111,6 +111,8 @@ export default function PharmacyPOS() {
   const [customers, setCustomers] = useState<PharmacyCustomer[]>([]);
   const [prescriptions, setPrescriptions] = useState<PharmacyPrescription[]>([]);
   const [businessInfo, setBusinessInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<any[]>([]);
@@ -160,6 +162,7 @@ export default function PharmacyPOS() {
   }, [businessId, profile?.id]);
 
   const loadData = async (bizId: string) => {
+    setLoading(true);
     try {
       const [prods, custs, prescs, biz, bizSettings] = await Promise.all([
         productService.getProducts(bizId),
@@ -185,6 +188,22 @@ export default function PharmacyPOS() {
       });
     } catch (e: any) {
       toast.error("Erreur de chargement des données POS : " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportCatalog = async () => {
+    if (!businessId) return;
+    setIsImporting(true);
+    try {
+      await productService.importStandardCatalog(businessId);
+      toast.success("Catalogue standard importé avec succès !");
+      await loadData(businessId);
+    } catch (e: any) {
+      toast.error("Erreur lors de l'importation : " + e.message);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -426,8 +445,8 @@ export default function PharmacyPOS() {
 
   const renderCartPanel = ({ embedded = false }: { embedded?: boolean } = {}) => (
     <div
-      className={`flex min-h-0 flex-col overflow-hidden bg-card ${
-        embedded ? "h-full" : "rounded-xl border border-border/60 shadow-sm"
+      className={`flex h-full min-h-0 flex-col overflow-hidden bg-card ${
+        embedded ? "" : "rounded-xl border border-border/60 shadow-sm"
       }`}
     >
       {!embedded && (
@@ -541,7 +560,7 @@ export default function PharmacyPOS() {
 
   return (
     <DashboardLayout role="salon_admin" title="Point de Vente (Caisse)" subtitle="Vente au comptoir">
-      <div className="flex flex-col gap-4 pb-28 lg:pb-0 lg:h-[calc(100dvh-7rem)] lg:min-h-0">
+      <div className="flex flex-col gap-3 h-[calc(100vh-8.5rem)] min-h-0 pb-20 lg:pb-0">
 
         {!openRegister && (
           <div className="shrink-0 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
@@ -558,79 +577,122 @@ export default function PharmacyPOS() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:flex-1 lg:min-h-0">
+        <div className="flex-1 flex gap-4 min-h-0 overflow-hidden">
 
-        {/* LEFT PANEL : PRODUCTS CATALOG */}
-        <div className="lg:col-span-8 flex flex-col gap-4 min-h-0">
-          <div className="flex shrink-0 items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input 
-                placeholder="Rechercher un médicament (Nom, DCI, Code barre)..." 
-                className="pl-10 text-lg py-6 shadow-sm border-border/60 bg-card"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          {/* LEFT PANEL : PRODUCTS CATALOG */}
+          <div className="flex-1 flex flex-col min-h-0 h-full">
+            <div className="flex shrink-0 items-center gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  placeholder="Rechercher un médicament (Nom, DCI, Code barre)..." 
+                  className="pl-10 text-base py-5 shadow-sm border-border/60 bg-card"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="h-[46px] shrink-0 gap-2"
+                onClick={() => setReturnOpen(true)}
+                title="Retourner un produit à partir du numéro de reçu"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="hidden sm:inline">Retour produit</span>
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              className="h-[52px] shrink-0 gap-2"
-              onClick={() => setReturnOpen(true)}
-              title="Retourner un produit à partir du numéro de reçu"
-            >
-              <RotateCcw className="h-4 w-4" />
-              <span className="hidden sm:inline">Retour produit</span>
-            </Button>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4 pb-4 md:grid-cols-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
-            {filteredProducts.map(p => {
-              const visual = getProductVisual(p.name, p.form || "", p.image_url);
-              const stock = Number(p.total_stock_quantity || 0);
-              const minStock = Number(p.min_stock_alert || 0);
-              const stockClass = stock <= 0
-                ? "bg-destructive/10 text-destructive border-destructive/20"
-                : stock <= minStock
-                  ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
-                  : "bg-primary/10 text-primary border-primary/20";
-              return (
-                <Card key={p.id} className={`group transition-all duration-300 overflow-hidden flex flex-col h-full bg-card border-border/60 ${stock > 0 ? "cursor-pointer hover:border-primary hover:shadow-md" : "opacity-70"}`} onClick={() => addToCart(p)}>
-                  {/* Visual Header representing the medication form */}
-                  <div className={`h-24 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden`}>
-                    {visual.element}
-                    <span className="absolute top-2 right-2 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-background/90 text-muted-foreground border border-border/80">
-                      {visual.tag}
-                    </span>
+            {/* SEPARATE SCROLLABLE CONTAINER */}
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2 pb-6">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-3">
+                  <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+                  <p>Chargement des médicaments...</p>
+                </div>
+              ) : products.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/20 rounded-2xl bg-primary/5 my-auto text-center">
+                  <Pill className="h-12 w-12 text-primary mb-3 animate-bounce" />
+                  <h3 className="text-lg font-bold mb-1">Catalogue de médicaments vide</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mb-5">
+                    Cette pharmacie n'a pas encore de médicaments enregistrés dans son catalogue. Vous pouvez importer instantanément plus de 150 médicaments essentiels standards.
+                  </p>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <Button
+                      onClick={handleImportCatalog}
+                      disabled={isImporting}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-sm"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isImporting ? "animate-spin" : ""}`} />
+                      {isImporting ? "Importation en cours..." : "Importer le catalogue standard (+150 produits)"}
+                    </Button>
+                    <Button variant="outline" asChild>
+                      <Link to="/pharmacie/products">Gérer le catalogue</Link>
+                    </Button>
                   </div>
-                  <CardContent className="p-3.5 flex flex-col flex-1 justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-sm leading-tight text-foreground line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">{p.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1 truncate">{p.form}</p>
-                    </div>
-                    <div className="flex justify-between items-end mt-auto">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${stockClass}`}>
-                        {stock > 0 ? `Stock: ${stock}` : "Rupture de stock"}
-                      </span>
-                      {p.requires_prescription && (
-                        <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <FileText className="w-3 h-3" /> Ord.
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-            {filteredProducts.length === 0 && (
-              <div className="col-span-full text-center text-muted-foreground py-10">Aucun produit trouvé.</div>
-            )}
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                  <p className="font-medium text-base">Aucun médicament ne correspond à « {searchQuery} »</p>
+                  <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")} className="mt-2 text-primary">
+                    Effacer la recherche
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {filteredProducts.map(p => {
+                    const visual = getProductVisual(p.name, p.form || "", p.image_url);
+                    const stock = Number(p.total_stock_quantity || 0);
+                    const minStock = Number(p.min_stock_alert || 0);
+                    const stockClass = stock <= 0
+                      ? "bg-destructive/10 text-destructive border-destructive/20"
+                      : stock <= minStock
+                        ? "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20"
+                        : "bg-primary/10 text-primary border-primary/20";
+                    return (
+                      <Card key={p.id} className={`group transition-all duration-300 overflow-hidden flex flex-col bg-card border-border/60 ${stock > 0 ? "cursor-pointer hover:border-primary hover:shadow-md" : "opacity-70"}`} onClick={() => addToCart(p)}>
+                        {/* Visual Header representing the medication form */}
+                        <div className={`h-20 bg-gradient-to-br ${visual.bg} border-b ${visual.border} flex items-center justify-center relative overflow-hidden shrink-0`}>
+                          {visual.element}
+                          <span className="absolute top-1.5 right-1.5 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-background/90 text-muted-foreground border border-border/80">
+                            {visual.tag}
+                          </span>
+                        </div>
+                        <CardContent className="p-3 flex flex-col flex-1 justify-between gap-2.5">
+                          <div>
+                            <h3 className="font-bold text-sm leading-tight text-foreground line-clamp-2 min-h-[2.2rem] group-hover:text-primary transition-colors">{p.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.form}</p>
+                          </div>
+                          <div className="flex justify-between items-end mt-auto pt-2 border-t border-border/40">
+                            <div>
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Prix</p>
+                              <p className="text-sm font-black text-primary leading-tight">
+                                {Number(p.sale_price) > 0 ? format(p.sale_price) : "0,00 G"}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {p.requires_prescription && (
+                                <span className="text-[9px] font-bold text-red-500 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                  <FileText className="w-2.5 h-2.5" /> Ord.
+                                </span>
+                              )}
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${stockClass}`}>
+                                {stock > 0 ? `Stock: ${stock}` : "Rupture"}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* RIGHT PANEL : CART & CHECKOUT (desktop) */}
-        <div className="hidden lg:col-span-4 lg:flex lg:min-h-0">
-          {renderCartPanel()}
-        </div>
+          {/* RIGHT PANEL : CART & CHECKOUT (desktop) */}
+          <div className="hidden lg:flex w-80 xl:w-96 shrink-0 flex-col h-full min-h-0">
+            {renderCartPanel()}
+          </div>
 
         </div>
       </div>
