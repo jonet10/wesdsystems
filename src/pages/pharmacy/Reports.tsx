@@ -18,7 +18,7 @@ import { autoTable } from "jspdf-autotable";
 
 export default function PharmacyReports() {
   const businessId = usePharmacyBusinessId();
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -113,6 +113,24 @@ export default function PharmacyReports() {
   useEffect(() => {
     loadStats();
   }, [businessId]);
+
+  const formatPdfMoney = (amount: number): string => {
+    const symbol = currency?.symbol || "G";
+    const num = Number(amount || 0);
+    const parts = num.toFixed(2).split(".");
+    // Séparateur de milliers : espace simple standard ASCII (\x20 / code 32)
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return `${intPart},${parts[1]} ${symbol}`;
+  };
+
+  const sanitizeForPdf = (val: any): string => {
+    if (val === null || val === undefined) return "";
+    return String(val)
+      // Remplacement strict de tout espace insécable ou fin Unicode (\u202F, \u00A0, etc.) par un espace ASCII standard
+      .replace(/[\u202F\u00A0\u2000-\u200B\uFEFF]/g, " ")
+      // Remplacement de tout slash accidentel situé entre deux chiffres par un espace
+      .replace(/(\d)\/(\d)/g, "$1 $2");
+  };
 
   const getBase64ImageFromUrl = async (imageUrl: string): Promise<string | null> => {
     try {
@@ -231,7 +249,7 @@ export default function PharmacyReports() {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(7);
           doc.setTextColor(100, 116, 139);
-          doc.text(c.label.toUpperCase(), cardX + 8, currentY + 12);
+          doc.text(sanitizeForPdf(c.label).toUpperCase(), cardX + 8, currentY + 12);
 
           doc.setFontSize(10);
           if (c.color === "#b91c1c" || c.color?.includes("red")) {
@@ -243,17 +261,20 @@ export default function PharmacyReports() {
           } else {
             doc.setTextColor(15, 23, 42);
           }
-          doc.text(String(c.value), cardX + 8, currentY + 26);
+          doc.text(sanitizeForPdf(c.value), cardX + 8, currentY + 26);
         });
 
         currentY += cardHeight + 12;
       }
 
       // AutoTable
+      const cleanHeaders = headers.map((h) => sanitizeForPdf(h));
+      const cleanRows = rows.map((r) => r.map((c) => sanitizeForPdf(c)));
+
       autoTable(doc, {
         startY: currentY,
-        head: [headers],
-        body: rows,
+        head: [cleanHeaders],
+        body: cleanRows,
         theme: "striped",
         headStyles: {
           fillColor: [15, 118, 110],
@@ -693,7 +714,7 @@ export default function PharmacyReports() {
             registerName,
             s.customer ? `${s.customer.first_name || ""} ${s.customer.last_name || ""}`.trim() : "Client de passage",
             s.payment_method?.toUpperCase() || "CASH",
-            s.total || 0,
+            formatPdfMoney(Number(s.total || 0)),
             statusLabel
           ];
         });
@@ -711,7 +732,7 @@ export default function PharmacyReports() {
         const summaryCards = [
           { label: "Transactions", value: filteredSales.length },
           { label: "Caisse Filtrée", value: activeRegName },
-          { label: "Total Réel Encaissé", value: format(totalSalesAmount), color: "#0f766e" },
+          { label: "Total Réel Encaissé", value: formatPdfMoney(totalSalesAmount), color: "#0f766e" },
           { label: "Retours en Stock", value: `${returnsCount} transaction(s)`, color: returnsCount > 0 ? "#b91c1c" : "#64748b" },
         ];
 
@@ -750,10 +771,10 @@ export default function PharmacyReports() {
             p.category?.name || "Sans catégorie",
             stock,
             p.min_stock_alert || 0,
-            cost,
-            sale,
-            (stock * cost).toFixed(2),
-            (stock * sale).toFixed(2)
+            formatPdfMoney(cost),
+            formatPdfMoney(sale),
+            formatPdfMoney(stock * cost),
+            formatPdfMoney(stock * sale)
           ];
         });
 
@@ -764,8 +785,8 @@ export default function PharmacyReports() {
         const summaryCards = [
           { label: "Articles Référencés", value: prods.length },
           { label: "Stock Total (Unités)", value: totalQty },
-          { label: "Valeur au Coût d'Achat", value: format(totalCostVal), color: "#0f766e" },
-          { label: "Valeur Potentielle de Vente", value: format(totalSaleVal), color: "#166534" },
+          { label: "Valeur au Coût d'Achat", value: formatPdfMoney(totalCostVal), color: "#0f766e" },
+          { label: "Valeur Potentielle de Vente", value: formatPdfMoney(totalSaleVal), color: "#166534" },
         ];
 
         if (exportFormat === "pdf") {
@@ -805,8 +826,8 @@ export default function PharmacyReports() {
             b.expiration_date || "-",
             daysLeft,
             qty,
-            cost,
-            (qty * cost).toFixed(2),
+            formatPdfMoney(cost),
+            formatPdfMoney(qty * cost),
             status
           ];
         });
@@ -817,7 +838,7 @@ export default function PharmacyReports() {
         const summaryCards = [
           { label: "Lots Actifs", value: batches.length },
           { label: "Lots Déjà Périmés", value: expiredBatchesCount, color: expiredBatchesCount > 0 ? "#b91c1c" : "#166534" },
-          { label: "Valeur Financière à Risque", value: format(totalRiskLosses), color: "#ea580c" },
+          { label: "Valeur Financière à Risque", value: formatPdfMoney(totalRiskLosses), color: "#ea580c" },
         ];
 
         if (exportFormat === "pdf") {
