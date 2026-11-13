@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter, Monitor, FileDown } from "lucide-react";
+import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter, Monitor, FileDown, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { reportsService } from "@/modules/pharmacy/services/reportsService";
@@ -966,15 +966,34 @@ export default function PharmacyReports() {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <Button onClick={() => downloadReport("Ventes", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
-                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  onClick={() => downloadReport("Ventes", "pdf")}
+                  disabled={loading}
+                  className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5 h-9 px-2 text-xs font-semibold"
+                  title="Télécharger le rapport en PDF"
+                >
+                  <FileDown className="w-4 h-4 shrink-0" />
+                  <span>PDF</span>
                 </Button>
-                <Button onClick={() => downloadReport("Ventes", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Download className="w-4 h-4" /> Excel (.csv)
+                <Button
+                  onClick={() => downloadReport("Ventes", "excel")}
+                  disabled={loading}
+                  variant="outline"
+                  className="flex-1 gap-1.5 border-border/80 h-9 px-2 text-xs font-semibold"
+                  title="Exporter en Excel (.csv)"
+                >
+                  <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>Excel</span>
                 </Button>
-                <Button onClick={() => downloadReport("Ventes", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
-                  <Printer className="w-4 h-4" /> Imprimer
+                <Button
+                  onClick={() => downloadReport("Ventes", "print")}
+                  disabled={loading}
+                  variant="outline"
+                  className="h-9 w-9 shrink-0 p-0 border-border/80 text-muted-foreground hover:text-foreground"
+                  title="Imprimer le rapport"
+                >
+                  <Printer className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -985,15 +1004,34 @@ export default function PharmacyReports() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">Liste de tous les produits en stock, incluant la valorisation FEFO et les ruptures.</p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => downloadReport("Inventaire", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
-                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => downloadReport("Inventaire", "pdf")}
+                  disabled={loading}
+                  className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5 h-9 px-2 text-xs font-semibold"
+                  title="Télécharger l'inventaire en PDF"
+                >
+                  <FileDown className="w-4 h-4 shrink-0" />
+                  <span>PDF</span>
                 </Button>
-                <Button onClick={() => downloadReport("Inventaire", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Download className="w-4 h-4" /> Excel (.csv)
+                <Button
+                  onClick={() => downloadReport("Inventaire", "excel")}
+                  disabled={loading}
+                  variant="outline"
+                  className="flex-1 gap-1.5 border-border/80 h-9 px-2 text-xs font-semibold"
+                  title="Exporter en Excel (.csv)"
+                >
+                  <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>Excel</span>
                 </Button>
-                <Button onClick={() => downloadReport("Inventaire", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
-                  <Printer className="w-4 h-4" /> Imprimer
+                <Button
+                  onClick={() => downloadReport("Inventaire", "print")}
+                  disabled={loading}
+                  variant="outline"
+                  className="h-9 w-9 shrink-0 p-0 border-border/80 text-muted-foreground hover:text-foreground"
+                  title="Imprimer l'inventaire"
+                >
+                  <Printer className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -1004,15 +1042,34 @@ export default function PharmacyReports() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">Identification des lots expirant dans les 3 prochains mois pour actions de déstockage.</p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={() => downloadReport("Péremptions", "pdf")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
-                  <FileDown className="w-4 h-4" /> Télécharger (.pdf)
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => downloadReport("Péremptions", "pdf")}
+                  disabled={loading}
+                  className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5 h-9 px-2 text-xs font-semibold"
+                  title="Télécharger le rapport des péremptions en PDF"
+                >
+                  <FileDown className="w-4 h-4 shrink-0" />
+                  <span>PDF</span>
                 </Button>
-                <Button onClick={() => downloadReport("Péremptions", "excel")} disabled={loading} variant="outline" className="flex-1 gap-1.5 border-border/80">
-                  <Download className="w-4 h-4" /> Excel (.csv)
+                <Button
+                  onClick={() => downloadReport("Péremptions", "excel")}
+                  disabled={loading}
+                  variant="outline"
+                  className="flex-1 gap-1.5 border-border/80 h-9 px-2 text-xs font-semibold"
+                  title="Exporter en Excel (.csv)"
+                >
+                  <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>Excel</span>
                 </Button>
-                <Button onClick={() => downloadReport("Péremptions", "print")} disabled={loading} variant="outline" className="gap-1.5 border-border/80" title="Imprimer ou aperçu avant impression">
-                  <Printer className="w-4 h-4" /> Imprimer
+                <Button
+                  onClick={() => downloadReport("Péremptions", "print")}
+                  disabled={loading}
+                  variant="outline"
+                  className="h-9 w-9 shrink-0 p-0 border-border/80 text-muted-foreground hover:text-foreground"
+                  title="Imprimer le rapport"
+                >
+                  <Printer className="w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
