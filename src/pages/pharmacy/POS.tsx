@@ -430,9 +430,37 @@ export default function PharmacyPOS() {
   };
 
   const quickCashAmounts = (() => {
-    const base = Math.ceil(totalAmount);
-    const suggestions = [base, base + 50, base + 100, base + 500];
-    return Array.from(new Set(suggestions)).slice(0, 4);
+    const total = Math.ceil(totalAmount);
+    if (total <= 0) return [500, 1000, 1500, 2000];
+
+    const suggestions: number[] = [total];
+
+    if (total < 500) {
+      if (total < 100) suggestions.push(100);
+      if (total < 250) suggestions.push(250);
+      suggestions.push(500);
+    }
+
+    const step = total >= 10000 ? 5000 : total >= 2500 ? 1000 : 500;
+    let candidate = Math.ceil(total / step) * step;
+    if (candidate <= total) {
+      candidate += step;
+    }
+
+    while (suggestions.length < 6) {
+      if (!suggestions.includes(candidate) && candidate >= total) {
+        suggestions.push(candidate);
+      }
+      candidate += step;
+    }
+
+    const exact = suggestions[0];
+    const roundedAbove = Array.from(new Set(suggestions.slice(1)))
+      .filter((v) => v >= total)
+      .sort((a, b) => a - b);
+
+    const result = [exact, ...roundedAbove].filter((v, i, self) => self.indexOf(v) === i);
+    return result.slice(0, 5);
   })();
 
   const handlePrint = async () => {
@@ -771,19 +799,24 @@ export default function PharmacyPOS() {
                   />
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
-                  {quickCashAmounts.map((amount) => (
-                    <Button
-                      key={amount}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="px-1 text-xs"
-                      onClick={() => setAmountReceivedInput(amount.toFixed(2))}
-                    >
-                      {format(amount)}
-                    </Button>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {quickCashAmounts.map((amount) => {
+                    const isSelected = Math.abs(Number(amountReceivedInput) - amount) < 0.01;
+                    return (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className={`flex-1 min-w-[75px] h-9 text-xs font-bold transition-all ${
+                          isSelected ? "shadow-sm scale-[1.02]" : "hover:border-primary/50"
+                        }`}
+                        onClick={() => setAmountReceivedInput(amount.toFixed(2))}
+                      >
+                        {format(amount)}
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 <div
