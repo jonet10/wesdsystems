@@ -3,7 +3,9 @@ import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingUp, Package, AlertTriangle, FileText, Download, RefreshCw, Printer, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusinessId";
 import { reportsService } from "@/modules/pharmacy/services/reportsService";
@@ -19,6 +21,7 @@ export default function PharmacyReports() {
   const [prescriptionsCount, setPrescriptionsCount] = useState(0);
   const [expiredLosses, setExpiredLosses] = useState(0);
   const [expiredCount, setExpiredCount] = useState(0);
+  const [salesFilter, setSalesFilter] = useState<"all" | "valid_only" | "returns_only">("all");
 
   const loadStats = async () => {
     if (!businessId) return;
@@ -100,6 +103,36 @@ export default function PharmacyReports() {
             th { background-color: #f0fdf4; color: #166534; text-align: left; padding: 8px 12px; border: 1px solid #cbd5e1; }
             td { padding: 8px 12px; border: 1px solid #e2e8f0; }
             tr:nth-child(even) { background-color: #f8fafc; }
+            .badge-returned {
+              display: inline-block;
+              padding: 2px 8px;
+              font-size: 11px;
+              font-weight: 600;
+              border-radius: 9999px;
+              background-color: #fee2e2;
+              color: #b91c1c;
+              border: 1px solid #fca5a5;
+            }
+            .badge-paid {
+              display: inline-block;
+              padding: 2px 8px;
+              font-size: 11px;
+              font-weight: 600;
+              border-radius: 9999px;
+              background-color: #dcfce7;
+              color: #15803d;
+              border: 1px solid #86efac;
+            }
+            .badge-credit {
+              display: inline-block;
+              padding: 2px 8px;
+              font-size: 11px;
+              font-weight: 600;
+              border-radius: 9999px;
+              background-color: #f3e8ff;
+              color: #7e22ce;
+              border: 1px solid #d8b4fe;
+            }
             @media print {
               body { padding: 0; }
               @page { margin: 1cm; size: landscape; }
@@ -119,7 +152,19 @@ export default function PharmacyReports() {
               <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
             </thead>
             <tbody>
-              ${rows.map(r => `<tr>${r.map(c => `<td>${c ?? "-"}</td>`).join("")}</tr>`).join("")}
+              ${rows.map(r => `<tr>${r.map(c => {
+                const val = String(c ?? "-");
+                if (val === "Retourné en stock") {
+                  return `<td><span class="badge-returned">↩ Retourné en stock</span></td>`;
+                }
+                if (val === "Payé") {
+                  return `<td><span class="badge-paid">✓ Payé</span></td>`;
+                }
+                if (val.startsWith("Crédit")) {
+                  return `<td><span class="badge-credit">${val}</span></td>`;
+                }
+                return `<td>${val}</td>`;
+              }).join("")}</tr>`).join("")}
             </tbody>
           </table>
           <script>
@@ -143,7 +188,7 @@ export default function PharmacyReports() {
       if (type === "Ventes") {
         const { data: sales, error } = await supabase
           .from("pharmacy_sales")
-          .select("created_at, receipt_number, total, payment_method, payment_status, customer:customer_id(first_name, last_name)")
+          .select("created_at, receipt_number, total, payment_method, payment_status, notes, customer:customer_id(first_name, last_name)")
           .eq("business_id", businessId)
           .order("created_at", { ascending: false });
 
@@ -153,18 +198,52 @@ export default function PharmacyReports() {
           return;
         }
 
+        // Filtrage selon le choix :
+        // - "valid_only" : supprime du rapport les produits retournés à 0 G
+        // - "returns_only" : n'affiche que les retours
+        // - "all" : affiche tout avec statut explicite "Retourné en stock"
+        const filteredSales = sales.filter((s: any) => {
+          const isReturn = Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour")) || s.payment_status === "returned";
+          if (salesFilter === "valid_only") return !isReturn;
+          if (salesFilter === "returns_only") return isReturn;
+          return true;
+        });
+
+        if (filteredSales.length === 0) {
+          toast.info(salesFilter === "valid_only" ? "Aucune vente active trouvée (toutes ont été retournées)." : "Aucun retour produit trouvé.");
+          return;
+        }
+
         const headers = ["Date", "N° Reçu", "Client", "Mode de Paiement", "Total", "Statut"];
-        const rows: (string | number)[][] = sales.map((s: any) => [
-          new Date(s.created_at).toLocaleString("fr-FR"),
-          s.receipt_number || "-",
-          s.customer ? `${s.customer.first_name || ""} ${s.customer.last_name || ""}`.trim() : "Client de passage",
-          s.payment_method?.toUpperCase() || "CASH",
-          s.total || 0,
-          s.payment_status || "paid"
-        ]);
+        const rows: (string | number)[][] = filteredSales.map((s: any) => {
+          const isReturn = Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour")) || s.payment_status === "returned";
+          let statusLabel = "Payé";
+          if (isReturn) {
+            statusLabel = "Retourné en stock";
+          } else if (s.payment_status === "credit") {
+            statusLabel = "Crédit (En attente)";
+          } else if (s.payment_status === "partial") {
+            statusLabel = "Partiel";
+          }
+
+          return [
+            new Date(s.created_at).toLocaleString("fr-FR"),
+            s.receipt_number || "-",
+            s.customer ? `${s.customer.first_name || ""} ${s.customer.last_name || ""}`.trim() : "Client de passage",
+            s.payment_method?.toUpperCase() || "CASH",
+            s.total || 0,
+            statusLabel
+          ];
+        });
+
+        const reportTitle = salesFilter === "returns_only"
+          ? "Rapport des Retours Produits en Stock — Pharmacie"
+          : salesFilter === "valid_only"
+          ? "Rapport des Ventes Nettes — Pharmacie"
+          : "Rapport des Ventes — Pharmacie";
 
         if (exportFormat === "pdf") {
-          printReport("Rapport des Ventes — Pharmacie", headers, rows);
+          printReport(reportTitle, headers, rows);
         } else {
           exportToCsv("rapport_ventes_pharmacie", [headers, ...rows]);
         }
@@ -324,9 +403,42 @@ export default function PharmacyReports() {
             <CardHeader>
               <CardTitle className="text-lg">Rapport des Ventes</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">Historique complet des transactions, ventilé par méthode de paiement et par vendeur.</p>
-              <div className="flex flex-col sm:flex-row gap-2">
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Historique des transactions, avec détection automatique des retours produits et ajustements de stock.
+              </p>
+
+              <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/30 p-2.5">
+                <Label htmlFor="sales-filter-select" className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                  <Filter className="h-3.5 w-3.5 text-primary" /> Filtrer le contenu du rapport :
+                </Label>
+                <Select
+                  value={salesFilter}
+                  onValueChange={(val: any) => setSalesFilter(val)}
+                >
+                  <SelectTrigger id="sales-filter-select" className="h-8 text-xs bg-background">
+                    <SelectValue placeholder="Sélectionner un filtre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      📋 Toutes les transactions (avec mention « Retourné en stock »)
+                    </SelectItem>
+                    <SelectItem value="valid_only">
+                      ✨ Ventes valides uniquement (masquer les retours à 0 G)
+                    </SelectItem>
+                    <SelectItem value="returns_only">
+                      ↩️ Retours en stock uniquement (audit)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {salesFilter === "valid_only" && "Les produits retournés à 0 G sont masqués du rapport."}
+                  {salesFilter === "all" && "Les produits retournés affichent explicitement le statut « Retourné en stock »."}
+                  {salesFilter === "returns_only" && "Seules les ventes retournées et réintégrées au stock seront listées."}
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
                 <Button onClick={() => downloadReport("Ventes", "excel")} disabled={loading} className="flex-1 bg-primary hover:bg-primary-dark text-primary-fg shadow-sm gap-1.5">
                   <Download className="w-4 h-4" /> Excel (.csv)
                 </Button>

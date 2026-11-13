@@ -654,9 +654,16 @@ export const salesService = {
       ? 0
       : Math.max(0, Number(sale.total || 0) - refundTotal);
 
+    const returnNotes = fullyReturned ? "Retour total en stock" : "Retour partiel en stock";
+    const fullNotes = notes ? `${notes} (${returnNotes})` : returnNotes;
+
     const { error: saleUpdateError } = await supabase
       .from("pharmacy_sales")
-      .update({ subtotal: newSubtotal, total: newTotal })
+      .update({
+        subtotal: newSubtotal,
+        total: newTotal,
+        notes: fullNotes,
+      })
       .eq("id", sale.id)
       .eq("business_id", businessId);
 
