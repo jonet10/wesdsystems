@@ -311,11 +311,16 @@ export default function PharmacyPOS() {
         ? await getOpenRegisterForCurrentUser(businessId, profile?.id).catch(() => null)
         : null;
 
+      if (!currentRegister) {
+        toast.error("Encaissement impossible : aucune caisse ouverte n'est assignée à votre nom.");
+        return false;
+      }
+
       const changeGiven = Math.max(0, receivedAmount - totalAmount);
       const salePayload = {
         customer_id: selectedCustomer && selectedCustomer !== "none" ? selectedCustomer : null,
         prescription_id: selectedPrescription || null,
-        register_id: currentRegister?.id || null,
+        register_id: currentRegister.id,
         created_by: profile?.id || null,
         subtotal: totalAmount,
         tax_amount: 0,
@@ -408,6 +413,10 @@ export default function PharmacyPOS() {
   const openPaymentDialog = () => {
     if (cart.length === 0) {
       toast.error("Le panier est vide.");
+      return;
+    }
+    if (!openRegister) {
+      toast.error("Encaissement bloqué : vous n'avez aucune caisse ouverte assignée à votre nom. Veuillez demander à votre gérant de vous ouvrir ou assigner une caisse.");
       return;
     }
     if (requiresPrescription && !selectedPrescription) {
@@ -576,14 +585,25 @@ export default function PharmacyPOS() {
             </div>
           );
         })()}
+        {!openRegister && (
+          <div className="mt-3 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs space-y-1">
+            <div className="font-semibold flex items-center gap-1.5">
+              <Lock className="h-4 w-4 shrink-0" />
+              Encaissement bloqué
+            </div>
+            <p className="text-[11px] leading-relaxed opacity-90">
+              Aucune caisse ouverte n'est assignée à votre nom. Vous ne pouvez pas valider de vente tant qu'une caisse ne vous est pas affectée.
+            </p>
+          </div>
+        )}
         </div>
 
         <Button 
-          className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all" 
+          className="mt-4 w-full shrink-0 h-12 text-lg font-bold bg-primary hover:bg-primary-dark text-primary-fg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed" 
           onClick={openPaymentDialog} 
-          disabled={cart.length === 0 || isProcessing}
+          disabled={cart.length === 0 || isProcessing || !openRegister}
         >
-          {isProcessing ? "Encaissement..." : "Encaisser & Facturer"}
+          {isProcessing ? "Encaissement..." : !openRegister ? "Encaissement bloqué (Caisse fermée)" : "Encaisser & Facturer"}
         </Button>
       </div>
     </div>
@@ -594,16 +614,19 @@ export default function PharmacyPOS() {
       <div className="flex flex-col gap-3 h-[calc(100vh-8.5rem)] min-h-0 pb-20 lg:pb-0">
 
         {!openRegister && (
-          <div className="shrink-0 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
-            <AlertTriangle className="h-4 w-4" />
+          <div className="shrink-0 flex flex-wrap items-center gap-2.5 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>
-              Aucune caisse n'est ouverte à votre nom. Les ventes ne seront pas rattachées à une caisse.
+              Encaissement bloqué : Aucune caisse ouverte n'est assignée à votre nom.
+            </span>
+            <span className="text-xs text-destructive/80 hidden md:inline">
+              (Les ventes ne peuvent être validées que si vous êtes rattaché à une caisse ouverte)
             </span>
             <Link
               to="/pharmacie/registers"
-              className="ml-auto font-medium underline underline-offset-2"
+              className="ml-auto font-bold underline underline-offset-2 hover:opacity-80"
             >
-              Gérer les caisses
+              Voir les caisses
             </Link>
           </div>
         )}
