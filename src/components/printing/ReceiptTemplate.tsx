@@ -29,10 +29,14 @@ export interface ReceiptData {
     date: string | Date;
     cashRegister?: string;
     cashierName?: string;
+    cashierGender?: "M" | "F" | string;
+    cashierLabel?: string;
     clientName?: string;
     clientLabel?: string;
     clientPhone?: string;
     barberName?: string;
+    barberGender?: "M" | "F" | string;
+    barberLabel?: string;
   };
   items: ReceiptItem[];
   totals: {
@@ -87,8 +91,16 @@ export const Receipt58Template = ({ data, formatAmount }: { data: ReceiptData; f
         <div>{transaction.invoiceLabel || "Facture"} : #{transaction.invoiceNumber}</div>
         <div>Date : {format(new Date(transaction.date), 'dd/MM/yyyy HH:mm')}</div>
         {transaction.clientName && <div>Client : {transaction.clientName}</div>}
-        {transaction.barberName && <div>Esthéticien(ne) : {transaction.barberName}</div>}
-        {transaction.cashierName && <div>Caissier : <strong>{transaction.cashierName}</strong></div>}
+        {transaction.barberName && (
+          <div>
+            {transaction.barberLabel || (transaction.barberGender === "F" ? "Esthéticienne" : transaction.barberGender === "M" ? "Barbier" : "Esthéticien(ne)")} : {transaction.barberName}
+          </div>
+        )}
+        {transaction.cashierName && (
+          <div>
+            {transaction.cashierLabel || (transaction.cashierGender === "F" ? "Caissière" : "Caissier")} : <strong>{transaction.cashierName}</strong>
+          </div>
+        )}
       </div>
 
       <div style={{ borderBottom: '1px dashed black', margin: '4px 0' }}></div>
@@ -220,13 +232,13 @@ export const Receipt80Template = ({ data, formatAmount }: { data: ReceiptData; f
         )}
         {transaction.barberName && (
           <div className="flex justify-between">
-            <span>Esthéticien(ne) :</span>
+            <span>{transaction.barberLabel || (transaction.barberGender === "F" ? "Esthéticienne" : transaction.barberGender === "M" ? "Barbier" : "Esthéticien(ne)")} :</span>
             <span className="font-bold">{transaction.barberName}</span>
           </div>
         )}
         {transaction.cashierName && (
           <div className="flex justify-between">
-            <span>Caissier :</span>
+            <span>{transaction.cashierLabel || (transaction.cashierGender === "F" ? "Caissière" : "Caissier")} :</span>
             <span className="font-bold">{transaction.cashierName}</span>
           </div>
         )}
@@ -351,8 +363,16 @@ export const ReceiptA4Template = ({ data, formatAmount }: { data: ReceiptData; f
           <div className="text-sm text-gray-600 mt-1 space-y-1">
             <div>Numéro : <span className="font-bold text-black">#{transaction.invoiceNumber}</span></div>
             <div>Date : {format(new Date(transaction.date), 'dd MMMM yyyy HH:mm')}</div>
-            {transaction.barberName && <div>Esthéticien(ne) : <span className="font-medium text-black">{transaction.barberName}</span></div>}
-            {transaction.cashierName && <div>Caissier : <span className="font-semibold text-black">{transaction.cashierName}</span></div>}
+            {transaction.barberName && (
+              <div>
+                {transaction.barberLabel || (transaction.barberGender === "F" ? "Esthéticienne" : transaction.barberGender === "M" ? "Barbier" : "Esthéticien(ne)")} : <span className="font-medium text-black">{transaction.barberName}</span>
+              </div>
+            )}
+            {transaction.cashierName && (
+              <div>
+                {transaction.cashierLabel || (transaction.cashierGender === "F" ? "Caissière" : "Caissier")} : <span className="font-semibold text-black">{transaction.cashierName}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

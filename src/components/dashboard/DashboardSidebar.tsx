@@ -59,6 +59,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 import { normalizeEmployeeRole } from "@/lib/employee-role";
 import { PERMISSIONS, filterMenuByPermissions, getSalonEmployeePermissions, getPharmacyPermissions, type Permission, type PharmacyRole } from "@/config/permissions";
+import {
+  PHARMACY_MENU_PERMISSIONS,
+  SALON_MENU_PERMISSIONS,
+  AUTO_PARTS_MENU_PERMISSIONS,
+} from "@/config/module-menu-permissions";
 
 interface SidebarItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -323,12 +328,89 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
     { icon: Settings, labelKey: "sidebar.settings", path: "/auto-parts/settings", role: "salon_admin", permission: PERMISSIONS.SETTINGS_MANAGE },
   ];
   const items = (() => {
-    // Pharmacy staff (cashier, stock manager, accountant...) – filter by role permissions
-    if (profile && activeBiz === "pharmacie" && profile.role?.startsWith("pharmacy_")) {
+    // Pharmacy staff (cashier, stock manager, accountant...) – filter by role permissions or custom permissions
+    const isPharmacy = activeBiz === "pharmacie" || location.pathname.startsWith("/pharmacie");
+    const rawRole = (profile?.role_normalized || profile?.role || employeeSession?.role || "").toLowerCase();
+    const isPharmacyAdmin = ["super_admin", "salon_admin", "owner", "admin", "pharmacy_admin"].includes(rawRole);
+
+    if (profile && isPharmacy) {
+      if (isPharmacyAdmin) return getBusinessAdminItems();
+
+      const customPerms = (profile.permissions && profile.permissions.length > 0) ? profile.permissions : (() => {
+        try {
+          const raw = localStorage.getItem(`wesd_pharmacy_staff_permissions_${profile.business_id}`);
+          if (raw) {
+            const map = JSON.parse(raw);
+            if (Array.isArray(map[profile.id])) return map[profile.id];
+          }
+        } catch {}
+        return null;
+      })();
+
+      if (customPerms && customPerms.length > 0) {
+        return getBusinessAdminItems().filter((item) => {
+          const permObj = PHARMACY_MENU_PERMISSIONS.find((p) => p.path === item.path);
+          if (!permObj) return false;
+          return customPerms.includes(permObj.id);
+        });
+      }
+
+      // Par défaut si pas de permissions personnalisées : utiliser les permissions par défaut du rôle
+      const defaultRolePerms = getDefaultPermissionsForRole("pharmacie", rawRole);
+      if (defaultRolePerms && defaultRolePerms.length > 0) {
+        return getBusinessAdminItems().filter((item) => {
+          const permObj = PHARMACY_MENU_PERMISSIONS.find((p) => p.path === item.path);
+          if (!permObj) return false;
+          return defaultRolePerms.includes(permObj.id);
+        });
+      }
+
       const perms = getPharmacyPermissions(profile.role as PharmacyRole);
       return getBusinessAdminItems().filter(
         (item) => !item.permission || perms.includes(item.permission)
       );
+    }
+
+    // Salon custom menu permissions
+    if (activeBiz === "salon" || activeBiz === "restaurant" || activeBiz === "bar") {
+      const isSalonAdmin = (profile?.role && ["salon_admin", "super_admin", "studio_admin", "owner"].includes(profile.role)) || role === "salon_admin";
+      if (!isSalonAdmin) {
+        const empAllowedMenus = employeeSession?.metadata?.permissions?.allowedMenus || profile?.permissions || (() => {
+          try {
+            const key = `wesd_salon_staff_permissions_${profile?.business_id || employeeSession?.branch_id}`;
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const map = JSON.parse(raw);
+              const id = profile?.id || employeeSession?.id;
+              if (id && Array.isArray(map[id])) return map[id];
+            }
+          } catch {}
+          return null;
+        })();
+
+        if (empAllowedMenus && empAllowedMenus.length > 0) {
+          return getBusinessAdminItems().filter((item) => {
+            const permObj = SALON_MENU_PERMISSIONS.find((p) => p.path === item.path);
+            if (!permObj) return true;
+            return empAllowedMenus.includes(permObj.id);
+          });
+        }
+      }
+    }
+
+    // Auto-parts custom menu permissions
+    if (activeBiz === "auto_parts") {
+      const isAutoPartsAdmin = profile?.role === "super_admin" || profile?.role === "salon_admin" || (profile?.business_type === "auto_parts" && profile?.role === "admin");
+      if (!isAutoPartsAdmin && (autoPartsStaffSession || (profile && profile.business_type === "auto_parts"))) {
+        const customPerms = (autoPartsStaffSession as any)?.allowedMenus || profile?.permissions;
+        if (customPerms && customPerms.length > 0) {
+          return getBusinessAdminItems().filter((item) => {
+            const permObj = AUTO_PARTS_MENU_PERMISSIONS.find((p) => p.path === item.path);
+            if (!permObj) return true;
+            return customPerms.includes(permObj.id);
+          });
+        }
+      }
     }
 
     // School custom permissions filter (exclude school_teacher from general admin items)

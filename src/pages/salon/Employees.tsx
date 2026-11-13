@@ -34,6 +34,7 @@ interface EmployeeForm {
   lastName: string;
   email: string;
   phone?: string;
+  gender?: "M" | "F";
   username?: string;
   password?: string;
   confirmPassword?: string;
@@ -46,6 +47,29 @@ interface EmployeeForm {
   };
   commissionRate?: number;
   services: string[];
+}
+
+export function getSalonRoleLabel(role: string, gender?: string): string {
+  const isFemale = gender === "F" || gender === "female";
+  switch (role) {
+    case "cashier":
+    case "receptionist":
+      return isFemale ? "Caissière" : "Caissier";
+    case "barber":
+      return isFemale ? "Coiffeuse" : "Barbier / Coiffeur";
+    case "stylist":
+      return isFemale ? "Coiffeuse" : "Coiffeur";
+    case "esthetician":
+      return isFemale ? "Esthéticienne" : "Esthéticien";
+    case "nail_technician":
+      return isFemale ? "Technicienne d'ongles" : "Technicien d'ongles";
+    case "massage_therapist":
+      return "Massothérapeute";
+    case "manager":
+      return isFemale ? "Gérante" : "Gérant";
+    default:
+      return role;
+  }
 }
 
 const ROLE_OPTIONS: { value: EmployeeRole; label: string; icon: React.ComponentType<{className?: string}>; desc: string }[] = [
@@ -138,6 +162,7 @@ export default function EmployeesPage() {
           email: e.email || "",
           phone: e.phone || "",
           role: (e.role === "receptionist" ? "cashier" : e.role) || "cashier",
+          gender: e.metadata?.gender || (e.role === "barber" ? "M" : "F"),
           services: Array.isArray(e.metadata?.services) ? e.metadata.services : [],
           color: e.metadata?.color || "bg-primary",
           status: e.is_active ? "active" : "inactive",
@@ -174,6 +199,7 @@ export default function EmployeesPage() {
     lastName: "",
     email: "",
     phone: "",
+    gender: "F",
     role: "cashier",
     permissions: {
       canAccessPOS: true,
@@ -320,6 +346,7 @@ export default function EmployeesPage() {
             metadata: {
               color,
               status,
+              gender: formData.gender || "F",
               services: formData.services,
               permissions: formData.permissions,
             },
@@ -401,6 +428,7 @@ export default function EmployeesPage() {
               metadata: {
                 color,
                 status,
+                gender: formData.gender || "F",
                 services: formData.services,
                 permissions: formData.permissions,
               },
@@ -478,6 +506,7 @@ export default function EmployeesPage() {
       lastName: lastNameParts.join(" "),
       email: emp.email || "",
       phone: emp.phone || "",
+      gender: emp.gender || (emp.role === "barber" ? "M" : "F"),
       username: emp.username || "",
       password: "",
       confirmPassword: "",
@@ -575,10 +604,19 @@ export default function EmployeesPage() {
                 <CardContent className="space-y-3">
                   {/* Role Badge */}
                   <div className="flex items-center gap-2">
-                    {ROLE_OPTIONS.find(r => r.value === emp.role)?.icon && (
-                      <RoleIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
-                    <span className="text-xs font-medium capitalize">{emp.role || "cashier"}</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        emp.gender === "F"
+                          ? "border-pink-300 text-pink-700 bg-pink-50 dark:bg-pink-950/30 dark:text-pink-300 text-[10px]"
+                          : "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 text-[10px]"
+                      }
+                    >
+                      {emp.gender === "F" ? "Femme" : "Homme"}
+                    </Badge>
+                    <span className="text-xs font-semibold text-foreground">
+                      {getSalonRoleLabel(emp.role, emp.gender)}
+                    </span>
                   </div>
                   
                   {/* Services */}
@@ -692,6 +730,23 @@ export default function EmployeesPage() {
                     required 
                   />
                 </div>
+              </div>
+
+              {/* Sexe / Genre */}
+              <div className="space-y-2">
+                <Label>Sexe / Genre *</Label>
+                <Select
+                  value={formData.gender || "F"}
+                  onValueChange={(val: "M" | "F") => handleInputChange("gender", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="F">Femme (Caissière, Coiffeuse, Esthéticienne...)</SelectItem>
+                    <SelectItem value="M">Homme (Caissier, Barbier, Coiffeur...)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {/* Contact */}
@@ -931,6 +986,23 @@ export default function EmployeesPage() {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Sexe / Genre */}
+              <div className="space-y-2">
+                <Label>Sexe / Genre *</Label>
+                <Select
+                  value={formData.gender || "F"}
+                  onValueChange={(val: "M" | "F") => handleInputChange("gender", val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="F">Femme (Caissière, Coiffeuse, Esthéticienne...)</SelectItem>
+                    <SelectItem value="M">Homme (Caissier, Barbier, Coiffeur...)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {isAuthenticated && (

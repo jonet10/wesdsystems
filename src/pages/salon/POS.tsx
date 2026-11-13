@@ -129,6 +129,7 @@ interface EmployeeInfo {
   first_name?: string;
   last_name?: string;
   role: string;
+  gender?: "M" | "F" | string;
   photo_url?: string;
 }
 
@@ -429,6 +430,7 @@ export default function POSPage() {
           first_name: row.first_name || "",
           last_name: row.last_name || "",
           role: row.role || "cashier",
+          gender: row.metadata?.gender || (row.role === "barber" ? "M" : "F"),
           photo_url: row.metadata?.photo_url || undefined,
         })));
       }
@@ -694,6 +696,11 @@ export default function POSPage() {
   const handleReprint = async (sale: any) => {
     const employeeObj = employees.find(e => e.id === sale.employee_id);
     const employeeName = employeeObj ? `${employeeObj.first_name} ${employeeObj.last_name}`.trim() : "";
+    const barberGender = employeeObj?.gender || "M";
+    const barberLabel = barberGender === "F" ? "Esthéticienne" : "Barbier";
+    const cashierEmp = employees.find(e => e.name === sale.cashier_name);
+    const cashierGender = cashierEmp?.gender || "F";
+    const cashierLabel = cashierGender === "F" ? "Caissière" : "Caissier";
 
     const data: ReceiptData = {
       business: {
@@ -712,9 +719,13 @@ export default function POSPage() {
         invoiceNumber: sale.tab_number ? `FICHE-${sale.tab_number}` : sale.sale_number,
         date: sale.closed_at || sale.created_at || new Date().toISOString(),
         cashierName: sale.cashier_name || "Caisse",
+        cashierGender,
+        cashierLabel,
         clientName: sale.customer_name || sale.customer || "",
         cashRegister: "CAISSE SALON",
         barberName: employeeName || sale.barber_name || "",
+        barberGender,
+        barberLabel,
       },
       items: sale.items?.map((i: any) => ({
         name: i.name || i.item_name || (products.find(p => p.id === i.product_id)?.name) || (services.find(s => s.id === i.service_id)?.name) || "Article",
@@ -1671,6 +1682,13 @@ export default function POSPage() {
 
   const handlePrintReceipt = async () => {
     if (!lastSale || !receiptRef.current) return;
+    const barberEmp = employees.find(e => e.id === lastSale.employee_id || e.name === lastSale.barber_name);
+    const barberGender = barberEmp?.gender || (barberEmp?.role === "barber" ? "M" : "F");
+    const barberLabel = barberGender === "M" ? "Barbier" : "Esthéticienne";
+    const cashierEmp = employees.find(e => e.name === (lastSale.cashier_name || employeeSession?.full_name));
+    const cashierGender = cashierEmp?.gender || "F";
+    const cashierLabel = cashierGender === "F" ? "Caissière" : "Caissier";
+
     const data: ReceiptData = {
       business: {
         name: businessInfo?.name || "SALON / SPA",
@@ -1688,9 +1706,13 @@ export default function POSPage() {
         invoiceNumber: lastSale.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale.sale_number,
         date: lastSale.closed_at || lastSale.created_at || new Date().toISOString(),
         cashierName: lastSale.cashier_name || employeeSession?.full_name || "Caisse",
+        cashierGender,
+        cashierLabel,
         clientName: lastSale.customer || "",
         cashRegister: "CAISSE SALON",
         barberName: lastSale.barber_name,
+        barberGender,
+        barberLabel,
       },
       items: lastSale.items?.map((i: any) => ({
         name: i.name || i.item_name,
@@ -2656,9 +2678,13 @@ export default function POSPage() {
                     invoiceNumber: lastSale?.tab_number ? `FICHE-${lastSale.tab_number}` : lastSale?.sale_number,
                     date: lastSale?.closed_at || lastSale?.created_at || new Date().toISOString(),
                     cashierName: lastSale?.cashier_name || employeeSession?.full_name || "Caisse",
+                    cashierGender: employees.find(e => e.name === (lastSale?.cashier_name || employeeSession?.full_name))?.gender || "F",
+                    cashierLabel: (employees.find(e => e.name === (lastSale?.cashier_name || employeeSession?.full_name))?.gender || "F") === "M" ? "Caissier" : "Caissière",
                     clientName: lastSale?.customer || "",
                     cashRegister: "CAISSE SALON",
                     barberName: lastSale?.barber_name,
+                    barberGender: employees.find(e => e.name === lastSale?.barber_name)?.gender || "M",
+                    barberLabel: (employees.find(e => e.name === lastSale?.barber_name)?.gender || "M") === "F" ? "Esthéticienne" : "Barbier",
                   },
                   items: lastSale?.items?.map((i: any) => ({
                     name: i.name || i.item_name,

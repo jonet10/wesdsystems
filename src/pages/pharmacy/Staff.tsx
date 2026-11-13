@@ -15,17 +15,22 @@ import {
   listPharmacyStaff,
   createPharmacyStaffMember,
   updatePharmacyStaffMember,
+  deletePharmacyStaffMember,
+  getStoredStaffPermissions,
   pharmacyRoleLabel,
   PHARMACY_STAFF_ROLES,
   type PharmacyStaffMember,
   type PharmacyStaffRole,
 } from "@/modules/pharmacy/services/staffService";
 import { toast } from "sonner";
-import { Plus, Pencil, KeyRound, Copy, UserCheck, UserX, RefreshCw, Users } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, Copy, UserCheck, UserX, RefreshCw, Users } from "lucide-react";
+import { MenuPermissionsPicker } from "@/components/settings/MenuPermissionsPicker";
+import { getDefaultPermissionsForRole } from "@/config/module-menu-permissions";
 
 const emptyForm = {
   fullName: "",
   username: "",
+  gender: "F" as "M" | "F",
   role: "pharmacy_cashier" as PharmacyStaffRole,
   pin: "",
   isActive: true,
@@ -54,6 +59,8 @@ export default function PharmacyStaff() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PharmacyStaffMember | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<PharmacyStaffMember | null>(null);
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState<{ username: string; pin: string } | null>(null);
 
@@ -77,6 +84,7 @@ export default function PharmacyStaff() {
   const openCreate = () => {
     setEditing(null);
     setForm({ ...emptyForm, pin: generatePin() });
+    setSelectedPermissions(getDefaultPermissionsForRole("pharmacie", "pharmacy_cashier"));
     setOpen(true);
   };
 
@@ -85,11 +93,22 @@ export default function PharmacyStaff() {
     setForm({
       fullName: member.full_name || "",
       username: member.username || "",
+      gender: (member.gender as "M" | "F") || "F",
       role: member.role,
       pin: "",
       isActive: member.is_active,
     });
+    setSelectedPermissions(
+      member.permissions ||
+      getStoredStaffPermissions(businessId || "", member.id) ||
+      getDefaultPermissionsForRole("pharmacie", member.role)
+    );
     setOpen(true);
+  };
+
+  const handleRoleChange = (role: PharmacyStaffRole) => {
+    setForm((prev) => ({ ...prev, role }));
+    setSelectedPermissions(getDefaultPermissionsForRole("pharmacie", role));
   };
 
   const handleNameChange = (value: string) => {
@@ -124,9 +143,12 @@ export default function PharmacyStaff() {
       if (editing) {
         const result = await updatePharmacyStaffMember({
           userId: editing.id,
+          businessId,
           fullName: form.fullName.trim(),
           username: form.username.trim(),
           role: form.role,
+          gender: form.gender,
+          permissions: selectedPermissions,
           isActive: form.isActive,
           pin: form.pin.trim() || undefined,
         });
@@ -134,7 +156,7 @@ export default function PharmacyStaff() {
           toast.error(result.error || "Erreur lors de la modification");
           return;
         }
-        toast.success("Employé mis à jour");
+        toast.success("Employé mis à jour avec permissions");
         setOpen(false);
         load();
       } else {
@@ -144,18 +166,42 @@ export default function PharmacyStaff() {
           username: form.username.trim(),
           pin: form.pin.trim(),
           role: form.role,
+          gender: form.gender,
+          permissions: selectedPermissions,
         });
         if (!result.success) {
           toast.error(result.error || "Erreur lors de la création");
           return;
         }
-        toast.success("Compte employé créé");
+        toast.success("Compte employé créé avec permissions");
         setOpen(false);
         setCreated({ username: result.username || form.username.trim(), pin: form.pin.trim() });
         load();
       }
     } catch (e: any) {
       toast.error(e.message || "Erreur lors de l'enregistrement");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!businessId || !deleteConfirm) return;
+    setSaving(true);
+    try {
+      const res = await deletePharmacyStaffMember({
+        userId: deleteConfirm.id,
+        businessId,
+      });
+      if (!res.success) {
+        toast.error(res.error || "Erreur lors de la suppression");
+        return;
+      }
+      toast.success(`Le compte de "${deleteConfirm.full_name || deleteConfirm.username}" a été supprimé`);
+      setDeleteConfirm(null);
+      load();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur de suppression");
     } finally {
       setSaving(false);
     }
@@ -250,6 +296,7 @@ export default function PharmacyStaff() {
                     <TableRow>
                       <TableHead>Nom</TableHead>
                       <TableHead>Nom d'utilisateur</TableHead>
+                      <TableHead>Sexe</TableHead>
                       <TableHead>Rôle</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
                       <TableHead>Créé le</TableHead>
@@ -262,7 +309,19 @@ export default function PharmacyStaff() {
                         <TableCell className="font-semibold">{member.full_name || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">{member.username || "-"}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{pharmacyRoleLabel(member.role)}</Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              member.gender === "F"
+                                ? "border-pink-300 text-pink-700 bg-pink-50 dark:bg-pink-950/30 dark:text-pink-300"
+                                : "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300"
+                            }
+                          >
+                            {member.gender === "F" ? "Femme" : "Homme"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{pharmacyRoleLabel(member.role, member.gender)}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant={member.is_active ? "default" : "secondary"}>
@@ -289,6 +348,15 @@ export default function PharmacyStaff() {
                                 <UserCheck className="h-4 w-4 text-success" />
                               )}
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDeleteConfirm(member)}
+                              title="Supprimer définitivement"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -303,7 +371,7 @@ export default function PharmacyStaff() {
 
       {/* Create / Edit dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier l'employé" : "Nouvel employé"}</DialogTitle>
           </DialogHeader>
@@ -316,6 +384,21 @@ export default function PharmacyStaff() {
                 placeholder="Ex: Marie Joseph"
                 className="mt-1"
               />
+            </div>
+            <div>
+              <Label>Sexe / Genre *</Label>
+              <Select
+                value={form.gender}
+                onValueChange={(value: "M" | "F") => setForm({ ...form, gender: value })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="F">Femme (Caissière, Gérante...)</SelectItem>
+                  <SelectItem value="M">Homme (Caissier, Gérant...)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Nom d'utilisateur *</Label>
@@ -333,7 +416,7 @@ export default function PharmacyStaff() {
               <Label>Rôle</Label>
               <Select
                 value={form.role}
-                onValueChange={(value) => setForm({ ...form, role: value as PharmacyStaffRole })}
+                onValueChange={(value) => handleRoleChange(value as PharmacyStaffRole)}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue />
@@ -347,6 +430,15 @@ export default function PharmacyStaff() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Menu permissions picker */}
+            <MenuPermissionsPicker
+              module="pharmacie"
+              role={form.role}
+              selectedPermissions={selectedPermissions}
+              onChange={setSelectedPermissions}
+            />
+
             <div>
               <Label>{editing ? "Nouveau PIN (laisser vide pour conserver)" : "PIN (6 chiffres) *"}</Label>
               <div className="flex gap-2 mt-1">
@@ -434,6 +526,30 @@ export default function PharmacyStaff() {
           </div>
           <DialogFooter>
             <Button onClick={() => setCreated(null)}>Terminé</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(v) => !v && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Supprimer le compte employé
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Êtes-vous sûr de vouloir supprimer définitivement le compte de{" "}
+            <strong className="text-foreground">{deleteConfirm?.full_name}</strong> ({deleteConfirm?.username}) ?
+            Cette action est irréversible et révoquera tous ses accès.
+          </p>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>
+              {saving ? "Suppression..." : "Supprimer définitivement"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

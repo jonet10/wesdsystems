@@ -14,6 +14,8 @@ interface ReceiptTemplateProps {
     discount_amount?: number;
     customer_name?: string;
     cashier_name?: string;
+    cashier_gender?: "M" | "F" | string;
+    cashier_label?: string;
     employee_id?: string;
   };
   items: Array<{
@@ -99,7 +101,9 @@ export function ReceiptTemplate({
             <p className="text-[9px] text-gray-500">Label: {sale.label}</p>
           )}
           {sale?.cashier_name && (
-            <p className="text-[9px] text-gray-500">Caissier: {sale.cashier_name}</p>
+            <p className="text-[9px] text-gray-500">
+              {sale?.cashier_label || (sale?.cashier_gender === "F" ? "Caissière" : "Caissier")}: {sale.cashier_name}
+            </p>
           )}
         </div>
       </div>

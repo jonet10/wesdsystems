@@ -26,6 +26,7 @@ import { supabase } from "@/lib/supabase";
 import { ReceiptTemplate, ReceiptData } from "@/components/printing/ReceiptTemplate";
 import { printReceipt } from "@/lib/print-utils";
 import { getBusinessSettings } from "@/modules/auto-parts/services/businessSettings";
+import { getStoredStaffGender } from "@/modules/pharmacy/services/staffService";
 
 const getProductVisual = (name: string, form: string, imageUrl?: string | null) => {
   if (imageUrl) {
@@ -347,7 +348,9 @@ export default function PharmacyPOS() {
           invoiceNumber: newSale.receipt_number,
           invoiceLabel: "Reçu de Vente",
           date: newSale.created_at,
-          cashierName: profile?.full_name || "Caissier",
+          cashierName: profile?.full_name || (getStoredStaffGender(businessId || "", profile?.id) === "F" ? "Caissière" : "Caissier"),
+          cashierGender: (profile as any)?.gender || getStoredStaffGender(businessId || "", profile?.id),
+          cashierLabel: ((profile as any)?.gender || getStoredStaffGender(businessId || "", profile?.id)) === "F" ? "Caissière" : "Caissier",
           clientName: selectedCustObj ? `${selectedCustObj.first_name} ${selectedCustObj.last_name}` : "Client de passage",
           clientPhone: selectedCustObj?.phone || undefined
         },

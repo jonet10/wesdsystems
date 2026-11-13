@@ -61,6 +61,23 @@ export default function PharmacyRegisters() {
   const { format } = useCurrency();
   const { profile } = useAuth();
 
+  const userRole = (profile?.role_normalized || profile?.role || "").toLowerCase();
+  // Seuls les administrateurs et gérants ont le droit de créer, modifier, fermer ou supprimer des caisses.
+  // Une caissière, un comptable ou un responsable stock ne peuvent en aucun cas créer, modifier ou fermer une caisse.
+  const isAdminOrManager = [
+    "super_admin",
+    "salon_admin",
+    "owner",
+    "admin",
+    "pharmacy_admin",
+    "pharmacy_manager",
+    "manager",
+    "gerant",
+    "gerante",
+  ].includes(userRole);
+
+  const canManageRegisters = isAdminOrManager;
+
   const [registers, setRegisters] = useState<Register[]>([]);
   const [cashiers, setCashiers] = useState<CashierOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,12 +238,14 @@ export default function PharmacyRegisters() {
   };
 
   const openCreate = () => {
+    if (!canManageRegisters) return;
     setEditing(null);
     setForm({ name: "", description: "", cashier_id: "" });
     setOpen(true);
   };
 
   const openEdit = (register: Register) => {
+    if (!canManageRegisters) return;
     setEditing(register);
     setForm({
       name: register.name,
@@ -294,7 +313,7 @@ export default function PharmacyRegisters() {
   };
 
   const openOpenDialog = (register: Register) => {
-    const isCashier = profile?.role === "pharmacy_cashier";
+    if (!canManageRegisters) return;
     const preferred =
       register.opened_by && cashiers.some((cashier) => cashier.id === register.opened_by)
         ? register.opened_by
@@ -302,16 +321,15 @@ export default function PharmacyRegisters() {
 
     setOpenDialog(register);
     setOpenForm({
-      cashier_id: isCashier ? profile?.id || "" : preferred,
+      cashier_id: preferred,
       opening_balance: String(register.opening_balance || 0),
     });
   };
 
   const handleOpenRegister = async () => {
-    if (!openDialog) return;
+    if (!canManageRegisters || !openDialog) return;
 
-    const isCashier = profile?.role === "pharmacy_cashier";
-    const cashierId = isCashier ? profile?.id || "" : openForm.cashier_id;
+    const cashierId = openForm.cashier_id;
     if (!cashierId) {
       toast.error("Sélectionnez le caissier responsable.");
       return;
@@ -374,6 +392,7 @@ export default function PharmacyRegisters() {
   };
 
   const openCloseDialog = async (register: Register) => {
+    if (!canManageRegisters) return;
     setCloseDialog(register);
     setCloseForm({ counted: "" });
 
@@ -460,7 +479,7 @@ export default function PharmacyRegisters() {
   };
 
   const handleDelete = async () => {
-    if (!deleteConfirm) return;
+    if (!canManageRegisters || !deleteConfirm) return;
     if (deleteConfirm.status === "open") {
       toast.error("Fermez la caisse avant de la supprimer.");
       return;
@@ -563,13 +582,15 @@ export default function PharmacyRegisters() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Caisses enregistreuses</CardTitle>
-                <Button
-                  size="sm"
-                  onClick={openCreate}
-                  className="bg-primary hover:bg-primary-dark text-primary-fg shadow-sm"
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Nouvelle caisse
-                </Button>
+                {canManageRegisters && (
+                  <Button
+                    size="sm"
+                    onClick={openCreate}
+                    className="bg-primary hover:bg-primary-dark text-primary-fg shadow-sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Nouvelle caisse
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -580,14 +601,18 @@ export default function PharmacyRegisters() {
                   <Monitor className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="font-medium">Aucune caisse configurée</p>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Créez votre première caisse pour commencer
+                    {canManageRegisters
+                      ? "Créez votre première caisse pour commencer"
+                      : "Aucune caisse n'est active actuellement. Veuillez contacter votre administrateur."}
                   </p>
-                  <Button
-                    onClick={openCreate}
-                    className="bg-primary hover:bg-primary-dark text-primary-fg"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Créer une caisse
-                  </Button>
+                  {canManageRegisters && (
+                    <Button
+                      onClick={openCreate}
+                      className="bg-primary hover:bg-primary-dark text-primary-fg"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Créer une caisse
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table>
@@ -601,7 +626,7 @@ export default function PharmacyRegisters() {
                       <TableHead className="text-right">Attendu</TableHead>
                       <TableHead className="text-right">Compté / Écart</TableHead>
                       <TableHead>{t("common.status")}</TableHead>
-                      <TableHead>{t("common.actions")}</TableHead>
+                      {canManageRegisters && <TableHead>{t("common.actions")}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -670,42 +695,44 @@ export default function PharmacyRegisters() {
                               {register.status === "open" ? "Ouverte" : "Fermée"}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              {register.status === "open" ? (
+                          {canManageRegisters && (
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {register.status === "open" ? (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => openCloseDialog(register)}
+                                  >
+                                    <Lock className="h-3.5 w-3.5 mr-1" /> Fermer
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="bg-primary hover:bg-primary-dark text-primary-fg"
+                                    onClick={() => openOpenDialog(register)}
+                                  >
+                                    <Unlock className="h-3.5 w-3.5 mr-1" /> Ouvrir
+                                  </Button>
+                                )}
                                 <Button
                                   size="sm"
-                                  variant="destructive"
-                                  onClick={() => openCloseDialog(register)}
+                                  variant="ghost"
+                                  onClick={() => openEdit(register)}
                                 >
-                                  <Lock className="h-3.5 w-3.5 mr-1" /> Fermer
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
-                              ) : (
                                 <Button
                                   size="sm"
-                                  className="bg-primary hover:bg-primary-dark text-primary-fg"
-                                  onClick={() => openOpenDialog(register)}
+                                  variant="ghost"
+                                  disabled={register.status === "open"}
+                                  onClick={() => setDeleteConfirm(register)}
                                 >
-                                  <Unlock className="h-3.5 w-3.5 mr-1" /> Ouvrir
+                                  <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openEdit(register)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={register.status === "open"}
-                                onClick={() => setDeleteConfirm(register)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}

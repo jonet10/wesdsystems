@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/table";
 import { salesService } from "@/modules/pharmacy/services/salesService";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { RotateCcw, Search } from "lucide-react";
+import { RotateCcw, Search, ShieldAlert, Lock } from "lucide-react";
 
 interface ReturnableItem {
   id: string;
@@ -66,6 +68,9 @@ export function ReturnProductDialog({
   onCompleted,
 }: ReturnProductDialogProps) {
   const { format } = useCurrency();
+  const { profile, employeeSession } = useAuth();
+  const userRole = (profile?.role_normalized || profile?.role || employeeSession?.role || "").toLowerCase();
+  const isCashier = userRole === "pharmacy_cashier" || userRole === "cashier";
 
   const [receipt, setReceipt] = useState("");
   const [searching, setSearching] = useState(false);
@@ -74,6 +79,8 @@ export function ReturnProductDialog({
   const [searchError, setSearchError] = useState("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
+  const [authCode, setAuthCode] = useState("");
+  const [expectedAuthCode, setExpectedAuthCode] = useState("1234");
 
   const search = async (value: string) => {
     const receiptNumber = value.trim();
@@ -103,6 +110,28 @@ export function ReturnProductDialog({
     setQuantities({});
     setReason("");
     setSearchError("");
+    setAuthCode("");
+
+    const fetchCode = async () => {
+      try {
+        const { data } = await supabase
+          .from("app_config")
+          .select("value")
+          .eq("key", "return_product_auth_code")
+          .maybeSingle();
+        if (data?.value) {
+          setExpectedAuthCode(data.value);
+          localStorage.setItem("wesd_return_product_auth_code", data.value);
+        } else {
+          const cached = localStorage.getItem("wesd_return_product_auth_code");
+          if (cached) setExpectedAuthCode(cached);
+        }
+      } catch {
+        const cached = localStorage.getItem("wesd_return_product_auth_code");
+        if (cached) setExpectedAuthCode(cached);
+      }
+    };
+    fetchCode();
 
     const preset = (initialReceipt || "").trim();
     setReceipt(preset);
@@ -139,6 +168,17 @@ export function ReturnProductDialog({
 
   const handleSubmit = async () => {
     if (!sale || !hasSelection) return;
+
+    if (isCashier) {
+      if (!authCode.trim()) {
+        toast.error("Veuillez saisir le mot de passe d'autorisation Super Admin / Gérant.");
+        return;
+      }
+      if (authCode.trim() !== expectedAuthCode.trim()) {
+        toast.error("Mot de passe d'autorisation incorrect ! Veuillez demander l'accord au responsable.");
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -294,6 +334,31 @@ export function ReturnProductDialog({
                   placeholder="Ex: produit non conforme, erreur de délivrance..."
                 />
               </div>
+
+              {isCashier && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold text-xs">
+                    <ShieldAlert className="h-4 w-4" />
+                    Autorisation Super Admin requise pour la caissière
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pour valider ce retour de marchandise, veuillez saisir le mot de passe d'autorisation configuré par le Super Admin dans les paramètres de sécurité.
+                  </p>
+                  <div className="space-y-1 pt-1">
+                    <Label htmlFor="return-auth-code" className="text-xs font-medium flex items-center gap-1.5">
+                      <Lock className="h-3.5 w-3.5" /> Mot de passe d'autorisation *
+                    </Label>
+                    <Input
+                      id="return-auth-code"
+                      type="password"
+                      value={authCode}
+                      onChange={(event) => setAuthCode(event.target.value)}
+                      placeholder="Mot de passe Super Admin"
+                      className="font-mono bg-background"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary">
                 Le retour annule la quantité vendue et réduit le montant de la

@@ -5,6 +5,11 @@ import { normalizeEmployeeRole } from "@/lib/employee-role";
 import { getSalonEmployeePermissions } from "@/config/permissions";
 import { hasPermission, type Permission } from "@/config/permissions";
 import { glowupStore } from "@/lib/store";
+import {
+  PHARMACY_MENU_PERMISSIONS,
+  SALON_MENU_PERMISSIONS,
+  AUTO_PARTS_MENU_PERMISSIONS,
+} from "@/config/module-menu-permissions";
 
 type AppRole = "super_admin" | "salon_admin" | "studio_admin" | "employee" | "partner" | "school_admin" | "school_accountant" | "school_cashier" | "school_teacher" | "school_parent" | "pharmacy_admin" | "pharmacy_manager" | "pharmacy_cashier" | "pharmacy_stock_manager" | "pharmacy_accountant";
 
@@ -203,7 +208,37 @@ export function ProtectedRoute({
   }
 
   if (!normalizedAllowedRoles.includes(role)) {
-    return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;
+    // Check if explicitly granted by custom permissions in this module
+    const userPerms = (profile.permissions && profile.permissions.length > 0) ? profile.permissions : (() => {
+      try {
+        const keys = [
+          `wesd_pharmacy_staff_permissions_${profile.business_id}`,
+          `wesd_salon_staff_permissions_${profile.business_id}`,
+          `wesd_auto_parts_staff_permissions_${profile.business_id}`,
+        ];
+        for (const k of keys) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const map = JSON.parse(raw);
+            if (profile.id && Array.isArray(map[profile.id])) return map[profile.id];
+          }
+        }
+      } catch {}
+      return [];
+    })();
+    const isGrantedByCustomPerms = userPerms.some((permId: string) => {
+      const allPerms = [
+        ...PHARMACY_MENU_PERMISSIONS,
+        ...SALON_MENU_PERMISSIONS,
+        ...AUTO_PARTS_MENU_PERMISSIONS,
+      ];
+      const match = allPerms.find((p) => p.id === permId);
+      return match && location.pathname.startsWith(match.path);
+    });
+
+    if (!isGrantedByCustomPerms) {
+      return <Navigate to={getDefaultRouteForRole(role, currentBizType)} replace />;
+    }
   }
 
   // Cross-module guard: prevent admins from accessing another business's module.

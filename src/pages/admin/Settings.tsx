@@ -26,6 +26,7 @@ export default function SuperAdminSettingsPage() {
   const [manualPaymentMoncashNumber, setManualPaymentMoncashNumber] = useState("38073835");
   const [manualPaymentNatcashName, setManualPaymentNatcashName] = useState("Jonet Jean Francois");
   const [manualPaymentNatcashNumber, setManualPaymentNatcashNumber] = useState("40011619");
+  const [returnProductAuthCode, setReturnProductAuthCode] = useState("1234");
 
   // Global WhatsApp Settings states
   const [whatsappGlobalEnabled, setWhatsappGlobalEnabled] = useState(true);
@@ -50,6 +51,7 @@ export default function SuperAdminSettingsPage() {
       if (map.manual_payment_moncash_number) setManualPaymentMoncashNumber(map.manual_payment_moncash_number);
       if (map.manual_payment_natcash_name) setManualPaymentNatcashName(map.manual_payment_natcash_name);
       if (map.manual_payment_natcash_number) setManualPaymentNatcashNumber(map.manual_payment_natcash_number);
+      if (map.return_product_auth_code) setReturnProductAuthCode(map.return_product_auth_code);
 
       // Load WhatsApp global configurations
       if (map.whatsapp_global_enabled) setWhatsappGlobalEnabled(map.whatsapp_global_enabled === "true");
@@ -134,6 +136,20 @@ export default function SuperAdminSettingsPage() {
 
   const handleSave = (section: string) => {
     toast.success(`Les paramètres de ${section} ont été sauvegardés avec succès !`);
+  };
+
+  const saveSecurityConfig = async () => {
+    try {
+      await supabase.rpc("upsert_app_config", {
+        p_key: "return_product_auth_code",
+        p_value: returnProductAuthCode,
+      });
+      localStorage.setItem("wesd_return_product_auth_code", returnProductAuthCode);
+      toast.success("Options de sécurité et code retour sauvegardés !");
+    } catch {
+      localStorage.setItem("wesd_return_product_auth_code", returnProductAuthCode);
+      toast.success("Options de sécurité sauvegardées !");
+    }
   };
 
   const saveManualPaymentConfig = async () => {
@@ -282,10 +298,32 @@ export default function SuperAdminSettingsPage() {
                     </div>
                     <Switch checked={requireVerification} onCheckedChange={setRequireVerification} />
                   </div>
+
+                  {/* Return product authorization password */}
+                  <div className="pt-4 border-t border-border space-y-2">
+                    <div>
+                      <Label className="font-semibold text-base flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Mot de passe d'autorisation de retour produit (Caisse POS)
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Code ou mot de passe exigé par le système lorsqu'un(e) caissier(ère) initie un retour de produit ou de marchandise en caisse.
+                      </p>
+                    </div>
+                    <div className="max-w-xs mt-2">
+                      <Input
+                        type="password"
+                        value={returnProductAuthCode}
+                        onChange={(e) => setReturnProductAuthCode(e.target.value)}
+                        placeholder="Ex: 1234 ou mot de passe gérant"
+                        className="font-mono text-base"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end pt-4">
-                  <Button variant="hero" onClick={() => handleSave("Sécurité")}>
+                  <Button variant="hero" onClick={saveSecurityConfig}>
                     Sauvegarder la configuration
                   </Button>
                 </div>
