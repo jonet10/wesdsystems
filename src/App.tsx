@@ -906,7 +906,7 @@ const App = () => (
                 </Route>
 
                 {/* Pharmacy Routes */}
-                <Route path="/pharmacie" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyDashboard /></ProtectedRoute>} />
+                <Route path="/pharmacie" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyDashboard /></ProtectedRoute>} />
                 <Route path="/pharmacie/settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacySettings /></ProtectedRoute>} />
                 <Route path="/pharmacie/products" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyProducts /></ProtectedRoute>} />
                 <Route path="/pharmacie/categories" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyCategories /></ProtectedRoute>} />
@@ -915,15 +915,15 @@ const App = () => (
                 <Route path="/pharmacie/purchases" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyPurchases /></ProtectedRoute>} />
                 <Route path="/pharmacie/stock" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_stock_manager"]} allowAuthenticatedWithoutRole><PharmacyStock /></ProtectedRoute>} />
                 <Route path="/pharmacie/pos" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPOS /></ProtectedRoute>} />
-                <Route path="/pharmacie/patients" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPatients /></ProtectedRoute>} />
+                <Route path="/pharmacie/patients" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPatients /></ProtectedRoute>} />
                 <Route path="/pharmacie/prescriptions" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyPrescriptions /></ProtectedRoute>} />
-                <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />
+                <Route path="/pharmacie/credits" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyCredits /></ProtectedRoute>} />
                 <Route path="/pharmacie/registers" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><PharmacyRegisters /></ProtectedRoute>} />
                 <Route path="/pharmacie/employees" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyStaff /></ProtectedRoute>} />
                 <Route path="/pharmacie/reports" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyReports /></ProtectedRoute>} />
                 <Route path="/pharmacie/whatsapp-settings" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin"]} allowAuthenticatedWithoutRole><PharmacyWhatsappSettings /></ProtectedRoute>} />
-                <Route path="/pharmacie/notifications" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager"]} allowAuthenticatedWithoutRole><PharmacyNotifications /></ProtectedRoute>} />
-                <Route path="/pharmacie/profile" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><ProfilePage /></ProtectedRoute>} />
+                <Route path="/pharmacie/notifications" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant"]} allowAuthenticatedWithoutRole><PharmacyNotifications /></ProtectedRoute>} />
+                <Route path="/pharmacie/profile" element={<ProtectedRoute allowedRoles={["salon_admin", "pharmacy_admin", "pharmacy_manager", "pharmacy_accountant", "pharmacy_cashier"]} allowAuthenticatedWithoutRole><ProfilePage /></ProtectedRoute>} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
