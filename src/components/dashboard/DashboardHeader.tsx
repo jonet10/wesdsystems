@@ -28,6 +28,7 @@ import { useActiveBranchId } from "@/lib/branch";
 import { useSubscriptionPaymentReminder } from "@/hooks/useSubscriptionPaymentReminder";
 import { Link } from "react-router-dom";
 import { LanguageSelector } from "@/components/shared/LanguageSelector";
+import { GlobalSearchDialog } from "./GlobalSearchDialog";
 
 interface DashboardHeaderProps {
   title: string;
@@ -66,6 +67,7 @@ export const DashboardHeader = ({
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const [openSearch, setOpenSearch] = useState(false);
 
   const initials = userName.split(" ").map(n => n[0]).join("").toUpperCase();
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -211,23 +213,30 @@ export const DashboardHeader = ({
       {/* Right Actions */}
       <div className="flex items-center gap-2">
         
-        {/* Search (desktop) */}
-        <div className="hidden md:flex relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            className="pl-8 w-48 lg:w-64 h-9"
-            onKeyDown={(e) => {
-              if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                // Open command palette
-              }
-            }}
-          />
+        {/* Search trigger (desktop) */}
+        <button
+          type="button"
+          onClick={() => setOpenSearch(true)}
+          className="hidden md:flex items-center relative text-left text-sm text-muted-foreground bg-background dark:bg-card/50 hover:bg-muted/50 border border-input rounded-md px-3 h-9 w-48 lg:w-64 transition-colors shadow-2xs group cursor-pointer"
+          title="Rechercher (⌘K / Ctrl+K)"
+        >
+          <Search className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground shrink-0" />
+          <span className="truncate">Rechercher...</span>
           <kbd className="hidden lg:inline-flex absolute right-2 top-1.5 h-5 select-none items-center gap-1 rounded border border-primary/20 bg-primary/10 px-1.5 font-mono text-[10px] font-medium text-primary/80">
             <span className="text-xs">⌘</span>K
           </kbd>
-        </div>
+        </button>
+
+        {/* Search trigger (mobile) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOpenSearch(true)}
+          className="md:hidden h-9 w-9"
+          title="Rechercher"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
 
         {/* Theme Toggle */}
         <Button
@@ -456,6 +465,9 @@ export const DashboardHeader = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Global Command Search Dialog */}
+      <GlobalSearchDialog open={openSearch} onOpenChange={setOpenSearch} />
     </>
   );
 };
