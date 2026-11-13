@@ -11,10 +11,12 @@ import { usePharmacyBusinessId } from "@/modules/pharmacy/hooks/usePharmacyBusin
 import { reportsService } from "@/modules/pharmacy/services/reportsService";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function PharmacyReports() {
   const businessId = usePharmacyBusinessId();
   const { format } = useCurrency();
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
@@ -22,6 +24,28 @@ export default function PharmacyReports() {
   const [expiredLosses, setExpiredLosses] = useState(0);
   const [expiredCount, setExpiredCount] = useState(0);
   const [salesFilter, setSalesFilter] = useState<"all" | "valid_only" | "returns_only">("all");
+  const [businessInfo, setBusinessInfo] = useState<{
+    name: string;
+    logo_url?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!businessId) return;
+    const fetchBiz = async () => {
+      try {
+        const { data } = await supabase
+          .from("businesses")
+          .select("name, logo_url, phone, email, address")
+          .eq("id", businessId)
+          .maybeSingle();
+        if (data) setBusinessInfo(data);
+      } catch {}
+    };
+    fetchBiz();
+  }, [businessId]);
 
   const loadStats = async () => {
     if (!businessId) return;
@@ -83,55 +107,204 @@ export default function PharmacyReports() {
     URL.revokeObjectURL(url);
   };
 
-  const printReport = (title: string, headers: string[], rows: (string | number)[][]) => {
+  const printReport = (
+    title: string,
+    headers: string[],
+    rows: (string | number)[][],
+    summaryCards?: Array<{ label: string; value: string | number; color?: string }>,
+    filterText?: string
+  ) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       toast.error("Veuillez autoriser les fenêtres pop-up pour imprimer ou exporter en PDF.");
       return;
     }
+
+    const companyName = businessInfo?.name || "Établissement Pharmaceutique";
+    const companyAddress = businessInfo?.address || "";
+    const companyPhone = businessInfo?.phone || "";
+    const companyEmail = businessInfo?.email || "";
+    const companyLogo = businessInfo?.logo_url || "";
+    const operatorName = profile?.full_name || profile?.username || "Direction";
+    const todayStr = new Date().toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+    const timeStr = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${title}</title>
+          <title>${title} — ${companyName}</title>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #1e293b; }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #07A278; padding-bottom: 12px; margin-bottom: 20px; }
-            .title { font-size: 20px; font-weight: bold; color: #07A278; }
-            .date { font-size: 12px; color: #64748b; }
-            table { width: 100%; border-collapse: collapse; font-size: 13px; }
-            th { background-color: #f0fdf4; color: #166534; text-align: left; padding: 8px 12px; border: 1px solid #cbd5e1; }
-            td { padding: 8px 12px; border: 1px solid #e2e8f0; }
-            tr:nth-child(even) { background-color: #f8fafc; }
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              padding: 28px;
+              color: #0f172a;
+              background-color: #ffffff;
+              margin: 0;
+            }
+            .report-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2.5px solid #0f766e;
+              padding-bottom: 16px;
+              margin-bottom: 22px;
+            }
+            .brand-left {
+              display: flex;
+              align-items: center;
+              gap: 14px;
+              max-width: 60%;
+            }
+            .brand-logo {
+              max-height: 54px;
+              max-width: 110px;
+              object-fit: contain;
+              border-radius: 6px;
+            }
+            .company-name {
+              font-size: 21px;
+              font-weight: 800;
+              color: #0f766e;
+              margin: 0 0 4px 0;
+              letter-spacing: -0.3px;
+              text-transform: uppercase;
+            }
+            .company-meta {
+              font-size: 11.5px;
+              color: #475569;
+              line-height: 1.45;
+            }
+            .doc-right {
+              text-align: right;
+              min-width: 260px;
+            }
+            .doc-pill {
+              display: inline-block;
+              font-size: 10px;
+              font-weight: 700;
+              letter-spacing: 0.8px;
+              text-transform: uppercase;
+              color: #0f766e;
+              background-color: #ccfbf1;
+              border: 1px solid #99f6e4;
+              padding: 2px 8px;
+              border-radius: 4px;
+              margin-bottom: 6px;
+            }
+            .doc-title {
+              font-size: 17px;
+              font-weight: 700;
+              color: #0f172a;
+              margin: 0 0 6px 0;
+            }
+            .doc-meta {
+              font-size: 11px;
+              color: #64748b;
+              line-height: 1.4;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+              gap: 12px;
+              margin-bottom: 22px;
+            }
+            .summary-card {
+              border: 1px solid #e2e8f0;
+              border-radius: 8px;
+              background-color: #f8fafc;
+              padding: 10px 14px;
+            }
+            .summary-label {
+              font-size: 11px;
+              text-transform: uppercase;
+              font-weight: 600;
+              color: #64748b;
+              letter-spacing: 0.4px;
+              margin-bottom: 4px;
+            }
+            .summary-value {
+              font-size: 18px;
+              font-weight: 800;
+              color: #0f172a;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 12px;
+              margin-top: 4px;
+            }
+            th {
+              background-color: #f0fdf4;
+              color: #115e59;
+              text-align: left;
+              padding: 9px 12px;
+              border: 1px solid #cbd5e1;
+              font-weight: 700;
+              font-size: 11.5px;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+            td {
+              padding: 8px 12px;
+              border: 1px solid #e2e8f0;
+              color: #1e293b;
+            }
+            tr:nth-child(even) {
+              background-color: #f8fafc;
+            }
             .badge-returned {
               display: inline-block;
               padding: 2px 8px;
               font-size: 11px;
-              font-weight: 600;
+              font-weight: 700;
               border-radius: 9999px;
               background-color: #fee2e2;
-              color: #b91c1c;
+              color: #991b1b;
               border: 1px solid #fca5a5;
             }
             .badge-paid {
               display: inline-block;
               padding: 2px 8px;
               font-size: 11px;
-              font-weight: 600;
+              font-weight: 700;
               border-radius: 9999px;
               background-color: #dcfce7;
-              color: #15803d;
+              color: #166534;
               border: 1px solid #86efac;
             }
             .badge-credit {
               display: inline-block;
               padding: 2px 8px;
               font-size: 11px;
-              font-weight: 600;
+              font-weight: 700;
               border-radius: 9999px;
               background-color: #f3e8ff;
               color: #7e22ce;
               border: 1px solid #d8b4fe;
+            }
+            .report-footer {
+              margin-top: 36px;
+              padding-top: 16px;
+              border-top: 1px solid #e2e8f0;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              font-size: 11px;
+              color: #64748b;
+            }
+            .signature-box {
+              min-width: 220px;
+              text-align: center;
+            }
+            .signature-line {
+              margin-top: 48px;
+              border-top: 1.5px solid #0f172a;
+              padding-top: 4px;
+              font-size: 11px;
+              font-weight: 600;
+              color: #0f172a;
             }
             @media print {
               body { padding: 0; }
@@ -140,19 +313,49 @@ export default function PharmacyReports() {
           </style>
         </head>
         <body>
-          <div class="header">
-            <div>
-              <div class="title">${title}</div>
-              <div class="date">WESD Systems — Module Pharmacie</div>
+          <!-- En-tête officiel de l'établissement -->
+          <div class="report-header">
+            <div class="brand-left">
+              ${companyLogo ? `<img src="${companyLogo}" class="brand-logo" alt="Logo" />` : ""}
+              <div>
+                <h1 class="company-name">${companyName}</h1>
+                <div class="company-meta">
+                  ${companyAddress ? `<span>📍 ${companyAddress}</span><br />` : ""}
+                  ${companyPhone ? `<span>📞 ${companyPhone}</span> ` : ""}
+                  ${companyEmail ? `<span>• ✉️ ${companyEmail}</span>` : ""}
+                </div>
+              </div>
             </div>
-            <div class="date">Généré le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR")}</div>
+            <div class="doc-right">
+              <div class="doc-pill">Document Comptable & Administratif</div>
+              <div class="doc-title">${title}</div>
+              <div class="doc-meta">
+                <div><strong>Date d'émission :</strong> ${todayStr} à ${timeStr}</div>
+                <div><strong>Édité par :</strong> ${operatorName}</div>
+                ${filterText ? `<div><strong>Périmètre :</strong> ${filterText}</div>` : ""}
+              </div>
+            </div>
           </div>
+
+          <!-- Synthèse chiffrée -->
+          ${summaryCards && summaryCards.length > 0 ? `
+            <div class="summary-grid">
+              ${summaryCards.map((c) => `
+                <div class="summary-card">
+                  <div class="summary-label">${c.label}</div>
+                  <div class="summary-value" style="${c.color ? `color: ${c.color};` : ''}">${c.value}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
+
+          <!-- Tableau de données -->
           <table>
             <thead>
-              <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+              <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
             </thead>
             <tbody>
-              ${rows.map(r => `<tr>${r.map(c => {
+              ${rows.map((r) => `<tr>${r.map((c) => {
                 const val = String(c ?? "-");
                 if (val === "Retourné en stock") {
                   return `<td><span class="badge-returned">↩ Retourné en stock</span></td>`;
@@ -167,8 +370,20 @@ export default function PharmacyReports() {
               }).join("")}</tr>`).join("")}
             </tbody>
           </table>
+
+          <!-- Pied de page avec validation -->
+          <div class="report-footer">
+            <div>
+              <p style="margin: 0 0 2px 0;">Rapport certifié exact et conforme aux écritures de caisse et de stock.</p>
+              <p style="margin: 0; font-size: 10px; color: #94a3b8;">Émis le ${todayStr} — Page 1 / 1</p>
+            </div>
+            <div class="signature-box">
+              <div class="signature-line">Visa & Signature de la Direction</div>
+            </div>
+          </div>
+
           <script>
-            window.onload = () => { setTimeout(() => { window.print(); }, 200); };
+            window.onload = () => { setTimeout(() => { window.print(); }, 250); };
           </script>
         </body>
       </html>
@@ -242,8 +457,25 @@ export default function PharmacyReports() {
           ? "Rapport des Ventes Nettes — Pharmacie"
           : "Rapport des Ventes — Pharmacie";
 
+        const totalSalesAmount = filteredSales.reduce((sum: number, s: any) => sum + Number(s.total || 0), 0);
+        const returnsCount = filteredSales.filter((s: any) => Number(s.total || 0) === 0 || (s.notes && String(s.notes).toLowerCase().includes("retour"))).length;
+        const validSalesCount = filteredSales.length - returnsCount;
+
+        const summaryCards = [
+          { label: "Transactions", value: filteredSales.length },
+          { label: "Ventes Valides", value: validSalesCount, color: "#166534" },
+          { label: "Total Encaissé", value: format(totalSalesAmount), color: "#0f766e" },
+          { label: "Retours en Stock", value: `${returnsCount} transaction(s)`, color: returnsCount > 0 ? "#b91c1c" : "#64748b" },
+        ];
+
+        const filterLabel = salesFilter === "returns_only"
+          ? "Retours en stock uniquement"
+          : salesFilter === "valid_only"
+          ? "Ventes valides (retours à 0 G masqués)"
+          : "Toutes transactions confondues";
+
         if (exportFormat === "pdf") {
-          printReport(reportTitle, headers, rows);
+          printReport(reportTitle, headers, rows, summaryCards, filterLabel);
         } else {
           exportToCsv("rapport_ventes_pharmacie", [headers, ...rows]);
         }
@@ -280,8 +512,19 @@ export default function PharmacyReports() {
           ];
         });
 
+        const totalQty = prods.reduce((sum: number, p: any) => sum + Number(p.total_stock_quantity || 0), 0);
+        const totalCostVal = prods.reduce((sum: number, p: any) => sum + (Number(p.total_stock_quantity || 0) * Number(p.cost_price || 0)), 0);
+        const totalSaleVal = prods.reduce((sum: number, p: any) => sum + (Number(p.total_stock_quantity || 0) * Number(p.sale_price || 0)), 0);
+
+        const summaryCards = [
+          { label: "Articles Référencés", value: prods.length },
+          { label: "Stock Total (Unités)", value: totalQty },
+          { label: "Valeur au Coût d'Achat", value: format(totalCostVal), color: "#0f766e" },
+          { label: "Valeur Potentielle de Vente", value: format(totalSaleVal), color: "#166534" },
+        ];
+
         if (exportFormat === "pdf") {
-          printReport("Inventaire Actuel & Valeur du Stock", headers, rows);
+          printReport("Inventaire Actuel & Valeur du Stock", headers, rows, summaryCards, "Stock global actif");
         } else {
           exportToCsv("inventaire_pharmacie", [headers, ...rows]);
         }
@@ -321,8 +564,17 @@ export default function PharmacyReports() {
           ];
         });
 
+        const totalRiskLosses = batches.reduce((sum: number, b: any) => sum + (Number(b.current_quantity || 0) * Number(b.cost_price || 0)), 0);
+        const expiredBatchesCount = batches.filter((b: any) => new Date(b.expiration_date) < today).length;
+
+        const summaryCards = [
+          { label: "Lots Actifs", value: batches.length },
+          { label: "Lots Déjà Périmés", value: expiredBatchesCount, color: expiredBatchesCount > 0 ? "#b91c1c" : "#166534" },
+          { label: "Valeur Financière à Risque", value: format(totalRiskLosses), color: "#ea580c" },
+        ];
+
         if (exportFormat === "pdf") {
-          printReport("Rapport des Péremptions & Lots à Risque", headers, rows);
+          printReport("Rapport des Péremptions & Lots à Risque", headers, rows, summaryCards, "Lots en stock");
         } else {
           exportToCsv("rapport_peremptions_pharmacie", [headers, ...rows]);
         }
