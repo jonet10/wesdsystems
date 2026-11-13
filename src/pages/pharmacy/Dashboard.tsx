@@ -191,21 +191,26 @@ export default function PharmacyDashboard() {
 
         {/* ── Alertes & KPIs Secondaires ── */}
         <StaggerItem>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-red-900/30 bg-red-950/20 text-red-400 text-sm font-medium">
-              <AlertTriangle className="h-4 w-4" /> {stats?.outOfStock || 0} références en rupture
+          <div className="flex flex-wrap gap-2.5 mt-4">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 bg-rose-50/90 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs sm:text-sm font-semibold shadow-xs transition-colors">
+              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>{stats?.outOfStock || 0} références en rupture</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm font-medium">
-              <AlertTriangle className="h-4 w-4" /> {stats?.lowStock || 0} références à stock faible
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-900/50 bg-amber-50/90 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs sm:text-sm font-semibold shadow-xs transition-colors">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>{stats?.lowStock || 0} références à stock faible</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/30 bg-primary/10 text-primary text-sm font-medium">
-              <Package className="h-4 w-4" /> Valeur du stock : {format(stats?.totalStockValue || 0)}
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/90 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold shadow-xs transition-colors">
+              <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>Valeur du stock : {format(stats?.totalStockValue || 0)}</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/40 bg-primary/15 text-primary text-sm font-medium">
-              <TrendingUp className="h-4 w-4" /> Valeur potentielle : {format(stats?.totalPotentialRevenue || 0)}
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-900/50 bg-teal-50/90 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300 text-xs sm:text-sm font-semibold shadow-xs transition-colors">
+              <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span>Valeur potentielle : {format(stats?.totalPotentialRevenue || 0)}</span>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/30 bg-primary/10 text-primary text-sm font-medium">
-              <DollarSign className="h-4 w-4" /> Marge potentielle : {format(stats?.potentialMargin || 0)}
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg border border-teal-200 dark:border-teal-900/50 bg-teal-50/90 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300 text-xs sm:text-sm font-semibold shadow-xs transition-colors">
+              <DollarSign className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span>Marge potentielle : {format(stats?.potentialMargin || 0)}</span>
             </div>
           </div>
         </StaggerItem>
