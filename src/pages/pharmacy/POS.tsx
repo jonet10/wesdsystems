@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw, RefreshCw } from "lucide-react";
+import { Search, ShoppingCart, Trash2, Plus, Minus, User, FileText, Printer, Pill, Droplet, Layers, Sparkles, Activity, AlertTriangle, RotateCcw, RefreshCw, Lock } from "lucide-react";
 import type { PharmacyProduct, PharmacyCustomer, PharmacyPrescription } from "@/modules/pharmacy/types";
 import { productService } from "@/modules/pharmacy/services/productService";
 import { salesService } from "@/modules/pharmacy/services/salesService";
