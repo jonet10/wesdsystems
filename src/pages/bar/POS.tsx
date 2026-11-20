@@ -14,7 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import {
   ShoppingCart, Plus, Minus, Trash2, Printer, Search,
-  Package, Beer, CreditCard, Banknote, Utensils, Hotel, Sparkles, RefreshCw, Smartphone
+  Package, Beer, CreditCard, Banknote, Utensils, Hotel, Sparkles, RefreshCw, Smartphone,
+  Clock, Bed
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveBranchId } from "@/lib/branch";
@@ -54,6 +55,10 @@ export default function BarPOS() {
   // Modal for drink options (Unit or Case)
   const [optionsModalOpen, setOptionsModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<BarProduct | null>(null);
+
+  // Modal for room options (Moment or Night)
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<HotelRoom | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -110,7 +115,8 @@ export default function BarPOS() {
       addToCart(c.id, c.name, c.price, "COCKTAIL", "cocktail");
     } else if (type === "room") {
       const r = item as HotelRoom;
-      addToCart(r.id, `Nuitée Chambre ${r.room_number} (${r.room_type})`, r.price_per_night, "CHAMBRE", "room");
+      setSelectedRoom(r);
+      setRoomModalOpen(true);
     }
   };
 
@@ -462,8 +468,8 @@ export default function BarPOS() {
                             className="flex flex-col text-left p-3 rounded-xl border border-emerald-200 dark:border-emerald-900 hover:border-emerald-500 hover:shadow-sm transition-all bg-emerald-50/20 dark:bg-emerald-950/20 group"
                           >
                             <div className="flex justify-between items-start w-full">
-                              <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white">
-                                Nuitée Hôtel
+                              <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
+                                Chambre
                               </Badge>
                               <span className="text-xs font-black text-primary">N° {room.room_number}</span>
                             </div>
@@ -473,10 +479,19 @@ export default function BarPOS() {
                             <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
                               {room.floor}
                             </p>
-                            <div className="mt-auto pt-2 flex justify-between items-baseline w-full">
-                              <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
-                                {format(room.price_per_night)}
-                              </span>
+                            <div className="mt-auto pt-2 space-y-1 w-full border-t border-emerald-200/50 dark:border-emerald-900/50">
+                              <div className="flex justify-between items-baseline text-xs">
+                                <span className="text-[10px] text-muted-foreground font-bold">Moment 2h :</span>
+                                <span className="font-black text-amber-700 dark:text-amber-400">
+                                  {format(room.price_per_moment || 1500)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-baseline text-xs">
+                                <span className="text-[10px] text-muted-foreground font-bold">Nuitée :</span>
+                                <span className="font-black text-emerald-600 dark:text-emerald-400">
+                                  {format(room.price_per_night)}
+                                </span>
+                              </div>
                             </div>
                           </button>
                         );
@@ -634,6 +649,73 @@ export default function BarPOS() {
                 <span className="text-sm font-black text-primary">
                   {format(selectedProduct?.price_per_case || 0)}
                 </span>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Room Options Modal: Moment (2h) or Night */}
+      <Dialog open={roomModalOpen} onOpenChange={setRoomModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Hotel className="h-5 w-5 text-emerald-600" />
+              Chambre {selectedRoom?.room_number} ({selectedRoom?.room_type})
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Choisissez la formule de location pour la chambre :
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-3 py-3">
+            <Button
+              variant="outline"
+              className="h-28 flex flex-col items-center justify-center gap-1.5 border-2 hover:border-amber-500 hover:bg-amber-500/5 text-center p-2"
+              onClick={() => {
+                if (!selectedRoom) return;
+                addToCart(
+                  selectedRoom.id,
+                  `Chambre ${selectedRoom.room_number} — Moment (2h)`,
+                  selectedRoom.price_per_moment || 1500,
+                  "CHAMBRE",
+                  "room"
+                );
+                setRoomModalOpen(false);
+              }}
+            >
+              <Clock className="h-6 w-6 text-amber-600" />
+              <div>
+                <span className="font-bold text-xs block">Moment (2h)</span>
+                <span className="text-sm font-black text-amber-600 dark:text-amber-400">
+                  {format(selectedRoom?.price_per_moment || 1500)}
+                </span>
+                <span className="text-[10px] text-muted-foreground block mt-0.5">Passage 2 heures</span>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="h-28 flex flex-col items-center justify-center gap-1.5 border-2 hover:border-primary hover:bg-primary/5 text-center p-2"
+              onClick={() => {
+                if (!selectedRoom) return;
+                addToCart(
+                  selectedRoom.id,
+                  `Chambre ${selectedRoom.room_number} — Nuitée`,
+                  selectedRoom.price_per_night || 3500,
+                  "CHAMBRE",
+                  "room"
+                );
+                setRoomModalOpen(false);
+              }}
+            >
+              <Bed className="h-6 w-6 text-primary" />
+              <div>
+                <span className="font-bold text-xs block">Nuitée Complète</span>
+                <span className="text-sm font-black text-primary">
+                  {format(selectedRoom?.price_per_night || 3500)}
+                </span>
+                <span className="text-[10px] text-muted-foreground block mt-0.5">Jusqu'au matin</span>
               </div>
             </Button>
           </div>

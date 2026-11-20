@@ -412,6 +412,7 @@ export const DashboardHeader = ({
               userRole === "partner" ? "/partner" :
               userRole === "employee" ? "/employee" :
               userRole === "super_admin" ? "/admin/settings" :
+              window.location.pathname.startsWith("/bar") ? "/bar/settings" :
               window.location.pathname.startsWith("/pharmacie") ? "/pharmacie/settings" :
               window.location.pathname.startsWith("/pieces-auto") ? "/pieces-auto/settings" :
               window.location.pathname.startsWith("/ecole") ? "/ecole/settings" :

@@ -157,7 +157,7 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Beer, label: "Cocktails & Recettes", path: "/bar/cocktails", permission: PERMISSIONS.SERVICES_MANAGE },
           { icon: Users, label: "Clients & Séjours", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
           { icon: UserCog, label: "Personnel", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
-          { icon: Settings, labelKey: "sidebar.settings", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
+          { icon: Settings, label: "Paramètres", path: "/bar/settings" },
         ];
       case "salon":
       default:

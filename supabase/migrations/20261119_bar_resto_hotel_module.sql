@@ -22,11 +22,16 @@ CREATE TABLE IF NOT EXISTS public.bar_hotel_rooms (
   room_type           VARCHAR(100) NOT NULL DEFAULT 'Chambre Standard',
   floor               VARCHAR(50) DEFAULT '1er étage',
   price_per_night     NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  price_per_moment    NUMERIC(10, 2) NOT NULL DEFAULT 1500, -- Tarif standard pour un "Moment" (ex: 1500 G pour 2h)
+  moment_duration_hours INTEGER NOT NULL DEFAULT 2,          -- Durée standard en heures
+  extra_hour_price    NUMERIC(10, 2) NOT NULL DEFAULT 500,   -- Heure supplémentaire
   price_per_hour      NUMERIC(10, 2) DEFAULT 0,
   status              VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE', -- AVAILABLE, OCCUPIED, CLEANING, MAINTENANCE
   current_guest_name  VARCHAR(255),
   current_guest_phone VARCHAR(50),
+  booking_type        VARCHAR(50),                              -- 'NIGHT' ou 'MOMENT'
   check_in_date       TIMESTAMPTZ,
+  expected_check_out  TIMESTAMPTZ,                              -- Heure de fin calculée pour le moment
   check_out_date      TIMESTAMPTZ,
   amenities           TEXT[] DEFAULT '{}'::TEXT[],
   notes               TEXT,

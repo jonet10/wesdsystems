@@ -61,11 +61,16 @@ export interface HotelRoom {
   room_type: string; // Standard, Deluxe, Suite VIP, etc.
   floor: string;
   price_per_night: number;
+  price_per_moment: number; // Tarif pour un "Moment" (ex: 1500 G pour 2h)
+  moment_duration_hours: number; // Durée standard en heures (ex: 2h)
+  extra_hour_price?: number; // Heure supplémentaire (ex: 500 G)
   price_per_hour?: number; // Passage / Day Use
   status: RoomStatus;
   current_guest_name?: string | null;
   current_guest_phone?: string | null;
+  booking_type?: "NIGHT" | "MOMENT" | null;
   check_in_date?: string | null;
+  expected_check_out?: string | null;
   check_out_date?: string | null;
   amenities: string[];
   notes?: string;
@@ -81,8 +86,10 @@ export interface HotelBooking {
   guest_name: string;
   guest_phone?: string;
   guest_id_number?: string;
-  booking_type: "NIGHT" | "DAY_PASS";
+  booking_type: "NIGHT" | "MOMENT" | "DAY_PASS";
+  duration_hours?: number; // Ex: 2 heures
   check_in: string;
+  expected_check_out?: string;
   check_out?: string;
   total_amount: number;
   paid_amount: number;

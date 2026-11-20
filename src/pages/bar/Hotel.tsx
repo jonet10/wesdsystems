@@ -30,6 +30,9 @@ import {
   AlertCircle,
   Wrench,
   DollarSign,
+  Timer,
+  Moon,
+  SunMedium,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -48,13 +51,15 @@ export default function BarHotel() {
   const [bookings, setBookings] = useState<HotelBooking[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [now, setNow] = useState(Date.now());
 
-  // Modals state
+  // Check-in modal state
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
   const [selectedRoomForCheckIn, setSelectedRoomForCheckIn] = useState<HotelRoom | null>(null);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
-  const [bookingType, setBookingType] = useState<"NIGHT" | "DAY_PASS">("NIGHT");
+  const [bookingType, setBookingType] = useState<"MOMENT" | "NIGHT">("MOMENT");
+  const [momentHours, setMomentHours] = useState<number>(2); // 2 hours default
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("ESPECES");
 
   // New room modal
@@ -63,7 +68,14 @@ export default function BarHotel() {
   const [newRoomType, setNewRoomType] = useState("Chambre Standard");
   const [newFloor, setNewFloor] = useState("1er étage");
   const [newPriceNight, setNewPriceNight] = useState(3500);
-  const [newPriceHour, setNewPriceHour] = useState(1500);
+  const [newPriceMoment, setNewPriceMoment] = useState(1500);
+  const [newExtraHourPrice, setNewExtraHourPrice] = useState(500);
+
+  // Auto-refresh timer every 30 seconds for live countdown
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadHotelData = () => {
     const r = barRestoService.getHotelRooms(effectiveBranchId);
@@ -81,8 +93,9 @@ export default function BarHotel() {
     const total = rooms.length;
     const available = rooms.filter((r) => r.status === "AVAILABLE").length;
     const occupied = rooms.filter((r) => r.status === "OCCUPIED").length;
+    const momentsActive = rooms.filter((r) => r.status === "OCCUPIED" && r.booking_type === "MOMENT").length;
+    const nightsActive = rooms.filter((r) => r.status === "OCCUPIED" && r.booking_type === "NIGHT").length;
     const cleaning = rooms.filter((r) => r.status === "CLEANING").length;
-    const maintenance = rooms.filter((r) => r.status === "MAINTENANCE").length;
     const todayRevenue = bookings
       .filter((b) => {
         const today = new Date().toISOString().split("T")[0];
@@ -90,12 +103,20 @@ export default function BarHotel() {
       })
       .reduce((sum, b) => sum + (b.total_amount || 0), 0);
 
-    return { total, available, occupied, cleaning, maintenance, todayRevenue };
+    return { total, available, occupied, momentsActive, nightsActive, cleaning, todayRevenue };
   }, [rooms, bookings]);
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
-      const matchStatus = statusFilter === "ALL" || room.status === statusFilter;
+      const matchStatus =
+        statusFilter === "ALL"
+          ? true
+          : statusFilter === "MOMENT"
+          ? room.status === "OCCUPIED" && room.booking_type === "MOMENT"
+          : statusFilter === "NIGHT"
+          ? room.status === "OCCUPIED" && room.booking_type === "NIGHT"
+          : room.status === statusFilter;
+
       const matchSearch =
         room.room_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
         room.room_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,10 +129,24 @@ export default function BarHotel() {
     setSelectedRoomForCheckIn(room);
     setGuestName("");
     setGuestPhone("");
-    setBookingType("NIGHT");
+    setBookingType("MOMENT"); // Default to Moment 2h as common practice
+    setMomentHours(room.moment_duration_hours || 2);
     setPaymentMethod("ESPECES");
     setCheckInModalOpen(true);
   };
+
+  const calculatedCheckInPrice = useMemo(() => {
+    if (!selectedRoomForCheckIn) return 0;
+    if (bookingType === "NIGHT") {
+      return selectedRoomForCheckIn.price_per_night || 3500;
+    }
+    // Moment calculation
+    const basePrice = selectedRoomForCheckIn.price_per_moment || 1500;
+    const baseDuration = selectedRoomForCheckIn.moment_duration_hours || 2;
+    const extraHours = Math.max(0, momentHours - baseDuration);
+    const extraCost = extraHours * (selectedRoomForCheckIn.extra_hour_price || 500);
+    return basePrice + extraCost;
+  }, [selectedRoomForCheckIn, bookingType, momentHours]);
 
   const handleConfirmCheckIn = () => {
     if (!selectedRoomForCheckIn) return;
@@ -119,10 +154,11 @@ export default function BarHotel() {
       return toast.error("Veuillez renseigner le nom du client");
     }
 
-    const price =
-      bookingType === "NIGHT"
-        ? selectedRoomForCheckIn.price_per_night
-        : selectedRoomForCheckIn.price_per_hour || 1500;
+    const checkInTime = new Date();
+    const expectedCheckOut =
+      bookingType === "MOMENT"
+        ? new Date(checkInTime.getTime() + momentHours * 60 * 60 * 1000).toISOString()
+        : new Date(checkInTime.getTime() + 18 * 60 * 60 * 1000).toISOString(); // ~翌朝
 
     barRestoService.addBooking(effectiveBranchId, {
       room_id: selectedRoomForCheckIn.id,
@@ -130,22 +166,45 @@ export default function BarHotel() {
       guest_name: guestName.trim(),
       guest_phone: guestPhone.trim(),
       booking_type: bookingType,
-      check_in: new Date().toISOString(),
-      total_amount: price,
-      paid_amount: price,
+      duration_hours: bookingType === "MOMENT" ? momentHours : undefined,
+      check_in: checkInTime.toISOString(),
+      expected_check_out: expectedCheckOut,
+      total_amount: calculatedCheckInPrice,
+      paid_amount: calculatedCheckInPrice,
       payment_method: paymentMethod,
       payment_status: "PAID",
       status: "CHECKED_IN",
     });
 
-    toast.success(`Check-in réussi pour la Chambre ${selectedRoomForCheckIn.room_number}`);
+    toast.success(
+      `Check-in réussi ! Chambre ${selectedRoomForCheckIn.room_number} — ${
+        bookingType === "MOMENT" ? `Moment ${momentHours}h` : "Nuitée complète"
+      }`
+    );
     setCheckInModalOpen(false);
+    loadHotelData();
+  };
+
+  const handleExtendMoment = (room: HotelRoom) => {
+    const currentExpected = room.expected_check_out ? new Date(room.expected_check_out) : new Date();
+    const newExpected = new Date(currentExpected.getTime() + 60 * 60 * 1000).toISOString();
+    const extraPrice = room.extra_hour_price || 500;
+
+    barRestoService.updateRoomStatus(effectiveBranchId, room.id, "OCCUPIED", {
+      name: room.current_guest_name || undefined,
+      phone: room.current_guest_phone || undefined,
+      checkIn: room.check_in_date || undefined,
+      bookingType: "MOMENT",
+      expectedCheckOut: newExpected,
+    });
+
+    toast.success(`Chambre ${room.room_number} prolongée de +1 Heure (${format(extraPrice)}) !`);
     loadHotelData();
   };
 
   const handleCheckOut = (room: HotelRoom) => {
     barRestoService.checkOutRoom(effectiveBranchId, room.id);
-    toast.info(`Chambre ${room.room_number} libérée et mise en statut "Nettoyage"`);
+    toast.info(`Chambre ${room.room_number} libérée et passée en statut "Nettoyage"`);
     loadHotelData();
   };
 
@@ -165,7 +224,9 @@ export default function BarHotel() {
       room_type: newRoomType,
       floor: newFloor,
       price_per_night: Number(newPriceNight) || 3500,
-      price_per_hour: Number(newPriceHour) || 1500,
+      price_per_moment: Number(newPriceMoment) || 1500,
+      moment_duration_hours: 2,
+      extra_hour_price: Number(newExtraHourPrice) || 500,
       status: "AVAILABLE",
       amenities: ["Climatisation", "TV Câble", "Wi-Fi Gratuit", "Salle de bain privée"],
       is_active: true,
@@ -180,16 +241,30 @@ export default function BarHotel() {
     loadHotelData();
   };
 
-  const getStatusBadge = (status: RoomStatus) => {
-    switch (status) {
-      case "AVAILABLE":
-        return <Badge className="bg-emerald-500 hover:bg-emerald-600">Disponible</Badge>;
-      case "OCCUPIED":
-        return <Badge className="bg-rose-500 hover:bg-rose-600">Occupée</Badge>;
-      case "CLEANING":
-        return <Badge className="bg-amber-500 hover:bg-amber-600">En Nettoyage</Badge>;
-      case "MAINTENANCE":
-        return <Badge variant="secondary">Maintenance</Badge>;
+  const getRemainingTimeBadge = (expectedCheckout?: string | null) => {
+    if (!expectedCheckout) return null;
+    const diffMs = new Date(expectedCheckout).getTime() - now;
+    const diffMinutes = Math.round(diffMs / (60 * 1000));
+
+    if (diffMinutes > 0) {
+      const h = Math.floor(diffMinutes / 60);
+      const m = diffMinutes % 60;
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-xs border border-amber-500/30">
+          <Timer className="h-3.5 w-3.5 animate-pulse text-amber-600" />
+          <span>
+            Reste {h > 0 ? `${h}h ` : ""}{m} min (Fin {new Date(expectedCheckout).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})
+          </span>
+        </div>
+      );
+    } else {
+      const overdueMins = Math.abs(diffMinutes);
+      return (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-destructive/15 text-destructive font-black text-xs border border-destructive/40 animate-pulse">
+          <AlertCircle className="h-3.5 w-3.5" />
+          <span>TEMPS DÉPASSÉ de {overdueMins} min (+heure supp.)</span>
+        </div>
+      );
     }
   };
 
@@ -197,7 +272,7 @@ export default function BarHotel() {
     <DashboardLayout
       role="salon_admin"
       title="Hôtel & Chambres"
-      subtitle="Gestion des chambres, séjours, check-in et nuitées (Bar, Resto & Hôtel)"
+      subtitle="Gestion des chambres, séjours de passage (Moments 2h) et nuitées (Bar, Resto & Hôtel)"
     >
       <StaggerContainer className="space-y-6">
         {/* KPI Cards */}
@@ -206,7 +281,7 @@ export default function BarHotel() {
             <Card className="border-border/60 shadow-sm bg-card">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-wide">
                     Total Chambres
                   </p>
                   <p className="text-2xl font-black text-foreground">{stats.total}</p>
@@ -218,7 +293,7 @@ export default function BarHotel() {
             <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium uppercase tracking-wide">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wide">
                     Disponibles
                   </p>
                   <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
@@ -229,38 +304,38 @@ export default function BarHotel() {
               </CardContent>
             </Card>
 
-            <Card className="border-rose-500/30 bg-rose-500/5 shadow-sm">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-rose-700 dark:text-rose-400 font-medium uppercase tracking-wide">
-                    Occupées
-                  </p>
-                  <p className="text-2xl font-black text-rose-600 dark:text-rose-400">
-                    {stats.occupied}
-                  </p>
-                </div>
-                <User className="h-8 w-8 text-rose-500/70" />
-              </CardContent>
-            </Card>
-
             <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 font-medium uppercase tracking-wide">
-                    En Nettoyage
+                  <p className="text-xs text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wide flex items-center gap-1">
+                    <Timer className="h-3.5 w-3.5" /> Moments (Passage)
                   </p>
                   <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
-                    {stats.cleaning}
+                    {stats.momentsActive}
                   </p>
                 </div>
-                <Sparkles className="h-8 w-8 text-amber-500/70" />
+                <Clock className="h-8 w-8 text-amber-500/70" />
+              </CardContent>
+            </Card>
+
+            <Card className="border-indigo-500/30 bg-indigo-500/5 shadow-sm">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-indigo-700 dark:text-indigo-400 font-bold uppercase tracking-wide flex items-center gap-1">
+                    <Moon className="h-3.5 w-3.5" /> Nuitées en cours
+                  </p>
+                  <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                    {stats.nightsActive}
+                  </p>
+                </div>
+                <Bed className="h-8 w-8 text-indigo-500/70" />
               </CardContent>
             </Card>
 
             <Card className="border-primary/30 bg-primary/5 shadow-sm col-span-2 md:col-span-1">
               <CardContent className="p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-primary font-medium uppercase tracking-wide">
+                  <p className="text-xs text-primary font-bold uppercase tracking-wide">
                     Revenus Séjours
                   </p>
                   <p className="text-xl font-black text-primary truncate">
@@ -282,6 +357,7 @@ export default function BarHotel() {
                   size="sm"
                   variant={statusFilter === "ALL" ? "default" : "outline"}
                   onClick={() => setStatusFilter("ALL")}
+                  className="font-bold text-xs"
                 >
                   Toutes ({stats.total})
                 </Button>
@@ -289,25 +365,33 @@ export default function BarHotel() {
                   size="sm"
                   variant={statusFilter === "AVAILABLE" ? "default" : "outline"}
                   onClick={() => setStatusFilter("AVAILABLE")}
-                  className="gap-1"
+                  className="gap-1 font-bold text-xs"
                 >
                   <span className="h-2 w-2 rounded-full bg-emerald-500" /> Disponibles ({stats.available})
                 </Button>
                 <Button
                   size="sm"
-                  variant={statusFilter === "OCCUPIED" ? "default" : "outline"}
-                  onClick={() => setStatusFilter("OCCUPIED")}
-                  className="gap-1"
+                  variant={statusFilter === "MOMENT" ? "default" : "outline"}
+                  onClick={() => setStatusFilter("MOMENT")}
+                  className="gap-1 font-bold text-xs text-amber-600"
                 >
-                  <span className="h-2 w-2 rounded-full bg-rose-500" /> Occupées ({stats.occupied})
+                  <Timer className="h-3.5 w-3.5" /> En Moment 2h ({stats.momentsActive})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={statusFilter === "NIGHT" ? "default" : "outline"}
+                  onClick={() => setStatusFilter("NIGHT")}
+                  className="gap-1 font-bold text-xs text-indigo-600"
+                >
+                  <Moon className="h-3.5 w-3.5" /> En Nuitée ({stats.nightsActive})
                 </Button>
                 <Button
                   size="sm"
                   variant={statusFilter === "CLEANING" ? "default" : "outline"}
                   onClick={() => setStatusFilter("CLEANING")}
-                  className="gap-1"
+                  className="gap-1 font-bold text-xs"
                 >
-                  <span className="h-2 w-2 rounded-full bg-amber-500" /> Nettoyage ({stats.cleaning})
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Nettoyage ({stats.cleaning})
                 </Button>
               </div>
 
@@ -315,13 +399,13 @@ export default function BarHotel() {
                 <div className="relative flex-1 md:w-64">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="N° chambre, type, client..."
+                    placeholder="Chambre 101, Deluxe, Client..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 h-9 text-sm"
+                    className="pl-8 h-9 text-xs"
                   />
                 </div>
-                <Button size="sm" onClick={() => setNewRoomModalOpen(true)} className="gap-1 whitespace-nowrap">
+                <Button size="sm" onClick={() => setNewRoomModalOpen(true)} className="gap-1 font-bold whitespace-nowrap">
                   <Plus className="h-4 w-4" /> Nouvelle Chambre
                 </Button>
               </div>
@@ -336,22 +420,25 @@ export default function BarHotel() {
               const isAvailable = room.status === "AVAILABLE";
               const isOccupied = room.status === "OCCUPIED";
               const isCleaning = room.status === "CLEANING";
+              const isMoment = room.booking_type === "MOMENT";
 
               return (
                 <Card
                   key={room.id}
                   className={`border transition-all hover:shadow-md ${
                     isOccupied
-                      ? "border-rose-300/60 dark:border-rose-900/50 bg-rose-50/20 dark:bg-rose-950/10"
+                      ? isMoment
+                        ? "border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/20"
+                        : "border-indigo-300 dark:border-indigo-800 bg-indigo-50/20 dark:bg-indigo-950/20"
                       : isCleaning
-                      ? "border-amber-300/60 dark:border-amber-900/50 bg-amber-50/20 dark:bg-amber-950/10"
+                      ? "border-slate-300 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20"
                       : "border-border/60 hover:border-emerald-400"
                   }`}
                 >
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center font-black text-primary">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center font-black text-primary text-base">
                           {room.room_number}
                         </div>
                         <div>
@@ -359,53 +446,91 @@ export default function BarHotel() {
                           <p className="text-xs text-muted-foreground">{room.floor}</p>
                         </div>
                       </div>
-                      {getStatusBadge(room.status)}
+
+                      {isAvailable && (
+                        <Badge className="bg-emerald-500 hover:bg-emerald-600 font-bold">Disponible</Badge>
+                      )}
+                      {isOccupied && isMoment && (
+                        <Badge className="bg-amber-500 hover:bg-amber-600 font-bold gap-1">
+                          <Timer className="h-3 w-3" /> Moment
+                        </Badge>
+                      )}
+                      {isOccupied && !isMoment && (
+                        <Badge className="bg-indigo-600 hover:bg-indigo-700 font-bold gap-1">
+                          <Moon className="h-3 w-3" /> Nuitée
+                        </Badge>
+                      )}
+                      {isCleaning && (
+                        <Badge className="bg-slate-600 font-bold gap-1">
+                          <Sparkles className="h-3 w-3" /> Nettoyage
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
 
                   <CardContent className="p-4 pt-2 space-y-3">
-                    <div className="flex justify-between items-center text-xs border-y py-2 border-border/50">
+                    {/* Tarifs de la chambre : Moment vs Nuitée */}
+                    <div className="grid grid-cols-2 gap-2 text-xs border-y py-2 border-border/50 bg-muted/20 px-2 rounded-lg">
                       <div>
-                        <span className="text-muted-foreground">Nuitée : </span>
-                        <span className="font-bold text-foreground">{format(room.price_per_night)}</span>
+                        <span className="text-muted-foreground block text-[10px] font-bold uppercase">
+                          ⏱️ Moment ({room.moment_duration_hours || 2}h)
+                        </span>
+                        <span className="font-black text-amber-700 dark:text-amber-400 text-sm">
+                          {format(room.price_per_moment || 1500)}
+                        </span>
                       </div>
-                      {room.price_per_hour && (
-                        <div>
-                          <span className="text-muted-foreground">Passage (3h) : </span>
-                          <span className="font-semibold text-foreground">{format(room.price_per_hour)}</span>
-                        </div>
-                      )}
+                      <div className="text-right">
+                        <span className="text-muted-foreground block text-[10px] font-bold uppercase">
+                          🌙 Nuitée
+                        </span>
+                        <span className="font-black text-primary text-sm">
+                          {format(room.price_per_night || 3500)}
+                        </span>
+                      </div>
                     </div>
 
+                    {/* Infos Client & Compteur si occupée */}
                     {isOccupied && (
-                      <div className="rounded-lg bg-rose-500/10 p-2.5 space-y-1 text-xs border border-rose-500/20">
-                        <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400">
-                          <User className="h-3.5 w-3.5" />
-                          <span>{room.current_guest_name || "Client de passage"}</span>
-                        </div>
-                        {room.current_guest_phone && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{room.current_guest_phone}</span>
+                      <div className="rounded-lg p-2.5 space-y-2 text-xs border border-border/60 bg-background/80 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-bold text-foreground truncate">
+                            <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="truncate">{room.current_guest_name || "Client de passage"}</span>
                           </div>
-                        )}
+                          {room.current_guest_phone && (
+                            <span className="text-muted-foreground text-[11px]">{room.current_guest_phone}</span>
+                          )}
+                        </div>
+
+                        {/* Compteur temps restant si Moment */}
+                        {isMoment && getRemainingTimeBadge(room.expected_check_out)}
+
                         {room.check_in_date && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>Arrivée: {new Date(room.check_in_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
+                            <span>Arrivée : {new Date(room.check_in_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {isMoment && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleExtendMoment(room)}
+                                className="h-6 px-1.5 text-[11px] font-bold text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              >
+                                +1h Supp. ({format(room.extra_hour_price || 500)})
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
                     )}
 
                     {isCleaning && (
-                      <div className="rounded-lg bg-amber-500/10 p-2 text-xs flex items-center gap-2 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                      <div className="rounded-lg bg-amber-500/10 p-2 text-xs flex items-center gap-2 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-medium">
                         <Sparkles className="h-4 w-4 shrink-0" />
-                        <span>Chambre en cours de ménage et désinfection.</span>
+                        <span>En cours de ménage et changement des draps.</span>
                       </div>
                     )}
 
-                    {/* Action buttons */}
+                    {/* Actions */}
                     <div className="pt-1 flex gap-2">
                       {isAvailable && (
                         <Button
@@ -424,7 +549,7 @@ export default function BarHotel() {
                           className="w-full gap-1.5 font-bold"
                           onClick={() => handleCheckOut(room)}
                         >
-                          <LogOut className="h-4 w-4" /> Check-out (Libérer)
+                          <LogOut className="h-4 w-4" /> Libérer la Chambre
                         </Button>
                       )}
 
@@ -434,7 +559,7 @@ export default function BarHotel() {
                           className="w-full gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                           onClick={() => handleMarkCleaned(room)}
                         >
-                          <CheckCircle2 className="h-4 w-4" /> Prête / Disponible
+                          <CheckCircle2 className="h-4 w-4" /> Chambre Prête
                         </Button>
                       )}
                     </div>
@@ -446,72 +571,121 @@ export default function BarHotel() {
         </StaggerItem>
       </StaggerContainer>
 
-      {/* Check-in Modal */}
+      {/* Check-in Modal with Moment Support */}
       <Dialog open={checkInModalOpen} onOpenChange={setCheckInModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg font-black">
               <Hotel className="h-5 w-5 text-primary" />
               Check-in Chambre {selectedRoomForCheckIn?.room_number}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               {selectedRoomForCheckIn?.room_type} — {selectedRoomForCheckIn?.floor}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Choix du type : Moment (2h) ou Nuitée */}
             <div className="space-y-1.5">
-              <Label htmlFor="guest-name">Nom complet du Client *</Label>
+              <Label className="text-xs font-bold">Type de Location</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={bookingType === "MOMENT" ? "default" : "outline"}
+                  onClick={() => setBookingType("MOMENT")}
+                  className={`h-16 flex flex-col items-center justify-center border-2 ${
+                    bookingType === "MOMENT" ? "border-primary" : ""
+                  }`}
+                >
+                  <span className="font-bold text-xs flex items-center gap-1">
+                    <Timer className="h-3.5 w-3.5" /> Moment / Passage
+                  </span>
+                  <span className="text-base font-black">
+                    {format(selectedRoomForCheckIn?.price_per_moment || 1500)} (2h)
+                  </span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant={bookingType === "NIGHT" ? "default" : "outline"}
+                  onClick={() => setBookingType("NIGHT")}
+                  className={`h-16 flex flex-col items-center justify-center border-2 ${
+                    bookingType === "NIGHT" ? "border-primary" : ""
+                  }`}
+                >
+                  <span className="font-bold text-xs flex items-center gap-1">
+                    <Moon className="h-3.5 w-3.5" /> Nuitée Complète
+                  </span>
+                  <span className="text-base font-black">
+                    {format(selectedRoomForCheckIn?.price_per_night || 3500)}
+                  </span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Si moment, choix du nombre d'heures */}
+            {bookingType === "MOMENT" && (
+              <div className="space-y-1.5 bg-muted/40 p-3 rounded-lg border">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="moment-h" className="text-xs font-bold">
+                    Durée du séjour en heures :
+                  </Label>
+                  <span className="font-black text-primary text-sm">{momentHours} Heures</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                  {[1, 2, 3, 4].map((h) => (
+                    <Button
+                      key={h}
+                      type="button"
+                      size="sm"
+                      variant={momentHours === h ? "default" : "outline"}
+                      className="h-8 font-bold text-xs"
+                      onClick={() => setMomentHours(h)}
+                    >
+                      {h}h {h === 2 ? "(Standard)" : ""}
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Départ prévu calculé à :{" "}
+                  <strong className="text-foreground">
+                    {new Date(Date.now() + momentHours * 3600 * 1000).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </strong>
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label htmlFor="guest-name" className="text-xs font-bold">Nom du Client *</Label>
               <Input
                 id="guest-name"
-                placeholder="Ex: Jean Moïse"
+                placeholder="Ex: Client de passage ou nom complet"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 autoFocus
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="guest-phone">Téléphone / WhatsApp</Label>
-              <Input
-                id="guest-phone"
-                placeholder="Ex: +509 37 00 00 00"
-                value={guestPhone}
-                onChange={(e) => setGuestPhone(e.target.value)}
-              />
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Type de Séjour</Label>
-                <div className="grid grid-cols-2 gap-1 bg-muted p-1 rounded-md">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={bookingType === "NIGHT" ? "default" : "ghost"}
-                    className="h-8 text-xs font-semibold"
-                    onClick={() => setBookingType("NIGHT")}
-                  >
-                    Nuitée
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={bookingType === "DAY_PASS" ? "default" : "ghost"}
-                    className="h-8 text-xs font-semibold"
-                    onClick={() => setBookingType("DAY_PASS")}
-                  >
-                    Passage (3h)
-                  </Button>
-                </div>
+                <Label htmlFor="guest-phone" className="text-xs font-bold">Téléphone (Optionnel)</Label>
+                <Input
+                  id="guest-phone"
+                  placeholder="Ex: +509 37 00 00 00"
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                />
               </div>
 
               <div className="space-y-1.5">
-                <Label>Paiement</Label>
+                <Label className="text-xs font-bold">Moyen de paiement</Label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="ESPECES">Espèces (Cash)</option>
                   <option value="MONCASH">MonCash</option>
@@ -521,14 +695,15 @@ export default function BarHotel() {
               </div>
             </div>
 
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex justify-between items-center">
-              <span className="text-sm font-medium">Montant à encaisser :</span>
-              <span className="text-xl font-black text-primary">
-                {format(
-                  bookingType === "NIGHT"
-                    ? selectedRoomForCheckIn?.price_per_night || 0
-                    : selectedRoomForCheckIn?.price_per_hour || 1500
-                )}
+            <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex justify-between items-center">
+              <div>
+                <span className="text-xs font-bold text-muted-foreground uppercase block">Total à encaisser</span>
+                <span className="text-xs font-semibold text-primary">
+                  {bookingType === "MOMENT" ? `Moment de ${momentHours}h` : "Nuitée complète"}
+                </span>
+              </div>
+              <span className="text-2xl font-black text-primary">
+                {format(calculatedCheckInPrice)}
               </span>
             </div>
           </div>
@@ -548,14 +723,16 @@ export default function BarHotel() {
       <Dialog open={newRoomModalOpen} onOpenChange={setNewRoomModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Ajouter une Chambre</DialogTitle>
-            <DialogDescription>Définissez le numéro, le type et les tarifs de la chambre.</DialogDescription>
+            <DialogTitle className="text-base font-bold">Ajouter une Chambre</DialogTitle>
+            <DialogDescription className="text-xs">
+              Configurez le numéro, type et les tarifs (Moment & Nuitée) de la chambre.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="room-num">Numéro de Chambre *</Label>
+                <Label htmlFor="room-num" className="text-xs font-bold">Numéro de Chambre *</Label>
                 <Input
                   id="room-num"
                   placeholder="Ex: 104 ou VIP-2"
@@ -564,7 +741,7 @@ export default function BarHotel() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="room-floor">Étage</Label>
+                <Label htmlFor="room-floor" className="text-xs font-bold">Étage</Label>
                 <Input
                   id="room-floor"
                   placeholder="Ex: 1er étage"
@@ -575,11 +752,11 @@ export default function BarHotel() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Type de Chambre</Label>
+              <Label className="text-xs font-bold">Type de Chambre</Label>
               <select
                 value={newRoomType}
                 onChange={(e) => setNewRoomType(e.target.value)}
-                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="Chambre Standard">Chambre Standard</option>
                 <option value="Chambre Confort Deluxe">Chambre Confort Deluxe</option>
@@ -588,9 +765,18 @@ export default function BarHotel() {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1.5">
-                <Label htmlFor="price-night">Prix Nuitée (HTG)</Label>
+                <Label htmlFor="price-moment" className="text-xs font-bold">Moment 2h (HTG)</Label>
+                <Input
+                  id="price-moment"
+                  type="number"
+                  value={newPriceMoment}
+                  onChange={(e) => setNewPriceMoment(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="price-night" className="text-xs font-bold">Nuitée (HTG)</Label>
                 <Input
                   id="price-night"
                   type="number"
@@ -599,12 +785,12 @@ export default function BarHotel() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="price-hour">Prix Passage 3h (HTG)</Label>
+                <Label htmlFor="price-extra" className="text-xs font-bold">+1h Supp (HTG)</Label>
                 <Input
-                  id="price-hour"
+                  id="price-extra"
                   type="number"
-                  value={newPriceHour}
-                  onChange={(e) => setNewPriceHour(Number(e.target.value))}
+                  value={newExtraHourPrice}
+                  onChange={(e) => setNewExtraHourPrice(Number(e.target.value))}
                 />
               </div>
             </div>
@@ -615,7 +801,7 @@ export default function BarHotel() {
               Annuler
             </Button>
             <Button onClick={handleCreateRoom} className="font-bold">
-              Enregistrer
+              Enregistrer la Chambre
             </Button>
           </DialogFooter>
         </DialogContent>

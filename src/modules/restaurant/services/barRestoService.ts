@@ -200,7 +200,18 @@ export const barRestoService = {
     }
   },
 
-  updateRoomStatus(branchId: string, roomId: string, status: HotelRoom["status"], guestInfo?: { name?: string; phone?: string; checkIn?: string }) {
+  updateRoomStatus(
+    branchId: string,
+    roomId: string,
+    status: HotelRoom["status"],
+    guestInfo?: {
+      name?: string;
+      phone?: string;
+      checkIn?: string;
+      bookingType?: "NIGHT" | "MOMENT";
+      expectedCheckOut?: string;
+    }
+  ) {
     const rooms = this.getHotelRooms(branchId);
     const updated = rooms.map((r) => {
       if (r.id === roomId) {
@@ -209,7 +220,9 @@ export const barRestoService = {
           status,
           current_guest_name: guestInfo ? guestInfo.name ?? null : status === "AVAILABLE" ? null : r.current_guest_name,
           current_guest_phone: guestInfo ? guestInfo.phone ?? null : status === "AVAILABLE" ? null : r.current_guest_phone,
+          booking_type: guestInfo ? guestInfo.bookingType ?? (status === "AVAILABLE" ? null : r.booking_type) : status === "AVAILABLE" ? null : r.booking_type,
           check_in_date: guestInfo?.checkIn ?? (status === "OCCUPIED" ? new Date().toISOString() : status === "AVAILABLE" ? null : r.check_in_date),
+          expected_check_out: guestInfo?.expectedCheckOut ?? (status === "AVAILABLE" ? null : r.expected_check_out),
         };
       }
       return r;
@@ -256,6 +269,8 @@ export const barRestoService = {
       name: booking.guest_name,
       phone: booking.guest_phone,
       checkIn: booking.check_in,
+      bookingType: booking.booking_type === "MOMENT" ? "MOMENT" : "NIGHT",
+      expectedCheckOut: booking.expected_check_out,
     });
 
     return newBooking;
