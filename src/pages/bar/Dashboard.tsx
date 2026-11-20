@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Beer, Package, DollarSign, TrendingUp, AlertCircle, ShoppingBag, ArrowRight
+  Beer, Package, DollarSign, TrendingUp, AlertCircle, ShoppingBag, ArrowRight, Hotel, Utensils
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useActiveBranchId } from "@/lib/branch";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { barRestoService } from "@/modules/restaurant/services/barRestoService";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -33,18 +35,23 @@ interface DashboardStat {
 }
 
 export default function BarDashboard() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profile } = useAuth();
   const { format } = useCurrency();
+  const { branchId } = useActiveBranchId(profile?.business_id ?? null);
+  const effectiveBranchId = branchId || profile?.business_id || "51d05c41-50c6-4bea-b3e2-d9fa9d3fe733";
+
   const [todaySales, setTodaySales] = useState<any[]>([]);
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [occupiedRoomsCount, setOccupiedRoomsCount] = useState(0);
+  const [totalRoomsCount, setTotalRoomsCount] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; revenue: number }[]>([]);
   const [dashboardLoading, setDashboardLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     loadDashboardData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, effectiveBranchId]);
 
   const loadDashboardData = async () => {
     setDashboardLoading(true);
@@ -54,6 +61,10 @@ export default function BarDashboard() {
       const weekStart = shiftDateKey(today, -6);
       const todayRange = getDayRangeInTimeZone(today, timeZone);
       const weekRange = getDayRangeInTimeZone(weekStart, timeZone);
+
+      const hotelRooms = barRestoService.getHotelRooms(effectiveBranchId);
+      setTotalRoomsCount(hotelRooms.length);
+      setOccupiedRoomsCount(hotelRooms.filter((r) => r.status === "OCCUPIED").length);
 
       const [
         { data: salesToday }, 
@@ -120,18 +131,18 @@ export default function BarDashboard() {
       icon: <ShoppingBag className="h-5 w-5" />, color: "info",
     },
     {
-      title: "Produits en rupture", value: lowStockCount.toString(),
-      icon: <AlertCircle className="h-5 w-5" />, color: lowStockCount > 0 ? "destructive" : "success",
+      title: "Chambres Hôtel", value: `${occupiedRoomsCount} / ${totalRoomsCount}`,
+      icon: <Hotel className="h-5 w-5" />, color: occupiedRoomsCount > 0 ? "primary" : "info",
     },
     {
-      title: "Total Produits", value: "24", // Placeholder pour l'instant
-      icon: <Package className="h-5 w-5" />, color: "primary",
+      title: "Alertes Stock Bas", value: lowStockCount.toString(),
+      icon: <AlertCircle className="h-5 w-5" />, color: lowStockCount > 0 ? "destructive" : "success",
     },
   ];
 
   if (dashboardLoading) {
     return (
-      <DashboardLayout role="salon_admin" title="Dashboard Bar" subtitle="Chargement...">
+      <DashboardLayout role="salon_admin" title="Dashboard Bar, Resto & Hôtel" subtitle="Chargement...">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
@@ -142,8 +153,8 @@ export default function BarDashboard() {
   return (
     <DashboardLayout
       role="salon_admin"
-      title="Dashboard Bar & Restaurant"
-      subtitle="Vue d'ensemble de l'activité du bar"
+      title="Tableau de Bord — Bar, Resto & Hôtel"
+      subtitle="Vue d'ensemble de l'activité commerciale, restauration et hôtellerie"
     >
       <StaggerContainer className="space-y-6">
         <StaggerItem>
@@ -214,18 +225,23 @@ export default function BarDashboard() {
                 <h3 className="font-semibold text-sm mb-3">Actions rapides</h3>
                 <div className="space-y-2">
                   <Link to="/bar/pos">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <ShoppingBag className="h-4 w-4" /> Ouvrir la Caisse (POS)
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold">
+                      <ShoppingBag className="h-4 w-4 text-primary" /> Ouvrir la Caisse (POS)
+                    </Button>
+                  </Link>
+                  <Link to="/bar/hotel">
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold">
+                      <Hotel className="h-4 w-4 text-emerald-600" /> Chambres & Hôtel
                     </Button>
                   </Link>
                   <Link to="/bar/inventory">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <Package className="h-4 w-4" /> Gérer l'inventaire
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold">
+                      <Package className="h-4 w-4 text-blue-600" /> Gérer l'inventaire
                     </Button>
                   </Link>
                   <Link to="/bar/cocktails">
-                    <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                      <Beer className="h-4 w-4" /> Gérer les cocktails
+                    <Button variant="outline" className="w-full justify-start gap-2 h-10 font-bold">
+                      <Beer className="h-4 w-4 text-purple-600" /> Gérer les cocktails
                     </Button>
                   </Link>
                 </div>

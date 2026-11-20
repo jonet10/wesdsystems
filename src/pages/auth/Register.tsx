@@ -306,7 +306,7 @@ export default function Register() {
                       >
                         <option value="salon">💇‍♀️ Salon de beauté & Barber Shop</option>
                         <option value="pharmacie">💊 Pharmacie & Santé</option>
-                        <option value="restaurant">🍔 Restaurant, Café & Bar</option>
+                        <option value="restaurant">🍹 Bar, Resto & Hôtel</option>
                         <option value="market">🛒 Provision & Supermarché</option>
                         <option value="boutique">🛍️ Boutique Générale / Habillement</option>
                         <option value="auto_parts">🔧 Pièces Auto & Mécanique</option>

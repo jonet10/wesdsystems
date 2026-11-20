@@ -31,8 +31,8 @@
       "desc": "Suivi des ordonnances, alertes d'expiration, dossiers patients, POS rapide."
     },
     "restaurant": {
-      "name": "Restaurant & Bar",
-      "desc": "Gestion des tables, affichage cuisine, suivi des commandes, partage de l'addition."
+      "name": "Bar, Resto & Hôtel",
+      "desc": "Caisse rapide, boissons en caisses/unités, plats & fritay, cocktails, gestion des chambres d'hôtel et nuitées."
     },
     "market": {
       "name": "Supermarché & Market",

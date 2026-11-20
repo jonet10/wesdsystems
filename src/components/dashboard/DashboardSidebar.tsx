@@ -47,6 +47,7 @@ import {
   UserPlus,
   DollarSign,
   BookOpen,
+  Hotel,
 } from "lucide-react";
 import { useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
@@ -147,22 +148,15 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Settings, labelKey: "sidebar.settings", path: "/pharmacie/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "restaurant":
-        return [
-          { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/bar", permission: PERMISSIONS.DASHBOARD_VIEW },
-          { icon: Utensils, labelKey: "sidebar.pos", path: "/bar/pos", permission: PERMISSIONS.POS_VIEW },
-          { icon: Users, labelKey: "sidebar.clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
-          { icon: Users, labelKey: "sidebar.staff", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
-          { icon: Layers, labelKey: "sidebar.menu", path: "/salon/services", permission: PERMISSIONS.SERVICES_MANAGE },
-          { icon: Settings, labelKey: "sidebar.settings", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
-        ];
       case "bar":
         return [
-          { icon: LayoutDashboard, labelKey: "sidebar.dashboard", path: "/bar", permission: PERMISSIONS.DASHBOARD_VIEW },
-          { icon: Beer, labelKey: "sidebar.barPos", path: "/bar/pos", permission: PERMISSIONS.POS_VIEW },
-          { icon: Package, labelKey: "sidebar.doubleInventory", path: "/bar/inventory", permission: PERMISSIONS.STOCK_VIEW },
-          { icon: Utensils, labelKey: "sidebar.cocktails", path: "/bar/cocktails", permission: PERMISSIONS.SERVICES_MANAGE },
-          { icon: Users, labelKey: "sidebar.clients", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
-          { icon: Users, labelKey: "sidebar.staff", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: LayoutDashboard, label: "Tableau de Bord", path: "/bar", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: ShoppingBag, label: "Caisse POS", path: "/bar/pos", permission: PERMISSIONS.POS_VIEW },
+          { icon: Hotel, label: "Hôtel & Chambres", path: "/bar/hotel", permission: PERMISSIONS.DASHBOARD_VIEW },
+          { icon: Package, label: "Inventaire & Stocks", path: "/bar/inventory", permission: PERMISSIONS.STOCK_VIEW },
+          { icon: Beer, label: "Cocktails & Recettes", path: "/bar/cocktails", permission: PERMISSIONS.SERVICES_MANAGE },
+          { icon: Users, label: "Clients & Séjours", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserCog, label: "Personnel", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: Settings, labelKey: "sidebar.settings", path: "/salon/settings", permission: PERMISSIONS.SETTINGS_MANAGE },
         ];
       case "salon":
