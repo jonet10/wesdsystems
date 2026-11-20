@@ -155,8 +155,8 @@ export const DashboardSidebar = ({ role, mobileOpen, onMobileToggle }: Dashboard
           { icon: Hotel, label: "Hôtel & Chambres", path: "/bar/hotel", permission: PERMISSIONS.DASHBOARD_VIEW },
           { icon: Package, label: "Inventaire & Stocks", path: "/bar/inventory", permission: PERMISSIONS.STOCK_VIEW },
           { icon: Beer, label: "Cocktails & Recettes", path: "/bar/cocktails", permission: PERMISSIONS.SERVICES_MANAGE },
-          { icon: Users, label: "Clients & Séjours", path: "/salon/clients", permission: PERMISSIONS.CLIENTS_READ },
-          { icon: UserCog, label: "Personnel", path: "/salon/employees", permission: PERMISSIONS.STAFF_MANAGE },
+          { icon: Users, label: "Clients & Séjours", path: "/bar/clients", permission: PERMISSIONS.CLIENTS_READ },
+          { icon: UserCog, label: "Personnel", path: "/bar/staff", permission: PERMISSIONS.STAFF_MANAGE },
           { icon: Settings, label: "Paramètres", path: "/bar/settings" },
         ];
       case "salon":

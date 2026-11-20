@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +28,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export default function BarSettings() {
+  const navigate = useNavigate();
   const { profile, user } = useAuth();
   const { format, currencyCode } = useCurrency();
   const { branchId } = useActiveBranchId(profile?.business_id ?? null);
@@ -159,6 +161,24 @@ export default function BarSettings() {
 
             {/* TAB: HÔTEL & MOMENTS (Demande spécifique du client) */}
             <TabsContent value="hotel" className="space-y-4 pt-3">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wide flex items-center gap-1.5">
+                    <Hotel className="h-4 w-4 text-emerald-600" /> Tarification par défaut & Gestion individuelle
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Ces paramètres servent de <strong>valeurs par défaut</strong> pour les nouvelles chambres. Vous pouvez aussi personnaliser les tarifs des moments (1 500 G / 2h, +500 G/h) et des nuitées <strong>directement sur chaque chambre</strong> dans l'écran Hôtel.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => navigate("/bar/hotel")}
+                  className="text-xs font-bold gap-1.5 shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Hotel className="h-4 w-4" /> Gérer dans Hôtel & Chambres
+                </Button>
+              </div>
+
               <Card className="border-border/60 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base font-bold flex items-center gap-2 text-emerald-600">

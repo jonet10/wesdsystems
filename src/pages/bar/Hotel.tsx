@@ -33,6 +33,8 @@ import {
   Timer,
   Moon,
   SunMedium,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -70,6 +72,17 @@ export default function BarHotel() {
   const [newPriceNight, setNewPriceNight] = useState(3500);
   const [newPriceMoment, setNewPriceMoment] = useState(1500);
   const [newExtraHourPrice, setNewExtraHourPrice] = useState(500);
+
+  // Edit room modal state
+  const [editRoomModalOpen, setEditRoomModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<HotelRoom | null>(null);
+  const [editRoomNumber, setEditRoomNumber] = useState("");
+  const [editRoomType, setEditRoomType] = useState("Chambre Standard");
+  const [editFloor, setEditFloor] = useState("1er étage");
+  const [editPriceNight, setEditPriceNight] = useState(3500);
+  const [editPriceMoment, setEditPriceMoment] = useState(1500);
+  const [editMomentDuration, setEditMomentDuration] = useState(2);
+  const [editExtraHourPrice, setEditExtraHourPrice] = useState(500);
 
   // Auto-refresh timer every 30 seconds for live countdown
   useEffect(() => {
@@ -239,6 +252,53 @@ export default function BarHotel() {
     setNewRoomModalOpen(false);
     setNewRoomNumber("");
     loadHotelData();
+  };
+
+  const handleOpenEditRoom = (room: HotelRoom) => {
+    setEditingRoom(room);
+    setEditRoomNumber(room.room_number);
+    setEditRoomType(room.room_type);
+    setEditFloor(room.floor);
+    setEditPriceNight(room.price_per_night || 3500);
+    setEditPriceMoment(room.price_per_moment || 1500);
+    setEditMomentDuration(room.moment_duration_hours || 2);
+    setEditExtraHourPrice(room.extra_hour_price || 500);
+    setEditRoomModalOpen(true);
+  };
+
+  const handleSaveEditRoom = () => {
+    if (!editingRoom) return;
+    if (!editRoomNumber.trim()) return toast.error("Le numéro de chambre est obligatoire");
+
+    const updated = rooms.map((r) =>
+      r.id === editingRoom.id
+        ? {
+            ...r,
+            room_number: editRoomNumber.trim(),
+            room_type: editRoomType,
+            floor: editFloor,
+            price_per_night: Number(editPriceNight) || 3500,
+            price_per_moment: Number(editPriceMoment) || 1500,
+            moment_duration_hours: Number(editMomentDuration) || 2,
+            extra_hour_price: Number(editExtraHourPrice) || 500,
+          }
+        : r
+    );
+
+    barRestoService.saveHotelRooms(effectiveBranchId, updated);
+    toast.success(`Tarifs & paramètres de la chambre ${editRoomNumber} enregistrés !`);
+    setEditRoomModalOpen(false);
+    loadHotelData();
+  };
+
+  const handleDeleteRoom = (room: HotelRoom) => {
+    if (confirm(`Confirmez-vous la suppression de la chambre ${room.room_number} ?`)) {
+      const updated = rooms.filter((r) => r.id !== room.id);
+      barRestoService.saveHotelRooms(effectiveBranchId, updated);
+      toast.success(`Chambre ${room.room_number} supprimée`);
+      setEditRoomModalOpen(false);
+      loadHotelData();
+    }
   };
 
   const getRemainingTimeBadge = (expectedCheckout?: string | null) => {
@@ -447,24 +507,35 @@ export default function BarHotel() {
                         </div>
                       </div>
 
-                      {isAvailable && (
-                        <Badge className="bg-emerald-500 hover:bg-emerald-600 font-bold">Disponible</Badge>
-                      )}
-                      {isOccupied && isMoment && (
-                        <Badge className="bg-amber-500 hover:bg-amber-600 font-bold gap-1">
-                          <Timer className="h-3 w-3" /> Moment
-                        </Badge>
-                      )}
-                      {isOccupied && !isMoment && (
-                        <Badge className="bg-indigo-600 hover:bg-indigo-700 font-bold gap-1">
-                          <Moon className="h-3 w-3" /> Nuitée
-                        </Badge>
-                      )}
-                      {isCleaning && (
-                        <Badge className="bg-slate-600 font-bold gap-1">
-                          <Sparkles className="h-3 w-3" /> Nettoyage
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isAvailable && (
+                          <Badge className="bg-emerald-500 hover:bg-emerald-600 font-bold">Disponible</Badge>
+                        )}
+                        {isOccupied && isMoment && (
+                          <Badge className="bg-amber-500 hover:bg-amber-600 font-bold gap-1">
+                            <Timer className="h-3 w-3" /> Moment
+                          </Badge>
+                        )}
+                        {isOccupied && !isMoment && (
+                          <Badge className="bg-indigo-600 hover:bg-indigo-700 font-bold gap-1">
+                            <Moon className="h-3 w-3" /> Nuitée
+                          </Badge>
+                        )}
+                        {isCleaning && (
+                          <Badge className="bg-slate-600 font-bold gap-1">
+                            <Sparkles className="h-3 w-3" /> Nettoyage
+                          </Badge>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary rounded-full"
+                          title="Modifier les tarifs & infos de la chambre"
+                          onClick={() => handleOpenEditRoom(room)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -478,6 +549,9 @@ export default function BarHotel() {
                         <span className="font-black text-amber-700 dark:text-amber-400 text-sm">
                           {format(room.price_per_moment || 1500)}
                         </span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          (+{format(room.extra_hour_price || 500)} /h supp.)
+                        </span>
                       </div>
                       <div className="text-right">
                         <span className="text-muted-foreground block text-[10px] font-bold uppercase">
@@ -486,6 +560,13 @@ export default function BarHotel() {
                         <span className="font-black text-primary text-sm">
                           {format(room.price_per_night || 3500)}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditRoom(room)}
+                          className="text-[10px] text-primary hover:underline font-bold block ml-auto mt-0.5 cursor-pointer"
+                        >
+                          Modifier tarifs ⚙️
+                        </button>
                       </div>
                     </div>
 
@@ -803,6 +884,142 @@ export default function BarHotel() {
             <Button onClick={handleCreateRoom} className="font-bold">
               Enregistrer la Chambre
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Room Modal */}
+      <Dialog open={editRoomModalOpen} onOpenChange={setEditRoomModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" />
+              Modifier Tarifs & Chambre {editingRoom?.room_number}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Ajustez le tarif des Moments (ex: 1 500 G), la durée (2h), le prix par heure supplémentaire et le tarif nuitée.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-room-num" className="text-xs font-bold">Numéro de Chambre *</Label>
+                <Input
+                  id="edit-room-num"
+                  value={editRoomNumber}
+                  onChange={(e) => setEditRoomNumber(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-room-floor" className="text-xs font-bold">Étage</Label>
+                <Input
+                  id="edit-room-floor"
+                  value={editFloor}
+                  onChange={(e) => setEditFloor(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold">Type de Chambre</Label>
+              <select
+                value={editRoomType}
+                onChange={(e) => setEditRoomType(e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="Chambre Standard">Chambre Standard</option>
+                <option value="Chambre Confort Deluxe">Chambre Confort Deluxe</option>
+                <option value="Suite VIP Exécutive">Suite VIP Exécutive</option>
+                <option value="Chambre Double Famille">Chambre Double Famille</option>
+              </select>
+            </div>
+
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-3">
+              <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1.5">
+                <Timer className="h-4 w-4" /> Tarification du Moment (Passage)
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-price-moment" className="text-[11px] font-bold">
+                    Prix Moment (HTG)
+                  </Label>
+                  <Input
+                    id="edit-price-moment"
+                    type="number"
+                    value={editPriceMoment}
+                    onChange={(e) => setEditPriceMoment(Number(e.target.value))}
+                    className="font-bold text-amber-600"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-moment-duration" className="text-[11px] font-bold">
+                    Durée (Heures)
+                  </Label>
+                  <Input
+                    id="edit-moment-duration"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={editMomentDuration}
+                    onChange={(e) => setEditMomentDuration(Number(e.target.value))}
+                    className="font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-price-extra" className="text-[11px] font-bold">
+                    +1h Supp (HTG)
+                  </Label>
+                  <Input
+                    id="edit-price-extra"
+                    type="number"
+                    value={editExtraHourPrice}
+                    onChange={(e) => setEditExtraHourPrice(Number(e.target.value))}
+                    className="font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 space-y-1.5">
+              <p className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wide flex items-center gap-1.5">
+                <Moon className="h-4 w-4" /> Tarification Nuitée Complète
+              </p>
+              <div className="space-y-1">
+                <Label htmlFor="edit-price-night" className="text-[11px] font-bold">
+                  Prix Nuitée (HTG)
+                </Label>
+                <Input
+                  id="edit-price-night"
+                  type="number"
+                  value={editPriceNight}
+                  onChange={(e) => setEditPriceNight(Number(e.target.value))}
+                  className="font-bold text-indigo-600"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between gap-2 sm:gap-0">
+            {editingRoom && (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="gap-1 text-xs"
+                onClick={() => handleDeleteRoom(editingRoom)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Supprimer
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditRoomModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSaveEditRoom} className="font-bold">
+                Enregistrer
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

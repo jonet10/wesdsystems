@@ -73,6 +73,8 @@ import BarPOS from "./pages/bar/POS";
 import BarInventory from "./pages/bar/Inventory";
 import BarCocktails from "./pages/bar/Cocktails";
 import BarHotel from "./pages/bar/Hotel";
+import BarClients from "./pages/bar/Clients";
+import BarStaff from "./pages/bar/Staff";
 import BarSettings from "./pages/bar/Settings";
 const AutoPartsDashboard = lazy(() => import("./pages/auto-parts/Dashboard"));
 const AutoPartsProducts = lazy(() => import("./pages/auto-parts/Products"));
@@ -344,6 +346,30 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "employee"]} allowAuthenticatedWithoutRole>
                       <BarHotel />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/clients"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "employee", "admin"]} allowAuthenticatedWithoutRole>
+                      <BarClients />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/staff"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "admin"]} allowAuthenticatedWithoutRole>
+                      <BarStaff />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/employees"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "admin"]} allowAuthenticatedWithoutRole>
+                      <BarStaff />
                     </ProtectedRoute>
                   }
                 />
