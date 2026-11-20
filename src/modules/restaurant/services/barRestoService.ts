@@ -376,4 +376,88 @@ export const barRestoService = {
 
     return sale;
   },
+
+  /**
+   * Créer un nouveau produit
+   */
+  async createProduct(branchId: string, product: Partial<BarProduct>) {
+    const effectiveId = resolveBarBranchId(branchId);
+    const { category, item_type, id, ...cleanData } = product as any;
+
+    const payload = {
+      ...cleanData,
+      branch_id: effectiveId,
+      name: product.name?.trim(),
+      brand: product.brand?.trim() || null,
+      units_per_case: Number(product.units_per_case) || 24,
+      price_per_unit: Number(product.price_per_unit) || 0,
+      price_per_case: Number(product.price_per_case) || 0,
+      cost_per_unit: Number(product.cost_per_unit) || 0,
+      cost_per_case: Number(product.cost_per_case) || 0,
+      stock_cases: Number(product.stock_cases) || 0,
+      stock_units: Number(product.stock_units) || 0,
+      is_active: product.is_active ?? true,
+    };
+
+    const { data, error } = await supabase
+      .from("bar_products")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as BarProduct;
+  },
+
+  /**
+   * Mettre à jour un produit existant (prix, nom, coût, etc.)
+   */
+  async updateProduct(productId: string, updates: Partial<BarProduct>) {
+    const { category, item_type, id, branch_id, created_at, ...cleanUpdates } = updates as any;
+
+    const { data, error } = await supabase
+      .from("bar_products")
+      .update(cleanUpdates)
+      .eq("id", productId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as BarProduct;
+  },
+
+  /**
+   * Supprimer (ou désactiver) un produit
+   */
+  async deleteProduct(productId: string) {
+    const { error } = await supabase
+      .from("bar_products")
+      .update({ is_active: false })
+      .eq("id", productId);
+
+    if (error) {
+      // Si la mise à jour échoue, tentative de suppression directe
+      const { error: delErr } = await supabase.from("bar_products").delete().eq("id", productId);
+      if (delErr) throw delErr;
+    }
+    return true;
+  },
+
+  /**
+   * Mettre à jour les prix en masse avec marge de pourcentage
+   */
+  async applyBulkMargin(
+    updates: { id: string; price_per_unit: number; price_per_case: number }[]
+  ) {
+    for (const item of updates) {
+      await supabase
+        .from("bar_products")
+        .update({
+          price_per_unit: item.price_per_unit,
+          price_per_case: item.price_per_case,
+        })
+        .eq("id", item.id);
+    }
+    return true;
+  },
 };

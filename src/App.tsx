@@ -70,6 +70,7 @@ import EmployeeSchedule from "./pages/employee/Schedule";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import BarDashboard from "./pages/bar/Dashboard";
 import BarPOS from "./pages/bar/POS";
+import BarProducts from "./pages/bar/Products";
 import BarInventory from "./pages/bar/Inventory";
 import BarCocktails from "./pages/bar/Cocktails";
 import BarHotel from "./pages/bar/Hotel";
@@ -322,6 +323,14 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "employee"]} allowAuthenticatedWithoutRole>
                       <BarPOS />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/bar/products"
+                  element={
+                    <ProtectedRoute allowedRoles={["salon_admin", "bar_admin", "admin"]} allowAuthenticatedWithoutRole>
+                      <BarProducts />
                     </ProtectedRoute>
                   }
                 />

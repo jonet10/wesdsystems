@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { StaggerContainer, StaggerItem } from "@/components/animations/AnimatedContainers";
 import { Button } from "@/components/ui/button";
@@ -14,11 +15,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { useActiveBranchId } from "@/lib/branch";
 import { toast } from "sonner";
-import { Package, Search, Plus, ArrowDownToLine, AlertCircle, Sparkles, RefreshCw } from "lucide-react";
+import { Package, Search, Plus, ArrowDownToLine, AlertCircle, Sparkles, RefreshCw, Pencil, Tag } from "lucide-react";
 import { barRestoService } from "@/modules/restaurant/services/barRestoService";
 import type { BarProduct } from "@/modules/restaurant/types";
 
 export default function BarInventory() {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { profile } = useAuth();
   const { format } = useCurrency();
@@ -186,6 +188,14 @@ export default function BarInventory() {
                     <Sparkles className="h-4 w-4" /> Charger Haïti
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/bar/products")}
+                  className="gap-1.5 font-bold text-xs border-primary/40 text-primary hover:bg-primary/10 whitespace-nowrap"
+                >
+                  <Tag className="h-3.5 w-3.5" /> Gérer Produits & Prix
+                </Button>
                 <Button size="sm" onClick={() => setNewProductModalOpen(true)} className="gap-1 font-bold whitespace-nowrap">
                   <Plus className="h-4 w-4" /> Nouveau Produit
                 </Button>
@@ -260,14 +270,25 @@ export default function BarInventory() {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleOpenEntry(p)}
-                                className="gap-1 text-xs font-bold"
-                              >
-                                <ArrowDownToLine className="h-3.5 w-3.5" /> Entrée Stock
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenEntry(p)}
+                                  className="gap-1 text-xs font-bold"
+                                >
+                                  <ArrowDownToLine className="h-3.5 w-3.5" /> Entrée Stock
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate("/bar/products")}
+                                  className="h-8 px-2 text-xs font-bold text-primary hover:bg-primary/10 gap-1"
+                                  title="Modifier le prix dans Produits & Tarifs"
+                                >
+                                  <Pencil className="h-3 w-3" /> Prix
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
